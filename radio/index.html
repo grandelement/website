@@ -5059,6 +5059,7 @@ document.addEventListener('DOMContentLoaded',function(){
  update();
 });
 </script>
+<style id="ge-radio-access-visibility-fix">#sunLabBtn[hidden],#reloadBtn[hidden],#geDebugOpen[hidden],#shipSunLabBtn[hidden]{display:none!important;visibility:hidden!important;pointer-events:none!important}</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -7979,13 +7980,10 @@ function syncRadioOfflineAccessUI(){
   // Restore Reload Library for access codes with reload permission.
   setUtility($('reloadBtn'),geRadioUtilityAllowed('reload')); // Verified Reload scope.
   setUtility($('legacyBtn'),permissions.legacy);
-  // Keep SUN LAB in the third footer slot for everyone; entry remains gated.
+  // SUN LAB is a scoped utility, not a public button shown to everyone.
   const sunLabUtility=$('sunLabBtn');
+  setUtility(sunLabUtility,permissions.sunLab);
   if(sunLabUtility){
-    sunLabUtility.hidden=false;
-    sunLabUtility.removeAttribute('hidden');
-    sunLabUtility.setAttribute('aria-hidden','false');
-    sunLabUtility.tabIndex=0;
     sunLabUtility.classList.toggle('ge-sunlab-locked',!permissions.sunLab);
     sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open Sun Lab':'Sun Lab requires an access code');
     sunLabUtility.title=permissions.sunLab?'Open Sun Lab':'Enter CODE to unlock Sun Lab';
