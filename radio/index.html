@@ -8987,6 +8987,7 @@ playBtn?.addEventListener('click',()=>{
   // It never dials BLITZ or deletes music when the connection disappears.
   if(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
     if(state.live||state.livePreparing)exitLiveMode('');
+    window.GEBackgrounds?.startOfflineBackgroundTwo?.();
     const saved=allowedCatalog();
     if(!saved.length){
       titleBtn.textContent='No saved songs found';
@@ -9579,6 +9580,11 @@ window.addEventListener('online',()=>{
     if(bg.auto && !bg.off) bg.timer=setInterval(()=>apply(bg.position+1),CONFIG.BG_AUTO_SECONDS*1000);
   }
   function onSongStart(){ if(bg.perSong && !bg.off && !bg.auto) apply(randomOrNext()); }
+  function startOfflineBackgroundTwo(){
+    if(!bg.files.length)return;
+    bg.off=false;bg.auto=false;bg.perSong=false;bg.shuffle=false;
+    stopTimer();apply(Math.min(1,bg.files.length-1));reflect();
+  }
   function resetDefaults(){
     // A shared URL is a snapshot only. Reload Library returns the radio to
     // its normal defaults instead of continuing to obey that snapshot.
@@ -9650,6 +9656,7 @@ window.addEventListener('online',()=>{
   buttons.auto.addEventListener('click',()=>{ bg.auto=!bg.auto; if(bg.auto){ bg.perSong=false; bg.shuffle=false; startTimer(); }else stopTimer(); reflect(); persist(); });
   window.GEBackgrounds={
     onSongStart,
+    startOfflineBackgroundTwo,
     writeShareState,
     getFiles:()=>bg.files.slice(),
     reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); },
@@ -11211,6 +11218,7 @@ async function registerServiceWorker(){
     }
     const currentIsCached=saved.includes(state.currentURL);
     const fallback=currentIsCached?state.currentURL:saved[0];
+    window.GEBackgrounds?.startOfflineBackgroundTwo?.();
     if(fallback && (!currentIsCached || audio.paused)){
       void playURL(fallback,{record:false,backgroundChange:false,userAction:false});
     }
@@ -15114,6 +15122,8 @@ function mount(){
  var note=document.createElement('p');note.textContent='Temporary repair diagnostics. No access codes or session tokens are copied.';
  var tools=document.createElement('div');
  tools.append(button('RUN CHECKS',function(){void run();}),button('COPY REPORT',function(){void copy();}),
+  button('OFFLINE STATUS',function(){void window.GEOffline?.diagnose?.().then(function(report){ui.report.value=JSON.stringify(report,null,2);ui.status.textContent='Offline diagnostic report ready.';});}),
+  button('REMOVE OFFLINE FILES',function(){void window.GEOffline?.remove?.().then(function(removed){ui.status.textContent=removed?'Saved offline files removed from this device.':'Removal canceled or not authorized.';void run();});}),
   button('CLOSE',function(){panel.hidden=true;}));
  var status=document.createElement('p');status.textContent='Opening the panel runs delivery tests.';
  var report=document.createElement('textarea');report.readOnly=true;report.setAttribute('aria-label','Copyable radio diagnostics report');
