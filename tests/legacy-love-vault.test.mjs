@@ -107,7 +107,7 @@ r=await request(admin,undefined,true);
 assert.equal(r.status,200,JSON.stringify(r.data));
 assert.equal(r.data.items.length,1);
 assert.equal(r.data.items[0].label,'LOVE · Original All Access');
-assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload']);
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload','sunlab','debug']);
 assert.equal(record.code_hash,legacyHash,'LOVE hashed with private Vault secret');
 assert.equal(schemaReady,true,'missing D1 Access Codes tables must be created by authenticated GET');
 assert.equal(schemaBatches,1,'Access Codes schema migrated exactly once');
@@ -123,7 +123,7 @@ assert.ok(deviceRedeem.data.device_session?.token,'Vault returns a signed device
 const rememberedToken=deviceRedeem.data.device_session.token;
 let restored=await request('/v1/public/access/device/restore',{token:rememberedToken,device_id:rememberedDeviceId});
 assert.equal(restored.status,200,JSON.stringify(restored.data));
-assert.equal(restored.data.capabilities?.sun_lab,true,'original LOVE restores Sun Lab only through Vault');
+assert.equal(restored.data.capabilities?.sun_lab,true,'code with Sun Lab scope restores Sun Lab through the Vault');
 assert.deepEqual(restored.data.scopes,deviceRedeem.data.scopes,'device restore cannot expand scopes');
 assert.ok(restored.data.music_session?.token,'remembered full access refreshes a signed Music session');
 restored=await request('/v1/public/access/device/restore',{token:rememberedToken,device_id:'visitor-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'});
@@ -149,7 +149,7 @@ assert.equal(r.data.code,'LOVE');
 record.scopes_json=JSON.stringify(['radio']);
 record.label='LOVE · Original Radio Gate';
 r=await request(admin,undefined,true);
-assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload'],
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload','sunlab','debug'],
   'existing mis-imported Radio-only LOVE is upgraded in-place');
 assert.equal(r.data.items[0].label,'LOVE · Original All Access');
 assert.equal(migrationCount,1,'permission correction does not issue a second LOVE record');

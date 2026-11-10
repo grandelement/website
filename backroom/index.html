@@ -973,6 +973,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="offline"><span>OFFLINE BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="legacy"><span>LEGACY BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="reload"><span>RELOAD BUTTON</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="sunlab"><span>SUN LAB BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="debug"><span>DEBUG BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="iam"><span>I AM · OFF BY DEFAULT</span></label>
     </div>
@@ -3735,10 +3736,11 @@ const backroomVaultManagers=(()=>{
     const displayName=$('brAccessDisplayName').value.trim().replace(/\s+/g,' ');
     const existing=editingCodeId?codeRows.find(row=>row.id===editingCodeId):null;
     if(displayName.length>80||/[\u0000-\u001f<>]/.test(displayName))throw Error('Use a shorter listener name without special brackets.');
-    // Preserve older hidden scopes on edit instead of revoking permissions by accident.
-    // New codes start with the one visible RADIO permission.
+    // Preserve only noneditable scopes; visible permission switches must
+    // support both ON and OFF for saved codes (including Sun Lab).
+    const editableScopes=new Set(scopeBoxes().map(box=>box.value));
     const scopes=[...new Set([
-      ...(existing?.scopes||replacementLegacyScopes).filter(scope=>scope!=='radio'),
+      ...(existing?.scopes||replacementLegacyScopes).filter(scope=>!editableScopes.has(scope)),
       ...scopeBoxes().filter(x=>x.checked).map(x=>x.value)
     ])];
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
