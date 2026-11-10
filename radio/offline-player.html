@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08121f"><title>GE Studios · Offline Music</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08121f"><link rel="manifest" href="./offline.webmanifest"><link rel="apple-touch-icon" href="./icons/apple-touch-icon.png"><title>GE Studios · Offline Music</title>
 <style>body{margin:0;background:#08121f;color:#eef5ff;font:16px system-ui,sans-serif;padding:18px;max-width:800px;margin:auto}h1{font-size:24px}button,a{border:1px solid #507c9d;background:#16334d;color:#fff;border-radius:9px;padding:11px 13px;font:inherit;text-decoration:none;display:inline-block;margin:3px}button:disabled{opacity:.5}#songs button{display:block;width:100%;text-align:left;margin:4px 0}#songs button.active{background:#285b80}audio{width:100%;margin:16px 0}small{color:#adc5da}#status{margin:12px 0;white-space:pre-wrap}#songs{margin-top:16px;max-height:55vh;overflow:auto}#save{display:none}</style></head><body>
 <h1>GRAND ELEMENT · OFFLINE MUSIC</h1>
 <p id="status" role="status">Reading downloaded music from this device…</p>
-<a href="./">RADIO</a><button id="rescan">FIND SAVED SONGS</button><button id="prev">PREVIOUS</button><button id="next">NEXT</button>
+<a href="./">RADIO</a><button id="installHelp" type="button">INSTALL PLAYER</button><button id="rescan">FIND SAVED SONGS</button><button id="prev">PREVIOUS</button><button id="next">NEXT</button>
 <audio id="player" controls playsinline preload="metadata"></audio>
 <div id="now"></div><a id="save" download>DOWNLOAD THIS SONG TO FILES</a>
 <small>Works without internet after this page and the songs are saved on this same Safari or Home Screen installation. Exported files can be transferred to another device. iOS may ask where to save.</small>
@@ -106,6 +106,10 @@ async function play(i){
  [...songsBox.children].forEach((b,n)=>b.classList.toggle('active',n===index));
  audio.play().catch(()=>{status.textContent='Tap Play in the audio player to start listening.'});
 }
+document.getElementById('installHelp').onclick=()=>{
+ const message='iPhone: open this page in Safari, tap Share, then Add to Home Screen. Android: open Chrome menu and choose Install app or Add to Home Screen. Open this player once online before disconnecting.';
+ status.textContent=message;
+};
 document.getElementById('rescan').onclick=scan;
 document.getElementById('prev').onclick=()=>play(index<=0?songs.length-1:index-1);
 document.getElementById('next').onclick=()=>play(index+1);
