@@ -2355,10 +2355,16 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
     say('Loading songs. Tap PLAY when the library is ready.');
     return false;
   }
+  const publicDefault=Array.isArray(window.GEPublicPlayerPlaylistPaths)?
+    new Set(window.GEPublicPlayerPlaylistPaths):new Set();
   const permitted=state.tracks.filter(t=>
     !LEGACY_ALBUMS.has(t.album)&&t.album!=='Singles'&&
-    (!access?.restricted||access.allowed.includes(t.path)));
-  if(!permitted.length){say('No playable non-Legacy songs are in the library.');return false}
+    (!access?.restricted||access.allowed.includes(t.path))&&
+    (!publicDefault.size||publicDefault.has(t.path)));
+  if(!permitted.length){
+    say(publicDefault.size?'No available songs in the default Player playlist. Check the Master approvals.':
+      'No playable non-Legacy songs are in the library.');return false
+  }
   // Keep the album-order queue stable. Shuffle selects a random starting
   // track and the preview engine shuffles NEXT, not the song list itself.
   const queue=permitted.map(t=>t.path);
