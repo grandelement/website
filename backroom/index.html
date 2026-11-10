@@ -931,7 +931,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brAccessAudit" class="backroomInlineStatus" role="status">LIVE SOURCE AUDIT NOT RUN YET.</div>
   <div id="brAccessSaved" class="backroomCodeList" aria-label="Every saved Vault code with direct Edit actions"></div>
 
-  <p class="brAccessNotice" id="brAccessLegacyNotice">The historic LOVE Radio Gate code is migrated into the same GE Vault access-code list. Select it to suspend, revoke, or replace it. A replacement must be issued before you retire LOVE.</p>
+  <p class="brAccessNotice" id="brAccessLegacyNotice">The global LOVE code is retired. Assign access to each new or existing Back Room code using the individual checkboxes below. Changes take effect only after SAVE CHANGES and Vault verification.</p>
   <details class="brSourceDetails">
     <summary>MANAGE CODES</summary>
     <div class="brAccessSecondary">
@@ -955,7 +955,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
     <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp">The name entered above is the actual Radio Gate code.</p>
+    <p class="brAccessNotice" id="brAccessCustomHelp">Access is controlled by the individual permissions checked below. LOVE is retired and cannot be issued.</p>
     <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
     <label><span>FAN / ACCESS NAME · SHOWN AT TOP OF MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
     <p id="brAccessDisplayNameHelp" class="brAccessNotice">Optional. This name appears at the top of Radio Music instead of the access code. If blank, the exact code the guest entered is shown for that browser session. Use the same name as the saved fan when appropriate; fan records are linked by ID, not name alone.</p>
@@ -969,7 +969,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
     <details class="brAccessCategory" open><summary>WEBSITE · RADIO · ACCESS</summary>
     <div class="backroomPermissions">
+      <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>WEBSITE ACCESS</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="music"><span>MUSIC</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="offline"><span>OFFLINE BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="legacy"><span>LEGACY BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="reload"><span>RELOAD BUTTON</span></label>
@@ -3528,7 +3532,7 @@ const backroomVaultManagers=(()=>{
     // For a NEW owner-created access code, show all four visible utility
     // permissions checked by default. Existing saved Vault permissions always
     // win on LOAD and are never silently expanded or overwritten.
-    const scopes=row?row.scopes:['radio','offline','legacy','reload'];
+    const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
     $('brAccessHours').value=row?.duration_seconds?Math.max(1,Math.round(row.duration_seconds/3600)):168;
