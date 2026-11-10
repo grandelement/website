@@ -639,7 +639,42 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessCopy{min-height:50px;font-weight:900}
 /* This specific override also defeats the older !important revealed-key panel rule. */
 #brPanel-access #brAccessOneTime:not([hidden]){display:none!important}
-</style></head>
+</style><style id="br-access-single-screen-20261110">
+/* One full-width panel per view, not nested panels. The original editors stay mounted. */
+#backroomMain #brTabRadio,#backroomMain #brTabFans{display:none!important}
+#backroomMain .backroomTabs{
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:3px!important;margin:0 -14px 3px!important;padding:4px 9px!important;
+}
+#backroomMain .backroomTabs button[data-tab]{grid-column:auto!important;min-height:31px!important;
+ height:32px!important;padding:3px 2px!important;margin:0!important;
+ border-radius:6px!important;font-size:clamp(11px,3vw,15px)!important;line-height:1.08!important}
+#backroomMain .backroomTabs #brTabAccess{grid-column:1!important;grid-row:1!important}
+#backroomMain #brAccessViews:not([hidden]){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:4px;margin:3px 0 5px;padding:0}
+#backroomMain #brAccessViews[hidden]{display:none!important}
+#backroomMain #brAccessViews button{min-width:0;min-height:33px;padding:4px 5px;
+ font-size:clamp(12px,3.1vw,15px);font-weight:850;
+ background:#071e2d;color:#cdefff;border:1px solid #376987;border-radius:7px}
+#backroomMain #brAccessViews button[aria-pressed="true"]{background:#125d80;border-color:#9adfff;color:#fff}
+#backroomMain #backroomTabPanels,#backroomMain .backroomTabPanel{width:100%!important;max-width:none!important;
+ margin:0!important;padding:0!important;border:0!important;background:transparent!important;
+ box-shadow:none!important}
+#backroomMain #brPanel-radio > section,#backroomMain #brPanel-fans > section,#backroomMain #brPanel-access > section{
+ max-width:none!important;width:100%!important;box-sizing:border-box!important;
+ margin:0!important;padding:2px 0!important;border:0!important;box-shadow:none!important;background:transparent!important}
+#backroomMain #brPanel-radio > section > p:first-of-type,
+#backroomMain #brPanel-radio > section > p:last-of-type{display:none!important}
+#backroomMain #brMusicRadioMaster,#backroomMain #brFanPlaylistVault{
+ max-width:none!important;width:100%!important;box-sizing:border-box!important;
+ margin:3px 0!important;padding:5px!important;border:0!important;box-shadow:none!important}
+#backroomMain #brAccessOwnerTools{display:none!important}
+@media(max-width:480px){
+ #backroomMain .backroomTabs{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ #backroomMain .backroomTabs button[data-tab]{min-height:31px!important;height:32px!important;font-size:clamp(10.5px,3vw,14px)!important}
+}
+</style>
+</head>
 <body>
 <div id="lockScreen">
   <div class="lockCard">
@@ -682,6 +717,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
+  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS</button>
   <button id="brTabWelcome" type="button" role="tab" data-tab="welcome" aria-selected="true">WELCOME</button>
   <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
@@ -690,7 +726,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">PLAYER</button>
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
-  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabFans" type="button" role="tab" data-tab="fans" aria-selected="false">FANS</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
@@ -1143,6 +1178,15 @@ function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]:not([hidden])')];
   const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
+  const visibleCategories=categories.filter(c=>c!=='radio'&&c!=='fans');
+  let accessView='radio';
+  const accessSubnav=document.createElement('nav');
+  accessSubnav.id='brAccessViews';accessSubnav.setAttribute('aria-label','Access views');accessSubnav.hidden=true;
+  for(const [label,view] of [['PLAYER','radio'],['CODES','access'],['FANS','fans']]){
+    const control=document.createElement('button');control.type='button';control.dataset.accessView=view;control.textContent=label;
+    control.addEventListener('click',()=>activate(view));accessSubnav.appendChild(control);
+  }
+  nav.insertAdjacentElement('afterend',accessSubnav);
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
@@ -1156,7 +1200,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='fans'||category==='playlists'||category==='moon'||category==='music'){
+    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='fans'||category==='radio'||category==='playlists'||category==='moon'||category==='music'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -1245,10 +1289,19 @@ function installBackroomTabs(){
   function activate(tab,focus=false){
     if(tab==='playlists')tab='music';
     if(!panels.has(tab))tab='welcome';
+    if(tab==='radio'||tab==='fans'||tab==='access'){
+      if(tab!=='access')accessView=tab;
+      else tab=accessView;
+    }
+    const grouped=['radio','fans','access'].includes(tab),topTab=grouped?'access':tab;
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
+    accessSubnav.hidden=!grouped;
+    for(const item of accessSubnav.querySelectorAll('button')){
+      item.setAttribute('aria-pressed',String(item.dataset.accessView===tab));
+    }
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
-    for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
+    for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
   }
@@ -1256,10 +1309,10 @@ function installBackroomTabs(){
     btn.addEventListener('click',()=>activate(btn.dataset.tab));
     btn.addEventListener('keydown',e=>{
       if(!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;
-      e.preventDefault();const at=categories.indexOf(btn.dataset.tab);
-      const delta=e.key==='ArrowDown'?5:e.key==='ArrowUp'?-5:e.key==='ArrowRight'?1:-1;
-      const idx=e.key==='Home'?0:e.key==='End'?categories.length-1:(at+delta+categories.length)%categories.length;
-      activate(categories[idx],true);
+      e.preventDefault();const at=visibleCategories.indexOf(btn.dataset.tab);
+      const delta=e.key==='ArrowDown'?4:e.key==='ArrowUp'?-4:e.key==='ArrowRight'?1:-1;
+      const idx=e.key==='Home'?0:e.key==='End'?visibleCategories.length-1:(at+delta+visibleCategories.length)%visibleCategories.length;
+      activate(visibleCategories[idx],true);
     });
   }
   // Show one useful section when first entering each category.
@@ -1273,6 +1326,7 @@ function installBackroomTabs(){
   if(initial==='home'||initial==='content')initial='welcome';
   if(initial==='playlists')initial='music';
   activate(initial);
+  window.GE_BACKROOM_OPEN_ACCESS_VIEW=view=>{if(['radio','access','fans'].includes(view))activate(view)};
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
     activate(btn.dataset.openBr,true);
     document.getElementById('backroomTabs')?.scrollIntoView({behavior:'smooth',block:'nearest'});
