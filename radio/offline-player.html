@@ -7,7 +7,7 @@
 <audio id="player" controls playsinline preload="metadata"></audio>
 <div id="now"></div><a id="save" download>DOWNLOAD THIS SONG TO FILES</a>
 <small>Works without internet after this page and the songs are saved on this same Safari or Home Screen installation. Exported files can be transferred to another device. iOS may ask where to save.</small>
-<label for="playlist">PLAYLIST</label> <select id="playlist" aria-label="Saved playlist"><option value="all">ALL DOWNLOADED SONGS</option></select><div id="songs"></div>
+<label for="playlist">PLAYLIST</label> <select id="playlist" aria-label="Saved playlist"><option value="all">ALL DOWNLOADED SONGS</option></select><button id="downloadPlaylist" type="button">DOWNLOAD SELECTED PLAYLIST</button><progress id="downloadProgress" max="100" value="0" style="width:100%;display:block;margin:12px 0"></progress><small id="downloadInfo">0% · ready</small><div id="songs"></div>
 <script>
 (async function(){
 'use strict';
@@ -52,6 +52,40 @@ function showPlaylist(){
  status.textContent=songs.length?songs.length+' '+label+' available locally. Tap a song to play.':'No locally saved songs in this selection. Your downloads were not deleted.';
 }
 playlistSelect.addEventListener('change',showPlaylist);
+document.getElementById('downloadPlaylist').onclick=async()=>{
+ const button=document.getElementById('downloadPlaylist'),progress=document.getElementById('downloadProgress'),info=document.getElementById('downloadInfo');
+ if(!navigator.onLine){info.textContent='Connect to download. Saved files remain intact.';return}
+ if(!verified()){info.textContent='Verify your access online before downloading. No files changed.';return}
+ const selected=savedPlaylists.find(p=>String(p.id)===playlistSelect.value);
+ if(!selected||!Array.isArray(selected.songs)){info.textContent='Select a published playlist first.';return}
+ button.disabled=true;let completed=0,failed=0,downloaded=0,bytes=0;
+ const start=performance.now();
+ try{
+  const cache=await caches.open('GE_SHARED_OFFLINE_V2');
+  for(const song of selected.songs){
+   const url=new URL(normalizedPath(song),location.origin+'/').href;
+   try{
+    const existing=await caches.match(url,{ignoreSearch:true});
+    if(!existing||!existing.ok||existing.status!==200){
+     const response=await fetch(url,{cache:'no-store'});
+     if(!response.ok||response.status!==200||/text\/html/i.test(response.headers.get('content-type')||''))throw new Error('Song unavailable');
+     const blob=await response.blob();
+     if(!blob.size)throw new Error('Empty song');
+     bytes+=blob.size;
+     await cache.put(url,new Response(blob,{status:200,headers:{'Content-Type':response.headers.get('content-type')||'audio/mpeg'}}));
+     downloaded++;
+    }
+   }catch(e){failed++;console.warn('Offline song unavailable',song,e)}
+   completed++;
+   const pct=Math.round(completed/selected.songs.length*100),seconds=Math.max((performance.now()-start)/1000,0.001);
+   const speed=bytes/seconds,remaining=selected.songs.length-completed;
+   progress.value=pct;
+   info.textContent=pct+'% · '+(speed/1048576).toFixed(2)+' MB/s · '+(speed&&downloaded?Math.ceil(remaining*bytes/downloaded/speed)+'s ETA':'ETA calculating');
+  }
+  info.textContent=failed?'INCOMPLETE · '+failed+' unavailable. Reconnect and retry.':'100% · Download completed. Verify offline playback before marking READY.';
+  await scan();
+ }finally{button.disabled=false}
+};
 function verified(){
  try{
   const receipt=JSON.parse(localStorage.getItem(entitlement)||'null');
