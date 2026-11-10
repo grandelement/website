@@ -15120,7 +15120,7 @@ function mount(){
  var status=document.createElement('p');status.textContent='Opening the panel runs delivery tests.';
  var report=document.createElement('textarea');report.readOnly=true;report.setAttribute('aria-label','Copyable radio diagnostics report');
  panel.append(title,note,tools,status,report);
- (document.getElementById('bottomActions')||document.body).appendChild(open);
+ (()=>{const actions=document.getElementById('bottomActions');if(actions)actions.insertBefore(open,actions.firstElementChild);else document.body.appendChild(open);})();
  document.body.appendChild(panel);
  ui={panel:panel,open:open,status:status,report:report,service:null};
  if(typeof syncRadioOfflineAccessUI==='function')syncRadioOfflineAccessUI();
@@ -15219,83 +15219,115 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
 </style>
 
 <style id="ge-radio-tetris-footer-20261110">
-/* Portrait-only compaction. Existing buttons, CODE gate, audio and colors stay intact.
-   Flatten the two footer containers into one tightly packed 4 + 3 grid. */
+/* A real two-row phone footer. Do NOT flatten the button containers:
+   dynamic DEBUG must remain in the same grid as CODE, CONTACT, SHARE.
+   RELOAD, SUPPORT, SUN LAB occupy the next full row. */
 @media (orientation:portrait) and (max-width:700px) {
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip{
-   display:grid!important;
-   grid-template-columns:repeat(12,minmax(0,1fr))!important;
-   grid-template-rows:auto minmax(38px,auto) minmax(38px,auto)!important;
-   grid-auto-flow:row!important;
-   gap:6px!important;
-   align-items:stretch!important;
-   justify-items:stretch!important;
-   width:94vw!important;
-   max-width:760px!important;
-   margin:0 auto!important;
-   padding:0!important;
-   border:0!important;
-   background:transparent!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
-   grid-area:1 / 1 / 2 / 13!important;
-   width:100%!important;max-width:100%!important;
-   margin:0!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #supportText{display:none!important}
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
-   display:contents!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #geDebugOpen{
-   grid-area:2 / 1 / 3 / 4!important;
-   color:#effbff!important;background:rgba(9,34,68,.83)!important;
-   border:1px solid #67b8e5!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
-   grid-area:2 / 4 / 3 / 7!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn{
-   grid-area:2 / 7 / 3 / 10!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{
-   grid-area:2 / 10 / 3 / 13!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #reloadBtn{
-   grid-area:3 / 1 / 4 / 5!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > .bc-btn{
-   grid-area:3 / 5 / 4 / 9!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn{
-   grid-area:3 / 9 / 4 / 13!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #geDebugOpen:not([hidden]),
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #reloadBtn:not([hidden]),
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > .bc-btn,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn:not([hidden]){
-   box-sizing:border-box!important;
-   position:static!important;
-   width:100%!important;min-width:0!important;max-width:none!important;
-   height:auto!important;min-height:38px!important;
-   margin:0!important;padding:6px 3px!important;
-   align-items:center!important;justify-content:center!important;
-   text-align:center!important;white-space:normal!important;
-   font-size:clamp(11px,3vw,14px)!important;line-height:1.15!important;
- }
- /* When DEBUG is not entitled, the public first row becomes 3 equal buttons. */
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip:not(:has(#geDebugOpen:not([hidden]))) #bottomActions > #accessLaunchBtn{
-   grid-area:2 / 1 / 3 / 5!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip:not(:has(#geDebugOpen:not([hidden]))) #bottomActions > #contactLaunchBtn{
-   grid-area:2 / 5 / 3 / 9!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip:not(:has(#geDebugOpen:not([hidden]))) #bottomActions > #shareBtn{
-   grid-area:2 / 9 / 3 / 13!important;
- }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip {
+    display:flex!important;
+    flex-flow:column nowrap!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    gap:5px!important;
+    width:94vw!important;
+    max-width:760px!important;
+    min-width:0!important;
+    margin:0 auto!important;
+    padding:0!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup {
+    flex:0 0 auto!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #supportText {
+    display:none!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions {
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-template-rows:minmax(42px,auto)!important;
+    grid-auto-rows:minmax(42px,auto)!important;
+    align-items:stretch!important;
+    justify-items:stretch!important;
+    gap:5px!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:5px!important;
+    box-sizing:border-box!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #geDebugOpen:not([hidden]){
+    display:flex!important;
+    grid-area:1 / 1 / 2 / 2!important;
+    color:#effbff!important;
+    background:rgba(9,34,68,.83)!important;
+    border:1px solid #67b8e5!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
+    grid-area:1 / 2 / 2 / 3!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn{
+    grid-area:1 / 3 / 2 / 4!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{
+    grid-area:1 / 4 / 2 / 5!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
+    display:grid!important;
+    flex:0 0 auto!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:minmax(42px,auto)!important;
+    align-items:stretch!important;
+    justify-items:stretch!important;
+    gap:5px!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    box-sizing:border-box!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #reloadBtn {
+    grid-area:1 / 1 / 2 / 2!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > .bc-btn {
+    grid-area:1 / 2 / 2 / 3!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn {
+    grid-area:1 / 3 / 2 / 4!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > :is(#geDebugOpen:not([hidden]),#accessLaunchBtn,#contactLaunchBtn,#shareBtn),
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > :is(#reloadBtn:not([hidden]),.bc-btn,#sunLabBtn:not([hidden])) {
+    position:static!important;
+    box-sizing:border-box!important;
+    min-width:0!important;
+    max-width:100%!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:42px!important;
+    margin:0!important;
+    padding:6px 2px!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+    white-space:normal!important;
+    font-size:clamp(10px,2.9vw,14px)!important;
+    line-height:1.1!important;
+  }
+  /* Guest view remains compact if DEBUG is permission-hidden. */
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions:not(:has(> #geDebugOpen:not([hidden]))) > #accessLaunchBtn {
+    grid-area:1 / 1 / 2 / 2!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions:not(:has(> #geDebugOpen:not([hidden]))) > #contactLaunchBtn {
+    grid-area:1 / 2 / 2 / 3!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions:not(:has(> #geDebugOpen:not([hidden]))) > #shareBtn {
+    grid-area:1 / 3 / 2 / 5!important;
+  }
 }
 </style>
 </body>
