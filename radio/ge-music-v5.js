@@ -989,6 +989,10 @@ function albumActions(album,tracks){
    const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play full album '+album);
    play.addEventListener('click',()=>void playTrack(tracks[0],tracks.map(t=>t.path),true));
    actions.append(play);
+   const share=elem('button','','SHARE ALBUM');share.type='button';
+   share.setAttribute('aria-label','Share full album '+album);
+   share.addEventListener('click',()=>shareExplicitAlbum(album));
+   actions.append(share);
  }
 
  return actions;
@@ -2238,6 +2242,15 @@ window.addEventListener('message',event=>{
  geOfflineMeter.querySelector('.geMusicOfflineRate').textContent=p.speed>0?p.rate:'';
  geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=Number.isFinite(p.eta)?p.remaining:'';
 });
+const shareSelectedButton=elem('button','shareSelected','SHARE');
+shareSelectedButton.type='button';
+shareSelectedButton.setAttribute('aria-label','Share selected songs or current playlist');
+el('.selectionActions').insertBefore(shareSelectedButton,el('.buySelected'));
+shareSelectedButton.addEventListener('click',()=>{
+ const selected=shareSelection();
+ if(!selected){say('Select an album, playlist or songs to share.');return}
+ void window.GEShareMusicSelection?.(selected);
+});
 el('.offlineSelected').addEventListener('click',()=>{
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent=selectedTracks().length+' songs checked. Choose what to save on this device.';
  musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
@@ -2371,7 +2384,50 @@ function preloadCatalog(){
       .finally(()=>{state.loading=false;});
   }
 }
-window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibrary,
+// SHARE exports only a playlist's song paths and label. No fan Vault key,
+// owner token, access code, signed session, or entitlement leaves this device.
+function shareSelection(){
+ const valid=paths=>[...new Set((Array.isArray(paths)?paths:[]).map(canonical).filter(Boolean))].slice(0,250);
+ const make=(name,songs,kind,id='')=>{
+  const paths=valid(songs);
+  return paths.length?{name:String(name||'Music playlist').slice(0,80),paths,kind,id:String(id||'').slice(0,100)}:null;
+ };
+ if(state.view.startsWith('album:')){
+  const album=state.view.slice(6),tracks=state.tracks.filter(t=>t.album===album);
+  return make(album,tracks.map(t=>t.path),'album');
+ }
+ const viewId=state.view.replace(/^(?:vault|local):/,'');
+ if(state.view.startsWith('vault:')){
+  const p=state.publicLists.find(x=>x.id===viewId);
+  return p?make(p.name,p.songs,'playlist',p.id):null;
+ }
+ if(state.view.startsWith('local:')){
+  const p=readMine().find(x=>x.id===viewId);
+  return p?make(p.name,p.songs,'user',p.id):null;
+ }
+ if(state.activePlaylist){
+  const p=[...state.fanLists,...state.publicLists,...readMine()].find(x=>
+    x.id===state.activePlaylist.id&&x.name===state.activePlaylist.name);
+  const songs=p?.songs||selectedTracks().map(t=>t.path);
+  return make(state.activePlaylist.name,songs,
+    ['fan','user'].includes(state.activePlaylist.source)?'user':'playlist',
+    state.activePlaylist.id);
+ }
+ const chosen=chosenSongs();
+ if(state.view==='access-code'&&chosen.length)return make('My access songs',chosen.map(t=>t.path),'selection');
+ if(state.view==='checked'||state.view==='playlist-order')
+  return make(state.playlistDraftName||'My selected songs',chosen.map(t=>t.path),'selection');
+ if(state.open&&state.selected.size)
+  return make('My selected songs',selectedTracks().map(t=>t.path),'selection');
+ return null;
+}
+function shareExplicitAlbum(name){
+ const tracks=state.tracks.filter(t=>t.album===name);
+ const selection={name,paths:tracks.map(t=>t.path),kind:'album'};
+ if(!selection.paths.length){say('This album is not loaded yet.');return}
+ void window.GEShareMusicSelection?.(selection);
+}
+window.GEMusicV5={open,close,preload:preloadCatalog,shareSelection,showTestLibrary:openTestLibrary,
  acceptRadioCatalog:(urls)=>{
   const paths=[...new Set((Array.isArray(urls)?urls:[]).map(canonical).filter(Boolean))];
   if(!paths.length)throw Error('Radio supplied no playable songs');
