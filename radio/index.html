@@ -9748,7 +9748,13 @@ window.addEventListener('online',()=>{
     stopTimer();
     if(bg.auto && !bg.off) bg.timer=setInterval(()=>apply(bg.position+1),CONFIG.BG_AUTO_SECONDS*1000);
   }
-  function onSongStart(){ if(bg.perSong && !bg.off && !bg.auto) apply(randomOrNext()); }
+  let sharedFirstBackgroundPending=!!params.get('bg');
+  function onSongStart(){
+    if(!bg.perSong||bg.off||bg.auto)return;
+    // Preserve the shared picture for the first song. Advance with later songs.
+    if(sharedFirstBackgroundPending){sharedFirstBackgroundPending=false;return;}
+    apply(randomOrNext());
+  }
   function startOfflineBackgroundTwo(){
     if(!bg.files.length)return;
     bg.off=false;bg.auto=false;bg.perSong=false;bg.shuffle=false;
