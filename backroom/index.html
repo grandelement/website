@@ -2791,6 +2791,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
+  let accessLastReadError=''; // Never present a failed Vault read as an empty record set.
   // The GitHub registry is the single playlist master for Access Codes.
   // The legacy BLITZ list is a separate radio source, never an access-code master.
   let accessDJPlaylists=[],accessDJLoaded=false,accessDJSource='',accessDJError='',accessDefaultsPending=false;
@@ -3917,6 +3918,7 @@ const backroomVaultManagers=(()=>{
       const codes=await vaultAction('/manage/access-codes');
       if(!Array.isArray(codes.items))throw Error('Vault returned no code list.');
       codeRows=codes.items;
+      accessLastReadError='';
       legacyLoveAudit=codes.legacy_love||null;
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
@@ -3928,12 +3930,15 @@ const backroomVaultManagers=(()=>{
         if(!editingCodeId&&!unsavedName&&selectedCode())showCodeEditor(selectedCodeId);
       }
       const lovePresent=codeRows.some(row=>row.id==='access_legacy_love_v1');
-      accessStatus('VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
+      accessStatus(codeRows.length===0?
+        'VAULT RETURNED ZERO ACCESS CODES · This is a verified empty response, NOT proof older records were deleted. Do not recreate records until the Vault D1 source is checked.':
+        'VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
         ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
       return true;
     }catch(err){
+      accessLastReadError=String(err.message||err);
       accessLoaded=false;renderAccessCodes();
-      accessStatus('CODES NOT LOADED · '+String(err.message||err)+' · Previously loaded codes are UNVERIFIED, not deleted. Reconnect and refresh before editing.');
+      accessStatus('CODES NOT LOADED · '+accessLastReadError+' · Previously loaded codes are UNVERIFIED, not deleted. Reconnect and refresh before editing.');
       return false;
     }
   }
@@ -4233,6 +4238,8 @@ const backroomVaultManagers=(()=>{
       vaultIndicator(verified?'CONNECTED':(codesOk||githubOk)?'PARTIAL':'OFFLINE',
         codesText+'; '+playlistText+(accessDJError?'; '+accessDJError:''));
       accessStatus(codesText+' · '+playlistText+
+        (!codesOk&&accessLastReadError?' · VAULT ERROR: '+accessLastReadError:'')+
+        (codesOk&&codeRows.length===0?' · VAULT RETURNED ZERO RECORDS · DO NOT RECREATE':'')+
         (verified?' · PRIVATE VAULT + GITHUB VERIFIED':' · CHECK CONNECTION DETAILS')+
         (accessDJError?' · '+accessDJError:''));
       return verified;
