@@ -8069,14 +8069,14 @@ syncRadioOfflineAccessUI();
 let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
 let geInlineMusicActive=false,geInlineMusicPaused=true,geInlineMusicTitle='',geInlineMusicCurrentPath='';
 let gePendingMainMusicDirection='';
-let gePlaylistQuickQueue=[],gePlaylistQuickLabels=[],gePlaylistQuickPath='',gePlaylistQuickName='',gePlaylistQuickIsCustom=false;
+let gePlaylistQuickQueue=[],gePlaylistQuickLabels=[],gePlaylistQuickPath='',gePlaylistQuickName='',gePlaylistQuickIsCustom=false,gePlaylistQuickShareKind='song';
 function gePlaylistQuickDismiss(){
  const pane=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
  if(pane)pane.hidden=true;
  if(button)button.setAttribute('aria-expanded','false');
 }
 function gePlaylistQuickClear(){
- gePlaylistQuickIsCustom=false;gePlaylistQuickIdentity=null;gePlaylistQuickShowSaveMessage('');
+ gePlaylistQuickIsCustom=false;gePlaylistQuickShareKind='song';gePlaylistQuickIdentity=null;gePlaylistQuickShowSaveMessage('');
  gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
  syncSongPosition();
  gePlaylistQuickDismiss();
@@ -8153,7 +8153,7 @@ function gePlaylistQuickMove(from,step){
  queue.splice(to,0,path);gePlaylistQuickLabels.splice(to,0,label);
  gePlaylistQuickPersist();
  const previousScroll=$('gePlaylistQuickSongs')?.scrollTop||0;
- gePlaylistQuickSet(gePlaylistQuickName,queue,{custom:true,labels:gePlaylistQuickLabels,currentPath:gePlaylistQuickPath,keepOpen:true});
+ gePlaylistQuickSet(gePlaylistQuickName,queue,{custom:true,labels:gePlaylistQuickLabels,currentPath:gePlaylistQuickPath,keepOpen:true,shareKind:gePlaylistQuickShareKind,playlistIdentity:gePlaylistQuickIdentity});
  if($('gePlaylistQuickSongs'))$('gePlaylistQuickSongs').scrollTop=previousScroll;
  const list=$('gePlaylistQuickSongs');
  if(list){
@@ -8168,11 +8168,13 @@ function gePlaylistQuickMove(from,step){
 function gePlaylistQuickSet(playlist,paths,details){
  const custom=!!details?.custom&&paths.length>0;
  gePlaylistQuickIsCustom=custom;
+ gePlaylistQuickShareKind=['song','album','playlist','user','selection'].includes(details?.shareKind)?details.shareKind:(custom?'selection':'song');
  if(!paths.length){gePlaylistQuickClear();return;}
  gePlaylistQuickQueue=paths.slice();
  gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
  gePlaylistQuickName=String(playlist||'CURRENT PLAYLIST').trim().slice(0,100)||'CURRENT PLAYLIST';
- if(Object.prototype.hasOwnProperty.call(details||{},'playlistIdentity')){gePlaylistQuickIdentity=details.playlistIdentity;gePlaylistQuickShowSaveMessage('');}
+ gePlaylistQuickIdentity=details?.playlistIdentity||null;
+ gePlaylistQuickShowSaveMessage('');
  gePlaylistQuickPath=(details?.currentPath&&paths.includes(details.currentPath)?details.currentPath:paths[0])||'';
  const strip=$('gePlaylistQuick'),toggle=$('gePlaylistQuickToggle'),list=$('gePlaylistQuickSongs');
  if(!strip||!toggle||!list)return;
@@ -8466,7 +8468,7 @@ window.GEMusicV5Bridge={
   try{
    frame.GESetMusicQueueShuffle?.(state.shuffle);
    const ok=frame.GEPlayLibraryQueue(queue,path,playlistName);
-   if(ok)gePlaylistQuickSet(playlistName,queue,playlistDetails);
+   if(ok)gePlaylistQuickSet(playlistName,queue,{...playlistDetails,currentPath:path});
    return ok?{ok:true}:{ok:false,message:'The complete playlist cannot be previewed yet.'};
   }catch(error){return {ok:false,message:'Could not start this song preview.'}}
  }
@@ -9449,25 +9451,39 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!geQuickSongPanel.hidden){geCloseQuickSongPanel();titleBtn.focus();}
 });
 $('chooseSongsBtn')?.addEventListener('click',()=>window.GEMusicV5?.open?.());
-$('shareBtn').addEventListener('click',async()=>{
-  if(state.live||state.livePreparing){
-    await geSendShare(liveShareURL(),CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio');
-    return;
+// SHARE means the active PLAYER playlist, not the Radio homepage.
+// Never silently substitute the bare /radio/ URL for a chosen song or mix.
+function geActiveShareSelection(){
+  const paths=gePlaylistQuickQueue.map(canonicalSongPath).filter(Boolean);
+  if(paths.length){
+    const name=gePlaylistQuickName||'Current playlist';
+    // Only the listener's currently active queue is sent. Unrelated checked
+    // songs and a stale saved playlist must not replace it.
+    const selectedPath=canonicalSongPath(geInlineMusicCurrentPath||gePlaylistQuickPath);
+    return {name,paths,
+      kind:gePlaylistQuickShareKind==='song'&&paths.length>1?'selection':gePlaylistQuickShareKind,
+      id:gePlaylistQuickIdentity?.id||'',
+      startPath:paths.includes(selectedPath)?selectedPath:paths[0]};
   }
-  // The currently playing user, album or GE playlist takes priority.
-  const currentQueue=geInlineMusicActive&&gePlaylistQuickQueue.length?
-    {name:gePlaylistQuickName||'Current playlist',paths:gePlaylistQuickQueue.slice(),
-     kind:gePlaylistQuickIdentity?.source==='fan'?'user':'playlist',
-     id:gePlaylistQuickIdentity?.id||'',startPath:geInlineMusicCurrentPath}:null;
-  const selected=currentQueue||window.GEMusicV5?.shareSelection?.();
+  const music=window.GEMusicV5?.shareSelection?.();
+  if(music?.paths?.length)return music;
+  const played=canonicalSongPath(geInlineMusicCurrentPath);
+  if(played)return {name:geInlineMusicTitle||'Grand Element song',paths:[played],kind:'song',startPath:played};
+  const native=canonicalSongPath(state.currentURL);
+  if(native&&!isStationID(state.currentURL))return {name:parseTrack(state.currentURL).song||'Grand Element song',paths:[native],kind:'song',startPath:native};
+  return null;
+}
+$('shareBtn').addEventListener('click',async()=>{
+  const selected=geActiveShareSelection();
   if(selected?.paths?.length){
     await window.GEShareMusicSelection(selected);
     return;
   }
-  const url=await resolvedShareURL();
-  const song=state.currentURL&&!isStationID(state.currentURL)?
-    parseTrack(state.currentURL).song:'Grand Element Music';
-  await geSendShare(url,song);
+  if(state.live||state.livePreparing){
+    await geSendShare(liveShareURL(),CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio');
+    return;
+  }
+  setStatus('SHARE NEEDS A SONG OR ACTIVE PLAYLIST · Choose a playlist in MUSIC or start a song, then tap SHARE.');
 });
 $('homeLink').addEventListener('click',()=>{
   // The blue Sun is ordinary website navigation, never a hidden audio toggle.
