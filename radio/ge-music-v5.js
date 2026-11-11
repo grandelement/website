@@ -1438,20 +1438,31 @@ function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
  // not proof of paid-content delivery or a full-length song license.
  const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:
    state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
- const playlistName=state.playlistDraftName.trim()||state.activePlaylist?.name||'MY MUSIC LIST';
- const entitlement=musicAccessActive();
- const baseline=entitlement?.restricted
-  ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
-  :state.tracks.map(t=>t.path);
- const custom=!shuffleAll&&Array.isArray(queueOverride)&&queueOverride.length>0&&queue.length>1;
- // Any explicitly selected checked-song queue is the listener's current playlist,
- // even when every song in the library happens to be checked.
+ // Describe what the listener actually chose, not a stale playlist label.
+ // An album, saved playlist, or checked selection is shareable in its exact order.
+ // The automatic PLAYER/full-song catalog is NOT a listener-created playlist.
+ const albumSongs=state.tracks.filter(t=>t.album===track.album).map(t=>t.path);
+ const fullAlbum=!shuffleAll&&queue.length>1&&queue.length===albumSongs.length&&
+   queue.every(path=>albumSongs.includes(path));
+ const chosenList=!shuffleAll&&state.activePlaylist?state.activePlaylist:null;
+ const explicitQueue=!shuffleAll&&Array.isArray(queueOverride)&&queueOverride.length>0;
+ const custom=explicitQueue&&queue.length>1;
+ const listKind=fullAlbum?'album':chosenList?
+   (['fan','user'].includes(chosenList.source)?'user':'playlist'):
+   custom?'selection':'song';
+ const playlistName=fullAlbum?track.album:chosenList?.name||
+   (custom?(state.playlistDraftName.trim()||'MY SELECTED SONGS'):'SONG');
+ // This is a selection-only description; it never carries a Vault entitlement.
  const known=new Map(state.tracks.map(t=>[t.path,t]));
  const labels=queue.map(path=>{
   const song=known.get(path);
   return song?song.title+' — '+song.album:path.split('/').pop().replace(/\.(mp3|m4a|ogg|wav)$/i,'');
  });
- const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels,allLibrary:!!shuffleAll,playlistIdentity:state.activePlaylist?{source:state.activePlaylist.source,id:state.activePlaylist.id,name:state.activePlaylist.name}:null});
+ const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{
+  custom,labels,allLibrary:!!shuffleAll,shareKind:shuffleAll?'song':listKind,
+  playlistIdentity:!fullAlbum&&chosenList?
+   {source:chosenList.source,id:chosenList.id,name:chosenList.name}:null
+ });
  if(outcome?.ok){
   if(showPlayer){
    // Use ONLY the existing main Radio player. The Gate/audio controller
