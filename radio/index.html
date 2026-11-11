@@ -6726,7 +6726,9 @@ function allowedCatalog(){
   // Offline must use saved media URLs, not online manifest URLs or the live stream.
   // This is restricted to existing owner/demo access pending verified paid entitlements.
   if(offlinePlaybackMode() && geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
-    const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)).sort(orderedSort);
+    const limit=geOfflineSongAllowance();
+    const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)&&
+      (!limit||limit.has(canonicalSongPath(url)))).sort(orderedSort);
     if(personalSongMode){
       const chosen=saved.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
       if(chosen.length)return chosen;
@@ -7908,17 +7910,47 @@ function geOfflineDeviceGrantValid(){
     const id=String(window.GEVault?.anonId||'');
     if(!id)return false;
     const receipt=JSON.parse(localStorage.getItem(GE_OFFLINE_LOCAL_ENTITLEMENT)||'null');
-    if(receipt?.verified===true&&receipt.device_id===id)return true;
-    // Upgrade previously verified device grants without contacting Vault.
     const grant=JSON.parse(localStorage.getItem(GE_OFFLINE_DEVICE_GRANT_KEY)||'null');
+    // Even an old local receipt must expire with the signed device grant.
+    const until=Number(receipt?.until||grant?.until||0);
+    if(receipt?.verified===true&&receipt.device_id===id&&until>Date.now())return true;
+    // Upgrade only still-valid, previously verified device grants.
     const device=JSON.parse(localStorage.getItem('GE_VAULT_RADIO_DEVICE_SESSION_V1')||'null');
-    if(grant?.offline===true&&grant.device_id===id&&device?.device_id===id&&
+    if(grant?.offline===true&&grant.device_id===id&&Number(grant.until)>Date.now()&&
+       device?.device_id===id&&Number(device.until)>Date.now()&&
        typeof device.token==='string'&&device.token.length>20){
-      localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({verified:true,device_id:id,source:'verified-device-grant'}));
+      localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
+       verified:true,device_id:id,source:'verified-device-grant',
+       until:Math.min(Number(grant.until),Number(device.until)),
+       restricted:true,allowed:[]
+      }));
       return true;
     }
     return false;
   }catch(_){return false}
+}
+// OFFLINE selects only the tracks in the Vault grant. An access-code link is
+// never itself an entitlement. Null means explicitly unrestricted owner/public.
+function geOfflineSongAllowance(){
+  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('offline'))return null;
+  try{
+    const radio=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    const codeOffline=radio?.verifiedFor==='radio'&&Number(radio.until)>Date.now()&&
+      Array.isArray(radio.scopes)&&radio.scopes.includes('offline')&&
+      (radio.scopes.includes('radio')||radio.scopes.includes('website'));
+    if(codeOffline){
+      const music=JSON.parse(sessionStorage.getItem('GE_MUSIC_CODE_SESSION_V1')||'null');
+      if(!music?.token||Number(music.until)<=Date.now())return new Set();
+      return music.restricted===true?
+        new Set((music.allowed||[]).map(canonicalSongPath).filter(Boolean)):null;
+    }
+    if(offlinePlaybackMode()&&geOfflineDeviceGrantValid()){
+      const receipt=JSON.parse(localStorage.getItem(GE_OFFLINE_LOCAL_ENTITLEMENT)||'null');
+      return receipt?.restricted===false?null:
+        new Set((receipt?.allowed||[]).map(canonicalSongPath).filter(Boolean));
+    }
+  }catch(_){return new Set()}
+  return null;
 }
 function geRadioUtilityAllowed(feature){
   if(geRadioLocalTestAccess())return true;
@@ -10099,8 +10131,18 @@ async function registerServiceWorker(){
       if(!verified&&!publicPlayerProfile.scopes.includes('offline'))return;
       const id=String(window.GEVault?.anonId||localStorage.getItem('ge_vault_anon_id')||'');
       if(!id)return;
+      const music=verified?
+        JSON.parse(sessionStorage.getItem('GE_MUSIC_CODE_SESSION_V1')||'null'):null;
+      if(verified&&(!music?.token||Number(music.until)<=Date.now()))return;
+      const deviceGrant=JSON.parse(localStorage.getItem(GE_OFFLINE_DEVICE_GRANT_KEY)||'null');
       localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
-        verified:true,device_id:id,source:verified?'verified-radio-scope':'public-offline-scope',saved_at:Date.now()
+        verified:true,device_id:id,source:verified?'verified-radio-scope':'public-offline-scope',
+        saved_at:Date.now(),
+        until:verified?Number(deviceGrant?.until)>Date.now()?Number(deviceGrant.until):Number(session.until):
+          Date.now()+30*86400000,
+        restricted:verified?music.restricted===true:false,
+        allowed:verified&&music.restricted===true?
+          (music.allowed||[]).map(canonicalSongPath).filter(Boolean):[]
       }));
     }catch(_e){}
   }
@@ -10826,8 +10868,10 @@ async function registerServiceWorker(){
 
     // Save every playable catalog song, including singles and newer albums.
     // Keep the existing preferred album order; don't silently omit music.
+    const permitted=geOfflineSongAllowance();
     const core=state.catalog
       .slice().sort(songOrder)
+      .filter(url=>!permitted||permitted.has(canonicalSongPath(url)))
       .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
 
     const legacy=[];
@@ -14380,7 +14424,10 @@ Vector ${vector}. ${pair[1]}.`;
             device_id:geRememberedDeviceId(),offline:true,until:Number(device.expires_at)*1000
           }));
           localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
-            verified:true,device_id:geRememberedDeviceId(),source:'vault-verified'
+            verified:true,device_id:geRememberedDeviceId(),source:'vault-verified',
+            until:Number(device.expires_at)*1000,
+            restricted:m?.restricted!==false,
+            allowed:m?.restricted===true?(m.allowed_tracks||[]).map(canonicalSongPath).filter(Boolean):[]
           }));
           }
         else localStorage.removeItem(GE_OFFLINE_DEVICE_GRANT_KEY);
