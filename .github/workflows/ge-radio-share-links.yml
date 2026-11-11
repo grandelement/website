@@ -1,0 +1,23 @@
+name: GE Radio sharing and 33:33 safety
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'tests/radio-share-links.test.cjs'
+      - '.github/workflows/ge-radio-share-links.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  share-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify portable music link roundtrips and no credential leakage
+        run: node tests/radio-share-links.test.cjs
