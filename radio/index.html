@@ -7197,7 +7197,7 @@ document.addEventListener('touchstart',geRetryRadioSignalOnInteraction,{passive:
 document.addEventListener('keydown',geRetryRadioSignalOnInteraction);
 window.addEventListener('online',geRetryRadioSignalOnInteraction);
 function liveShareURL(){
-  const target=new URL('./',location.href);
+  const target=appendShareState(new URL('./',location.href));
   target.searchParams.set(CONFIG.LIVE_SHARE_PARAM||'live','1');
   return target.href;
 }
@@ -8932,9 +8932,100 @@ function appendShareState(target){
   target.searchParams.set('hudhide',localStorage.getItem(CONFIG.HUD_KEY)==='1'?'1':'0');
   return target;
 }
+
+// GE music shares: portable, immutable song-order snapshots with no Vault dependency.
+// Seven-character hashes identify catalog paths, NOT playback or download rights.
+// Shared links contain no access codes, owner sessions or private Fan Vault keys.
+let geIncomingShare=null;
+function geShareSongHash(input){
+ const path=canonicalSongPath(input);if(!path)return '';
+ let h=2166136261;
+ for(let i=0;i<path.length;i++){h^=path.charCodeAt(i);h=Math.imul(h,16777619)}
+ return (h>>>0).toString(36).padStart(7,'0');
+}
+function geShareURLForSelection(selection){
+ const paths=[...new Set((selection?.paths||[]).map(canonicalSongPath).filter(Boolean))];
+ if(!paths.length)throw Error('Choose at least one song or album to share.');
+ if(paths.length>250)throw Error('This playlist exceeds the 250-song share limit. Choose a smaller playlist.');
+ const tokens=paths.map(geShareSongHash);
+ if(new Set(tokens).size!==tokens.length)throw Error('Song identity collision. Cannot safely share this playlist.');
+ const url=appendShareState(new URL('./',location.href));
+ const kind=['album','playlist','user','selection'].includes(selection.kind)?selection.kind:'playlist';
+ url.searchParams.set('mix',tokens.join('.'));
+ url.searchParams.set('name',String(selection.name||'My music').trim().slice(0,80)||'My music');
+ url.searchParams.set('kind',kind);
+ if(kind==='album')url.searchParams.set('album',String(selection.name||'').trim().slice(0,80));
+ if(kind==='playlist'&&/^[a-zA-Z0-9_-]{1,100}$/.test(selection.id||''))
+  url.searchParams.set('playlist_id',selection.id);
+ // Preserve the currently selected song as the start of the queue.
+ const starting=canonicalSongPath(selection.startPath);
+ if(starting&&paths.includes(starting))url.searchParams.set('song',fileName(starting));
+ else url.searchParams.set('song',fileName(paths[0]));
+ if(url.href.length>5000)throw Error('Share URL too long. Choose fewer songs.');
+ return url.href;
+}
+function geReadSharedSelection(){
+ const params=new URLSearchParams(location.search);
+ const raw=params.get('mix');
+ const albumName=String(params.get('album')||'').trim().slice(0,80);
+ if(!raw&&!albumName){
+  const single=matchingStartSong();
+  return single?{kind:'song',name:'Shared song',paths:[canonicalSongPath(single)],startPath:canonicalSongPath(single)}:null;
+ }
+ let paths=[];
+ if(raw){
+  const tokens=raw.split('.');
+  if(tokens.length<1||tokens.length>250||tokens.some(token=>!/^[a-z0-9]{7}$/.test(token)))
+   return {error:'Invalid shared playlist link. No music was changed.'};
+  const found=new Map();
+  const collision=new Set();
+  for(const url of state.catalog){
+   const path=canonicalSongPath(url),key=geShareSongHash(path);
+   if(!key)continue;
+   if(found.has(key)&&found.get(key)!==path)collision.add(key);
+   found.set(key,path);
+  }
+  if(tokens.some(token=>collision.has(token)))
+   return {error:'Shared playlist identity conflict. Cannot select the wrong song.'};
+  paths=tokens.map(token=>found.get(token)||'');
+  if(paths.some(path=>!path))
+   return {error:'Some shared songs are missing from this music catalog. Nothing was replaced.'};
+  if(new Set(paths).size!==paths.length)
+   return {error:'Duplicate shared song identifiers. Playlist was not loaded.'};
+ }else{
+  paths=state.catalog.map(canonicalSongPath).filter(path=>{
+   const folder=path.split('/')[2]||'';
+   return folder.replace(/^Grand Element - \d{4} - /,'').toLowerCase()===albumName.toLowerCase();
+  });
+  if(!paths.length)return {error:'Shared album not found in this catalog.'};
+ }
+ const start=matchingStartSong(),startPath=canonicalSongPath(start);
+ const name=String(params.get('name')||albumName||'Shared playlist').trim().slice(0,80);
+ return {kind:String(params.get('kind')||'playlist').slice(0,24),
+  name:name||'Shared playlist',paths,startPath:paths.includes(startPath)?startPath:paths[0]};
+}
+async function geSendShare(url,title){
+ try{
+  if(navigator.share){await navigator.share({title,url});return}
+  await navigator.clipboard.writeText(url);
+  setStatus('Share link copied · '+title);
+ }catch(error){
+  if(error?.name!=='AbortError')prompt('Copy this music link:',url);
+ }
+}
+window.GEShareMusicSelection=async selection=>{
+ try{
+  const url=geShareURLForSelection(selection);
+  await geSendShare(url,String(selection.name||'Grand Element Music'));
+  return url;
+ }catch(error){
+  setStatus('SHARE NOT READY · '+String(error?.message||error));
+  return '';
+ }
+};
 function shareURL(){
   const filename=fileName(state.currentURL);
-  if(!filename || isStationID(state.currentURL)) return location.href;
+  if(!filename || isStationID(state.currentURL)) return appendShareState(new URL('./',location.href)).href;
   const slug=stripExtension(filename).replace(/^.*?[_ -](\d+)[_ -]/,'').replace(/[_+]+/g,' ').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   return appendShareState(new URL(`./share/${slug}.html`,location.href)).href;
 }
@@ -9010,7 +9101,11 @@ function startMainMusicLibrary(direction='all'){
   return !!started;
 }
 function startPlayerPlaylist(){
-  const songs=playerPlaylist().map(canonicalSongPath);
+  if(geIncomingShare?.error){setStatus(geIncomingShare.error);return false;}
+  // A shared playlist is a LISTENING SELECTION, never a code grant.
+  // The original protected preview and 33:33 gate still own playback.
+  const shared=geIncomingShare?.paths?.length?geIncomingShare:null;
+  const songs=shared?shared.paths.slice():playerPlaylist().map(canonicalSongPath);
   if(!songs.length){
     // The catalog and the audio engine load independently. Start catalog loading
     // immediately and keep the next user tap synchronous for iOS Safari.
@@ -9028,10 +9123,11 @@ function startPlayerPlaylist(){
   if(typeof frame?.GEPlayLibraryQueue!=='function'){
     setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;
   }
-  const start=state.shuffle?songs[Math.floor(Math.random()*songs.length)]:songs[0];
-  frame.GESetMusicQueueShuffle?.(state.shuffle);
-  const ok=frame.GEPlayLibraryQueue(songs,start,'PLAYER');
-  if(ok)gePlaylistQuickSet('PLAYER',songs,{custom:false});
+  const start=shared?(shared.startPath||songs[0]):state.shuffle?songs[Math.floor(Math.random()*songs.length)]:songs[0];
+  frame.GESetMusicQueueShuffle?.(shared?false:state.shuffle);
+  const title=shared?shared.name:'PLAYER';
+  const ok=frame.GEPlayLibraryQueue(songs,start,title);
+  if(ok)gePlaylistQuickSet(title,songs,{custom:!!shared,currentPath:start});
   else setStatus('PLAYER could not start. Check the music file or access gate.');
   return !!ok;
 }
@@ -9322,16 +9418,24 @@ document.addEventListener('keydown',event=>{
 });
 $('chooseSongsBtn')?.addEventListener('click',()=>window.GEMusicV5?.open?.());
 $('shareBtn').addEventListener('click',async()=>{
-  const url=state.live?liveShareURL():await resolvedShareURL();
-  const song=state.live?(CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio'):(isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song);
-  try{
-    if(navigator.share){
-      await navigator.share({title:song,url});
-      return;
-    }
-    await navigator.clipboard.writeText(url);
-    setStatus(state.live?'RADIO link copied.':'Share link copied.');
-  }catch(_e){ prompt('Copy this link:',url); }
+  if(state.live||state.livePreparing){
+    await geSendShare(liveShareURL(),CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio');
+    return;
+  }
+  // The currently playing user, album or GE playlist takes priority.
+  const currentQueue=geInlineMusicActive&&gePlaylistQuickQueue.length?
+    {name:gePlaylistQuickName||'Current playlist',paths:gePlaylistQuickQueue.slice(),
+     kind:gePlaylistQuickIdentity?.source==='fan'?'user':'playlist',
+     id:gePlaylistQuickIdentity?.id||'',startPath:geInlineMusicCurrentPath}:null;
+  const selected=currentQueue||window.GEMusicV5?.shareSelection?.();
+  if(selected?.paths?.length){
+    await window.GEShareMusicSelection(selected);
+    return;
+  }
+  const url=await resolvedShareURL();
+  const song=state.currentURL&&!isStationID(state.currentURL)?
+    parseTrack(state.currentURL).song:'Grand Element Music';
+  await geSendShare(url,song);
 });
 $('homeLink').addEventListener('click',()=>{
   // The blue Sun is ordinary website navigation, never a hidden audio toggle.
@@ -14733,6 +14837,8 @@ gateTestBtn?.addEventListener('click',()=>{
   }
 
   rebuildQueue('');
+  geIncomingShare=geReadSharedSelection();
+  if(geIncomingShare?.error)setStatus(geIncomingShare.error);
   // Independently read ALL ge-music/music albums and Singles for MUSIC.
   // No Bangers playlist selection is implied by Radio playback.
   // The manifest and folder discovery above already refreshed state.catalog.
@@ -14784,7 +14890,11 @@ gateTestBtn?.addEventListener('click',()=>{
   // Do not invent a current playing song or radio title from playlist metadata.
   const requestedSong=matchingStartSong();
   if(!state.live&&!state.livePreparing&&!geInlineMusicActive){
-    if(requestedSong){
+    if(geIncomingShare?.paths?.length>1){
+      state.currentURL='';
+      titleBtn.textContent=geIncomingShare.name+' · '+geIncomingShare.paths.length+' SONGS';
+      setStatus('SHARED PLAYLIST READY · Tap PLAYER to begin listening. The 33:33 timer starts with playback.');
+    }else if(requestedSong){
       state.currentURL=requestedSong;
       titleBtn.textContent=displayTitle(requestedSong,!state.shuffle);
       updateCurrentRow();
@@ -14794,7 +14904,7 @@ gateTestBtn?.addEventListener('click',()=>{
     }
   }
   if(qrArrival)window.GEQRIntroAudioReady=true;
-  if(!state.live&&!state.livePreparing&&!geInlineMusicActive){
+  if(!state.live&&!state.livePreparing&&!geInlineMusicActive&&!geIncomingShare?.paths?.length&&!geIncomingShare?.error){
     setStatus(state.catalog.length
       ?(qrArrival?'Radio ready. Tap PLAY or RADIO after the introduction.':
         'Music ready. Tap PLAY or select a song. Tap RADIO for the station.')
