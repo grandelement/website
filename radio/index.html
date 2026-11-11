@@ -5015,11 +5015,15 @@ document.addEventListener('DOMContentLoaded',function(){
  const title=document.getElementById('titleBtn'),list=document.getElementById('gePlaylistQuickSongs');
  if(!title||!list)return;
  const albums=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
- const fallback={Aether:[35,91,170],Fire:[179,64,30],Spirit:[105,66,163],Soul:[35,116,107],Love:[157,52,100],Intergy:[43,101,156],'Sessions II':[127,72,130],'Sessions I':[79,103,142],Live:[137,79,47],Trio:[52,114,109],'Fundamental Groove':[118,97,36],Singles:[81,103,129]};
+ const fallback={Aether:[35,91,170],Fire:[218,176,47],Spirit:[105,66,163],Soul:[35,116,107],Love:[157,52,100],Intergy:[43,101,156],'Sessions II':[127,72,130],'Sessions I':[79,103,142],Live:[137,79,47],Trio:[52,114,109],'Fundamental Groove':[118,97,36],Singles:[81,103,129]};
  const cache=new Map();
- function albumFor(text){
-  const value=String(text||'').trim().replace(/^\d+\s*[.:-]\s*/,'');
-  return albums.find(a=>value.toLowerCase().startsWith(a.toLowerCase()+' •')||value.toLowerCase().startsWith(a.toLowerCase()+' -')||value.toLowerCase()===a.toLowerCase())||'';
+ function albumFor(text,path){
+  // Playlist button labels may omit the album. The GitHub song folder is authoritative.
+  const folder=String(path||'').split('/').slice(-2,-1)[0].toLowerCase();
+  const fromPath=albums.find(a=>folder===a.toLowerCase()||folder.endsWith(' - '+a.toLowerCase()));
+  if(fromPath)return fromPath;
+  const value=String(text||'').trim().replace(/^\d+\s*[.:-]\s*/,'').toLowerCase();
+  return albums.find(a=>value.startsWith(a.toLowerCase()+' •')||value.startsWith(a.toLowerCase()+' -')||value===a.toLowerCase())||'';
  }
  function cssColor(rgb){
   // Darken light album art for readable white song titles.
@@ -5030,14 +5034,19 @@ document.addEventListener('DOMContentLoaded',function(){
  }
  function apply(el,album){
   if(!album){el.removeAttribute('data-ge-album-color');return}
-  const color=cssColor(cache.get(album)||fallback[album]||[48,87,118]);
+  // Fire artwork is yellow/gold. Averaging its darker pixels produced a muddy
+  // olive title pill, so preserve the cover's gold hue with high-contrast shading.
+  const color=album==='Fire'
+    ? {bg:'linear-gradient(150deg,#aa8015 0%,#79520b 100%)',border:'#f6d857'}
+    : cssColor(cache.get(album)||fallback[album]||[48,87,118]);
   el.dataset.geAlbumColor=album;
   el.style.setProperty('--ge-album-bg',color.bg);
   el.style.setProperty('--ge-album-border',color.border);
  }
  function update(){
   apply(title,albumFor(title.textContent));
-  for(const button of list.querySelectorAll('button'))apply(button,albumFor(button.textContent));
+  for(const button of list.querySelectorAll('button[data-playlist-index]'))
+   apply(button,albumFor(button.textContent,button.dataset.geRadioSongPath));
  }
  // Use each album's real artwork when available, with stable fallbacks.
  albums.forEach(album=>{
@@ -8143,6 +8152,7 @@ function gePlaylistQuickSet(playlist,paths,details){
   row.className='ge-playlist-reorder-row';
   const b=document.createElement('button');
   b.type='button';b.dataset.playlistIndex=String(i);
+  b.dataset.geRadioSongPath=path;
   b.textContent=(i+1)+'. '+gePlaylistQuickLabels[i];
   b.setAttribute('aria-current',path===gePlaylistQuickPath?'true':'false');
   b.addEventListener('click',()=>{
