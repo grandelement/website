@@ -30,6 +30,7 @@ const sandbox={
   return musicPaths.find(x=>x.split('/').pop()===name)||'';
  }
 };
+Object.defineProperty(sandbox.location,'search',{get(){return new URL(this.href).search;}});
 const api=vm.runInNewContext(source+';({share:geShareURLForSelection,read:geReadSharedSelection});',sandbox);
 for(const selection of [
  {kind:'album',name:'Aether',paths:[musicPaths[0],musicPaths[1]]},
