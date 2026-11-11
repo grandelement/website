@@ -8351,6 +8351,7 @@ function geInlineMusicInit(){
         else gePlaylistQuickPath=songPath;
       }
       geInlineMusicSyncTransport();
+      if(!geInlineMusicPaused)geBackgroundOnConfirmedSong('player',geInlineMusicCurrentPath||geInlineMusicTitle);
     }else if(data.type==='ge-radio-music-playback-error'){
       geInlineMusicPaused=true;geInlineMusicActive=false;geInlineMusicSyncTransport();
       setStatus(String(data.message||'MUSIC playback failed.'));
@@ -8361,6 +8362,7 @@ function geInlineMusicInit(){
       geInlineMusicPaused=false;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
       geInlineMusicSyncTransport();
+      geBackgroundOnConfirmedSong('player',geInlineMusicCurrentPath||geInlineMusicTitle);
       window.GEMusicV5?.reportPlayback?.('PLAYING · '+geInlineMusicTitle);
     }else if(data.type==='ge-radio-music-gate'){
       geInlineMusicGateAutoOpened=!geInlineMusicPanel.classList.contains('ge-open');
@@ -8631,6 +8633,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     lastTitle=title;
     if(!observedRadio1Progress||audio.paused)return;
     titleBtn.textContent=radioDisplayMetadataTitle(title);
+    geBackgroundOnConfirmedSong('radio1',titleBtn.textContent);
     refreshLoveButton();
     try{
       window.GEVault?.setTrackMetadata?.(audio,{
@@ -8703,6 +8706,17 @@ function updateMediaSession(url){
 }
 function updateCurrentRow(){window.GEMusicV5?.refresh?.();}
 function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.onSongStart(); }
+// One background advance per actual playing song, regardless of RADIO or PLAYER.
+// Repeated metadata polls, pause/resume and iframe state messages must not skip images.
+let geBackgroundPlayingSong='';
+function geBackgroundOnConfirmedSong(source,identity){
+  const song=String(identity||'').trim();
+  if(!song||/^(?:Grand Element Radio|GE Station Identification)$/i.test(song))return;
+  const key=String(source||'')+':'+song;
+  if(key===geBackgroundPlayingSong)return;
+  geBackgroundPlayingSong=key;
+  window.GEBackgrounds?.onSongStart?.();
+}
 
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
@@ -9328,6 +9342,7 @@ audio.addEventListener('timeupdate',()=>{
       observedRadio2Progress=true;
       titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'Grand Element Radio',
         radio2.program?.tracks?.[radio2.index]?.album||'');
+      geBackgroundOnConfirmedSong('radio2',radio2.program?.tracks?.[radio2.index]?.path||titleBtn.textContent);
       refreshLoveButton();
       setLiveMediaSession();
       syncMainTransport();
@@ -9362,6 +9377,7 @@ function confirmRadio1ForwardTime(t){
     showRadioWakeLink(false);
     if(first){
       titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||'Grand Element Radio';
+      geBackgroundOnConfirmedSong('radio1',titleBtn.textContent);
       setLiveMediaSession();
       clearRadioWatch();
       setLiveStatus('RADIO 1 · CONNECTED');
