@@ -59,6 +59,29 @@ assert.match(html,/sharedFirstBackgroundPending/);
 assert.match(music,/window\.GEMusicV5=\{open,close,preload:preloadCatalog,shareSelection/);
 assert.match(music,/SHARE ALBUM/);
 assert.match(music,/Share selected songs or current playlist/);
+// Main Radio SHARE must use the active PLAYER queue and never a bare homepage.
+const shareFnStart=html.indexOf('function geActiveShareSelection(){');
+const shareFnEnd=html.indexOf("$('shareBtn').addEventListener('click'",shareFnStart);
+assert(shareFnStart>0&&shareFnEnd>shareFnStart,'Main SHARE selection function present');
+const activeShareVM={
+ ...sandbox,window:{GEMusicV5:{shareSelection:()=>({name:'Stale browser selection',paths:[musicPaths[2]],kind:'selection'})}},
+ gePlaylistQuickQueue:[musicPaths[1],musicPaths[0]],
+ gePlaylistQuickName:'Active playlist',gePlaylistQuickShareKind:'user',
+ gePlaylistQuickIdentity:{id:'fan-example',source:'fan'},
+ geInlineMusicCurrentPath:musicPaths[1],gePlaylistQuickPath:musicPaths[1],
+ geInlineMusicTitle:'Song',state:{currentURL:''},
+ isStationID:()=>false,parseTrack:()=>({song:'Song'})
+};
+const chooseActive=vm.runInNewContext(html.slice(shareFnStart,shareFnEnd)+';geActiveShareSelection',activeShareVM);
+let active=chooseActive();
+assert.deepEqual(Array.from(active.paths),[musicPaths[1],musicPaths[0]],'Active playlist takes priority');
+assert.equal(active.kind,'user');
+assert.equal(active.id,'fan-example');
+activeShareVM.gePlaylistQuickQueue=[];
+active=chooseActive();
+assert.equal(active.name,'Stale browser selection','MUSIC selection only used when no active queue');
+assert(!html.slice(shareFnEnd,html.indexOf("$('homeLink').addEventListener",shareFnEnd)).includes('resolvedShareURL()'),
+ 'Main SHARE never replaces music with the generic homepage link');
 for(const [name,content] of [['ge-music-v5',music]]){
  new vm.Script(content,{filename:name+'.js'});
 }
