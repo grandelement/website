@@ -15,7 +15,7 @@ const LEGACY_ALBUMS=new Set(['Fundamental Groove','Trio','Live','Sessions I','Se
 const albumDescriptions={Aether:'Energy, consciousness and the unseen connections between us.',Intergy:'Solo electronic grooves, piano, analog synth and rhythm.', 'Sessions I':'Original Grand Element full-band studio sessions.', 'Sessions II':'Further recordings from the original band sessions.',Trio:'A stripped-back studio trio with keys, guitar and drums.',Live:'Live performances from the Grand Element trio.','Fundamental Groove':'Instrumental grooves built around rhythm and movement.',Love:'A collection exploring love and connection.',Soul:'Instrumental reflections on soul and feeling.',Spirit:'Music exploring spirit and atmosphere.',Fire:'Rhythm, energy and intensity.',Singles:'Individual Grand Element recordings.'};
 // Representative hues visually checked against all 11 JPG covers in
 // ge-images/images. These are NOT the unrelated GOLF_PLANETS gameplay colors.
-const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#dbca64','Aether':'#bfc4cd','Singles':'#6e9bb5'};
+const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#e2b448','Aether':'#bfc4cd','Singles':'#6e9bb5'};
 function applyAlbumStyle(element,name){
  const hex=albumColors[name]||'#addcf5';
  element.style.setProperty('--ge-album-accent',hex);
