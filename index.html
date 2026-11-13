@@ -15277,6 +15277,44 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
  const closeButton=document.getElementById('geSiteAlbumClose');
  if(!shell||!frame||!heading||!closeButton)return;
  let loading=false,ready=false,gated=false,pendingAlbum='';
+ // The album audio is inside a same-origin iframe, beyond document media capture.
+ // Track real play/pause/end messages without modifying audio or gating playback.
+ let albumEvent={path:'',title:'',album:'',started:false,activeAt:0,listenedMs:0,ended:false};
+ function geAlbumEventLog(type){
+  if(!albumEvent.path||!albumEvent.started||!window.GEVault?.website)return;
+  try{window.GEVault.website(type,{
+    track_id:albumEvent.path,track_title:albumEvent.title,album:albumEvent.album,
+    listened_seconds:Math.round(albumEvent.listenedMs/1000),source:'website_album_iframe'
+  });}catch(_e){}
+ }
+ function geAlbumMediaState(data){
+  const now=Date.now(),path=String(data.path||'').slice(0,300),title=String(data.title||'').slice(0,300);
+  if(albumEvent.path&&path!==albumEvent.path){
+   if(albumEvent.activeAt){albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;}
+   if(albumEvent.started&&!albumEvent.ended)geAlbumEventLog('track_stop');
+   albumEvent={path:'',title:'',album:'',started:false,activeAt:0,listenedMs:0,ended:false};
+  }
+  if(!path)return;
+  if(!albumEvent.path){
+   albumEvent.path=path;albumEvent.title=title||path.split('/').pop()||'';
+   albumEvent.album=(title.split(' • ')[0]||'Grand Element').slice(0,120);
+  }
+  if(data.ended){
+   if(albumEvent.activeAt){albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;}
+   if(albumEvent.started&&!albumEvent.ended)geAlbumEventLog('track_complete');
+   albumEvent.ended=true;return;
+  }
+  if(data.paused){
+   if(albumEvent.activeAt){
+    albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;
+    geAlbumEventLog('track_pause');
+   }
+  }else if(!albumEvent.activeAt){
+   const resume=albumEvent.started;
+   albumEvent.started=true;albumEvent.ended=false;albumEvent.activeAt=now;
+   geAlbumEventLog(resume?'track_resume':'track_start');
+  }
+ }
  function source(album){
   const url=new URL('./radio/preview-lab.html',location.href);
   url.searchParams.set('embed','website');
@@ -15317,6 +15355,9 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
   const payload=event.data||{};
+  if(payload.type==='ge-radio-music-state'){
+   geAlbumMediaState(payload);return;
+  }
   if(payload.type==='ge-site-album-ready'){
    ready=true;
    // Do NOT auto-play after the async load: Safari must receive an actual tap.
