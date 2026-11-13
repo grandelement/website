@@ -903,6 +903,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow button{min-width:43px!important;min-height:35px!important;font-size:10px!important;padding:3px 4px!important}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .checkedCount{display:block!important;font-size:10px!important;padding:0 2px 3px!important}
 }
+/* Authoritative phone album universe: no chrome, only small planets and BACK. */
+@media(max-width:820px){
+ .window.geAlbumsUniverseOnly{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover!important;border:0!important;border-radius:0!important}
+ .window.geAlbumsUniverseOnly > .header{position:absolute!important;top:10px!important;left:10px!important;right:auto!important;z-index:50!important;display:block!important;width:58px!important;height:58px!important;min-height:0!important;padding:0!important;background:transparent!important;border:0!important;pointer-events:none!important}
+ .window.geAlbumsUniverseOnly > .header .brand,.window.geAlbumsUniverseOnly > .header .accessToggle,.window.geAlbumsUniverseOnly > .header .geCodeIdentity{display:none!important}
+ .window.geAlbumsUniverseOnly > .header .geHeaderActions{display:block!important;pointer-events:none!important}
+ .window.geAlbumsUniverseOnly > .header .close{pointer-events:auto!important;display:flex!important;width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-radius:50%!important;background:rgba(175,190,202,.16)!important;border:1px solid rgba(228,239,247,.4)!important;color:#e3edf5!important;font-size:11px!important;box-shadow:0 0 18px 5px rgba(200,227,250,.2),inset 0 0 9px rgba(222,238,255,.1)!important}
+ .window.geAlbumsUniverseOnly > .tools,.window.geAlbumsUniverseOnly > .selectionBar{display:none!important}
+ .window.geAlbumsUniverseOnly > .scroll{flex:1 1 0!important;height:0!important;min-height:0!important;padding:82px 14px 24px!important;overflow-y:auto!important;background:transparent!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:26px 17px!important;padding:10px 0 35px!important;width:100%!important;align-items:center!important;justify-items:center!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow,.window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow.geAlbumFocused{display:block!important;grid-column:auto!important;grid-row:auto!important;order:initial!important;width:100%!important;max-width:118px!important;min-height:0!important;height:auto!important;aspect-ratio:1!important;margin:0!important;padding:0!important;border-radius:50%!important;border:1px solid rgba(214,231,249,.24)!important;box-shadow:0 0 13px rgba(195,218,248,.14)!important;overflow:hidden!important;background:rgba(6,19,37,.52)!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .album{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;border-radius:50%!important;overflow:hidden!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumCover{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .album b{display:block!important;position:absolute!important;bottom:0!important;left:0!important;right:0!important;padding:14px 3px 7px!important;background:linear-gradient(transparent,rgba(0,7,20,.84))!important;color:white!important;font-size:clamp(10px,2.9vw,13px)!important;text-align:center!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumPickerCompact{position:absolute!important;top:4px!important;left:4px!important;width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;padding:0!important;border-radius:50%!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumPickerCompact input{width:17px!important;height:17px!important;min-width:17px!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumDescription,.window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumRowActions,.window.geAlbumsUniverseOnly .albumPlanetGrid > .geAlbumFeature{display:none!important}
+ .window.geAlbumsUniverseOnly .albumPlanetGrid > .expandedAlbumSongs{grid-column:1/-1!important;width:100%!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1803,6 +1822,8 @@ function albumSelectAll(parent,album,tracks,compact=false){
  parent.append(label);
 }
 function render(){
+ const musicWindow=root.querySelector('.window');
+ if(musicWindow)musicWindow.classList.toggle('geAlbumsUniverseOnly',state.view==='albums');
  if(!state.open)return;
  el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
  el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
