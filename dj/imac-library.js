@@ -170,8 +170,8 @@ function open(host){
   var uploadStatus=elem("p",null,"Select a song to publish, or choose REPLACE on an existing song.");uploadStatus.id="geLibUploadStatus";uploadStatus.setAttribute("role","status");upload.appendChild(uploadStatus);
   root.appendChild(upload);
   var setup=elem("details","geLibSetup");setup.appendChild(elem("summary",null,"INSTALL LIBRARY HELPER · FIRST TIME ONLY"));
-  setup.appendChild(elem("p",null,"For OS X El Capitan. Download the installer to your iMac, then Control-click it and choose Open. A private GitHub token is still required."));
-  var link=elem("a",null,"DOWNLOAD IMAC LIBRARY INSTALLER");link.href="/dj/Install-GE-Library.command";link.download="Install-GE-Library.command";link.className="link";setup.appendChild(link);root.appendChild(setup);
+  setup.appendChild(elem("p",null,"For OS X El Capitan. Download the ZIP on your iMac, unzip it, then Control-click Install GE Library.command and choose Open. A private GitHub token is still required."));
+  var link=elem("a",null,"DOWNLOAD IMAC LIBRARY INSTALLER");link.href="/dj/GE_Studios_Library_Installer.zip";link.download="GE_Studios_Library_Installer.zip";link.className="link";setup.appendChild(link);root.appendChild(setup);
   root.appendChild(elem("h3",null,"SONGS IN THE WEBSITE LIBRARY"));
   var search=elem("input");search.id="geLibSearch";search.type="search";search.placeholder="Find song, album or filename";search.setAttribute("aria-label","Search GE Music songs");search.oninput=function(){el("geLibPage").value="0";paint()};root.appendChild(search);
   var count=elem("p",null,"Loading…");count.id="geLibCount";root.appendChild(count);
