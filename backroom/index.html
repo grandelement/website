@@ -739,6 +739,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   #backroomMain #brGeneralPublicChecks{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
 </style>
+<style id="br-geography-style">
+#brGeoPanel .brGeoFilters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#brGeoPanel label{font-size:11px;font-weight:800;color:#cbe7fa;display:grid;gap:4px}
+#brGeoPanel select{min-width:0;width:100%;min-height:44px;color:#fff;background:#123751;border:1px solid #4a89a8;border-radius:8px;padding:7px}
+#brGeoPanel .brGeoButtons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:12px 0}
+#brGeoPanel button{min-height:43px;padding:5px 3px;font-size:clamp(10px,2.7vw,13px);white-space:normal}
+#brGeoPanel .brGeoTotals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#brGeoPanel .brGeoTotals>div{padding:10px 5px;text-align:center;border:1px solid #356786;border-radius:8px}
+#brGeoPanel .brGeoTotals strong{display:block;font-size:23px;color:#79d4ff}
+#brGeoPanel .brGeoStates{max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#brGeoPanel .brGeoStates button{display:flex;justify-content:space-between;gap:8px;text-align:left;width:100%;border:1px solid #2b5e7b;margin:4px 0;background:#0d3149}
+#brGeoPanel .brGeoStates small{color:#a9d4e7}
+@media(max-width:380px){#brGeoPanel .brGeoFilters{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -1026,6 +1040,25 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="fans" aria-label="Fans and recent visitor activity">
   <h2>FANS</h2>
+  <section id="brGeoPanel" style="padding:12px;margin:8px 0 14px;border:1px solid #3b7e9d;border-radius:12px;background:#071b2c">
+    <h3>FAN BASE VAULT · STATES &amp; REGIONS</h3>
+    <p style="font-size:12px;color:#c3e0ee">Live D1 records · anonymous visitors · approximate IP-derived locations · not concurrent listeners</p>
+    <div class="brGeoFilters">
+      <label>TIME <select id="brGeoPeriod"><option value="1h">LAST HOUR</option><option value="24h">LAST 24 HOURS</option><option value="7d">LAST 7 DAYS</option><option value="30d">LAST 30 DAYS</option></select></label>
+      <label>COUNTRY <select id="brGeoCountry"><option value="US">UNITED STATES</option><option value="ALL">ALL COUNTRIES</option><option value="OTHER">OUTSIDE USA</option></select></label>
+      <label>STATE / REGION <select id="brGeoState"><option value="ALL">ALL STATES</option></select></label>
+      <label>ACTIVITY <select id="brGeoEvent"><option value="ALL">ALL ACTIVITY</option></select></label>
+    </div>
+    <div class="brGeoButtons">
+      <button type="button" data-ge-geo-period="1h">1 HOUR</button>
+      <button type="button" data-ge-geo-period="24h">24 HOURS</button>
+      <button type="button" data-ge-geo-period="7d">7 DAYS</button>
+      <button type="button" id="brGeoRefresh" class="primary">REFRESH VAULT</button>
+    </div>
+    <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
+    <div id="brGeoTotals" class="brGeoTotals"></div>
+    <div id="brGeoStates" class="brGeoStates"></div>
+  </section>
   <div id="brFansHome"></div>
   <section id="brFanPlaylistVault" style="margin-top:14px;padding:12px;border:1px solid #385e7e;border-radius:12px;background:#071d2e">
     <h3>FAN PLAYLISTS · GE VAULT</h3>
@@ -5071,6 +5104,65 @@ addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='
 // Revalidate an existing owner session automatically; public visitors stay locked.
 if(token())void restorePublisherSession();
 $('gatePassword').focus();
+})();
+</script>
+<script id="br-geography-controller">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const panel=$('brGeoPanel');if(!panel)return;
+ const api='https://ge-backroom-publisher.grandelement.workers.dev';
+ const tokenKey='GE_BACKROOM_PUBLISH_SESSION_V1';
+ const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent'];
+ let busy=false;
+ const text=(id,value)=>{$(id).textContent=String(value)};
+ async function refresh(keepOptions=false){
+  if(busy)return;
+  const token=sessionStorage.getItem(tokenKey);
+  if(!token){text('brGeoStatus','SIGN IN TO BACK ROOM FIRST.');return}
+  busy=true;$('brGeoRefresh').disabled=true;text('brGeoStatus','READING LIVE FAN EVENTS FROM GE VAULT…');
+  const q=new URLSearchParams();
+  for(const id of selectors)q.set(({brGeoPeriod:'period',brGeoCountry:'country',brGeoState:'state',brGeoEvent:'event'})[id],$(id).value);
+  try{
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+   let response;
+   try{response=await fetch(api+'/manage/fan-geography?'+q.toString(),{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.ok)throw Error(data.error||'Vault HTTP '+response.status);
+   const totals=data.totals||{};
+   $('brGeoTotals').replaceChildren();
+   for(const [name,value] of [['VISITOR IDS',totals.visitors],['SESSIONS',totals.sessions],['EVENTS',totals.events]]){
+    const el=document.createElement('div'),strong=document.createElement('strong'),label=document.createElement('span');
+    strong.textContent=Number(value||0).toLocaleString();label.textContent=name;el.append(strong,label);$('brGeoTotals').append(el)
+   }
+   const oldState=$('brGeoState').value,oldEvent=$('brGeoEvent').value;
+   if(!keepOptions||oldState==='ALL'){
+    const states=[...new Set((data.states||[]).map(x=>x.state).filter(Boolean))].sort();
+    $('brGeoState').replaceChildren(new Option('ALL STATES','ALL'),...states.map(x=>new Option(x,x)));
+    if(states.includes(oldState))$('brGeoState').value=oldState;
+   }
+   if(!keepOptions||oldEvent==='ALL'){
+    const events=(data.event_types||[]).map(x=>x.event_type).filter(Boolean);
+    $('brGeoEvent').replaceChildren(new Option('ALL ACTIVITY','ALL'),...events.map(x=>new Option(x.replaceAll('_',' ').toUpperCase(),x)));
+    if(events.includes(oldEvent))$('brGeoEvent').value=oldEvent;
+   }
+   $('brGeoStates').replaceChildren();
+   for(const row of data.states||[]){
+    const b=document.createElement('button');b.type='button';
+    const label=document.createElement('span');label.textContent=(row.state||'Unknown')+' · '+(row.country||'Unknown');
+    const n=document.createElement('small');n.textContent=Number(row.visitors||0)+' visitor IDs · '+Number(row.events||0)+' events';
+    b.append(label,n);b.addEventListener('click',()=>{$('brGeoState').value=row.state||'Unknown';void refresh(true)});
+    $('brGeoStates').append(b);
+   }
+   text('brGeoStatus','VAULT READ CONFIRMED · '+new Date().toLocaleTimeString()+' · Approximate locations, not verified identities.');
+   if(!data.states?.length)text('brGeoStatus','VAULT CONNECTED · NO MATCHING FAN EVENTS IN THIS FILTER.');
+  }catch(e){text('brGeoStatus','VAULT READ FAILED · '+String(e.message||e))}
+  finally{busy=false;$('brGeoRefresh').disabled=false}
+ }
+ $('brGeoRefresh').addEventListener('click',()=>void refresh());
+ for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'));
+ panel.querySelectorAll('[data-ge-geo-period]').forEach(b=>b.addEventListener('click',()=>{$('brGeoPeriod').value=b.dataset.geGeoPeriod;void refresh()}));
+ document.querySelectorAll('#brTabFans,[data-tab="fans"],#brAccessViews [data-br-access-view="fans"]').forEach(b=>b.addEventListener('click',()=>{if(sessionStorage.getItem(tokenKey))void refresh()}));
 })();
 </script>
 </body>
