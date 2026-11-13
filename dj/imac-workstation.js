@@ -58,10 +58,10 @@ function init(){
  }
  syncUploadStrip();
  if(w.setInterval)w.setInterval(syncUploadStrip,1200);
- var content=node("div","geWorkstation"),studio=node("section","geTab"),mixer=node("section","geTab"),effects=node("section","geTab"),google=node("section","geTab");
- studio.id="geTabStudio";mixer.id="geTabMixer";effects.id="geTabEffects";google.id="geTabGoogle";
+ var content=node("div","geWorkstation"),studio=node("section","geTab"),mixer=node("section","geTab"),effects=node("section","geTab"),google=node("section","geTab"),libraryTab=node("section","geTab");
+ studio.id="geTabStudio";mixer.id="geTabMixer";effects.id="geTabEffects";google.id="geTabGoogle";libraryTab.id="geTabLibrary";
  main.insertBefore(content,radio);
- content.appendChild(studio);content.appendChild(mixer);content.appendChild(effects);content.appendChild(google);
+ content.appendChild(studio);content.appendChild(mixer);content.appendChild(effects);content.appendChild(google);content.appendChild(libraryTab);
  move(radio,studio);move(drive,google);
  var mx=node("div","panel"),fx=node("div","panel");
  mx.appendChild(node("h2",null,"MIXER · IMAC"));fx.appendChild(node("h2",null,"EFFECTS · IMAC"));
@@ -244,7 +244,7 @@ function init(){
   if(w.setInterval)w.setInterval(syncBigResult,1200);
 
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
- var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
+ var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google],["LIBRARY",libraryTab]];
  function fitGoogleToWindow(){
   if(!nav||google.style.display==="none")return;
   // Reserve the actual bottom dock space, rather than a guessed 150px.
@@ -283,7 +283,11 @@ function init(){
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k);if(k===3&&w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
  w.addEventListener("resize",fitGoogleToWindow,false);
- var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
+ var initialTab=0,q=w.location.search||"";
+  if(/(?:[?&])tab=library(?:&|$)/i.test(q))initialTab=4;
+  else if(/(?:[?&])tab=google(?:&|$)/i.test(q))initialTab=3;
+  else try{var previous=Number(w.sessionStorage.getItem("geImacTab"));if(previous>=0&&previous<=4)initialTab=previous}catch(ignore){}
+  select(initialTab);
  /* Connection report, login repair and its advanced tools now share STATUS. */
  /* Keep upload failure banner inside Google, not covering Studio/Mixer. */
  var monitor=by("geUploadMonitor");if(monitor){monitor.className+=" geCompactUploadMonitor"}
