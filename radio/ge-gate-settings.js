@@ -17,17 +17,30 @@ const clamp=(n,key)=>{
  const [min,max]=bounds[key];const v=Number(n);
  return Number.isFinite(v)?Math.max(min,Math.min(max,v)):defaults[key];
 };
-let values={...defaults},loaded=false;
-const ready=fetch('../config/site-live.json',{cache:'no-store'})
- .then(async response=>{
+let values={...defaults},loaded=false,lastRefresh=0,inFlight=null;
+function refresh(force=false){
+ const now=Date.now();
+ if(inFlight)return inFlight;
+ if(!force&&now-lastRefresh<2000)return Promise.resolve({...values});
+ lastRefresh=now;
+ inFlight=fetch('../config/site-live.json?gate-check='+now,{cache:'no-store'})
+  .then(async response=>{
    if(!response.ok)throw new Error('Gate settings fetch '+response.status);
    const published=(await response.json()).gateTiming||{};
    values=Object.fromEntries(Object.keys(defaults).map(key=>
-     [key,clamp(published[key],key)]));
+    [key,clamp(published[key],key)]));
    loaded=true;
    window.dispatchEvent(new Event('ge-gate-settings-ready'));
    return {...values};
- }).catch(()=>({...values}));
-window.GEGateSettings={defaults,get:()=>({...values}),ready,
+  }).catch(()=>({...values}))
+  .finally(()=>{inFlight=null});
+ return inFlight;
+}
+const ready=refresh(true);
+window.addEventListener('pageshow',()=>{void refresh()});
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden)void refresh();
+});
+window.GEGateSettings={defaults,get:()=>({...values}),ready,refresh,
  loaded:()=>loaded};
 })();
