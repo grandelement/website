@@ -137,6 +137,27 @@ try{
  assert.ok(small.localVisibleAfterScroll,'CHECK LOCAL HELPER must be reachable inside STATUS: '+JSON.stringify(small));
  assert.ok(small.advancedVisibleAfterScroll,'Advanced troubleshooting must be reachable inside STATUS: '+JSON.stringify(small));
  assert.ok(small.panelBottom<=small.dockTop+2,'Google content is behind bottom dock: '+JSON.stringify(small));
+ // LIBRARY must use the public GE Music catalog, not Drive's Radio archive.
+ await page.evaluate(()=>{
+  const b=[...document.querySelectorAll('.geBottomDock button')].find(x=>x.textContent.trim()==='LIBRARY');
+  if(!b)throw new Error('LIBRARY bottom tab not found');
+  b.click();
+ });
+ await page.waitForFunction(()=>document.querySelectorAll('#geLibSongs .geLibSong').length>0,{timeout:12000});
+ const lib=await page.evaluate(()=>{
+  const row=document.querySelector('#geLibSongs .geLibSong');
+  return {
+   visible:getComputedStyle(document.getElementById('geTabLibrary')).display!=='none',
+   count:document.getElementById('geLibCount').textContent,
+   replace:!!row.querySelector('button:nth-last-child(1)'),
+   installer:document.querySelector('#geTabLibrary a[download]')?.getAttribute('href'),
+   loaded:document.getElementById('geLibStatus').textContent.includes('catalog connected')
+  }
+ });
+ assert.ok(lib.visible,'LIBRARY bottom tab must be visible');
+ assert.ok(lib.loaded,'Shared GE Music manifest must load');
+ assert.ok(lib.replace,'Existing song replacement control must be present');
+ assert.equal(lib.installer,'/dj/GE_Studios_Library_Installer.zip','Offline iMac installer link missing');
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
  assert.equal(severe.length,0,'Unexpected script error: '+severe.join(' | '));
  console.log('PASS GE DJ Booth iMac V10 browser DOM tabs and STATUS layout',JSON.stringify(ui));
