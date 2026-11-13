@@ -14,6 +14,7 @@ import stat
 import time
 import sys
 import subprocess
+import tempfile
 try:
     from urllib2 import Request, urlopen, HTTPError
     from urllib import quote
@@ -55,16 +56,29 @@ def _api(method, route, token, payload=None):
         curl = "/usr/bin/curl"
         if not os.path.isfile(curl):
             raise RuntimeError("GitHub HTTPS connection failed: " + type(exc).__name__)
-        args = [curl, "--fail", "--silent", "--show-error", "--location",
-                "--max-time", "120", "--request", method,
-                "--header", "Accept: application/vnd.github+json",
-                "--header", "X-GitHub-Api-Version: 2022-11-28",
-                "--header", "Authorization: Bearer " + token, url]
-        if data is not None:
-            args.extend(["--header", "Content-Type: application/json", "--data-binary", "@-"])
-        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        output, errors = proc.communicate(data)
+        # Curl reads secret headers from stdin, never from process arguments.
+        payload_file = None
+        try:
+            args = [curl, "--fail", "--silent", "--show-error", "--location",
+                    "--max-time", "120", "--config", "-"]
+            config = ['url = "' + url + '"', 'request = "' + method + '"',
+                      'header = "Accept: application/vnd.github+json"',
+                      'header = "X-GitHub-Api-Version: 2022-11-28"',
+                      'header = "Authorization: Bearer ' + token + '"']
+            if data is not None:
+                fd, payload_file = tempfile.mkstemp(prefix="ge-radio-api-")
+                try:
+                    os.write(fd, data)
+                finally:
+                    os.close(fd)
+                config.append('header = "Content-Type: application/json"')
+                config.append('data-binary = "@' + payload_file + '"')
+            proc = subprocess.Popen(args, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, errors = proc.communicate(("\\n".join(config) + "\\n").encode("utf-8"))
+        finally:
+            if payload_file and os.path.isfile(payload_file):
+                os.unlink(payload_file)
         if proc.returncode:
             raise RuntimeError("GitHub HTTPS failed via Python and curl (curl exit %s). Check TLS/network." % proc.returncode)
         try:
