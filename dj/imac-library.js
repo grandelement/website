@@ -73,11 +73,13 @@ function listFilter(){
 function paint(){
  var out=el("geLibSongs");if(!out)return;
  while(out.firstChild)out.removeChild(out.firstChild);
- var matches=listFilter(),page=Number(el("geLibPage").value||"0"),size=30,pages=Math.max(1,Math.ceil(matches.length/size));
+ var matches=listFilter(),page=Number(el("geLibPage").value||"0"),size=activeAlbum?Math.max(30,matches.length):30,pages=Math.max(1,Math.ceil(matches.length/size));
+ if(root)root.className="panel geLibPanel"+(activeAlbum?" geLibAlbumSelected":"");
  if(page>=pages)page=pages-1;
  if(page<0)page=0;
  el("geLibPage").value=String(page);
- el("geLibCount").textContent=(activeAlbum?albumName(activeAlbum)+" · ":"")+matches.length+" songs · Page "+(page+1)+" of "+pages;
+ el("geLibCount").textContent=(activeAlbum?albumName(activeAlbum)+" · ":"")+matches.length+" songs"+(pages>1?" · Page "+(page+1)+" of "+pages:"");
+ el("geLibPager").style.display=pages>1?"flex":"none";
  el("geLibPrev").disabled=page===0;
  el("geLibNext").disabled=page===pages-1;
  if(!matches.length){out.appendChild(elem("p",null,"No songs match this search."));return}
@@ -132,9 +134,15 @@ function load(){
   });
  });
 }
+function revealEditor(){
+ var box=el("geLibEditorDetails");if(!box)return;
+ box.open=true;
+ if(box.scrollIntoView)box.scrollIntoView(false);
+}
 function chooseReplacement(path){
  if(uploading)return;
  selectedPath=path;
+ revealEditor();
  el("geLibTarget").textContent="REPLACING · "+path+"\nThe public song keeps this exact library filename and its existing playlist references.";
  el("geLibFile").value="";
  el("geLibUpload").textContent="REPLACE THIS SONG";
@@ -144,6 +152,7 @@ function chooseReplacement(path){
 function chooseNew(){
  if(uploading)return;
  selectedPath="";
+ revealEditor();
  el("geLibTarget").textContent="NEW SONG · Upload to GE Music Library / Radio Uploads. Not automatically added to Radio 1 or Radio 2 rotation.";
  el("geLibFile").value="";
  el("geLibUpload").textContent="UPLOAD NEW SONG";
@@ -204,37 +213,51 @@ function startUpload(){
 function open(host){
  if(!root){
   root=elem("div","panel geLibPanel");root.id="geLibraryPanel";
-  root.appendChild(elem("h2",null,"GE MUSIC LIBRARY"));
-  root.appendChild(elem("p",null,"One shared website catalog. Find, preview, upload or replace songs. Google Drive stays separate."));
+  // Compact song-first layout; uploader is expanded only when needed.
+  var toolbar=elem("div","geLibToolbar");
+  toolbar.appendChild(elem("h2",null,"GE MUSIC LIBRARY"));
   var actions=elem("div","geLibActions");
-  var newButton=elem("button",null,"NEW SONG");newButton.onclick=chooseNew;actions.appendChild(newButton);
-  var refresh=elem("button",null,"REFRESH SONGS");refresh.onclick=load;actions.appendChild(refresh);
-  var checkBtn=elem("button",null,"CHECK GITHUB");checkBtn.onclick=function(){check()};actions.appendChild(checkBtn);
-  root.appendChild(actions);
-  var upload=elem("div","geLibEditor");
-  var target=elem("p",null,"NEW SONG · Upload to the shared website music library.");target.id="geLibTarget";upload.appendChild(target);
-  var file=elem("input");file.type="file";file.id="geLibFile";file.accept=".aif,.aiff,.wav,.mp3,.m4a,.aac,.flac,.ogg,.oga,audio/*";file.setAttribute("aria-label","Select replacement or new song from this Mac");upload.appendChild(file);
-  var doUpload=elem("button",null,"UPLOAD NEW SONG");doUpload.type="button";doUpload.id="geLibUpload";doUpload.onclick=startUpload;upload.appendChild(doUpload);
-  var uploadStatus=elem("p",null,"Select a song to publish, or choose REPLACE on an existing song.");uploadStatus.id="geLibUploadStatus";uploadStatus.setAttribute("role","status");upload.appendChild(uploadStatus);
-  root.appendChild(upload);
-  var setup=elem("details","geLibSetup");setup.appendChild(elem("summary",null,"INSTALL LIBRARY HELPER · FIRST TIME ONLY"));
-  setup.appendChild(elem("p",null,"For OS X El Capitan. Download the ZIP on your iMac, unzip it, then Control-click Install GE Library.command and choose Open. A private GitHub token is still required."));
-  var link=elem("a",null,"DOWNLOAD IMAC LIBRARY INSTALLER");link.href="/dj/GE_Studios_Library_Installer.zip";link.download="GE_Studios_Library_Installer.zip";link.className="link";setup.appendChild(link);root.appendChild(setup);
-  root.appendChild(elem("h3",null,"FIND SONGS BY ALBUM"));
+  var newButton=elem("button",null,"+ NEW SONG");newButton.type="button";newButton.onclick=chooseNew;actions.appendChild(newButton);
+  var refresh=elem("button",null,"REFRESH");refresh.type="button";refresh.onclick=load;actions.appendChild(refresh);
+  toolbar.appendChild(actions);root.appendChild(toolbar);
   var albumTabs=elem("div","geLibAlbumTabs");albumTabs.id="geLibAlbumTabs";
   albumTabs.setAttribute("role","tablist");albumTabs.setAttribute("aria-label","Choose an album");
   root.appendChild(albumTabs);
-  var search=elem("input");search.id="geLibSearch";search.type="search";search.placeholder="Find song, album or filename";search.setAttribute("aria-label","Search GE Music songs");search.oninput=function(){el("geLibPage").value="0";paint()};root.appendChild(search);
-  var count=elem("p",null,"Loading…");count.id="geLibCount";root.appendChild(count);
+  var searchLine=elem("div","geLibSearchLine");
+  var search=elem("input");search.id="geLibSearch";search.type="search";search.placeholder="Find song or album";search.setAttribute("aria-label","Search GE Music songs");
+  search.oninput=function(){el("geLibPage").value="0";paint()};
+  searchLine.appendChild(search);
+  var count=elem("span",null,"Loading…");count.id="geLibCount";searchLine.appendChild(count);
+  root.appendChild(searchLine);
   var state=elem("p",null,"Loading GE Music catalog…");state.id="geLibStatus";state.setAttribute("role","status");root.appendChild(state);
-  var a=elem("audio");a.id="geLibPlayer";a.controls=true;a.preload="none";a.style.display="none";root.appendChild(a);
-  var previewName=elem("p");previewName.id="geLibPreviewName";root.appendChild(previewName);
   var songs=elem("div","geLibSongs");songs.id="geLibSongs";root.appendChild(songs);
-  var pagers=elem("div","geLibActions"),prev=elem("button",null,"PREVIOUS"),next=elem("button",null,"NEXT");
+  var pagers=elem("div","geLibActions geLibPager");pagers.id="geLibPager";
+  var prev=elem("button",null,"PREVIOUS"),next=elem("button",null,"NEXT");
   var pg=elem("input");pg.id="geLibPage";pg.type="hidden";pg.value="0";
-  prev.id="geLibPrev";next.id="geLibNext";prev.onclick=function(){pg.value=String(Math.max(0,Number(pg.value)-1));paint()};
+  prev.id="geLibPrev";next.id="geLibNext";
+  prev.onclick=function(){pg.value=String(Math.max(0,Number(pg.value)-1));paint()};
   next.onclick=function(){pg.value=String(Number(pg.value)+1);paint()};
   pagers.appendChild(prev);pagers.appendChild(next);pagers.appendChild(pg);root.appendChild(pagers);
+  var previewBox=elem("div","geLibPreviewBox");
+  var previewName=elem("span");previewName.id="geLibPreviewName";previewBox.appendChild(previewName);
+  var player=elem("audio");player.id="geLibPlayer";player.controls=true;player.preload="none";player.style.display="none";previewBox.appendChild(player);
+  root.appendChild(previewBox);
+  var editDetails=elem("details","geLibEditorDetails");editDetails.id="geLibEditorDetails";
+  editDetails.appendChild(elem("summary",null,"UPLOAD OR REPLACE A SONG"));
+  var upload=elem("div","geLibEditor");
+  var target=elem("p",null,"NEW SONG · Upload to the shared website music library.");target.id="geLibTarget";upload.appendChild(target);
+  var file=elem("input");file.type="file";file.id="geLibFile";file.accept=".aif,.aiff,.wav,.mp3,.m4a,.aac,.flac,.ogg,.oga,audio/*";
+  file.setAttribute("aria-label","Select replacement or new song from this Mac");upload.appendChild(file);
+  var doUpload=elem("button",null,"UPLOAD NEW SONG");doUpload.type="button";doUpload.id="geLibUpload";doUpload.onclick=startUpload;upload.appendChild(doUpload);
+  var checkBtn=elem("button",null,"CHECK GITHUB");checkBtn.type="button";checkBtn.onclick=function(){check()};upload.appendChild(checkBtn);
+  var uploadStatus=elem("p",null,"Choose an AIF or select REPLACE next to a song.");uploadStatus.id="geLibUploadStatus";
+  uploadStatus.setAttribute("role","status");upload.appendChild(uploadStatus);
+  editDetails.appendChild(upload);
+  var setup=elem("details","geLibSetup");setup.appendChild(elem("summary",null,"INSTALL LIBRARY HELPER · FIRST TIME ONLY"));
+  setup.appendChild(elem("p",null,"For OS X El Capitan. Download the ZIP, unzip, then Control-click Install GE Library.command and choose Open. A private GitHub token is required."));
+  var link=elem("a",null,"DOWNLOAD IMAC LIBRARY INSTALLER");link.href="/dj/GE_Studios_Library_Installer.zip";
+  link.download="GE_Studios_Library_Installer.zip";link.className="link";setup.appendChild(link);editDetails.appendChild(setup);
+  root.appendChild(editDetails);
   host.appendChild(root);load();
  }else if(root.parentNode!==host)host.appendChild(root);
 }
