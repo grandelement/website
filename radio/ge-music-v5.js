@@ -835,6 +835,46 @@ button:disabled{opacity:.5;cursor:not-allowed}
  }
 }
 @media(prefers-reduced-motion:reduce){.geAlbumUniverse *{animation:none!important;transition:none!important}}
+
+/* GE MUSIC phone compact open layout, 2026-11-13.
+   One fixed footer row; playlist editing remains in PLAYLISTS.
+   No change to selection, access, payment or playback handlers. */
+@media(max-width:820px){
+ .window{border:0!important;border-radius:0!important;box-shadow:none!important;width:100vw!important;top:env(safe-area-inset-top)!important;bottom:env(safe-area-inset-bottom)!important;background:#020817!important}
+ .header{padding:6px 10px!important;min-height:44px!important;background:rgba(2,17,36,.86)!important;border:0!important}
+ .header .brand{font-size:19px!important;letter-spacing:.02em!important}
+ .header button{min-height:38px!important;padding:5px 9px!important;font-size:12px!important;border-radius:7px!important}
+ .tools{padding:4px 8px 5px!important;background:rgba(2,17,36,.84)!important;border:0!important}
+ .browse{margin:0!important;gap:3px!important}
+ .browse button{min-height:36px!important;padding:5px 3px!important;font-size:12px!important;border:0!important;border-radius:5px!important;background:rgba(15,51,81,.64)!important}
+ .browse button[aria-pressed=true]{background:rgba(21,117,189,.85)!important;box-shadow:none!important}
+ .search{margin-top:5px!important;min-height:36px!important;padding:5px 9px!important;background:rgba(0,9,24,.62)!important;border:1px solid rgba(117,179,222,.26)!important;border-radius:5px!important}
+ .filterRow{margin-top:4px!important;gap:4px!important}
+ .filterRow select,.filterRow .songSelectAll,.filterRow .reloadCatalogBtn{min-height:35px!important;border:0!important;border-radius:5px!important;background:rgba(17,52,81,.7)!important;font-size:11px!important}
+ .filterRow .songSelectAll{padding:4px 6px!important}
+ .filterRow .reloadCatalogBtn{width:36px!important;flex-basis:36px!important;font-size:19px!important}
+ .tools .notice{margin:2px 0 0!important;min-height:0!important;font-size:10px!important;line-height:1.2!important;opacity:.7}
+ .scroll,.scroll.geAlbumUniverse{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat!important;background-attachment:local!important}
+ .scroll{padding:3px 7px 10px!important}
+ .scroll .section{font-size:14px!important;padding:4px 5px!important;margin:5px 0 2px!important;background:rgba(5,25,47,.45)!important;border:0!important}
+ .scroll .albumPicker,.scroll .albumCollectionHeading{padding:3px 5px!important;margin:3px 0!important;min-height:0!important;background:rgba(7,30,51,.35)!important;border:0!important;border-radius:0!important}
+ .scroll .albumPicker b,.scroll .albumPicker strong,.scroll .albumCollectionHeading b{font-size:clamp(14px,4vw,18px)!important;line-height:1.2!important}
+ .scroll .albumBrowseRow:not(.geAlbumFocused){border-color:rgba(155,209,240,.2)!important;box-shadow:none!important}
+ .scroll .song{min-height:37px!important;padding:2px 5px!important;margin:0!important;background:rgba(6,23,43,.45)!important;border:0!important;border-bottom:1px solid rgba(150,198,225,.14)!important;border-radius:0!important}
+ .scroll .song .songTitlePlay{min-height:35px!important;font-size:13px!important;padding:3px 2px!important}
+ .scroll .song button:not(.songTitlePlay){min-height:33px!important;padding:3px 8px!important;font-size:11px!important;border:1px solid rgba(105,188,239,.5)!important;border-radius:5px!important}
+ .selectionBar{display:grid!important;grid-template-columns:1fr!important;gap:0!important;min-height:0!important;padding:4px 6px max(5px,env(safe-area-inset-bottom))!important;background:rgba(2,15,32,.94)!important;border-top:1px solid rgba(132,200,245,.25)!important}
+ .selectionBar .quickPlaylistRow{display:none!important}
+ .selectionBar .checkedCount{display:none!important}
+ .selectionBar .selectionActions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;width:100%!important;gap:4px!important;align-items:stretch!important}
+ .selectionBar .selectionActions button:not(.arrangeBtn){min-width:0!important;min-height:42px!important;max-height:46px!important;padding:5px 2px!important;font-size:clamp(10px,2.8vw,12px)!important;border-radius:6px!important;letter-spacing:0!important}
+ .selectionBar .selectionActions .playSelected{min-width:0!important}
+ .selectionBar .selectionActions .arrangeBtn{display:none!important}
+ .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow{display:flex!important;width:100%!important;gap:4px!important;margin:0 0 4px!important}
+ .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow input{min-width:0!important;min-height:35px!important;font-size:12px!important;padding:4px 6px!important}
+ .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow button{min-width:43px!important;min-height:35px!important;font-size:10px!important;padding:3px 4px!important}
+ .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .checkedCount{display:block!important;font-size:10px!important;padding:0 2px 3px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -939,6 +979,8 @@ function selectedTracks(){
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
+  const selectLabel=el('.songSelectAll');
+  if(selectLabel)selectLabel.title=count+' songs checked';
  el('.playSelected').disabled=count===0;
   el('.offlineSelected').disabled=false;
   el('.buySelected').disabled=count===0;
