@@ -10,13 +10,8 @@ PLIST="$AGENTS/com.grandelement.geuploads.plist"
 URL="https://raw.githubusercontent.com/grandelement/website/main/dj/ge-upload-helper.py"
 RCLONE="$HOME/Downloads/rclone-v1.52.0-osx-amd64/rclone"
 CONF="$HOME/.config/rclone/rclone.conf"
-if [ ! -f "$RCLONE" ]; then
-  echo "STOP: Cannot find rclone at $RCLONE"
-  exit 1
-fi
-if [ ! -f "$CONF" ]; then
-  echo "STOP: Cannot find the Google Drive authorization in $CONF"
-  exit 1
+if [ ! -f "$RCLONE" ] || [ ! -f "$CONF" ]; then
+  echo "Google Drive is not configured. RADIO GitHub uploads can still work; DRAFTS/FINALS need rclone."
 fi
 mkdir -p "$BASE" "$AGENTS"
 echo "Downloading GE upload helper..."
@@ -57,5 +52,9 @@ echo ""
 echo "GE STUDIOS UPLOAD HELPER INSTALLED."
 echo "Starts at login and automatically restarts if it stops (30-second throttle)."
 echo "Open https://grandelement.com/dj/imac.html in Firefox."
-echo "Use UPLOAD RADIO for GitHub; DRAFTS and FINALS continue to use Google Drive.\nTo activate RADIO, save a fine-grained GitHub token (Contents read/write for grandelement/website)\nin ~/Library/Application Support/GEStudios/github-radio-token and run chmod 600 on it."
+echo "Use UPLOAD RADIO for GitHub. DRAFTS and FINALS use Google Drive when configured."
+echo "GitHub RADIO connection diagnostic:"
+/usr/bin/python "$BASE/ge-radio-github.py" --check || true
+echo "To activate RADIO, save a fine-grained GitHub token (Contents read/write for grandelement/website)"
+echo "at ~/Library/Application Support/GEStudios/github-radio-token and run chmod 600 on it."
 echo "If there is a problem, see /tmp/ge-studios-uploads-error.log"
