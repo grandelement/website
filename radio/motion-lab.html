@@ -55,7 +55,7 @@ h1{font-weight:640;font-size:clamp(23px,5vw,35px);line-height:1.16;margin:16px 0
 .lab[data-ge-density="compact"] .nav button{min-height:48px}
 .lab[data-ge-density="compact"] h1{margin:10px 0 5px}
 .lab[data-ge-density="compact"] p{margin-bottom:6px}
-@keyframes ge-soft-out{to{opacity:0}}@keyframes ge-soft-in{from{opacity:0}to{opacity:1}}
+@keyframes ge-soft-out{to{opacity:0}}@keyframes ge-soft-in{from{opacity:0;transform:translateY(var(--ge-motion-distance)) scale(var(--ge-motion-scale))}to{opacity:1;transform:none}}
 ::view-transition-old(ge-content){animation:ge-soft-out 95ms ease both}
 ::view-transition-new(ge-content){animation:ge-soft-in var(--ge-motion-duration) var(--ge-motion-ease) both}
 @media(prefers-reduced-motion:reduce){
@@ -116,6 +116,12 @@ const prefersReduce=window.matchMedia('(prefers-reduced-motion: reduce)');
 function note(message){feedback.textContent=message}
 function cover(a){return '../ge-images/images/Grand%20Element%20-%20'+encodeURIComponent(a)+'.jpg'}
 function noMotion(){return style==='off'||prefersReduce.matches}
+function syncMotionVariables(){
+ const root=document.documentElement;
+ root.style.setProperty('--ge-motion-duration',style==='soft'?'170ms':style==='float'?'225ms':style==='atmosphere'?'260ms':'0ms');
+ root.style.setProperty('--ge-motion-distance',style==='float'?'6px':style==='atmosphere'?'3px':'0px');
+ root.style.setProperty('--ge-motion-scale',style==='atmosphere'?'.992':'1');
+}
 function updatePlayer(){playing.textContent=tracks[track].title;playerArt.src=cover('Aether');playerPlay.textContent=audio.paused?'▶':'❚❚';playerPlay.setAttribute('aria-label',audio.paused?'Play selected song':'Pause selected song');repeatBtn.setAttribute('aria-pressed',String(repeat))}
 function safeUpdate(fn){
  if(noMotion()||!document.startViewTransition){fn();if(!noMotion()){content.classList.remove('ge-motion-enter');void content.offsetWidth;content.classList.add('ge-motion-enter')}return}
@@ -138,7 +144,7 @@ async function play(i){
  updatePlayer();render()
 }
 document.querySelectorAll('[data-style]').forEach(b=>b.addEventListener('click',()=>{
- style=b.dataset.style;lab.dataset.geMotion=style;
+ style=b.dataset.style;lab.dataset.geMotion=style;syncMotionVariables();
  document.querySelectorAll('[data-style]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
  safeUpdate(render);note(style==='off'?'Motion disabled.':style==='soft'?'Quick cross-fade.':style==='float'?'Subtle float and fade.':'Dreamy fade and soft movement.');
 }));
@@ -151,7 +157,7 @@ content.addEventListener('click',e=>{
  if(e.target.closest('#playList')){const first=[...selected].sort((a,b)=>a-b)[0];if(first===undefined){note('Select at least one song.');return}play(first);return}
  if(e.target.closest('#shareList')){
   const list=[...selected].sort((a,b)=>a-b).map(i=>tracks[i].title);if(!list.length){note('Select at least one song.');return}
-  const out='Grand Element · Aether\\n'+list.join('\\n');
+  const out='Grand Element · Aether\n'+list.join('\n');
   if(navigator.clipboard?.writeText){navigator.clipboard.writeText(out).then(()=>note('Song titles copied. This is not yet a playable share link.')).catch(()=>note('Clipboard unavailable on this page.'))}
   else note('Clipboard unavailable on this page.');return;
  }
@@ -162,7 +168,7 @@ repeatBtn.addEventListener('click',()=>{repeat=!repeat;audio.loop=repeat;updateP
 audio.addEventListener('play',updatePlayer);audio.addEventListener('pause',updatePlayer);audio.addEventListener('ended',()=>{updatePlayer();note('Track ended.')});
 audio.addEventListener('error',()=>note('Audio source unavailable in this preview.'));
 if(prefersReduce.matches){style='off';lab.dataset.geMotion='off';document.querySelectorAll('[data-style]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.style==='off')))}
-render();updatePlayer();
+syncMotionVariables();render();updatePlayer();
 })();
 </script>
 </body>
