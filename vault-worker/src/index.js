@@ -1589,6 +1589,30 @@ function analyticsEventCategory(eventType) {
   return "OTHER";
 }
 
+// Owner-only, read-only D1 fan geography; aggregate server-side to avoid large Worker responses.
+async function adminFanGeography(env,url){
+ const period=String(url.searchParams.get("period")||"1h");
+ const seconds={"1h":3600,"24h":86400,"7d":604800,"30d":2592000}[period]||3600;
+ const since=now()-seconds;
+ const country=String(url.searchParams.get("country")||"US").toUpperCase();
+ const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
+ const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const filters=["occurred_at>=?","anon_id IS NOT NULL","anon_id<>''","anon_id<>'ge-radio-station'"];
+ const args=[since];
+ if(country==="US")filters.push("UPPER(COALESCE(country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ else if(country==="OTHER")filters.push("UPPER(COALESCE(country,'')) NOT IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ if(state!=="ALL"){filters.push("region=?");args.push(state)}
+ if(event!=="ALL"){filters.push("event_type=?");args.push(event)}
+ const where=filters.join(" AND ");
+ const statement=sql=>env.VAULT_DB.prepare(sql).bind(...args).all();
+ const [states,types,totals]=await Promise.all([
+  statement("SELECT COALESCE(NULLIF(region,''),'Unknown') AS state, COALESCE(NULLIF(country,''),'Unknown') AS country,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions FROM fan_events WHERE "+where+" GROUP BY country,region ORDER BY visitors DESC,events DESC LIMIT 120"),
+  statement("SELECT event_type,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY event_type ORDER BY events DESC LIMIT 70"),
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions,MAX(occurred_at) AS last_seen FROM fan_events WHERE "+where).bind(...args).first()
+ ]);
+ return {ok:true,period,country,state,event,generated_at:now(),totals:totals||{},states:states.results||[],event_types:types.results||[],note:"Recorded anonymous devices, not verified people or concurrent listeners. Region is IP-derived and approximate."};
+}
+
 async function adminAnalytics(env, url) {
   const range = analyticsWindow(url, 30);
   const { since, until, days } = range;
@@ -2971,6 +2995,11 @@ export default {
       if (url.pathname === "/v1/admin/owner-ux-summary" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminOwnerUxSummary(env, url), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-geography" && request.method === "GET") {
+        if (!adminAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
+        return json(await adminFanGeography(env,url),200,cors);
       }
 
       if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {
