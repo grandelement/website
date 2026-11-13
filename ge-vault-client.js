@@ -222,9 +222,14 @@
     "game_start","game_complete"
   ]);
   const GE_EVENT_BATCH_SIZE=25,GE_EVENT_MAX_PENDING=400;
-  const GE_EVENT_FLUSH_MS=600000; // 10 minutes; pagehide sends immediately.
+  // Deliver the first visitor/session event promptly so live campaigns are visible.
+  // Keep ordinary batches modest and use a long backoff only during Vault outages.
+  const GE_EVENT_FLUSH_MS=60000; // 60-second rolling batches
+  const GE_EVENT_INITIAL_FLUSH_MS=8000; // first page view/session start
+  const GE_EVENT_FAILURE_RETRY_MS=600000; // 10-minute outage circuit breaker
   const GE_EVENT_COOLDOWN_KEY='GE_VAULT_EVENT_RETRY_AFTER_V1';
   let geEventQueue=[],geEventFlushTimer=0,geEventBusy=false,geEventCooldownUntil=0;
+  let geFirstBatchDelivered=false,geLastDeliveryAt=0;
   // Persist retry cooldown across reloads so an unavailable Vault does not
   // consume one Cloudflare Worker invocation on every visitor refresh.
   try{geEventCooldownUntil=Number(localStorage.getItem(GE_EVENT_COOLDOWN_KEY))||0}catch(_e){}
@@ -273,15 +278,17 @@
       geEventQueue=geEventQueue.filter(e=>!sent.has(e.client_event_id));
       gePersistEventQueue();
       geEventCooldownUntil=0;
+      geFirstBatchDelivered=true;
+      geLastDeliveryAt=Date.now();
       try{localStorage.removeItem(GE_EVENT_COOLDOWN_KEY)}catch(_e){}
       if(geEventQueue.length)geScheduleEventFlush(1500,true);
       return true;
     }catch(_error){
       // One failed request gets a 10-minute circuit breaker. Never make a
       // 1027 outage worse by retrying every click or blocking the player.
-      geEventCooldownUntil=Date.now()+GE_EVENT_FLUSH_MS;
+      geEventCooldownUntil=Date.now()+GE_EVENT_FAILURE_RETRY_MS;
       try{localStorage.setItem(GE_EVENT_COOLDOWN_KEY,String(geEventCooldownUntil))}catch(_e){}
-      geScheduleEventFlush(GE_EVENT_FLUSH_MS,true);
+      geScheduleEventFlush(GE_EVENT_FAILURE_RETRY_MS,true);
       return false;
     }finally{geEventBusy=false}
   }
@@ -304,7 +311,7 @@
       geEventQueue.splice(0,geEventQueue.length-GE_EVENT_MAX_PENDING);
     gePersistEventQueue();
     if(geEventQueue.length>=GE_EVENT_BATCH_SIZE)geScheduleEventFlush(1000,true);
-    else if(!beacon)geScheduleEventFlush();
+    else if(!beacon)geScheduleEventFlush(geFirstBatchDelivered?GE_EVENT_FLUSH_MS:GE_EVENT_INITIAL_FLUSH_MS);
     return Promise.resolve(true);
   }
 
@@ -724,6 +731,10 @@
     endpoint:EVENT_URL,
     eventUrl:EVENT_URL,
     scoreUrl:SCORE_URL,
+    // Browser-only diagnostics; a queued event is never proof of a D1 write.
+    deliveryStatus:()=>({pending:geEventQueue.length,confirmed_at:geLastDeliveryAt||null,
+      retry_after:geEventCooldownUntil>Date.now()?geEventCooldownUntil:null}),
+    retryDelivery:()=>geFlushEventQueue(),
     anonId,
     sessionId,
     acquisition,
@@ -769,7 +780,7 @@
   },{once:true});
 
   // Retry queued fan analytics on a future session, never during playback.
-  if(geEventQueue.length)geScheduleEventFlush(15000);
+  if(geEventQueue.length)geScheduleEventFlush(GE_EVENT_INITIAL_FLUSH_MS);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)geBeaconEventQueue();
     else if(geEventQueue.length)geScheduleEventFlush(10000);
