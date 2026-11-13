@@ -1055,6 +1055,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" data-ge-geo-period="7d">7 DAYS</button>
       <button type="button" id="brGeoRefresh" class="primary">REFRESH VAULT</button>
     </div>
+    <button type="button" id="brVaultReconnect" style="width:100%;min-height:54px;background:#125b75;border:2px solid #70dcf4;color:white;font-weight:900;margin:8px 0">RECONNECT + VERIFY VAULT</button>
+    <div id="brVaultReconnectStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px">Not checked yet.</div>
     <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
     <div id="brGeoTotals" class="brGeoTotals"></div>
     <div id="brGeoStates" class="brGeoStates"></div>
@@ -5113,6 +5115,29 @@ $('gatePassword').focus();
  const api='https://ge-backroom-publisher.grandelement.workers.dev';
  const tokenKey='GE_BACKROOM_PUBLISH_SESSION_V1';
  const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent'];
+ $('brVaultReconnect').addEventListener('click',async()=>{
+  const button=$('brVaultReconnect'),status=$('brVaultReconnectStatus');
+  const token=sessionStorage.getItem(tokenKey);
+  if(!token){status.textContent='SIGN IN TO BACK ROOM FIRST.';return}
+  button.disabled=true;status.textContent='Checking Vault, D1, service binding, fan analytics and access codes…';
+  try{
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+   let response;
+   try{response=await fetch(api+'/manage/vault-reconnect',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(data.error||'HTTP '+response.status);
+   const c=data.checks||{};
+   const names=[['Publisher',c.publisher_configured],['Private binding',c.service_binding],
+    ['Admin credential present',c.admin_token_configured],['Vault D1 ready',c.vault_ready],
+    ['Access tables',c.access_tables_ready],['Fan analytics readable',c.fan_analytics_readable],
+    ['Access codes readable',c.access_codes_readable]];
+   status.textContent=(data.ok?'CONNECTED AND VERIFIED':'CONNECTION NEEDS REPAIR')+'\\n'+
+    names.map(([name,ok])=>(ok?'PASS':'FAIL')+' · '+name).join('\\n')+'\\n'+(data.advice||'');
+   if(data.ok)void refresh();
+  }catch(error){status.textContent='VERIFICATION FAILED · '+String(error.message||error)}
+  finally{button.disabled=false}
+ });
  let busy=false;
  const text=(id,value)=>{$(id).textContent=String(value)};
  async function refresh(keepOptions=false){
