@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Grand Element · Calm Motion Lab</title>
+<meta name="description" content="GE Studios prototype: one content surface, gentle album transitions, compact spacing and an unchanged music player.">
+<link rel="stylesheet" href="ge-calm-motion.css">
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#060c14;color:#eaf6ff;--a:#86bfe1;--e:cubic-bezier(.22,.72,.23,1)}
+*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{background:linear-gradient(170deg,#10243c,#060c14 44%,#061321)}
+button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #c5efff;outline-offset:3px}
+button{touch-action:manipulation}button:disabled{cursor:not-allowed;opacity:.55}
+.lab{width:min(930px,100%);min-height:100dvh;margin:0 auto;display:flex;flex-direction:column;position:relative;padding:clamp(10px,2.5vw,24px);isolation:isolate}
+.lab>*:not(.ge-motion-ambient){position:relative;z-index:1}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px}
+.name{font-size:clamp(18px,3vw,25px);letter-spacing:.15em;font-weight:850}.kicker{font-size:11px;letter-spacing:.12em;color:#9cc2d9;text-transform:uppercase}
+h1{font-weight:640;font-size:clamp(23px,5vw,35px);line-height:1.16;margin:16px 0 7px}p{color:#b8cddc;line-height:1.5;margin:0 0 12px;font-size:15px}
+.controls{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:12px 0}
+.control-label{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#8fb6d3;margin-right:5px}
+.pill{min-height:44px;border:1px solid rgba(145,188,214,.25);border-radius:24px;padding:8px 15px;background:transparent;color:#b7d1e5}
+.pill[aria-pressed=true]{color:#fff;background:#153c59;border-color:#9ac8e3}
+.settings{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:7px 0 14px}
+.settings label{display:inline-flex;gap:8px;align-items:center;color:#aac8d8;font-size:14px}
+.settings input{width:20px;height:20px;accent-color:#77c8e2}
+.nav{display:flex;gap:2px;border-bottom:1px solid rgba(180,210,230,.17);margin-top:5px}
+.nav button{flex:1;min-height:54px;font-weight:700;letter-spacing:.04em;background:none;border:0;border-bottom:3px solid transparent;color:#8bb4cd;font-size:clamp(14px,3vw,17px)}
+.nav button[aria-selected=true]{color:#f2faff;border-bottom-color:#9bd7fa}
+.content{flex:1;min-height:340px;padding:14px 0 22px;view-transition-name:ge-content}
+.section-head{font-size:13px;color:#8fb6d3;letter-spacing:.11em;text-transform:uppercase;margin:2px 0 12px}
+.art-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(6px,1.4vw,12px)}
+.art{min-width:0;display:flex;flex-direction:column;text-align:left;border:1px solid transparent;border-radius:6px;background:transparent;color:#eaf6ff;padding:0 0 8px;overflow:hidden}
+.art[aria-pressed=true]{border-color:#87b8dc;background:rgba(107,172,215,.08)}
+.art img{aspect-ratio:1;width:100%;object-fit:contain;display:block;background:#0c1725;border-radius:5px}
+.art span{font-weight:700;font-size:16px;padding:7px 4px 0;line-height:1.2}
+.art small{font-size:13px;color:#9cbad0;padding:2px 4px}
+.tracks{display:grid;gap:4px}
+.track{min-height:58px;display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-radius:5px;background:rgba(116,175,205,.06);color:#e8f6ff;padding:8px 10px}
+.track:hover,.track[aria-pressed=true]{background:rgba(98,178,222,.18)}
+.track .num{font-size:13px;color:#83abc5;min-width:26px}.track .title{flex:1;font-weight:700}.track .dur{font-size:12px;color:#94b6cb}
+.playlist-info{font-size:16px;color:#d8eafa}.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.action{min-height:50px;border:1px solid rgba(123,189,221,.55);border-radius:5px;padding:10px 16px;background:rgba(16,62,94,.55);color:#f5fbff;font-weight:700}
+.action.primary{background:linear-gradient(120deg,#1b5c80,#237da2);border-color:#a4d7ea}
+.note{font-size:12px;color:#9bb7c9;margin-top:10px;line-height:1.5}
+.player{position:sticky;bottom:0;margin:0 -4px;padding:12px 4px max(12px,env(safe-area-inset-bottom));border-top:1px solid rgba(162,205,230,.22);background:linear-gradient(0deg,#091727 88%,rgba(9,23,39,.85));display:flex;align-items:center;gap:10px;z-index:5}
+.player-art{width:52px;height:52px;object-fit:cover;border-radius:4px;background:#071729}
+.player-name{flex:1;min-width:0;font-weight:700;font-size:15px}.player-name small{display:block;color:#8caec3;font-size:12px;overflow-wrap:anywhere;font-weight:500}
+.player button{width:50px;height:50px;min-width:50px;border:1px solid rgba(155,209,239,.3);border-radius:50%;background:#163f59;color:#fff;font-size:19px}
+.player button[aria-pressed=true]{background:#2879a2;border-color:#b5dff5}
+.feedback{font-size:13px;color:#a8d6f1;min-height:21px;margin:4px 0 8px}
+.lab[data-ge-density="compact"] .controls{margin:6px 0}.lab[data-ge-density="compact"] .settings{padding:2px 0 6px}
+.lab[data-ge-density="compact"] .content{padding:7px 0 11px}.lab[data-ge-density="compact"] .art-grid{gap:3px}
+.lab[data-ge-density="compact"] .art{border-radius:0;padding-bottom:2px}
+.lab[data-ge-density="compact"] .track{min-height:50px}
+.lab[data-ge-density="compact"] .nav button{min-height:48px}
+.lab[data-ge-density="compact"] h1{margin:10px 0 5px}
+.lab[data-ge-density="compact"] p{margin-bottom:6px}
+@keyframes ge-soft-out{to{opacity:0}}@keyframes ge-soft-in{from{opacity:0;transform:translateY(var(--ge-motion-distance)) scale(var(--ge-motion-scale))}to{opacity:1;transform:none}}
+::view-transition-old(ge-content){animation:ge-soft-out 95ms ease both}
+::view-transition-new(ge-content){animation:ge-soft-in var(--ge-motion-duration) var(--ge-motion-ease) both}
+@media(prefers-reduced-motion:reduce){
+ ::view-transition-old(ge-content),::view-transition-new(ge-content){animation:none!important}
+ .lab .ge-motion-enter{animation:none!important}
+}
+@media(min-width:650px){.art-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:440px){.lab{padding:10px}.name{letter-spacing:.09em}.kicker{font-size:10px}.controls{gap:4px}.pill{padding:7px 11px}.player{gap:7px}.player button{width:48px;min-width:48px;height:48px}}
+</style>
+</head>
+<body>
+<div id="lab" class="lab" data-ge-motion="soft" data-ge-density="compact" data-ge-ambient="off">
+ <div class="ge-motion-ambient" aria-hidden="true"></div>
+ <header class="top"><div><div class="kicker">GE Studios / Design Preview</div><div class="name">GRAND ELEMENT</div></div><span class="kicker">MOTION LAB</span></header>
+ <h1>One space. A softer experience.</h1>
+ <p>Choose a motion style. Open albums and switch sections to compare how the same open space changes. The player stays put.</p>
+ <div class="controls" role="group" aria-label="Transition style">
+  <span class="control-label">Movement</span>
+  <button class="pill ge-motion-press" data-style="soft" aria-pressed="true">Soft Fade</button>
+  <button class="pill ge-motion-press" data-style="float" aria-pressed="false">Gentle Float</button>
+  <button class="pill ge-motion-press" data-style="atmosphere" aria-pressed="false">Dreamy</button>
+  <button class="pill ge-motion-press" data-style="off" aria-pressed="false">None</button>
+ </div>
+ <div class="settings">
+  <label><input id="compact" type="checkbox" checked> No extra gaps</label>
+  <label><input id="ambient" type="checkbox"> Slow ambient glow</label>
+ </div>
+ <nav class="nav" role="tablist" aria-label="Music workspace">
+  <button role="tab" data-tab="albums" aria-selected="true" class="ge-motion-press">ALBUMS</button>
+  <button role="tab" data-tab="songs" aria-selected="false" class="ge-motion-press">SONGS</button>
+  <button role="tab" data-tab="playlist" aria-selected="false" class="ge-motion-press">PLAYLIST</button>
+ </nav>
+ <main id="content" class="content" tabindex="-1" role="tabpanel" aria-label="Music content"></main>
+ <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+ <div class="player" aria-label="Persistent music player">
+  <img id="playerArt" class="player-art" alt="Aether cover" src="../ge-images/images/Grand%20Element%20-%20Aether.jpg">
+  <div class="player-name"><span id="playing">Gravity</span><small id="playingAlbum">Aether / Grand Element</small></div>
+  <button id="playerPlay" class="ge-motion-press" type="button" aria-label="Play selected song">▶</button>
+  <button id="playerRepeat" class="ge-motion-press" type="button" aria-pressed="false" aria-label="Repeat this song">↻</button>
+ </div>
+ <audio id="audio" preload="none"></audio>
+</div>
+<script>
+(()=>{
+'use strict';
+const lab=document.getElementById('lab'),content=document.getElementById('content'),audio=document.getElementById('audio');
+const feedback=document.getElementById('feedback'),playing=document.getElementById('playing'),playerArt=document.getElementById('playerArt');
+const playerPlay=document.getElementById('playerPlay'),repeatBtn=document.getElementById('playerRepeat');
+const mediaBase='../ge-music/music/Grand Element - 2026 - Aether/';
+const tracks=[
+ {title:'Gravity',path:mediaBase+'Aether_02-Gravity.mp3'},
+ {title:'Prana',path:mediaBase+'Aether_04-Prana.mp3'},
+ {title:'Polaris',path:mediaBase+'Aether_06-Polaris.mp3'}
+];
+const albums=['Aether','Fire','Spirit','Love'];
+let tab='albums',album='Aether',track=0,selected=new Set([0]),style='soft',repeat=false;
+const prefersReduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+function note(message){feedback.textContent=message}
+function cover(a){return '../ge-images/images/Grand%20Element%20-%20'+encodeURIComponent(a)+'.jpg'}
+function noMotion(){return style==='off'||prefersReduce.matches}
+function syncMotionVariables(){
+ const root=document.documentElement;
+ root.style.setProperty('--ge-motion-duration',style==='soft'?'170ms':style==='float'?'225ms':style==='atmosphere'?'260ms':'0ms');
+ root.style.setProperty('--ge-motion-distance',style==='float'?'6px':style==='atmosphere'?'3px':'0px');
+ root.style.setProperty('--ge-motion-scale',style==='atmosphere'?'.992':'1');
+}
+function updatePlayer(){playing.textContent=tracks[track].title;playerArt.src=cover('Aether');playerPlay.textContent=audio.paused?'▶':'❚❚';playerPlay.setAttribute('aria-label',audio.paused?'Play selected song':'Pause selected song');repeatBtn.setAttribute('aria-pressed',String(repeat))}
+function safeUpdate(fn){
+ if(noMotion()||!document.startViewTransition){fn();if(!noMotion()){content.classList.remove('ge-motion-enter');void content.offsetWidth;content.classList.add('ge-motion-enter')}return}
+ try{document.startViewTransition(fn)}catch(_){fn()}
+}
+function render(){
+ document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+ if(tab==='albums'){
+  content.innerHTML='<div class="section-head">Select an album</div><div class="art-grid">'+albums.map(a=>'<button class="art ge-motion-press" type="button" data-album="'+a+'" aria-pressed="'+String(album===a)+'"><img src="'+cover(a)+'" alt="'+a+' album cover" loading="lazy"><span>'+a+'</span><small>'+ (a==='Aether'?'3 sample songs':'Artwork preview')+'</small></button>').join('')+'</div><div class="note">Album artwork is loaded from the actual Grand Element GitHub image folder. No nested dialog is opened.</div>';
+ }else if(tab==='songs'){
+  content.innerHTML='<div class="section-head">Aether / Select a song</div><div class="tracks">'+tracks.map((t,i)=>'<button type="button" class="track ge-motion-press" data-song="'+i+'" aria-pressed="'+String(track===i)+'"><span class="num">'+String(i+1).padStart(2,'0')+'</span><span class="title">'+t.title+'</span><span class="dur">PLAY</span></button>').join('')+'</div><div class="note">Tap a song to start playback. Use the repeat button beside the persistent player to loop one track.</div>';
+ }else{
+  content.innerHTML='<div class="section-head">Build a simple playlist</div><div class="tracks">'+tracks.map((t,i)=>'<label class="track"><input type="checkbox" data-check="'+i+'" '+(selected.has(i)?'checked':'')+'><span class="title">'+t.title+'</span></label>').join('')+'</div><div class="actions"><button id="playList" class="action primary ge-motion-press">Play selected</button><button id="shareList" class="action ge-motion-press">Copy song list</button><button class="action" disabled title="This lab does not connect to checkout">Buy (preview only)</button></div><div class="note">Sharing full playable playlist links and secure checkout will be connected after the main system passes verification. The lab will not charge anyone.</div>';
+ }
+}
+async function play(i){
+ track=i;const wasSame=audio.dataset.path===tracks[i].path;
+ if(!wasSame){audio.pause();audio.src=tracks[i].path;audio.dataset.path=tracks[i].path}
+ try{await audio.play();note('Playing '+tracks[i].title)}catch(_){note('Playback unavailable in this preview. Open the page on the GE website to use its hosted audio.')}
+ updatePlayer();render()
+}
+document.querySelectorAll('[data-style]').forEach(b=>b.addEventListener('click',()=>{
+ style=b.dataset.style;lab.dataset.geMotion=style;syncMotionVariables();
+ document.querySelectorAll('[data-style]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+ safeUpdate(render);note(style==='off'?'Motion disabled.':style==='soft'?'Quick cross-fade.':style==='float'?'Subtle float and fade.':'Dreamy fade and soft movement.');
+}));
+document.getElementById('compact').addEventListener('change',e=>{lab.dataset.geDensity=e.target.checked?'compact':'comfortable';note(e.target.checked?'Extra spacing removed.':'More breathing room.')});
+document.getElementById('ambient').addEventListener('change',e=>{lab.dataset.geAmbient=e.target.checked?'on':'off';note(e.target.checked?'Ambient glow enabled.':'Ambient glow disabled.')});
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;safeUpdate(render);note('Opened '+b.textContent.toLowerCase()+' in the same space.')}));
+content.addEventListener('click',e=>{
+ const a=e.target.closest('[data-album]');if(a){album=a.dataset.album;safeUpdate(()=>{tab='songs';render()});note(album==='Aether'?'Aether tracks are ready.':album+' artwork selected. Aether sample tracks shown for the motion preview.');return}
+ const s=e.target.closest('[data-song]');if(s){play(Number(s.dataset.song));return}
+ if(e.target.closest('#playList')){const first=[...selected].sort((a,b)=>a-b)[0];if(first===undefined){note('Select at least one song.');return}play(first);return}
+ if(e.target.closest('#shareList')){
+  const list=[...selected].sort((a,b)=>a-b).map(i=>tracks[i].title);if(!list.length){note('Select at least one song.');return}
+  const out='Grand Element · Aether\n'+list.join('\n');
+  if(navigator.clipboard?.writeText){navigator.clipboard.writeText(out).then(()=>note('Song titles copied. This is not yet a playable share link.')).catch(()=>note('Clipboard unavailable on this page.'))}
+  else note('Clipboard unavailable on this page.');return;
+ }
+});
+content.addEventListener('change',e=>{const n=e.target.dataset.check;if(n===undefined)return;const i=Number(n);if(e.target.checked)selected.add(i);else selected.delete(i);note(selected.size+' song(s) selected.')});
+playerPlay.addEventListener('click',()=>{if(audio.paused)play(track);else {audio.pause();updatePlayer();note('Paused.')}})
+repeatBtn.addEventListener('click',()=>{repeat=!repeat;audio.loop=repeat;updatePlayer();note(repeat?'Repeat this song is on.':'Repeat is off.')});
+audio.addEventListener('play',updatePlayer);audio.addEventListener('pause',updatePlayer);audio.addEventListener('ended',()=>{updatePlayer();note('Track ended.')});
+audio.addEventListener('error',()=>note('Audio source unavailable in this preview.'));
+if(prefersReduce.matches){style='off';lab.dataset.geMotion='off';document.querySelectorAll('[data-style]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.style==='off')))}
+syncMotionVariables();render();updatePlayer();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+/* GE Studios Calm Motion v1
+   Optional, class-scoped. No playback, routing or access-control side effects.
+   Attach data-ge-motion="soft|float|atmosphere|off" to a common ancestor.
+   Add .ge-motion-enter for a newly rendered panel and remove it afterward.
+*/
+:root{
+  --ge-motion-duration:170ms;
+  --ge-motion-ease:cubic-bezier(.22,.72,.23,1);
+  --ge-motion-distance:0px;
+  --ge-motion-scale:1;
+}
+[data-ge-motion="soft"]{
+  --ge-motion-duration:170ms;
+  --ge-motion-distance:0px;
+  --ge-motion-scale:1;
+}
+[data-ge-motion="float"]{
+  --ge-motion-duration:225ms;
+  --ge-motion-distance:6px;
+  --ge-motion-scale:1;
+}
+[data-ge-motion="atmosphere"]{
+  --ge-motion-duration:260ms;
+  --ge-motion-distance:3px;
+  --ge-motion-scale:.992;
+}
+[data-ge-motion="off"]{
+  --ge-motion-duration:0ms;
+  --ge-motion-distance:0px;
+  --ge-motion-scale:1;
+}
+@keyframes ge-calm-enter{
+  from{opacity:.24;transform:translateY(var(--ge-motion-distance)) scale(var(--ge-motion-scale))}
+  to{opacity:1;transform:none}
+}
+[data-ge-motion]:not([data-ge-motion="off"]) .ge-motion-enter{
+  animation:ge-calm-enter var(--ge-motion-duration) var(--ge-motion-ease) both;
+}
+[data-ge-motion] .ge-motion-press{
+  transition:background-color 150ms ease,color 150ms ease,opacity 150ms ease,transform 120ms ease;
+}
+[data-ge-motion]:not([data-ge-motion="off"]) .ge-motion-press:active{
+  transform:translateY(1px);
+}
+[data-ge-motion] .ge-motion-press:focus-visible{
+  outline:3px solid #b5e8ff;
+  outline-offset:3px;
+}
+[data-ge-motion="off"] .ge-motion-press{
+  transition:none!important;
+}
+@keyframes ge-ambient-breathe{
+  0%,100%{opacity:.018}
+  50%{opacity:.065}
+}
+/* Opt-in ambient layer. Always behind content, never a flashing foreground. */
+[data-ge-motion] .ge-motion-ambient{
+  position:absolute;
+  pointer-events:none;
+  inset:0;
+  background:radial-gradient(ellipse at 50% 18%,#68b4dc,transparent 62%);
+  opacity:0;
+  z-index:0;
+}
+[data-ge-motion][data-ge-ambient="on"]:not([data-ge-motion="off"]) .ge-motion-ambient{
+  animation:ge-ambient-breathe 12s ease-in-out infinite;
+}
+@media(prefers-reduced-motion:reduce){
+  [data-ge-motion] .ge-motion-enter,
+  [data-ge-motion] .ge-motion-ambient{
+    animation:none!important;
+  }
+  [data-ge-motion] .ge-motion-ambient{opacity:0!important}
+  [data-ge-motion] .ge-motion-press,
+  [data-ge-motion] .ge-motion-press:active{
+    transition:none!important;
+    transform:none!important;
+  }
+  [data-ge-motion] {scroll-behavior:auto!important}
+}
