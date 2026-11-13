@@ -75,7 +75,7 @@ def _api(method, route, token, payload=None):
                 config.append('data-binary = "@' + payload_file + '"')
             proc = subprocess.Popen(args, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output, errors = proc.communicate(("\\n".join(config) + "\\n").encode("utf-8"))
+            output, errors = proc.communicate(("\n".join(config) + "\n").encode("utf-8"))
         finally:
             if payload_file and os.path.isfile(payload_file):
                 os.unlink(payload_file)
@@ -96,7 +96,7 @@ def _token():
         raise RuntimeError("GitHub token file is empty or invalid.")
     return token
 
-def publish(mp3_path, filename, update=None):
+def publish(mp3_path, filename, update=None, replace_path=None):
     size = os.path.getsize(mp3_path)
     if size >= MAX_FILE_BYTES:
         raise RuntimeError("FILE TOO LARGE: converted MP3 is %0.1f MB; GitHub limit is 100 MB." % (size / 1000000.0))
@@ -109,6 +109,18 @@ def publish(mp3_path, filename, update=None):
     suffix = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
     safe = re.sub(r"[^A-Za-z0-9 ._()-]", "_", stem)[:120].strip(" .") or "Radio"
     target = DESTINATION + "/" + safe + " - " + suffix + ".mp3"
+    if replace_path:
+        # Only existing audio files in the public music tree can be replaced.
+        # A replacement preserves the exact URL and existing playlist references.
+        parts = replace_path.split("/")
+        if (not replace_path.startswith("ge-music/music/") or
+                any(part in ("", ".", "..") for part in parts) or
+                "\\" in replace_path or not replace_path.lower().endswith(".mp3")):
+            raise RuntimeError("REPLACE REJECTED: Invalid GE Music track path.")
+        existing = _api("GET", "contents/" + quote(replace_path.encode("utf-8"), safe="/"), token)
+        if existing.get("type") != "file" or not existing.get("sha"):
+            raise RuntimeError("REPLACE REJECTED: The original song was not found.")
+        target = replace_path
     if update:
         update(phase="uploading", detail="Sending converted MP3 to GitHub", percent=15)
     # Git Data API: one blob and one tree/commit, no Git checkout required on old iMac.
@@ -132,6 +144,9 @@ def publish(mp3_path, filename, update=None):
         })
         try:
             _api("PATCH", "git/refs/heads/" + BRANCH, token, {"sha": new_commit["sha"], "force": False})
+            confirmed = _api("GET", "contents/" + quote(target.encode("utf-8"), safe="/"), token)
+            if confirmed.get("sha") != blob["sha"]:
+                raise RuntimeError("GitHub commit was sent but published audio has not been verified.")
             return target
         except RuntimeError:
             if attempt == 2:
