@@ -5733,7 +5733,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <script src="../ge-vault-client.js?v=20261112-emergency-fan-tracking-v4"></script>
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
-<script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
+<script src="./ge-gate-settings.js?v=20261113-gate-power-v1"></script>
 <script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
 <script>
 'use strict';
@@ -13976,7 +13976,7 @@ Vector ${vector}. ${pair[1]}.`;
    Active Gate deadlines persist and cannot be extended by backgrounding the
    website. Authorization and timing survive refreshes. */
 (function createInnerGate(){
-  if(!GATE_CONFIG.enabled)return;
+  const gateEnabled=()=>GATE_CONFIG.enabled!==false;
   const gateSpeed=()=>Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
   const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed();
 
@@ -14018,7 +14018,7 @@ Vector ${vector}. ${pair[1]}.`;
   // One source of truth: the already persisted Gate state.
   function renderRadioClock(){
     if(!radioClock)return;
-    radioClock.hidden=!(state.live||state.livePreparing||gs.active||gs.expired)||authorized();
+    radioClock.hidden=!gateEnabled()||!(state.live||state.livePreparing||gs.active||gs.expired)||authorized();
     if(radioClock.hidden)return;
     const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
     let remaining;
@@ -14083,15 +14083,37 @@ Vector ${vector}. ${pair[1]}.`;
     stopGateRipples();
     if(fadeRAF){cancelAnimationFrame(fadeRAF);fadeRAF=0;}
   }
-  function isExpiredLocked(){return !authorized()&&!!gs.expired;}
+  function disablePublishedGate(){
+    const wasGated=!!(gs.active||gs.expired);
+    const originalVolume=Math.max(.05,Math.min(1,Number(gs.baseVolume)||1));
+    clearTimers();
+    gs=emptyState();wasCountable=false;lastTickAt=Date.now();
+    save(true); // Re-enabling begins a fresh, ordinary 33:33 session.
+    gate?.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');
+    gate?.setAttribute('aria-hidden','true');
+    if(wasGated){
+      window.GEAudioGain?.restore?.();
+      window.GEAudioGain?.setImmediate?.(1);
+      try{
+        audio.muted=false;audio.defaultMuted=false;
+        if(audio.volume<=0)audio.volume=originalVolume;
+      }catch(_e){}
+    }
+    renderRadioClock();
+  }
+  window.addEventListener('ge-gate-settings-ready',()=>{
+    if(!gateEnabled())disablePublishedGate();
+    else {lastTickAt=Date.now();restore();renderRadioClock();}
+  });
+  function isExpiredLocked(){return gateEnabled()&&!authorized()&&!!gs.expired;}
   // Once the Gate starts, the deadline is absolute. Pausing the native player
   // must never stretch/restart its timeline. Clear any old persisted hold.
   function holdGateTimeline(){
-    if(!gs.active||gs.expired||authorized())return;
+    if(!gateEnabled()||!gs.active||gs.expired||authorized())return;
     if(gs.pausedAt){gs.pausedAt=0;save(true);}
   }
   function resumeGateTimeline(){
-    if(!gs.active||gs.expired||authorized())return;
+    if(!gateEnabled()||!gs.active||gs.expired||authorized())return;
     // A new 'playing' event after an iPhone app switch must not restart
     // Blue Sun animations, ripple bursts or fade timers.
     if(gs.pausedAt){
@@ -14112,7 +14134,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function desiredVolume(at=Date.now()){
-    if(!gs.active||authorized())return null;
+    if(!gateEnabled()||!gs.active||authorized())return null;
     const base=Math.max(0,Math.min(1,Number(gs.baseVolume))); 
     if(!Number.isFinite(base))return 1;
     if(!gs.fadeAt||at<Number(gs.fadeAt))return base;
@@ -14195,7 +14217,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function expireGate(){
-    if(authorized())return;
+    if(!gateEnabled()||authorized())return;
     clearTimers();
     gs.active=true;gs.expired=true;gs.pausedAt=0;
     if(!gs.expireAt)gs.expireAt=Date.now();
@@ -14216,20 +14238,20 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function fadeFrame(){
-    if(!gs.active||authorized()||gs.expired)return;
+    if(!gateEnabled()||!gs.active||authorized()||gs.expired)return;
     const now=Date.now();
     if(now>=Number(gs.expireAt||0)){expireGate();return;}
     applyManagedVolume();
     fadeRAF=requestAnimationFrame(fadeFrame);
   }
   function beginFade(){
-    if(!gs.active||authorized()||gs.expired)return;
+    if(!gateEnabled()||!gs.active||authorized()||gs.expired)return;
     if(fadeRAF)cancelAnimationFrame(fadeRAF);
     fadeRAF=requestAnimationFrame(fadeFrame);
   }
 
   function applyVisualStage(now=Date.now()){
-    if(authorized()||!gs.active)return;
+    if(!gateEnabled()||authorized()||!gs.active)return;
     gate.classList.add('open','blurring');
     gate.setAttribute('aria-hidden','false');
     gate.style.setProperty('--ge-gate-blur-pulse',`${Math.max(.8,gateSeconds(GATE_CONFIG.blurPulseSeconds)||2.8)}s`);
@@ -14248,7 +14270,7 @@ Vector ${vector}. ${pair[1]}.`;
 
   function scheduleStages(){
     clearTimers();
-    if(authorized()||!gs.active)return;
+    if(!gateEnabled()||authorized()||!gs.active)return;
     // Gate continues even while Radio is not playing or the phone is locked.
     if(gs.pausedAt){gs.pausedAt=0;save(true);}
     const now=Date.now();
@@ -14266,6 +14288,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function restore(){
+    if(!gateEnabled())return;
     if(authorized()){
       // A fresh verified code may start Radio playback immediately. A playback
       // recovery call to restore() must not hide the successful 6-second Sun exit.
@@ -14281,7 +14304,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function trigger(reason){
-    if(authorized()||gs.active||gs.expired)return;
+    if(!gateEnabled()||authorized()||gs.active||gs.expired)return;
     // Offset scheduler latency so its end time corresponds to 2013s listened.
     const approachSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
       Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
@@ -14326,7 +14349,7 @@ Vector ${vector}. ${pair[1]}.`;
   // This does not bypass the question or extend the listening entitlement.
   // It simply starts the existing center/question + grace/fade clock now.
   function skipGateSunEntrance(){
-    if(!gs.active||gs.expired||authorized()||Date.now()>=Number(gs.centerAt||0))return;
+    if(!gateEnabled()||!gs.active||gs.expired||authorized()||Date.now()>=Number(gs.centerAt||0))return;
     const now=Date.now();
     const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||2)*1000;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
@@ -14364,12 +14387,13 @@ Vector ${vector}. ${pair[1]}.`;
   });
 
   function noteRealSongPlay(url){
-    if(authorized()||gs.active||gs.expired||isStationID(url))return;
+    if(!gateEnabled()||authorized()||gs.active||gs.expired||isStationID(url))return;
     gs.playCount=Math.max(0,Number(gs.playCount)||0)+1;
     if(gs.playCount===GATE_CONFIG.triggerTrack&&gs.sixthStartSeconds===null)gs.sixthStartSeconds=Math.max(0,Number(gs.musicSeconds)||0);
     save(true);
   }
   function countableNow(){
+    if(!gateEnabled())return false;
     // A muted connection probe is not listening time.
     if(audio.paused||audio.muted||audio.ended||!gateAudioFlowing||authorized()||gs.active||gs.expired)return false;
     // Only live Radio 1 / Radio 2 consumes this Radio allowance.
@@ -14377,7 +14401,7 @@ Vector ${vector}. ${pair[1]}.`;
     return !!state.live;
   }
   function evaluateTriggers(){
-    if(authorized()||gs.active||gs.expired)return;
+    if(!gateEnabled()||authorized()||gs.active||gs.expired)return;
     const visualSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
       Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
     const lead=visualSeconds+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
@@ -14386,12 +14410,14 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function syncListening(){
     const now=Date.now(),delta=Math.max(0,(now-lastTickAt)/1000);lastTickAt=now;
+    if(!gateEnabled()){wasCountable=false;renderRadioClock();return;}
     if(wasCountable&&!authorized()&&!gs.active&&!gs.expired){gs.musicSeconds=Math.max(0,Number(gs.musicSeconds)||0)+delta;evaluateTriggers();save(false);}
     wasCountable=countableNow();
     renderRadioClock();
   }
   function tick(){
     syncListening();
+    if(!gateEnabled())return;
     if(!authorized()&&gs.active&&!gs.expired){
       // Background interruptions never extend an already-started Gate.
       if(gs.pausedAt){gs.pausedAt=0;save(true);}
@@ -14726,7 +14752,7 @@ Vector ${vector}. ${pair[1]}.`;
   window.addEventListener('pagehide',()=>{syncListening();save(true);});
   let lastForegroundReconcileAt=0;
   function reconcileGateAfterAppSwitch(){
-    if(!gs.active||authorized())return;
+    if(!gateEnabled()||!gs.active||authorized())return;
     const now=Date.now();
     // Safari commonly fires pageshow and visibilitychange together; one
     // restore per foreground return avoids a stop/restart visual glitch.

@@ -1210,6 +1210,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section id="radioGateTimingSection" data-br-tab="gate">
   <h2>INNER FREQUENCY GATE · TIMING & REVERB</h2>
+  <label class="check" style="display:flex;align-items:center;gap:12px;min-height:48px;margin:8px 0 12px;padding:10px 14px;border:1px solid #4ba6c8;border-radius:12px;background:rgba(7,31,53,.7)">
+    <input id="gateEnabled" type="checkbox" checked aria-describedby="gatePowerHelp" style="width:24px;height:24px;flex:0 0 24px">
+    <span><strong>33:33 GATE ON</strong> · Uncheck to turn the listening cutoff OFF</span>
+  </label>
+  <p id="gatePowerHelp">ON: the Gate starts its normal 33:33 countdown and fade. OFF: unrestricted public listening time, but private Vault song and playlist permissions still apply. Save a draft, then publish to change the live site.</p>
   <p>Controls both the Radio Gate and the 33:33 song-preview Gate. After the Sun reaches the center, wait the Hold time, then fade to complete silence. Reverb grows from the first water waves all the way to the final cutoff. SAVE keeps a draft; PUBLISH LIVE applies these settings to new listening sessions.</p>
   <div class="grid3">
     <label><span>Blur before water (seconds)</span><input id="gateBlurLeadSeconds" type="number" inputmode="decimal" min="0" max="30" step="1" value="6"></label>
@@ -1221,6 +1226,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>Maximum reverb wet level (%)</span><input id="gateReverbMax" type="number" inputmode="decimal" min="0" max="150" step="5" value="100"></label>
   </div>
   <p id="gateTimingSummary" aria-live="polite">The Gate still ends at the 33:33 listening limit.</p>
+  <div class="actions">
+    <button id="gateSaveDraft" type="button">SAVE GATE DRAFT</button>
+    <button id="gatePublishLive" type="button" class="primary">PUBLISH GATE LIVE</button>
+  </div>
   <div class="actions"><a href="../radio/" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST RADIO GATE →</a><a href="../radio/preview-lab.html" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST MUSIC GATE →</a></div>
 </section>
 
@@ -1495,7 +1504,7 @@ function renderGateTimingSummary(){
  const visual=(t.blurLeadSeconds+t.waveLeadSeconds+t.entranceSeconds)/speed;
  const waterToSilence=(t.waveLeadSeconds+t.entranceSeconds)/speed+t.graceSeconds+t.fadeSeconds;
  const summary=$('gateTimingSummary');
- if(summary)summary.textContent='Full Gate: '+visual.toFixed(1)+'s approach + '+t.graceSeconds+'s centered hold + '+t.fadeSeconds+'s fade. Reverb rises over '+waterToSilence.toFixed(1)+'s from water to silence. The 33:33 listening cutoff remains fixed.';
+ if(summary)summary.textContent=$('gateEnabled')?.checked===false? 'GATE OFF · The 33:33 listening cutoff is disabled after publishing. Private access codes and restricted music remain protected.' : 'GATE ON · Full Gate: '+visual.toFixed(1)+'s approach + '+t.graceSeconds+'s centered hold + '+t.fadeSeconds+'s fade. Reverb rises over '+waterToSilence.toFixed(1)+'s from water to silence. The 33:33 listening cutoff remains fixed.';
 }
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let publisherBase=null;
@@ -2001,6 +2010,7 @@ function populate(){
   checked('brGameDefaultComputer',cfg.games?.defaults?.playComputer===true);
   {
     const gate=cfg.gateTiming||{};
+    checked('gateEnabled',gate.enabled!==false);
     for(const [key,[id,,,fallback]] of Object.entries(gateFields)){
       const raw=Number(gate[key]);
       const value=Number.isFinite(raw)?raw:fallback;
@@ -2044,7 +2054,7 @@ function collect(){
     defaults:{players:Math.max(0,Math.min(6,Number($('brGameDefaultPlayers').value)||0)),
       playComputer:$('brGameDefaultComputer').checked}
   };
-  cfg.gateTiming=readGateFields();
+  cfg.gateTiming={...readGateFields(),enabled:$('gateEnabled').checked};
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
   const bounded=(id,min,max,fallback)=>{const raw=Number($(id).value);return Number.isFinite(raw)&&$(id).value!==''?Math.max(min,Math.min(max,raw)):fallback};
@@ -2082,6 +2092,7 @@ $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textC
 for(const [,[id]] of Object.entries(gateFields)){
  $(id)?.addEventListener('input',renderGateTimingSummary);
 }
+$('gateEnabled').addEventListener('change',renderGateTimingSummary);
 $('radioMoonGlow').addEventListener('input',()=>{$('radioMoonGlowValue').textContent=$('radioMoonGlow').value+'%'});
 // Sections move from <main> into #backroomTabPanels during tab setup.
 // Listen on the actual mounted controls or edits never mark the draft as dirty.
@@ -2414,6 +2425,8 @@ async function publishViaCloudflare(){
   finally{$('publishLive').disabled=false}
 }
 $('publishLive').onclick=publishGithub;
+$('gateSaveDraft').addEventListener('click',saveDraft);
+$('gatePublishLive').addEventListener('click',()=>void publishGithub());
 $('legacyPublishLive').onclick=publishViaCloudflare;
 
 function addGuides(doc){

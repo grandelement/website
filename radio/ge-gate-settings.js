@@ -4,7 +4,7 @@
 (function(){
 'use strict';
 const defaults=Object.freeze({
- sequenceSpeed:1.5,blurLeadSeconds:6,waveLeadSeconds:10,
+ enabled:true,sequenceSpeed:1.5,blurLeadSeconds:6,waveLeadSeconds:10,
  entranceSeconds:70,graceSeconds:11,fadeSeconds:33,reverbMax:1
 });
 const bounds={
@@ -13,6 +13,7 @@ const bounds={
  reverbMax:[0,1.5]
 };
 const clamp=(n,key)=>{
+ if(key==='enabled')return n!==false;
  const [min,max]=bounds[key];const v=Number(n);
  return Number.isFinite(v)?Math.max(min,Math.min(max,v)):defaults[key];
 };
