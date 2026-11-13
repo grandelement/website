@@ -836,6 +836,34 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 @media(prefers-reduced-motion:reduce){.geAlbumUniverse *{animation:none!important;transition:none!important}}
 
+/* Albums universe: subdued Soul-style circular BACK button, soft glow.
+   Keep the album canvas unobstructed; other MUSIC views retain controls. */
+@media(max-width:820px){
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header{
+   position:absolute!important;z-index:12!important;top:7px!important;left:8px!important;
+   width:auto!important;min-height:0!important;padding:0!important;background:transparent!important;
+   border:0!important;pointer-events:none!important;
+ }
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .brand,
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .accessToggle,
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .geCodeIdentity{display:none!important}
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .geHeaderActions{pointer-events:none!important}
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .close{
+   display:flex!important;pointer-events:auto!important;width:56px!important;height:56px!important;
+   min-width:56px!important;min-height:56px!important;padding:0!important;
+   border:1px solid rgba(216,235,247,.42)!important;border-radius:50%!important;
+   color:rgba(235,246,255,.86)!important;background:rgba(179,200,216,.12)!important;
+   font-size:11px!important;font-weight:800!important;letter-spacing:.04em!important;
+   box-shadow:0 0 15px 4px rgba(198,224,248,.16),inset 0 0 13px rgba(218,239,255,.09)!important;
+   backdrop-filter:blur(7px)!important;-webkit-backdrop-filter:blur(7px)!important;
+ }
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .tools,
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .selectionBar{display:none!important}
+ .window:has(.browse [data-tab="albums"][aria-pressed="true"]) .scroll{
+   padding:68px 8px 16px!important;flex:1 1 auto!important;height:auto!important;
+   background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat!important;
+ }
+}
 /* GE MUSIC phone compact open layout, 2026-11-13.
    One fixed footer row; playlist editing remains in PLAYLISTS.
    No change to selection, access, payment or playback handlers. */
@@ -2092,6 +2120,7 @@ function close(){
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
 root.querySelector('.backdrop').addEventListener('click',close);
+el('.close').textContent='BACK';
 el('.close').addEventListener('click',close);
 el('.search').addEventListener('input',event=>{
  state.term=event.target.value;if(state.term)state.arranging=false;
