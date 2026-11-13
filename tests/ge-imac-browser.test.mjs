@@ -158,6 +158,28 @@ try{
  assert.ok(lib.loaded,'Shared GE Music manifest must load');
  assert.ok(lib.replace,'Existing song replacement control must be present');
  assert.equal(lib.installer,'/dj/GE_Studios_Library_Installer.zip','Offline iMac installer link missing');
+ const albumTest=await page.evaluate(()=>{
+   const buttons=[...document.querySelectorAll('#geLibAlbumTabs button')];
+   const names=buttons.map(b=>b.textContent.trim());
+   const aether=buttons.find(b=>/^AETHER \(/.test(b.textContent.trim()));
+   if(!aether)return {names,error:'AETHER tab missing'};
+   aether.click();
+   const albumRows=[...document.querySelectorAll('#geLibSongs .geLibSong')];
+   const aetherOnly=albumRows.length>0&&albumRows.every(row=>/Aether/i.test(row.querySelector('small')?.textContent||''));
+   const count=document.getElementById('geLibCount').textContent;
+   const selected=aether.getAttribute('aria-selected');
+   const all=buttons.find(b=>/^ALL SONGS \(/.test(b.textContent.trim()));
+   if(all)all.click();
+   return {names,aetherOnly,count,selected,allRestored:document.getElementById('geLibCount').textContent.includes('105 songs')};
+ });
+ assert.ok(albumTest.names?.some(n=>n.startsWith('ALL SONGS')),'ALL SONGS album tab missing');
+ assert.ok(albumTest.names?.some(n=>n.startsWith('AETHER')),'AETHER album tab missing');
+ assert.ok(albumTest.names?.some(n=>n.startsWith('FIRE')),'FIRE album tab missing');
+ assert.ok(albumTest.names?.some(n=>n.startsWith('NEW UPLOADS')),'New uploads album tab missing');
+ assert.ok(albumTest.aetherOnly,'AETHER tab must show only AETHER songs: '+JSON.stringify(albumTest));
+ assert.equal(albumTest.selected,'true','Selected album tab should be marked active');
+ assert.ok(albumTest.allRestored,'ALL SONGS must restore full music library');
+
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
  assert.equal(severe.length,0,'Unexpected script error: '+severe.join(' | '));
  console.log('PASS GE DJ Booth iMac V10 browser DOM tabs and STATUS layout',JSON.stringify(ui));
