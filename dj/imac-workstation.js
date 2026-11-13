@@ -117,7 +117,6 @@ function init(){
   var targets=[
     ["draft","UPLOAD TO DRAFTS","listDrafts"],
     ["final","UPLOAD TO FINALS","listFinals"],
-    ["radio","UPLOAD RADIO","listRadio"],
     ["session","UPLOAD SESSION","listSessions"]
   ];
   for(var ui=0;ui<targets.length;ui++)(function(info){
@@ -131,6 +130,8 @@ function init(){
     destinations.appendChild(button);
   })(targets[ui]);
   uploadSection.appendChild(destinations);
+  var libraryNote=node("p",null,"Website songs and replacements now upload from the LIBRARY tab below. Radio files already in Google Drive remain in the Drive archive.");
+  uploadSection.appendChild(libraryNote);
   move(draftCard,uploadSection);move(finalCard,uploadSection);move(radioCard,uploadSection);move(sessionCard,uploadSection);move(by("geUploadNameQuick"),uploadSection);
   if(addTitle)addTitle.parentNode.removeChild(addTitle);
   drive.insertBefore(uploadSection,driveTop.nextSibling);
