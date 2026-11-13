@@ -179,6 +179,33 @@ try{
  assert.ok(albumTest.aetherOnly,'AETHER tab must show only AETHER songs: '+JSON.stringify(albumTest));
  assert.equal(albumTest.selected,'true','Selected album tab should be marked active');
  assert.ok(albumTest.allRestored,'ALL SONGS must restore full music library');
+ // Compact workstation must use the available horizontal space without hiding songs.
+ const compact=await page.evaluate(()=>{
+  const buttons=[...document.querySelectorAll('#geLibAlbumTabs button')];
+  const aether=buttons.find(b=>b.textContent.trim().startsWith('AETHER ('));
+  aether.click();
+  const rows=[...document.querySelectorAll('#geLibSongs .geLibSong')];
+  const songRect=rows.map(x=>x.getBoundingClientRect());
+  const first=songRect[0],second=songRect[1],last=songRect[songRect.length-1];
+  const editor=document.getElementById('geLibEditorDetails');
+  const wasCollapsed=!editor.open;
+  const replace=rows[0].querySelectorAll('button')[1];
+  replace.click();
+  const openedForReplace=editor.open&&document.getElementById('geLibUpload').textContent==='REPLACE THIS SONG';
+  return {
+   visibleSongs:rows.length,
+   firstRowSameLine:Math.abs(first.top-second.top)<3,
+   withinOneScreen:last.bottom-first.top<330,
+   wasCollapsed,openedForReplace,
+   albumName:document.getElementById('geLibCount').textContent
+  };
+ });
+ assert.equal(compact.visibleSongs,12,'AETHER must show every album song on one page');
+ assert.ok(compact.firstRowSameLine,'iMac Library must use two-column song rows at desktop width: '+JSON.stringify(compact));
+ assert.ok(compact.withinOneScreen,'Album rows should fit compactly in the song panel: '+JSON.stringify(compact));
+ assert.ok(compact.wasCollapsed,'Upload editor should start collapsed to give songs more room');
+ assert.ok(compact.openedForReplace,'REPLACE must open its editor without losing target: '+JSON.stringify(compact));
+
 
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
  assert.equal(severe.length,0,'Unexpected script error: '+severe.join(' | '));
