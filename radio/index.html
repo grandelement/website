@@ -30,7 +30,7 @@ window.addEventListener('unhandledrejection',function(e){
   if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
 });
 </script>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style id="ge-radio-mobile-zoom-policy">
 /* Prevent accidental double-tap zoom on the interactive Radio controls. */
 button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
@@ -48,7 +48,7 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
   const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
   const touch=Number(navigator.maxTouchPoints||0)>0;
   const shortSide=Math.min(Number(screen.width)||9999,Number(screen.height)||9999);
-  const phoneHardware=shortSide<=600; // Physical phone size wins over spoofed desktop Safari UA.
+  const phoneHardware=shortSide<=600&&(mobileUA||macUA&&touch||typeof navigator.standalone==='boolean');
   const tabletHardware=touch&&macUA&&shortSide<=1100;
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
   let preference='auto';
@@ -62,27 +62,28 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
       if(saved==='mobile'||saved==='desktop')preference=saved;
     }
   }catch(_){}
-  const layout=phoneHardware?'mobile':preference==='auto'?
-    (tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
+  const layout=preference==='auto'?
+    (phoneHardware||tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
   const html=document.documentElement;
   html.dataset.geDeviceLayout=layout;
   html.dataset.geDevicePreference=preference;
   html.classList.toggle('ge-mobile-device',layout==='mobile');
   html.classList.toggle('ge-desktop-device',layout==='desktop');
   // Virtual desktop rendering is an OPT-IN, never a Safari user-agent guess.
-  const requestedDesktop=preference==='desktop'&&!phoneHardware&&tabletHardware;
+  const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
   const viewport=document.querySelector('meta[name="viewport"]');
   function applyViewport(){
     if(!viewport)return;
-    if(requestedDesktop&&!phoneHardware){
+    if(requestedDesktop){
       viewport.content='width=1160,initial-scale=1,viewport-fit=cover';
     }else if(layout==='mobile'&&phoneHardware){
       // Safari's "Request Desktop Website" can use a Macintosh user-agent
       // and desktop CSS width even on an iPhone. Use its real screen width.
-      // Follow Safari's current visual viewport on rotation. Physical screen
-      // dimensions can be stale or swapped during iOS orientation changes.
-      viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
+      const w=Number(screen.width)||390,h=Number(screen.height)||844;
+      const landscape=window.matchMedia?.('(orientation: landscape)').matches===true;
+      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
+      viewport.content='width='+width+',initial-scale=1,viewport-fit=cover';
     }else{
       viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }
@@ -90,13 +91,14 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
   applyViewport();
   window.addEventListener?.('orientationchange',()=>{
     applyViewport();
-    // Rotation can preserve the old landscape horizontal scroll offset.
-    // Recenter the radio UI after Safari settles its new viewport.
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      if(layout==='mobile'&&window.scrollX!==0)window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
-    }));
+    // Recenter after iOS rotation without changing playback.
+    if(typeof window.requestAnimationFrame==='function'){
+      window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>{
+        if(layout==='mobile'&&window.scrollX!==0)
+          window.scrollTo?.({left:0,top:window.scrollY,behavior:'auto'});
+      }));
+    }
   },{passive:true});
-  window.addEventListener?.('resize',applyViewport,{passive:true});
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},

@@ -835,6 +835,54 @@ button:disabled{opacity:.5;cursor:not-allowed}
  }
 }
 @media(prefers-reduced-motion:reduce){.geAlbumUniverse *{animation:none!important;transition:none!important}}
+
+/* GE ONE SURFACE 2026-11-13: A full-canvas MUSIC workspace, not a framed dialog.
+   Styling only: preserve the single protected player, Gate, tabs, scroll,
+   selection, playlist IDs, shares, and payment-demo checks. */
+.backdrop{display:none!important}
+.window{
+  position:absolute!important;inset:0!important;
+  left:0!important;right:0!important;top:0!important;bottom:0!important;
+  transform:none!important;width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;
+  background:#061626!important;overflow:hidden!important
+}
+.window .header{
+  padding:calc(8px + env(safe-area-inset-top)) 12px 8px!important;
+  margin:0!important;border:0!important;box-shadow:none!important
+}
+.window .build{display:none!important}
+.window .tools{
+  margin:0!important;padding:6px 9px!important;
+  border:0!important;box-shadow:none!important;background:#061626!important
+}
+.window .browse{gap:4px!important;margin-top:5px!important}
+.window .browse button{min-height:48px!important;border-radius:6px!important}
+.window .filterRow{gap:5px!important;margin-top:5px!important}
+.window .scroll{
+  min-height:0!important;padding:7px 8px 20px!important;
+  margin:0!important;overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch
+}
+.window .section{margin:6px 0 2px!important;padding:7px 4px!important}
+.window .albumBrowseRow{margin-bottom:3px!important}
+.window .albumCollectionHeading{margin:6px 0 3px!important;box-shadow:none!important}
+.window .song{gap:7px!important;min-height:52px!important}
+.window .song .songLabel{white-space:normal!important;text-overflow:clip!important}
+.window .selectionBar{
+  margin:0!important;border:0!important;
+  padding:6px 9px max(8px,env(safe-area-inset-bottom))!important;
+  box-shadow:none!important
+}
+.window .selectionActions{gap:5px!important}
+.window .selectionActions button{min-height:48px!important}
+@media(max-width:520px){
+ .window .scroll{padding:5px 5px 16px!important}
+ .window .tools{padding:5px 6px!important}
+ .window .selectionBar{padding:5px 6px max(8px,env(safe-area-inset-bottom))!important}
+ .window .browse button{font-size:clamp(14px,3.8vw,18px)!important;min-height:50px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">

@@ -41,7 +41,9 @@ test(home.includes('GE_A11Y_ZOOM')&&home.includes('zoomAllowed()'),'Universe pin
 test(radio.includes('id="bgGroup"')&&radio.includes('id="bottomActions"'),'Background and utility action groups remain separate');
 test(siteControl.includes("target.searchParams.set('album',name)"),'Planet PLAY passes chosen album to music player');
 test(preview.includes('WEBSITE_ALBUM_REQUEST')&&preview.includes('openAlbum(match)'),'Music player receives and opens requested album');
-test(manifest.files.filter(path=>/Grand Element - 2026 - Aether\//.test(path)).length===4,'All four Aether tracks remain in Radio manifest');
+const aetherTracks=manifest.files.filter(path=>/Grand Element - 2026 - Aether\//.test(path));
+test(aetherTracks.length>=4&&aetherTracks.every(path=>fs.existsSync(path)),
+  'Aether catalog entries exist on disk and new recordings do not invalidate accessibility');
 for(const [label,source] of [['website',parentSW],['radio',radioSW]]){
  test(source.includes('ge-accessibility.js')&&source.includes('ge-accessibility.css'),label+' precaches shared accessibility assets');
 }
