@@ -1,0 +1,58 @@
+name: GE Vault Fan Event Write Smoke Test
+# One marked synthetic event proves the public analytics write endpoint can reach D1.
+# No secrets, private data, destructive resets or playlist changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-vault-telemetry-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  verify-fan-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify public Vault fan-event batch accepts a D1 write
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error, uuid, sys
+          token = str(uuid.uuid4())
+          event = {
+              'client_event_id': 'ev-' + token,
+              'anon_id': 'visitor-diagnostic-' + token,
+              'session_id': 'session-diagnostic-' + token,
+              'surface': 'website',
+              'event_type': 'session_start',
+              'page_url': 'https://www.grandelement.com/__vault_diagnostic__',
+              'page_path': '/__vault_diagnostic__',
+              'utm_source': 'ge-internal-diagnostic',
+              'metadata': {'diagnostic': True, 'diagnostic_name': 'ge-vault-live-telemetry-smoke'}
+          }
+          req = urllib.request.Request(
+              'https://vault.grandelement.com/v1/public/events',
+              data=json.dumps({'events':[event]},separators=(',',':')).encode('utf-8'),
+              headers={
+                  'Content-Type':'application/json',
+                  'Accept':'application/json',
+                  'Origin':'https://www.grandelement.com',
+                  'User-Agent':'GE-Vault-Telemetry-Single-Event-Diagnostic/1.0',
+              }, method='POST')
+          try:
+              with urllib.request.urlopen(req,timeout=20) as response:
+                  status=response.status
+                  result=json.load(response)
+          except urllib.error.HTTPError as error:
+              status=error.code
+              try:result=json.load(error)
+              except Exception:result={}
+          except Exception as error:
+              print('FAIL: Could not establish live Vault write:',type(error).__name__,str(error)[:250])
+              sys.exit(1)
+          print('Vault fan-event write HTTP:', status)
+          print('Server acknowledgement:', {k:result.get(k) for k in ('ok','accepted','error') if k in result})
+          if status != 201 or result.get('ok') is not True or result.get('accepted') != 1:
+              sys.exit('FAIL: Live Vault has not acknowledged the diagnostic fan-event write.')
+          print('PASS: Live Vault accepted a marked synthetic event for permanent D1 ingestion.')
+          PY
