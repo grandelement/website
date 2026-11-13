@@ -3,7 +3,7 @@
  * No GitHub token or write permission ever reaches this page.
  */
 (function(w,d){"use strict";
-var ROOT="/",API="http://127.0.0.1:8765",root=null,all=[],radioPaths={},bangers={},loading=false,uploading=false,selectedPath="",selection=null,painted=false;
+var ROOT="/",API="http://127.0.0.1:8765",root=null,all=[],radioPaths={},bangers={},loading=false,uploading=false,selectedPath="",selection=null,painted=false,activeAlbum="",albumKeys=[];
 function el(id){return d.getElementById(id)}
 function elem(tag,klass,value){var n=d.createElement(tag);if(klass)n.className=klass;if(value!==undefined)n.textContent=value;return n}
 function label(message){if(el("geLibStatus"))el("geLibStatus").textContent=message}
@@ -30,9 +30,44 @@ function xhr(method,url,body,done){
 function musicUrl(path){var items=path.split("/"),escaped=[];for(var i=0;i<items.length;i++)escaped.push(encodeURIComponent(items[i]));return "/"+escaped.join("/")}
 function niceName(path){var name=path.split("/").pop()||path;return name.replace(/\.mp3$/i,"").replace(/_/g," ")}
 function routeTo(path){return Object.prototype.hasOwnProperty.call(radioPaths,path)}
+// The folder holding a song is its album. Keep keys as exact repository paths.
+function albumOf(path){
+ var relative=String(path||"").substring("ge-music/music/".length);
+ var pieces=relative.split("/");
+ return pieces.length>1?pieces.slice(0,-1).join("/"):"Singles";
+}
+function albumName(key){
+ if(key==="Radio Uploads")return "NEW UPLOADS";
+ if(key==="Singles")return "SINGLES";
+ return String(key).replace(/^Grand Element - (?:19|20)\d{2} - /i,"").replace(/^Grand Element - /i,"").toUpperCase();
+}
+function albumYear(key){
+ var m=String(key).match(/^Grand Element - (\d{4}) - /);
+ return m?Number(m[1]):0;
+}
+function paintAlbumTabs(){
+ var tabs=el("geLibAlbumTabs");if(!tabs)return;
+ while(tabs.firstChild)tabs.removeChild(tabs.firstChild);
+ var counts={};
+ for(var i=0;i<all.length;i++){var a=albumOf(all[i]);counts[a]=(counts[a]||0)+1}
+ var names=[""].concat(albumKeys);
+ for(var j=0;j<names.length;j++)(function(key){
+  var button=elem("button",key===activeAlbum?"geLibAlbumActive":"",key===""?"ALL SONGS ("+all.length+")":albumName(key)+" ("+(counts[key]||0)+")");
+  button.type="button";button.setAttribute("role","tab");
+  button.setAttribute("aria-selected",key===activeAlbum?"true":"false");
+  button.onclick=function(){
+   activeAlbum=key;
+   el("geLibSearch").value="";
+   el("geLibPage").value="0";
+   paintAlbumTabs();paint();
+  };
+  tabs.appendChild(button);
+ })(names[j]);
+}
+
 function listFilter(){
  var q=(el("geLibSearch")&&el("geLibSearch").value||"").toLowerCase(),filtered=[];
- for(var i=0;i<all.length;i++)if(all[i].toLowerCase().indexOf(q)>=0)filtered.push(all[i]);
+ for(var i=0;i<all.length;i++)if((!activeAlbum||albumOf(all[i])===activeAlbum)&&all[i].toLowerCase().indexOf(q)>=0)filtered.push(all[i]);
  return filtered;
 }
 function paint(){
@@ -42,7 +77,7 @@ function paint(){
  if(page>=pages)page=pages-1;
  if(page<0)page=0;
  el("geLibPage").value=String(page);
- el("geLibCount").textContent=matches.length+" songs · Page "+(page+1)+" of "+pages;
+ el("geLibCount").textContent=(activeAlbum?albumName(activeAlbum)+" · ":"")+matches.length+" songs · Page "+(page+1)+" of "+pages;
  el("geLibPrev").disabled=page===0;
  el("geLibNext").disabled=page===pages-1;
  if(!matches.length){out.appendChild(elem("p",null,"No songs match this search."));return}
@@ -70,7 +105,20 @@ function load(){
   var source=manifest.files;all=[];
   for(var i=0;i<source.length;i++)if(/^ge-music\/music\/.+\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(source[i]))all.push(source[i]);
   all.sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:a.toLowerCase()>b.toLowerCase()?1:0});
-  label("GE Music catalog connected · "+all.length+" files. This is the shared website music library.");
+  var found={};
+  for(var a=0;a<all.length;a++)found[albumOf(all[a])]=true;
+  // Keep the incoming uploads tab visible even before the first new release.
+  found["Radio Uploads"]=true;
+  albumKeys=Object.keys(found);
+  albumKeys.sort(function(a,b){
+   if(a==="Radio Uploads")return -1;
+   if(b==="Radio Uploads")return 1;
+   var year=albumYear(b)-albumYear(a);if(year)return year;
+   return albumName(a)<albumName(b)?-1:albumName(a)>albumName(b)?1:0;
+  });
+  if(activeAlbum&&!found[activeAlbum])activeAlbum="";
+  paintAlbumTabs();
+  label("GE Music catalog connected · "+all.length+" files. Select an album to find its songs.");
   xhr("GET",ROOT+"radio/sync-playlist.json?library="+new Date().getTime(),null,function(e,data){
    radioPaths={};if(!e&&data&&data.tracks)for(var j=0;j<data.tracks.length;j++)if(data.tracks[j].path)radioPaths[data.tracks[j].path]=true;
    xhr("GET",ROOT+"playlists/registry.json?library="+new Date().getTime(),null,function(er,registry){
@@ -172,7 +220,10 @@ function open(host){
   var setup=elem("details","geLibSetup");setup.appendChild(elem("summary",null,"INSTALL LIBRARY HELPER · FIRST TIME ONLY"));
   setup.appendChild(elem("p",null,"For OS X El Capitan. Download the ZIP on your iMac, unzip it, then Control-click Install GE Library.command and choose Open. A private GitHub token is still required."));
   var link=elem("a",null,"DOWNLOAD IMAC LIBRARY INSTALLER");link.href="/dj/GE_Studios_Library_Installer.zip";link.download="GE_Studios_Library_Installer.zip";link.className="link";setup.appendChild(link);root.appendChild(setup);
-  root.appendChild(elem("h3",null,"SONGS IN THE WEBSITE LIBRARY"));
+  root.appendChild(elem("h3",null,"FIND SONGS BY ALBUM"));
+  var albumTabs=elem("div","geLibAlbumTabs");albumTabs.id="geLibAlbumTabs";
+  albumTabs.setAttribute("role","tablist");albumTabs.setAttribute("aria-label","Choose an album");
+  root.appendChild(albumTabs);
   var search=elem("input");search.id="geLibSearch";search.type="search";search.placeholder="Find song, album or filename";search.setAttribute("aria-label","Search GE Music songs");search.oninput=function(){el("geLibPage").value="0";paint()};root.appendChild(search);
   var count=elem("p",null,"Loading…");count.id="geLibCount";root.appendChild(count);
   var state=elem("p",null,"Loading GE Music catalog…");state.id="geLibStatus";state.setAttribute("role","status");root.appendChild(state);
