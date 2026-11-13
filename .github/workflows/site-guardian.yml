@@ -1,0 +1,40 @@
+name: GE Studios Site Guardian
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  site-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check published catalog and player wiring
+        run: node scripts/site-guardian.mjs
+      - name: Check live RADIO when configured
+        if: ${{ vars.GE_SITE_URL != '' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+        env:
+          GE_SITE_URL: ${{ vars.GE_SITE_URL }}
+        run: node scripts/site-guardian.mjs --live
+      - name: Open or update failure alert
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --state open --label site-guardian --json number --jq '.[0].number' > /tmp/ge-issue || true
+          ISSUE="$(cat /tmp/ge-issue)"
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "Site Guardian check failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            gh label create site-guardian --color B60205 --description "Automated site health alert" --force
+            gh issue create --title "Site Guardian: playback health check failed" --label site-guardian --body "Investigate failed checks: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
