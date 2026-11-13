@@ -639,6 +639,36 @@ export default {
 
     // Fan identities require the FULL Vault admin credential, not the
     // narrower Access Codes bridge token. Only the owner may link records.
+    if(url.pathname==='/manage/vault-reconnect'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Owner sign-in expired. Sign in again.'},401,cors);
+      const checks={publisher_configured:configured,service_binding:!!env.GE_VAULT?.fetch,
+        admin_token_configured:!!String(env.VAULT_ADMIN_TOKEN||'').trim()};
+      try{
+        const health=env.GE_VAULT?.fetch
+          ?await env.GE_VAULT.fetch('https://vault.grandelement.com/health')
+          :await fetch('https://vault.grandelement.com/health');
+        const h=await health.json().catch(()=>({}));
+        checks.vault_http=health.status;
+        checks.vault_ready=health.ok&&h.ok===true&&h.storage==='READY';
+        checks.access_tables_ready=h.access_codes_ready===true;
+      }catch(_){checks.vault_ready=false;checks.vault_http=0}
+      if(checks.admin_token_configured){
+        const fan=await geVaultBridge(env,'/v1/admin/fan-geography?period=1h&country=US');
+        checks.fan_analytics_http=fan.status;
+        checks.fan_analytics_readable=fan.status===200&&fan.data?.ok===true;
+        const codes=await geVaultBridge(env,'/v1/admin/access-codes');
+        checks.access_codes_http=codes.status;
+        checks.access_codes_readable=codes.status===200&&codes.data?.ok===true&&Array.isArray(codes.data.items);
+      }else{
+        checks.fan_analytics_readable=false;checks.access_codes_readable=false;
+      }
+      const ok=checks.publisher_configured&&checks.service_binding&&checks.vault_ready&&
+        checks.admin_token_configured&&checks.fan_analytics_readable&&checks.access_codes_readable;
+      return json({ok,checks,read_only:true,
+        advice:ok?'Private Vault connection verified. No configuration changes needed.':
+        'A failed check needs configuration, deployment, or permission repair. No secrets or data were changed.'},200,cors);
+    }
     if(url.pathname==='/manage/fan-geography'&&request.method==='GET'){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Back Room sign-in required.'},401,cors);
