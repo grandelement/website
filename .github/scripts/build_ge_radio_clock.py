@@ -21,6 +21,7 @@ def meta(path,kind="song"):
  parent=path.parent.name
  album=parent.rsplit(" - ",1)[-1]
  title=path.stem.split("_",1)[-1].replace("_"," ").strip()
+ if rel=="ge-music/music/Grand Element - 2026 - Aether/Aether_11_Countdown to the Droid Army.mp3":title="11 PEACE!"
  return dict(url="/"+quote(rel,safe="/"),path=rel,title=title,album=album,duration_ms=duration_ms(path),kind=kind)
 def main():
  # Radio schedule is HARD FROZEN. Never rebuild sync-playlist.json when
