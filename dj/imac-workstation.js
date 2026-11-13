@@ -278,6 +278,10 @@ function init(){
     d.documentElement.classList.remove("geImacGoogleActive");
     d.body.classList.remove("geImacGoogleActive");
   }
+  if(index===4){
+    if(w.GEImacLibrary&&w.GEImacLibrary.open)w.GEImacLibrary.open(libraryTab);
+    else {libraryTab.textContent="LIBRARY ERROR: Music Library script is not loaded. Reload this page.";}
+  }
   try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}
   w.scrollTo(0,0);
 }
