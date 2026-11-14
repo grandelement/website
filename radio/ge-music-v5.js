@@ -961,11 +961,19 @@ const universe=document.createElement('section');
 universe.className='geStandaloneAlbumUniverse';
 universe.setAttribute('role','dialog');
 universe.setAttribute('aria-label','Grand Element album universe');
-universe.innerHTML='<div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
+universe.innerHTML='<div class="geUniverseStarfield" aria-hidden="true"></div><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
 el('.window').after(universe);
 const universeStyle=document.createElement('style');
 universeStyle.textContent=`
- .geStandaloneAlbumUniverse{display:none;position:absolute;inset:0;z-index:20;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#010510 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat;color:white;isolation:isolate}
+ .geStandaloneAlbumUniverse{display:none;position:absolute;inset:0;z-index:20;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#010510;color:white;isolation:isolate}
+.geUniverseStarfield{position:absolute;inset:-12%;z-index:0;pointer-events:none;transform:scale(var(--ge-starfield-zoom,1));transform-origin:center center;will-change:transform;
+ background-image:
+ radial-gradient(circle at 12% 23%,rgba(255,255,255,.98) 0 .65px,transparent 1.25px),
+ radial-gradient(circle at 71% 62%,rgba(213,231,255,.88) 0 .8px,transparent 1.5px),
+ radial-gradient(circle at 42% 82%,rgba(255,255,255,.68) 0 .5px,transparent 1.2px),
+ url('../ge-images/images/stars%20backgrounds/1.jpeg');
+ background-size:113px 139px,173px 191px,67px 97px,cover;
+ background-position:0 0,21px 39px,13px 7px,center center;background-repeat:repeat,repeat,repeat,no-repeat}
 .geStandaloneAlbumUniverse.isActive{display:block}
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
 .geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 42px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
@@ -995,6 +1003,7 @@ const zoomClamp=n=>Math.min(3.5,Math.max(1,Number(n)||1));
 function setUniverseZoom(next){
  universeZoom=zoomClamp(next);
  universeBoard.style.setProperty('--ge-universe-zoom',String(universeZoom));
+ universe.querySelector('.geUniverseStarfield').style.setProperty('--ge-starfield-zoom',String(1+(universeZoom-1)*.6));
 }
 function fingerDistance(touches){
  const a=touches[0],b=touches[1];
