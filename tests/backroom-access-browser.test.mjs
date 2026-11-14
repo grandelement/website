@@ -116,8 +116,23 @@ try{
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,
    'ACCESS CODES must return to codes even after visiting FANS');
+ await page.evaluate(()=>{
+   window.__geMoreClicks=[];
+   document.addEventListener('click',e=>{
+     if(e.target.closest?.('#brMoreTools,#backroomTabs'))
+       window.__geMoreClicks.push({event:'click',target:e.target.tagName,id:e.target.id||'',open:document.getElementById('brMoreTools')?.open});
+   },true);
+   document.getElementById('brMoreTools').addEventListener('toggle',e=>window.__geMoreClicks.push({event:'toggle',open:e.target.open}));
+ });
  await page.click('#brMoreTools > summary');
- assert.equal(await page.$eval('#brMoreTools',el=>el.open),true,'MORE TOOLS expands');
+ const moreDiag=await page.evaluate(()=>{
+   const details=document.getElementById('brMoreTools'),summary=details.querySelector('summary');
+   const r=summary.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+   return {open:details.open,clicks:window.__geMoreClicks,rect:{x,y,width:r.width,height:r.height},
+     elementAtPoint:document.elementFromPoint(x,y)?.outerHTML.slice(0,260)};
+ });
+ if(!moreDiag.open)console.error('MORE TOOLS CLICK DIAGNOSTIC',JSON.stringify(moreDiag));
+ assert.equal(moreDiag.open,true,'MORE TOOLS expands');
  await page.click('#brTabWelcome');
  assert.equal(await page.$eval('#brPanel-welcome',el=>el.hidden),false,'WELCOME opens website settings');
  assert.equal(await page.$eval('#brMoreTools',el=>el.open),false,'More Tools collapses after selection');
