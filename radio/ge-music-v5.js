@@ -978,7 +978,7 @@ universeStyle.textContent=`
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
 .geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 42px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
 .geUniverseAlbum{position:relative;display:block;justify-self:center;align-self:center;width:auto;height:100%;max-width:94vw;max-height:100%;aspect-ratio:1;min-height:0;min-width:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
-.geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 /* Aether: soften the bright white core so the first cover transitions
    into Fire without changing the original album art file. */
 .geUniverseAlbum[data-album="Aether"] img{filter:brightness(.82) contrast(.78) saturate(.74)}
@@ -1003,7 +1003,7 @@ const zoomClamp=n=>Math.min(3.5,Math.max(1,Number(n)||1));
 function setUniverseZoom(next){
  universeZoom=zoomClamp(next);
  universeBoard.style.setProperty('--ge-universe-zoom',String(universeZoom));
- universe.querySelector('.geUniverseStarfield').style.setProperty('--ge-starfield-zoom',String(1+(universeZoom-1)*.6));
+ // The starfield is stationary. Only the album stack scales.
 }
 function fingerDistance(touches){
  const a=touches[0],b=touches[1];
@@ -1078,7 +1078,7 @@ function renderStandaloneAlbums(){
   item.setAttribute('aria-label','Open '+name+' album');
   const image=document.createElement('img');
   image.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
-  image.alt='';image.loading='lazy';image.onerror=()=>image.remove();
+  image.alt='';image.loading='eager';image.decoding='async';image.setAttribute('fetchpriority','high');image.onerror=()=>image.remove();
   item.append(image);
   item.addEventListener('click',event=>{event.stopPropagation();setView('album:'+name)});
   board.append(item);
