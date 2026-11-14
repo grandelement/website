@@ -965,17 +965,16 @@ universe.innerHTML='<div class="geUniverseLight" aria-hidden="true"></div><div c
 el('.window').after(universe);
 const universeStyle=document.createElement('style');
 universeStyle.textContent=`
-.geStandaloneAlbumUniverse{display:none;position:absolute;inset:0;z-index:20;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#010510 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat;color:white;isolation:isolate}
+ .geStandaloneAlbumUniverse{display:none;position:absolute;inset:0;z-index:20;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#010510 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat;color:white;isolation:isolate}
 .geStandaloneAlbumUniverse.isActive{display:block}
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
-.geUniverseAlbums{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;min-height:100%;width:100%;padding:calc(env(safe-area-inset-top) + 52px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
-.geUniverseAlbum{position:relative;display:block;flex:0 0 auto;width:min(76vw,340px);aspect-ratio:1;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
+.geUniverseAlbums{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 42px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
+.geUniverseAlbum{position:relative;display:block;justify-self:center;align-self:center;width:auto;height:100%;max-width:94vw;max-height:100%;aspect-ratio:1;min-height:0;min-width:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
-.geUniverseAlbum span{position:absolute;z-index:1;bottom:0;left:0;right:0;padding:10px 4px 6px;background:linear-gradient(transparent,rgba(0,7,20,.7));font:800 clamp(12px,3.5vw,16px)/1.2 system-ui;text-align:center;text-shadow:0 1px 3px #000}
 .geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
-.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:min(65vw,260px);border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
-.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:9px}
-@media(min-width:821px){.geUniverseAlbum{width:min(45vw,390px)}.geStandaloneAlbumUniverse[data-mode^="planets"] .geUniverseAlbum{width:min(38vw,310px)}}
+.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:auto;height:100%;max-width:94vw;max-height:100%;border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
+.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:6px}
+
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
 root.appendChild(universeStyle);
@@ -1016,14 +1015,14 @@ function renderStandaloneAlbums(){
  const names=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
   .filter(name=>name!=='Singles')
   .sort((a,b)=>rank(a)-rank(b));
+ board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
   const item=document.createElement('button');item.type='button';item.className='geUniverseAlbum';
   item.setAttribute('aria-label','Open '+name+' album');
   const image=document.createElement('img');
   image.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
   image.alt='';image.loading='lazy';image.onerror=()=>image.remove();
-  const title=document.createElement('span');title.textContent=name;
-  item.append(image,title);
+  item.append(image);
   item.addEventListener('click',event=>{event.stopPropagation();setView('album:'+name)});
   board.append(item);
  }
