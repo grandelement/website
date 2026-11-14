@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.50-20261114-ALBUM-SONGS-COUNT-PRIVACY';
+const BUILD='GE-MUSIC-V7.53-20261114-ALBUM-SONG-SELECTION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -982,10 +982,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
  display:block;font-size:clamp(26px,7vw,39px);padding:14px 4px 8px;
  color:white;text-shadow:0 2px 5px #000
 }
-/* Simple browsing has no checkboxes or panel backgrounds; selection remains in playlists. */
-.window.geSimpleSongBrowser .song input[type=checkbox],
-.window.geSimpleSongBrowser .albumPicker,
-.window.geSimpleSongBrowser .songSelectAll{display:none!important}
+/* Simple browsing keeps the native song checkboxes visible. */
+.window.geSimpleSongBrowser .albumPicker{display:none!important}
 .window.geSimpleSongBrowser .song,
 .window.geSimpleSongBrowser .songInfo{background:transparent!important;background-image:none!important;border-left:0!important;box-shadow:none!important}
 .window.geSimpleSongBrowser .song{border-bottom:1px solid rgba(255,255,255,.16)!important}
@@ -1012,7 +1010,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  background:rgba(0,0,0,.43)!important;background-image:none!important;
  border-radius:8px!important;
 }
-.window.geSimpleSongBrowser .song input[type=checkbox]{display:none!important}
+.window.geSimpleSongBrowser .song input[type=checkbox]{display:block!important}
 .window.geSimpleSongBrowser .song.selectedSong input[type=checkbox]{
  display:block!important;appearance:auto!important;-webkit-appearance:checkbox!important;
  width:21px!important;height:21px!important;flex:0 0 21px!important;
@@ -1060,7 +1058,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  display:block!important;color:#9dedc8!important;
  background:rgba(0,10,20,.25)!important
 }
-.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{display:none!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{display:block!important}
 .window.geSimpleSongBrowser > .albumDetailNav{gap:8px!important}
 .window.geSimpleSongBrowser > .albumDetailNav button{
  flex:1 1 0!important;min-width:0!important;padding:8px 5px!important;font-size:13px!important
