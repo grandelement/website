@@ -49,7 +49,7 @@ assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Red
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
 assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='fans'\|\|category==='radio'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
-assert.ok(back.includes("category==='access'||category==='fans'||category==='playlists'"),'Access Codes and Fans open directly without a second accordion click');
+assert.ok(back.includes("category==='access'||category==='fans'||category==='radio'||category==='playlists'"),'Access Codes, Fans and Radio open directly without an extra accordion click');
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
 assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
 assert.ok(back.includes("const categories=['welcome','about','universe'"),'WELCOME and ABOUT should replace CONTENT');
