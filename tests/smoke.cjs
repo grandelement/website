@@ -72,7 +72,7 @@ assert(vault.includes('GE_EVENT_BATCH_SIZE=25'),'Vault event batching missing');
 assert(vault.includes('geEventCooldownUntil'),'Vault outage circuit breaker missing');
 assert(dj.includes('ge-radio-sync.grandelement.workers.dev'),'DJ backend is still required; do not silently remove its bridge');
 assert(dj.includes('geBoardMeterPauseUntil'),'DJ meter outage backoff missing');
-assert(dj.includes('meterActive?850:5000'),'DJ active/idle network pacing missing');
+assert(dj.includes('document.hidden?30000:(meterActive?12000:30000)'),'DJ active/idle network pacing missing');
 assert(!dj.includes('setInterval(pushBoardFastMeter,120)'),'DJ remote meter still polls 8+ times each second');
 assert(vault.includes("SCORE_RETRY_AFTER_KEY"),'Vault score outage cooldown missing');
 assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in bounded batches');
