@@ -1403,7 +1403,7 @@ function details(path){
  const m=stem.match(/(?:^|[ _-])(\d{1,3})(?=[ _-]|$)/);
  const title=(m?stem.slice(m.index+m[0].length):stem).replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
  // Keep the recording path stable for saved playlists and offline downloads.
- return{path,album,title:path==='ge-music/music/Grand Element - 2026 - Aether/Aether_11_Countdown to the Droid Army.mp3'?'PEACE!':title||file,number:m?Number(m[1]):999};
+ return{path,album,title:title||file,number:m?Number(m[1]):999};
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
