@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.39-20261114-SELECTOR-CLEANUP';
+const BUILD='GE-MUSIC-V7.40-20261114-ONE-ALBUM-FILTER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1273,10 +1273,12 @@ async function fetchCatalog(options={}){
   state.tracks=unique;state.loaded=unique.length>0;state.loading=!state.loaded&&!final;
   if(!state.activePlaylist)restoreWorkingOrder();
   const filter=el('.songFilter'),prior=filter.value;
-  filter.replaceChildren(new Option('ALL SONGS','all'),new Option('CHECKED SONGS','checked'),new Option('BROWSE ALBUMS','albums'));
-  if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')filter.add(new Option('TEST PURCHASED MUSIC · LOCAL ONLY','test-purchases'));
-  for(const album of albumOrder.filter(name=>!LEGACY_ALBUMS.has(name)&&unique.some(track=>track.album===name)))
+  // One album selector. Never recreate the retired ALL SONGS / CHECKED SONGS interface.
+  filter.replaceChildren(new Option('ALBUMS','albums'));
+  for(const album of [...new Set(unique.map(track=>track.album))].sort((a,b)=>rank(a)-rank(b)))
    filter.add(new Option('ALBUM · '+album,'album:'+album));
+  // Owner test purchases are still available only to the dedicated demo route.
+
   if(prior&&[...filter.options].some(option=>option.value===prior))filter.value=prior;
   updateMeta();render();
   if(unique.length){
