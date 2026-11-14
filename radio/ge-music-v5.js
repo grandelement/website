@@ -1241,6 +1241,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
  box-shadow:0 0 12px 3px rgba(255,255,255,.58)!important;
  text-shadow:0 0 9px rgba(255,255,255,.92),0 1px 3px #000!important;
 }
+/* Final navigation and album-heading alignment, independent of view. */
+.window.geSimpleSongBrowser .scroll .albumBrowseHeading,
+.window.geAlbumDetailClean .scroll .albumBrowseHeading{
+ text-align:center!important;margin-left:auto!important;margin-right:auto!important;
+ display:block!important;width:100%!important;max-width:100%!important;
+}
+.window > .albumDetailNav button[aria-pressed="true"],
+.window > .albumDetailNav button.geNavActive{
+ background:linear-gradient(115deg,#eaf8ff,#8fd8ff)!important;
+ color:#06253b!important;border-color:#fff!important;
+ box-shadow:0 0 13px 2px rgba(165,226,255,.65)!important;
+ font-weight:900!important;
+}
+.geLegacyPlaylistControls,.geLegacyPlaylistControls[hidden]{display:none!important}
+.window > .selectionBar .quickPlaylistRow{display:none!important}
+.window > .geBrowseTools .gePlaylistTopButton:last-child:not([hidden]){
+ margin-left:auto!important;margin-right:auto!important;
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1264,6 +1282,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 </section>`;
 document.body.appendChild(host);
+// Retain legacy event bindings without rendering the obsolete bottom playlist editor.
+// Its former CSS :has() rule explicitly re-showed it whenever Playlists was active.
+const legacyPlaylistControls=document.createElement('div');
+legacyPlaylistControls.className='geLegacyPlaylistControls';
+legacyPlaylistControls.hidden=true;
+legacyPlaylistControls.append(el('.quickPlaylistRow'));
+root.append(legacyPlaylistControls);
 function randomizePlayGlow(){
  if(!state.open||document.hidden||window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
  const b=root.querySelector('.playSelected');if(!b)return;
@@ -2328,6 +2353,12 @@ function render(){
  updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
  playlistArrangeTop.hidden=cat!=='playlists';
+ const activeNav=cat==='albums'?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
+ for(const nav of ['.albumDetailBack','.albumDetailSongs','.albumDetailPlaylist']){
+  const selected=nav===activeNav;
+  el(nav).setAttribute('aria-pressed',String(selected));
+  el(nav).classList.toggle('geNavActive',selected);
+ }
  selectionTools.hidden=false;
  el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
