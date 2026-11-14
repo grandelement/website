@@ -995,7 +995,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  text-align:left;color:#fff;text-shadow:0 3px 7px #000
 }
 .window.geSimpleSongBrowser .albumCollectionHeading{background:transparent!important;border:0!important}
-.window.geSimpleSongBrowser:has(.albumBrowseHeading) > .selectionBar{display:none!important}
+/* Songs album headings must not hide the bottom selection bar. */
 .window.geSimpleSongBrowser .geMusicOfflineMeter{display:none!important}
 .window.geSimpleSongBrowser .albumDetailNav{justify-content:space-between!important}
 /* Quiet song rows: no full-width dividers or unselected checkboxes.
@@ -1171,6 +1171,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions .buySelected{background:linear-gradient(120deg,#7a4b0e,#d7a43d,#8c570d)!important;color:white!important}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions .playSelected{background:linear-gradient(115deg,#f6fcff,#c7eaff,#f6fcff)!important;color:#122d46!important}
 .window.gePlaylistWorkspace > .arrangeDock{display:none!important}
+/* Final Songs/Playlists layout: bottom dock always present. */
+.window.geSimpleSongBrowser:has(.albumBrowseHeading) > .selectionBar,
+.window.geSimpleSongBrowser > .selectionBar{display:flex!important;visibility:visible!important;opacity:1!important}
+.window.geSimpleSongBrowser .scroll .song,
+.window.geSimpleSongBrowser .scroll .songInfo,
+.window.geSimpleSongBrowser .scroll .songLabel{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;text-overflow:clip!important;overflow:visible!important;height:auto!important;min-height:44px!important;line-height:1.4!important;padding:10px 12px!important;text-align:center!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;height:auto!important;overflow:visible!important;border-radius:12px!important;background:rgba(255,255,255,.2)!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
