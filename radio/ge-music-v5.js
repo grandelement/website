@@ -903,11 +903,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow button{min-width:43px!important;min-height:35px!important;font-size:10px!important;padding:3px 4px!important}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .checkedCount{display:block!important;font-size:10px!important;padding:0 2px 3px!important}
 }
+/* Full-screen album art with songs over the same artwork; no separate panels. */
+.window.geAlbumFullArt{inset:0!important;top:0!important;bottom:0!important;left:0!important;transform:none!important;width:100%!important;height:100dvh!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#020817!important;isolation:isolate}
+.window.geAlbumFullArt::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--ge-full-album-art);background-position:center;background-size:cover;background-repeat:no-repeat;animation:geAlbumArtExpand .4s ease-out both}
+.window.geAlbumFullArt::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.20) 27%,rgba(0,0,0,.48) 85%,rgba(0,0,0,.7))}
+.window.geAlbumFullArt>*{position:relative;z-index:1}
+.window.geAlbumFullArt .scroll{background:transparent!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:8px 12px 20px!important}
+.window.geAlbumFullArt .song{background:rgba(0,8,22,.28)!important;border-bottom:1px solid rgba(255,255,255,.22)!important;color:#fff!important;text-shadow:0 1px 4px #000}
+.window.geAlbumFullArt .song .songLabel{color:#fff!important}
+.window.geAlbumFullArt .albumCollectionHeading{background:transparent!important;border:0!important;box-shadow:none!important}
+.window.geAlbumFullArt .breadcrumb{background:transparent!important;border:0!important}
+.window.geAlbumFullArt .header{background:transparent!important;border:0!important}
+.window.geAlbumFullArt .selectionBar{background:transparent!important;border:0!important}
+@keyframes geAlbumArtExpand{from{transform:scale(.82);opacity:.65}to{transform:scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.window.geAlbumFullArt::before{animation:none}}
 /* Album song list: open layout, master checkbox, minimal PLAY / BUY footer. */
 @media(max-width:820px){
  .window:has(.albumCollectionHeading .albumPickerCompact) .header{background:transparent!important;border:0!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .tools{display:none!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .scroll{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center/cover no-repeat!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .scroll{background:transparent!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading{display:flex!important;align-items:center!important;gap:12px!important;background:transparent!important;border:0!important;padding:6px 8px!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading .albumPickerCompact{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading .albumPickerCompact input{width:22px!important;height:22px!important}
@@ -1969,7 +1983,14 @@ function albumSelectAll(parent,album,tracks,compact=false){
 function render(){
  if(!state.open)return;
  const albumUniverseActive=state.view==='albums';
- el('.window').style.display=albumUniverseActive?'none':'';
+ const albumDetail=state.view.startsWith('album:');
+ const musicWindow=el('.window');
+ musicWindow.style.display=albumUniverseActive?'none':'';
+ musicWindow.classList.toggle('geAlbumFullArt',albumDetail);
+ if(albumDetail){
+  const albumName=state.view.slice(6);
+  musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(albumName)+'.jpg',location.href).href+'")');
+ }else musicWindow.style.removeProperty('--ge-full-album-art');
  albumViewChooser.style.display=albumUniverseActive?'none':'flex';
  universe.classList.toggle('isActive',albumUniverseActive);
  universe.setAttribute('aria-hidden',String(!albumUniverseActive));
