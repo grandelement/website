@@ -938,6 +938,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;width:100%!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{min-height:46px!important;width:100%!important;min-width:0!important;border-radius:9px!important}
 }
+/* Phone album view: compact track rows; BUY and PLAY anchored at bottom right. */
+@media(max-width:820px){
+ .window:has(.albumCollectionHeading .albumPickerCompact) .song{max-width:min(100%,440px)!important;margin-right:auto!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar{display:flex!important;justify-content:flex-end!important;align-items:center!important;position:relative!important;z-index:5!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:flex!important;justify-content:flex-end!important;gap:8px!important;width:auto!important;max-width:100%!important;margin-left:auto!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{flex:0 1 132px!important;width:clamp(94px,29vw,132px)!important;min-width:0!important}
+}
 /* Authoritative phone album universe: no chrome, only small planets and BACK. */
 @media(max-width:820px){
  .window.geAlbumsUniverseOnly{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover!important;border:0!important;border-radius:0!important}
