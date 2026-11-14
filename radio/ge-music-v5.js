@@ -1144,6 +1144,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumDetailClean > .geBrowseTools{display:flex!important;flex-wrap:wrap!important;gap:5px!important}
 .window.geAlbumDetailClean > .geBrowseTools .geBrowseSearch{flex:1 1 120px!important;min-width:100px!important}
 .window.geAlbumDetailClean > .geBrowseTools .geBrowseSave,.window.geAlbumDetailClean > .geBrowseTools .gePlaylistTopButton{flex:0 0 auto!important;min-height:44px!important;padding:7px 10px!important;background:rgba(7,24,43,.5)!important;border:1px solid rgba(230,245,255,.6)!important;color:#fff!important;border-radius:8px!important}
+/* Preserve distinctive button colors and independent glow animations. */
+.window.geAlbumDetailClean > .selectionBar .selectionActions .buySelected,.window.gePlaylistWorkspace > .selectionBar .buySelected{background:linear-gradient(120deg,#7a4b0e,#d7a43d,#8c570d)!important;color:white!important;border:1px solid #eec66d!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions .playSelected,.window.gePlaylistWorkspace > .selectionBar .playSelected{background:linear-gradient(115deg,#f6fcff,#c7eaff,#f6fcff)!important;color:#122d46!important;border:1px solid #fff!important;box-shadow:0 0 15px rgba(255,255,255,.6)!important}
+.window.gePlaylistWorkspace > .selectionBar{display:flex!important;flex-direction:row!important;align-items:center!important;background:linear-gradient(0deg,rgba(0,7,17,.5),rgba(0,7,17,.08))!important}
+.window.gePlaylistWorkspace > .selectionBar .quickPlaylistRow,.window.gePlaylistWorkspace > .selectionBar .geSelectionTools{display:none!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions{display:flex!important;flex:1!important;justify-content:flex-end!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions > :not(.buySelected):not(.playSelected){display:none!important}
+.window.gePlaylistWorkspace > .selectionBar .checkedCount{display:flex!important;flex-direction:column!important;text-align:center!important;min-width:62px!important}
+.window.gePlaylistWorkspace > .selectionBar .checkedCount .geSelectedNumber{font-size:30px!important}
+.window.gePlaylistWorkspace .geBrowseTools{display:flex!important;flex-wrap:wrap!important;gap:5px!important}
+.window.gePlaylistWorkspace .geBrowseTools .gePlaylistTopButton{min-height:44px!important;padding:7px 10px!important;background:rgba(7,24,43,.5)!important;border:1px solid rgba(230,245,255,.6)!important;color:white!important;border-radius:8px!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1178,7 +1189,8 @@ function randomizePlayGlow(){
  '--ge-play-opacity':rnd(.4,.95)
  }))b.style.setProperty(k,v);
 }
-setInterval(randomizePlayGlow,5700);
+function scheduleRandomPlayGlow(){setTimeout(()=>{randomizePlayGlow();scheduleRandomPlayGlow()},1100+Math.random()*9500)}
+scheduleRandomPlayGlow();
 
 const el=sel=>root.querySelector(sel),scroller=el('.scroll'),notice=el('.notice');
 /* Separate Albums Universe screen. Not a hidden/modified MUSIC management page. */
@@ -1196,7 +1208,7 @@ universeStyle.textContent=`
  radial-gradient(circle at 12% 23%,rgba(255,255,255,.98) 0 .65px,transparent 1.25px),
  radial-gradient(circle at 71% 62%,rgba(213,231,255,.88) 0 .8px,transparent 1.5px),
  radial-gradient(circle at 42% 82%,rgba(255,255,255,.68) 0 .5px,transparent 1.2px),
- url('../ge-images/images/stars%20backgrounds/1.jpeg');
+ url('../ge-images/images/stars%20backgrounds/4.jpg');
  background-size:113px 139px,173px 191px,67px 97px,cover;
  background-position:0 0,21px 39px,13px 7px,center center;background-repeat:repeat,repeat,repeat,no-repeat}
 .geStandaloneAlbumUniverse.isActive{display:block}
@@ -2222,6 +2234,9 @@ function render(){
  el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
  el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
  const cat=activeCategory();
+ el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
+ playlistArrangeTop.hidden=cat!=='playlists';
+ selectionTools.hidden=cat==='playlists';
  el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
@@ -2801,13 +2816,17 @@ selectionAll.type='button';selectionClear.type='button';
 selectionAll.addEventListener('click',()=>{const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;for(const t of scope)if(!allowed||allowed.has(t.path))state.selected.add(t.path);saveSelected();render()});
 selectionClear.addEventListener('click',()=>{state.selected.clear();saveSelected();render()});
 selectionTools.append(selectionAll,selectionClear);el('.selectionBar').insertBefore(selectionTools,el('.selectionActions'));
-const playlistTop=elem('button','gePlaylistTopButton','PLAYLISTS');
+const playlistTop=elem('button','gePlaylistTopButton','LOAD');
 playlistTop.type='button';
 playlistTop.addEventListener('click',()=>void openPlaylistPicker());
 const playlistDeleteTop=elem('button','gePlaylistTopButton','DELETE');
 playlistDeleteTop.type='button';
 playlistDeleteTop.addEventListener('click',()=>el('.quickPlaylistDelete').click());
 el('.geBrowseTools').append(playlistTop,playlistDeleteTop);
+const playlistArrangeTop=elem('button','gePlaylistTopButton','ARRANGE');
+playlistArrangeTop.type='button';
+playlistArrangeTop.addEventListener('click',()=>{if(!state.selected.size)return;setView('playlist-order')});
+el('.geBrowseTools').append(playlistArrangeTop);
 
 const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
