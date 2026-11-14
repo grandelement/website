@@ -28,7 +28,7 @@ try {
   if(!album)throw Error('Sessions II album is missing');
   album.click();
  });
- await page.waitForFunction(()=>window.GEMusicV5.state().view==='album:Sessions II');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.window.geAlbumDetailClean .albumDetailFilter')?.value==='album:Sessions II');
  const inspect=()=>page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const windowEl=root.querySelector('.window');
@@ -41,11 +41,11 @@ try {
   const buy=root.querySelector('.buySelected');
   const play=root.querySelector('.playSelected');
   const rows=[...root.querySelectorAll('.song')];
-  const css=element=>getComputedStyle(element);
+  const css=(element,pseudo)=>getComputedStyle(element,pseudo);
   const visible=element=>element&&css(element).display!=='none'&&element.getBoundingClientRect().width>0;
   const art=css(windowEl,'::before').backgroundImage;
   return {
-   state:window.GEMusicV5.state().view,
+   state:windowEl.classList.contains('geAlbumDetailClean')?filter.value:'albums',
    backVisible:visible(back),playlistVisible:visible(playlist),
    oldHeaderHidden:css(header).display==='none',oldToolsHidden:css(tools).display==='none',
    filterValue:filter?.value,albumCount:rows.length,
@@ -82,12 +82,12 @@ try {
   select.value='album:Aether';
   select.dispatchEvent(new Event('change',{bubbles:true}));
  });
- await page.waitForFunction(()=>window.GEMusicV5.state().view==='album:Aether');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailFilter')?.value==='album:Aether');
  const aether=await inspect();
  assert.equal(aether.filterValue,'album:Aether','Album filter must follow navigation');
  assert(aether.art.includes('Aether'),'Switching album must switch artwork');
  await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailBack').click());
- await page.waitForFunction(()=>window.GEMusicV5.state().view==='albums');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.geStandaloneAlbumUniverse.isActive'));
  assert.equal(errors.length,0,'Browser JavaScript errors: '+errors.slice(0,4).join('; '));
  console.log('PASS mobile album navigation, selections, artwork, footer and returning to albums');
 } finally {
