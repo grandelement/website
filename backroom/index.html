@@ -1079,6 +1079,19 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </section>
 </section>
 
+<section id="geHumanPanel" data-br-tab="fans" aria-label="Fan human verification">
+  <h2>FAN VERIFICATION</h2>
+  <p>Turnstile settings are enforced by the server. These controls cannot activate verification until the secure Worker endpoint is installed.</p>
+  <label for="geHumanMode">Verification mode</label>
+  <select id="geHumanMode" disabled>
+    <option value="off">OFF</option>
+    <option value="monitor">MONITOR: Measure activity, do not block</option>
+    <option value="challenge">ON: Verify before entry</option>
+  </select>
+  <button type="button" id="geHumanRefresh">CHECK VERIFICATION CONNECTION</button>
+  <button type="button" id="geHumanSave" disabled>SAVE VERIFICATION MODE</button>
+  <p id="geHumanStatus" role="status">Not connected. Verification is not enabled by this panel.</p>
+</section>
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
   <div id="brAccessOwnerTools" class="brAccessTopActions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
@@ -5226,6 +5239,50 @@ $('gatePassword').focus();
  control.addEventListener('change',()=>{
   try{localStorage.setItem(key,control.value);status.textContent='Saved on this device. Reopen MUSIC to see the layout.'}
   catch(_){status.textContent='Could not save on this device.'}
+ });
+})();
+</script>
+<script id="ge-human-verification-settings">
+/* Owner-only Back Room controls. The server MUST independently authenticate
+   GET/POST /manage/turnstile-settings; browser state is never authoritative. */
+(()=>{
+ const byId=id=>document.getElementById(id);
+ const mode=byId('geHumanMode'),save=byId('geHumanSave'),check=byId('geHumanRefresh'),status=byId('geHumanStatus');
+ if(!mode||!save||!check||!status)return;
+ const endpoint='https://ge-backroom-publisher.grandelement.workers.dev/manage/turnstile-settings';
+ const sessionKey='GE_BACKROOM_PUBLISH_SESSION_V1';
+ const allowed=['off','monitor','challenge'];
+ let connected=false;
+ function lock(message){connected=false;mode.disabled=true;save.disabled=true;status.textContent=message;}
+ async function request(method,body){
+   const token=sessionStorage.getItem(sessionKey);
+   if(!token)throw Error('Sign in to the Back Room first.');
+   const r=await fetch(endpoint,{method,cache:'no-store',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+   const data=await r.json().catch(()=>({}));
+   if(!r.ok||data.ok===false)throw Error(data.error||('Server endpoint unavailable (HTTP '+r.status+').'));
+   return data;
+ }
+ async function refresh(){
+   check.disabled=true;lock('Checking secure Worker connection...');
+   try{
+     const data=await request('GET');
+     if(data.server_validation_ready!==true||data.site_key_configured!==true||!allowed.includes(data.mode))
+       throw Error('Turnstile server setup incomplete. Secret must remain on Cloudflare; no mode change permitted.');
+     connected=true;mode.value=data.mode;mode.disabled=false;save.disabled=false;
+     status.textContent='SERVER CONNECTED. Current mode: '+data.mode.toUpperCase()+'. Changes require authenticated server approval.';
+   }catch(e){lock('NOT CONNECTED: '+String(e.message||e)+'. Public visitors are not affected by these controls.');}
+   finally{check.disabled=false;}
+ }
+ check.addEventListener('click',()=>void refresh());
+ save.addEventListener('click',async()=>{
+   if(!connected||!allowed.includes(mode.value))return;
+   save.disabled=true;status.textContent='Saving mode on authenticated server...';
+   try{
+     const result=await request('POST',{mode:mode.value});
+     if(result.mode!==mode.value||result.ok!==true)throw Error('No server confirmation of saved mode.');
+     status.textContent='SERVER CONFIRMED: '+result.mode.toUpperCase()+'.';
+   }catch(e){lock('SAVE FAILED: '+String(e.message||e));}
+   finally{if(connected)save.disabled=false;}
  });
 })();
 </script>
