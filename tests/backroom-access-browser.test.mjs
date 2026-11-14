@@ -101,6 +101,29 @@ try{
    throw Error('Access Codes did not initialize on a real mobile browser: '+
      JSON.stringify(debug)+' PAGE ERRORS '+JSON.stringify(errors.slice(-7)));
  }
+ // Real browser regression for the four prominent jobs and the collapsed tools.
+ const initialNavigation=await page.evaluate(()=>({
+   main:[...document.querySelectorAll('#backroomTabs button[data-tab]:not([hidden])')].map(b=>b.textContent.trim()),
+   moreClosed:!document.getElementById('brMoreTools')?.open,
+   fansVisible:getComputedStyle(document.getElementById('brTabFans')).display!=='none'
+ }));
+ assert.deepEqual(initialNavigation.main,['RADIO','MUSIC','ACCESS CODES','FANS'],
+   'Radio, Music, Access Codes and Fans must be the only main navigation buttons');
+ assert.equal(initialNavigation.moreClosed,true,'Secondary controls stay collapsed by default');
+ assert.equal(initialNavigation.fansVisible,true,'Fans must be a direct main navigation button');
+ await page.click('#brTabFans');
+ assert.equal(await page.$eval('#brPanel-fans',el=>el.hidden),false,'FANS opens its own screen');
+ await page.click('#brTabAccess');
+ assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,
+   'ACCESS CODES must return to codes even after visiting FANS');
+ await page.click('#brMoreTools > summary');
+ assert.equal(await page.$eval('#brMoreTools',el=>el.open),true,'MORE TOOLS expands');
+ await page.click('#brTabWelcome');
+ assert.equal(await page.$eval('#brPanel-welcome',el=>el.hidden),false,'WELCOME opens website settings');
+ assert.equal(await page.$eval('#brMoreTools',el=>el.open),false,'More Tools collapses after selection');
+ await page.click('#brTabAccess');
+ assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,'Main navigation works after More Tools');
+ console.log('PASS: four priority buttons, separate Fans/Codes, one collapsed More Tools, website navigation');
  const before=await page.evaluate(()=>({
     vault:document.getElementById('brVaultConnection').textContent,
     codeNames:[...document.getElementById('brAccessSelect').options].map(x=>x.textContent),
@@ -143,11 +166,11 @@ try{
  // The owner may have opened the parent ACCESS panel. Secret retrieval is
  // covered by backend unit tests, not an automated click on a hidden UI control.
  assert.equal(await page.evaluate(()=>document.getElementById('brAccessLabel')?.value),'Test 1');
- assert.equal(await page.$eval('#brAccessOfflineShortcut',b=>b.textContent),'OFFLINE');
- await page.click('#brAccessOfflineShortcut');
- assert.equal(await page.evaluate(()=>document.querySelector('[name="brAccessScope"][value="offline"]')?.closest('details')?.open),
-  true,'OFFLINE shortcut opens real saved-code permission editor');
- await page.evaluate(()=>document.getElementById('brAccessFansShortcut').click());
+ // Obsolete FANS / OFFLINE shortcuts are hidden by the simplified editor.
+ // Exercise the actual visible FANS navigation, not a CSS-hidden button.
+ assert.ok(await page.evaluate(()=>!!document.querySelector('[name="brAccessScope"][value="offline"]')),
+   'Offline scope stays available in the existing code record');
+ await page.click('#brTabFans');
  await page.waitForFunction(()=>document.querySelector('#brCodeFansPanel')?.open===true&&
    document.getElementById('brCodeFanSelect')?.options?.length>=3,{timeout:15000});
  assert.equal(await page.$eval('#brFanActiveProfile',x=>x.hidden),true,
