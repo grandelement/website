@@ -1,0 +1,30 @@
+name: GE MUSIC album screen regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'radio/ge-music-v5.js'
+      - 'radio/index.html'
+      - 'tests/ge-music-album-layout.test.mjs'
+      - 'tests/ge-music-header.test.mjs'
+      - '.github/workflows/ge-music-album-ui-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  album-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check MUSIC script, Vault contract and asset versions
+        run: node tests/ge-music-header.test.mjs
+      - name: Install Chromium test runner
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Verify album navigation and fixed mobile BUY/PLAY controls
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-music-album-http.log 2>&1 &
+          node tests/ge-music-album-layout.test.mjs
