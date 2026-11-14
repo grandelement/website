@@ -53,7 +53,10 @@ assert(backroom.includes('id="legacyPublishLive"'),'Legacy publisher fallback mi
 assert(backroom.includes("const GE_GITHUB_PUBLIC_FIELDS="),'Public-field whitelist missing');
 const whitelist=backroom.match(/const GE_GITHUB_PUBLIC_FIELDS=(\[[^\]]+\])/);
 assert(whitelist&&!/['"](?:music|vault|accessCodes|fanRecords)['"]/.test(whitelist[1]),'Unsafe public publisher whitelist');
-assert(backroom.includes("radioMasterSongPaths:selected"),'Radio Master GitHub save missing');
+assert(backroom.includes("action:'save_master',masterSongPaths:selected") &&
+       backroom.includes("expectedMasterSongPaths:brMasterSavedPaths") &&
+       backroom.includes("brMasterSavedPaths=selected.slice()"),
+       'Radio Master authenticated save or concurrency guard missing');
 assert(backroom.includes('publisherBase=await repoLive()'),'Published-base conflict guard missing');
 assert(!backroom.includes('void restorePublisherSession().then'),'Opening public Back Room must not call Cloudflare automatically');
 assert(backroom.includes('if(await restorePublisherSession())return'),'Private session resume must remain available on demand');
