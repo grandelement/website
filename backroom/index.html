@@ -763,6 +763,57 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brGeoPanel .brGeoStates small{color:#a9d4e7}
 @media(max-width:380px){#brGeoPanel .brGeoFilters{grid-template-columns:1fr}}
 </style>
+<style id="br-owner-priority-navigation-20261114">
+/* Keep ONLY the four primary jobs in the persistent bar. Secondary page
+   buttons retain their original IDs, handlers and settings. */
+#backroomMain .backroomTabs{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:6px!important;padding:8px 9px!important;margin:0 -14px 8px!important;
+}
+#backroomMain .backroomTabs button[data-tab]:not([hidden]){
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  grid-column:auto!important;grid-row:auto!important;
+  min-height:54px!important;height:auto!important;
+  padding:7px 4px!important;font-size:clamp(12px,3.25vw,17px)!important;
+  line-height:1.18!important;font-weight:900!important;
+}
+#backroomMain #brTabFans{display:flex!important;visibility:visible!important}
+#backroomMain .backroomTabs #brTabAccess{
+  grid-column:auto!important;grid-row:auto!important;
+}
+#backroomMain #brAccessViews{display:none!important}
+#backroomMain #brMoreTools{
+  margin:8px 0 14px;padding:0;border:1px solid #33617f;
+  border-radius:12px;background:#061b2c;
+}
+#backroomMain #brMoreTools>summary{
+  cursor:pointer;min-height:50px;padding:13px 15px;
+  font-size:clamp(14px,3.5vw,17px);font-weight:900;
+  color:#daeffb;list-style-position:inside;
+}
+#backroomMain #brMoreTools[open]>summary{border-bottom:1px solid #33617f}
+#backroomMain .brMoreToolGroup{padding:12px 12px 7px}
+#backroomMain .brMoreToolGroup>strong{
+  display:block;margin-bottom:8px;font-size:13px;color:#9edfff;letter-spacing:.07em
+}
+#backroomMain .brMoreToolButtons{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+}
+#backroomMain .brMoreToolButtons button{
+  display:flex;justify-content:center;align-items:center;
+  width:100%;min-height:48px!important;padding:9px 7px;
+  font-size:clamp(13px,3.2vw,16px);text-align:center;
+}
+#backroomMain .brMoreToolButtons button[aria-selected="true"]{
+  border-color:#8fe0ff;background:#145778;color:#fff;
+}
+@media(max-width:390px){
+  #backroomMain .backroomTabs{gap:4px!important}
+  #backroomMain .backroomTabs button[data-tab]:not([hidden]){
+    font-size:clamp(11px,3vw,14px)!important;padding:8px 2px!important
+  }
+}
+</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -806,7 +857,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
-  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS</button>
+  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabWelcome" type="button" role="tab" data-tab="welcome" aria-selected="true">WELCOME</button>
   <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
@@ -1349,7 +1400,34 @@ function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]:not([hidden])')];
   const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
-  const visibleCategories=categories.filter(c=>c!=='fans');
+  // The four owner jobs are always visible. Less-used pages live in one drawer.
+  const primaryTabs=['radio','music','access','fans'];
+  const secondaryGroups=[
+    {label:'WEBSITE',tabs:['welcome','about','universe']},
+    {label:'OTHER SETTINGS',tabs:['games','moon','gate','scores']}
+  ];
+  const secondaryCategories=secondaryGroups.flatMap(group=>group.tabs);
+  const moreTools=document.createElement('details');moreTools.id='brMoreTools';
+  const moreSummary=document.createElement('summary');
+  moreSummary.textContent='MORE TOOLS · WEBSITE, GAMES & SETTINGS';
+  moreTools.appendChild(moreSummary);
+  nav.setAttribute('aria-label','Main controls: Radio, Music, Access Codes, Fans');
+  for(const tab of primaryTabs){
+    const button=tabButtons.find(item=>item.dataset.tab===tab);
+    if(button)nav.appendChild(button);
+  }
+  for(const group of secondaryGroups){
+    const section=document.createElement('div');section.className='brMoreToolGroup';
+    const title=document.createElement('strong');title.textContent=group.label;
+    const buttons=document.createElement('nav');buttons.className='brMoreToolButtons';
+    buttons.setAttribute('role','tablist');buttons.setAttribute('aria-label',group.label);
+    for(const tab of group.tabs){
+      const button=tabButtons.find(item=>item.dataset.tab===tab);
+      if(button)buttons.appendChild(button);
+    }
+    section.append(title,buttons);moreTools.appendChild(section);
+  }
+  nav.insertAdjacentElement('afterend',moreTools);
   let accessView='access';
   const accessSubnav=document.createElement('nav');
   accessSubnav.id='brAccessViews';accessSubnav.setAttribute('aria-label','Access views');accessSubnav.hidden=true;
@@ -1358,7 +1436,7 @@ function installBackroomTabs(){
     control.addEventListener('click',()=>{accessView=view;activate(view)});accessSubnav.appendChild(control);
   }
   // ACCESS subtabs belong directly BELOW main tabs and ABOVE all panel content.
-  nav.insertAdjacentElement('afterend',accessSubnav);
+  moreTools.insertAdjacentElement('afterend',accessSubnav);
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';accessSubnav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
@@ -1399,32 +1477,11 @@ function installBackroomTabs(){
     welcomeArea.appendChild(originalActions);
     panels.get('welcome')?.prepend(welcomeArea);
     actionRows.push(welcomeArea);
-    for(const tab of websiteTabs.slice(1)){
-      const area=document.createElement('div');
-      area.className='brWebsiteActionArea';
-      const row=document.createElement('div');row.className='topControls';
-      for(const actionId of ['viewWebsite','save','publishLive']){
-        const original=$(actionId);
-        const proxy=document.createElement('button');
-        proxy.type='button';
-        proxy.className=original.className;
-        proxy.textContent=original.textContent;
-        proxy.dataset.websiteAction=actionId;
-        proxy.setAttribute('aria-label',original.textContent+' · '+tab.toUpperCase());
-        proxy.addEventListener('click',()=>{
-          if(original.disabled)return;
-          original.click();
-        });
-        // Mirror busy/disabled states, without cloning IDs or duplicating save logic.
-        const syncDisabled=()=>{proxy.disabled=original.disabled};
-        syncDisabled();
-        new MutationObserver(syncDisabled).observe(original,{attributes:true,attributeFilter:['disabled']});
-        row.appendChild(proxy);
-      }
-      area.appendChild(row);
-      panels.get(tab)?.prepend(area);
-      actionRows.push(area);
-    }
+    const exportButton=$('exportGithubConfig');
+    const advancedMenu=$('backroomToolbarSettings')?.querySelector('.brSettingsMenu');
+    if(exportButton&&advancedMenu)advancedMenu.appendChild(exportButton);
+    // About, Universe and Games use the same working draft. Save and publish
+    // only in WELCOME, so there is one trustworthy set of publish buttons.
     // The old status line lives above the nonsticky header. Mirror feedback
     // beside these controls so save and publish results remain visible.
     if(websiteStatus){
@@ -1467,15 +1524,15 @@ function installBackroomTabs(){
   function activate(tab,focus=false){
     if(tab==='playlists')tab='music';
     if(!panels.has(tab))tab='welcome';
-    if(tab==='fans')accessView='fans';
-    else if(tab==='access')tab=accessView;
-    const grouped=['fans','access'].includes(tab),topTab=grouped?'access':tab;
+    if(tab==='fans'||tab==='access')accessView=tab;
+    // ACCESS must always open codes, never silently return to the prior FANS view.
+    const topTab=tab;
     const sharedPlaylistEditor=$('brDJPlaylistEditor');
     const playlistDestination=tab==='radio'?radioPlaylistMount:panels.get('music');
     if(sharedPlaylistEditor&&playlistDestination&&sharedPlaylistEditor.parentElement!==playlistDestination)
       playlistDestination.appendChild(sharedPlaylistEditor);
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
-    accessSubnav.hidden=!grouped;
+    accessSubnav.hidden=true;
     for(const item of accessSubnav.querySelectorAll('button')){
       item.setAttribute('aria-pressed',String(item.dataset.accessView===tab));
     }
@@ -1483,6 +1540,9 @@ function installBackroomTabs(){
     if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
     if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();window.GE_BACKROOM_RADIO_STATUS_CHECK?.();}
     for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
+    const secondary=secondaryCategories.includes(tab);
+    moreSummary.textContent=secondary?'MORE TOOLS · '+tab.toUpperCase()+' SELECTED':'MORE TOOLS · WEBSITE, GAMES & SETTINGS';
+    moreTools.open=false;
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
   }
@@ -1490,10 +1550,12 @@ function installBackroomTabs(){
     btn.addEventListener('click',()=>activate(btn.dataset.tab));
     btn.addEventListener('keydown',e=>{
       if(!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;
-      e.preventDefault();const at=visibleCategories.indexOf(btn.dataset.tab);
-      const delta=e.key==='ArrowDown'?4:e.key==='ArrowUp'?-4:e.key==='ArrowRight'?1:-1;
-      const idx=e.key==='Home'?0:e.key==='End'?visibleCategories.length-1:(at+delta+visibleCategories.length)%visibleCategories.length;
-      activate(visibleCategories[idx],true);
+      const choices=secondaryCategories.includes(btn.dataset.tab)?secondaryCategories:primaryTabs;
+      const at=choices.indexOf(btn.dataset.tab);if(at<0)return;
+      e.preventDefault();
+      const delta=e.key==='ArrowDown'?2:e.key==='ArrowUp'?-2:e.key==='ArrowRight'?1:-1;
+      const idx=e.key==='Home'?0:e.key==='End'?choices.length-1:(at+delta+choices.length)%choices.length;
+      activate(choices[idx],true);
     });
   }
   // Show one useful section when first entering each category.
@@ -1503,7 +1565,7 @@ function installBackroomTabs(){
     const toggle=first?.querySelector('.backroomGroupToggle');
     if(name!=='access'&&name!=='games')toggle?.click();
   }
-  let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
+  let initial='radio';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'radio'}catch(_e){}
   if(initial==='home'||initial==='content')initial='welcome';
   if(initial==='playlists')initial='music';
   activate(initial);
