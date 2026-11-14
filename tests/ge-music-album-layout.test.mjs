@@ -28,7 +28,7 @@ try {
   if(!album)throw Error('Sessions II album is missing');
   album.click();
  });
- await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.window.geAlbumDetailClean .albumDetailFilter')?.value==='album:Sessions II');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.window.geAlbumDetailClean .albumDetailFilter')?.parentElement?.querySelector('.albumDetailTitle')?.textContent==='Sessions II');
  const inspect=()=>page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const windowEl=root.querySelector('.window');
@@ -45,7 +45,8 @@ try {
   const visible=element=>element&&css(element).display!=='none'&&element.getBoundingClientRect().width>0;
   const art=css(windowEl,'::before').backgroundImage;
   return {
-   state:windowEl.classList.contains('geAlbumDetailClean')?filter.value:'albums',
+   state:windowEl.classList.contains('geAlbumDetailClean')?'album:'+root.querySelector('.albumDetailTitle')?.textContent:'albums',
+   heading:root.querySelector('.albumDetailTitle')?.textContent,
    backVisible:visible(back),playlistVisible:visible(playlist),
    oldHeaderHidden:css(header).display==='none',oldToolsHidden:css(tools).display==='none',
    filterValue:filter?.value,albumCount:rows.length,
@@ -63,7 +64,8 @@ try {
  assert.equal(result.state,'album:Sessions II');
  assert(result.backVisible&&result.playlistVisible,'Only clean navigation must remain visible');
  assert(result.oldHeaderHidden&&result.oldToolsHidden,'Old MUSIC chrome must not appear in album detail');
- assert.equal(result.filterValue,'album:Sessions II','Album filter must synchronize with chosen album');
+ assert.equal(result.heading,'Sessions II','One large album heading must display the selected album');
+ assert.equal(result.filterValue,'','Chooser must display CHANGE ALBUM rather than repeat the heading');
  assert(result.albumCount>0,'Album song list must be populated');
  assert.equal(result.selected,result.albumCount,'Opening album must pre-check its songs');
  assert(result.art.includes('Sessions%20II')||result.art.includes('Sessions II'),'Album image must be the background');
@@ -82,9 +84,10 @@ try {
   select.value='album:Aether';
   select.dispatchEvent(new Event('change',{bubbles:true}));
  });
- await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailFilter')?.value==='album:Aether');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailFilter')?.parentElement?.querySelector('.albumDetailTitle')?.textContent==='Aether');
  const aether=await inspect();
- assert.equal(aether.filterValue,'album:Aether','Album filter must follow navigation');
+ assert.equal(aether.heading,'Aether','Album heading must follow the selected album');
+ assert.equal(aether.filterValue,'','Chooser should reset to CHANGE ALBUM after switching');
  assert(aether.art.includes('Aether'),'Switching album must switch artwork');
  await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailBack').click());
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.geStandaloneAlbumUniverse.isActive'));
