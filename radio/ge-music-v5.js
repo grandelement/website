@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.47-20261114-ALBUM-FOCUS-QUIET-SELECTION';
+const BUILD='GE-MUSIC-V7.48-20261114-ALBUM-SONGS-NO-COUNTS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1028,6 +1028,45 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .song .songInfo{
  background:transparent!important;border:0!important;box-shadow:none!important;
 }
+/* Final browsing rules override all earlier mobile and full-art dividers.
+   The left selection target is invisible until checked; selected tint is local
+   to the song, never a full-width rule or separate song panel. */
+.window.geSimpleSongBrowser .scroll .song,
+.window.geSimpleSongBrowser .scroll .song.selectedSong{
+ border:0!important;border-top:0!important;border-bottom:0!important;
+ border-left:0!important;border-right:0!important;outline:0!important;
+ box-shadow:none!important;filter:none!important
+}
+.window.geSimpleSongBrowser .scroll .song:not(.selectedSong){background:transparent!important;background-image:none!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong{
+ background:rgba(0,0,0,.40)!important;background-image:none!important;
+ border-radius:8px!important
+}
+.window.geSimpleSongBrowser .scroll .songInfo{border:0!important;box-shadow:none!important;background:transparent!important}
+.window.geSimpleSongBrowser .scroll .songLabel,
+.window.geSimpleSongBrowser .scroll .songTitlePlay{
+ border:0!important;border-bottom:0!important;outline:0!important;
+ box-shadow:none!important;background:transparent!important;
+ text-decoration:none!important
+}
+.window.geSimpleSongBrowser .scroll .geSongAdd{
+ display:block!important;flex:0 0 32px!important;width:32px!important;min-width:32px!important;
+ height:40px!important;min-height:40px!important;padding:0!important;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ color:transparent!important;font-size:20px!important;
+ order:-1!important
+}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongAdd{
+ color:#9dedc8!important;background:rgba(0,10,20,.25)!important
+}
+.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{display:none!important}
+.window.geSimpleSongBrowser > .albumDetailNav{gap:8px!important}
+.window.geSimpleSongBrowser > .albumDetailNav button{
+ flex:1 1 0!important;min-width:0!important;padding:8px 5px!important;font-size:13px!important
+}
+.window.geSimpleSongBrowser .checkedCount,
+.window.geSimpleSongBrowser .albumDescription small,
+.window.geSimpleSongBrowser .countHint{display:none!important}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
 .window.geAlbumDetailClean > .header,.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
@@ -1072,7 +1111,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
- <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
+ <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailSongs">SONGS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
@@ -1296,9 +1335,8 @@ function details(path){
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
 function showCatalogSource(source,count){
- const label='MUSIC V7.28 · '+source+' · '+count+' SONGS';
- state.notice=label;
- notice.textContent=label;
+ // Internal catalog information is never published in the visitor interface.
+ // Keep this compatibility hook so catalog refresh and player events still run.
 }
 function selectedTracks(){
  const byPath=new Map(state.tracks.map(track=>[track.path,track]));
@@ -1306,7 +1344,7 @@ function selectedTracks(){
 }
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
- el('.checkedCount').textContent='CHECKED SONGS · '+count;
+ el('.checkedCount').textContent='';
   const selectLabel=el('.songSelectAll');
   if(selectLabel)selectLabel.title=count+' songs checked';
  el('.playSelected').disabled=count===0;
@@ -1549,7 +1587,7 @@ async function saveFanArrangement(name,tracks){
   state.activePlaylist={source:'fan',origin:'vault',id:data.id,name};
   state.playlistDraftName=name;
   saveSelected();
-  say('USER PLAYLIST SAVED · '+name+' · '+tracks.length+' SONGS · ORDER VERIFIED.');
+  say('USER PLAYLIST SAVED · '+name+' · ORDER VERIFIED.');
   recordPlaylistInteraction('control_change',{control:'fan_playlist_save',
    playlist_id:data.id,song_count:tracks.length,storage:'GE_VAULT_D1'});
  }catch(error){say('USER PLAYLIST NOT SAVED · '+String(error.message||error))}
@@ -1875,6 +1913,7 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
+ const simpleBrowser=state.view==='browse-songs'||state.view.startsWith('album:')||state.view==='playlist-display';
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -1909,8 +1948,8 @@ function appendSong(parent,track){
  row.classList.toggle('selectedSong',checkbox.checked);
  // Song title itself remains the play control; no duplicate PLAY button.
  row.append(label);
- if(state.view==='browse-songs'||state.view.startsWith('album:')||state.view==='playlist-display'){
-  const add=elem('button','geSongAdd',state.selected.has(track.path)?'':'+');
+ if(simpleBrowser){
+  const add=elem('button','geSongAdd',state.selected.has(track.path)?'✓':'');
   add.type='button';add.classList.toggle('isAdded',state.selected.has(track.path));
   add.setAttribute('aria-label',(state.selected.has(track.path)?'Remove ':'Add ')+track.title+' from working playlist');
   add.addEventListener('click',()=>{
@@ -1919,7 +1958,8 @@ function appendSong(parent,track){
    saveSelected();updateMeta();render();
    recordPlaylistInteraction('control_change',{control:'quick_playlist_toggle',track_id:track.path,album:track.album});
   });
-  row.append(add);
+  // Invisible left hit target until selected; selection is independent of playback.
+  row.insertBefore(add,label);
  }
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
@@ -2047,19 +2087,9 @@ document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDr
 // ONE music scroll surface. Category tabs stay pinned above it; selecting an
 // album or playlist replaces content inside the SAME scroll surface.
 function openAlbumInSongs(album){
- // Album covers open the SAME complete list, positioned at the chosen album.
+ // Cover opens only this album. SONGS always restores the complete catalog.
  state.browseBackgroundAlbum=album;
- setView('browse-songs');
- const focus=()=>{
-  if(state.view!=='browse-songs')return;
-  const heading=[...scroller.querySelectorAll('.albumBrowseHeading')].find(node=>node.dataset.album===album);
-  if(heading){
-   const list=scroller.getBoundingClientRect(),target=heading.getBoundingClientRect();
-   scroller.scrollTop+=target.top-list.top;
-  }
- };
- focus();
- requestAnimationFrame(focus);
+ setView('album:'+album);
 }
 function setView(view){
  // Obsolete ALL SONGS page is not a public destination. Keep the underlying catalog intact.
@@ -2219,7 +2249,7 @@ function render(){
   el('.buySelected').disabled=!albumTracks.length||LEGACY_ALBUMS.has(state.view.slice(6));
  }
  if(state.arranging){
-   el('.arrangeCount').textContent='ARRANGE · '+selectedTracks().length+' SONGS';
+   el('.arrangeCount').textContent='ARRANGE';
    const current=el('.arrangeCurrentName');
    if(document.activeElement!==current&&current.value!==state.playlistDraftName)
      current.value=state.playlistDraftName;
@@ -2260,7 +2290,7 @@ function render(){
   const heading=elem('strong','gePlaylistListTitle','SAVED PLAYLISTS');
   scroller.append(heading);
   for(const {p,source} of rows){
-   const entry=elem('button','gePlaylistEntry',p.name+' · '+p.songs.length+' SONGS');
+   const entry=elem('button','gePlaylistEntry',p.name);
    entry.type='button';
    entry.addEventListener('click',()=>{
     state.selected=new Set(p.songs.map(canonical).filter(Boolean));
@@ -2308,7 +2338,7 @@ function render(){
     });
     wrapper.append(albumButton);
     const description=elem('div','albumDescription');
-    description.append(elem('strong','',name),elem('small','','Grand Element'),elem('p','',albumDescriptions[name]||'Explore this Grand Element recording.'),elem('small','',rows.length+' SONGS'));
+    description.append(elem('strong','',name),elem('small','','Grand Element'),elem('p','',albumDescriptions[name]||'Explore this Grand Element recording.'));
     const playAlbum=elem('button','albumPlayButton','▶ PLAY ALBUM');playAlbum.type='button';
     playAlbum.addEventListener('click',()=>{if(rows.length)playTrack(rows[0],rows.map(t=>t.path),true);});
     const actions=elem('div','albumRowActions');actions.append(playAlbum,albumButton);
@@ -2458,7 +2488,7 @@ function render(){
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
         heading.setAttribute('aria-label','Jump to '+track.album+' in full song list');
-        heading.addEventListener('click',()=>openAlbumInSongs(track.album));
+        heading.addEventListener('click',()=>setView('album:'+track.album));
         scroller.append(heading);
       }
       appendSong(scroller,track);
@@ -2518,6 +2548,7 @@ function close(){
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
 el('.albumDetailBack').addEventListener('click',()=>setView('albums'));
+el('.albumDetailSongs').addEventListener('click',()=>setView('browse-songs'));
 el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'));
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').textContent='BACK';
