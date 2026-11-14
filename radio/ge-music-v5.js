@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.36-20261114-CLEAN-ALBUM-DETAIL';
+const BUILD='GE-MUSIC-V7.37-20261114-UI-CONSOLIDATION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -925,49 +925,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumFullArt .selectionBar{background:transparent!important;border:0!important}
 @keyframes geAlbumArtExpand{from{transform:scale(.82);opacity:.65}to{transform:scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.window.geAlbumFullArt::before{animation:none}}
-/* Album song list: open layout, master checkbox, minimal PLAY / BUY footer. */
-@media(max-width:820px){
- .window:has(.albumCollectionHeading .albumPickerCompact) .header{background:transparent!important;border:0!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .tools{display:none!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .scroll{background:transparent!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading{display:flex!important;align-items:center!important;gap:12px!important;background:transparent!important;border:0!important;padding:6px 8px!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading .albumPickerCompact{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading .albumPickerCompact input{width:22px!important;height:22px!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar{display:block!important;padding:6px 12px max(8px,env(safe-area-inset-bottom))!important;background:rgba(2,10,23,.72)!important;border:0!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .quickPlaylistRow,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .checkedCount,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .offlineSelected,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .shareSelected,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .arrangeBtn{display:none!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;width:100%!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{min-height:46px!important;width:100%!important;min-width:0!important;border-radius:9px!important}
-}
-/* MUSIC album view: compact track widths, right-docked persistent BUY / PLAY. */
-@media(max-width:820px){
- .window:has(.albumCollectionHeading .albumPickerCompact) .breadcrumb{display:none!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading{max-width:440px!important;margin-right:auto!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .song{width:min(100%,440px)!important;max-width:440px!important;margin-right:auto!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:0!important;padding:6px 12px max(8px,env(safe-area-inset-bottom))!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .checkedCount{display:none!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:flex!important;flex-direction:row!important;justify-content:flex-end!important;align-items:center!important;gap:8px!important;width:auto!important;max-width:100%!important;margin:0 0 0 auto!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{flex:0 0 clamp(100px,28vw,144px)!important;width:clamp(100px,28vw,144px)!important;min-width:0!important;min-height:46px!important}
-}
-/* Authoritative phone album universe: no chrome, only small planets and BACK. */
-@media(max-width:820px){
- .window.geAlbumsUniverseOnly{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover!important;border:0!important;border-radius:0!important}
- .window.geAlbumsUniverseOnly > .header{position:absolute!important;top:10px!important;left:10px!important;right:auto!important;z-index:50!important;display:block!important;width:58px!important;height:58px!important;min-height:0!important;padding:0!important;background:transparent!important;border:0!important;pointer-events:none!important}
- .window.geAlbumsUniverseOnly > .header .brand,.window.geAlbumsUniverseOnly > .header .accessToggle,.window.geAlbumsUniverseOnly > .header .geCodeIdentity{display:none!important}
- .window.geAlbumsUniverseOnly > .header .geHeaderActions{display:block!important;pointer-events:none!important}
- .window.geAlbumsUniverseOnly > .header .close{pointer-events:auto!important;display:flex!important;width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-radius:50%!important;background:rgba(175,190,202,.16)!important;border:1px solid rgba(228,239,247,.4)!important;color:#e3edf5!important;font-size:11px!important;box-shadow:0 0 18px 5px rgba(200,227,250,.2),inset 0 0 9px rgba(222,238,255,.1)!important}
- .window.geAlbumsUniverseOnly > .tools,.window.geAlbumsUniverseOnly > .selectionBar{display:none!important}
- .window.geAlbumsUniverseOnly > .scroll{flex:1 1 0!important;height:0!important;min-height:0!important;padding:82px 14px 24px!important;overflow-y:auto!important;background:transparent!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:26px 17px!important;padding:10px 0 35px!important;width:100%!important;align-items:center!important;justify-items:center!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow,.window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow.geAlbumFocused{display:block!important;grid-column:auto!important;grid-row:auto!important;order:initial!important;width:100%!important;max-width:118px!important;min-height:0!important;height:auto!important;aspect-ratio:1!important;margin:0!important;padding:0!important;border-radius:50%!important;border:1px solid rgba(214,231,249,.24)!important;box-shadow:0 0 13px rgba(195,218,248,.14)!important;overflow:hidden!important;background:rgba(6,19,37,.52)!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .album{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;border-radius:50%!important;overflow:hidden!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumCover{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .album b{display:block!important;position:absolute!important;bottom:0!important;left:0!important;right:0!important;padding:14px 3px 7px!important;background:linear-gradient(transparent,rgba(0,7,20,.84))!important;color:white!important;font-size:clamp(10px,2.9vw,13px)!important;text-align:center!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumPickerCompact{position:absolute!important;top:4px!important;left:4px!important;width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;padding:0!important;border-radius:50%!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumPickerCompact input{width:17px!important;height:17px!important;min-width:17px!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumDescription,.window.geAlbumsUniverseOnly .albumPlanetGrid > .albumBrowseRow .albumRowActions,.window.geAlbumsUniverseOnly .albumPlanetGrid > .geAlbumFeature{display:none!important}
- .window.geAlbumsUniverseOnly .albumPlanetGrid > .expandedAlbumSongs{grid-column:1/-1!important;width:100%!important}
-}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
 .window.geAlbumDetailClean > .header,.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
@@ -1009,7 +966,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
