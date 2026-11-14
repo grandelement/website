@@ -1155,6 +1155,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.gePlaylistWorkspace > .selectionBar .checkedCount .geSelectedNumber{font-size:30px!important}
 .window.gePlaylistWorkspace .geBrowseTools{display:flex!important;flex-wrap:wrap!important;gap:5px!important}
 .window.gePlaylistWorkspace .geBrowseTools .gePlaylistTopButton{min-height:44px!important;padding:7px 10px!important;background:rgba(7,24,43,.5)!important;border:1px solid rgba(230,245,255,.6)!important;color:white!important;border-radius:8px!important}
+/* Unified compact footer and larger number. */
+.window.gePlaylistWorkspace > .selectionBar,.window.geAlbumDetailClean > .selectionBar{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important}
+.window.gePlaylistWorkspace > .selectionBar .quickPlaylistRow,.window.gePlaylistWorkspace > .selectionBar .geSelectionTools{display:none!important}
+.window.gePlaylistWorkspace > .selectionBar .checkedCount,.window.geAlbumDetailClean > .selectionBar .checkedCount{display:flex!important;flex:0 0 56px!important;width:56px!important;align-items:center!important;justify-content:center!important}
+.window.gePlaylistWorkspace > .selectionBar .geSelectedNumber,.window.geAlbumDetailClean > .selectionBar .geSelectedNumber{font-size:42px!important;line-height:1!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions,.window.geAlbumDetailClean > .selectionBar .selectionActions{display:flex!important;flex:1 1 0!important;gap:5px!important;align-items:center!important;justify-content:center!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions .buySelected,.window.gePlaylistWorkspace > .selectionBar .selectionActions .playSelected{flex:1 1 0!important;min-height:44px!important;width:auto!important;min-width:0!important}
+.window.geSimpleSongBrowser .scroll .song .songInfo,.window.geSimpleSongBrowser .scroll .song .songLabel{min-width:0!important;max-width:100%!important}
+.window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;max-width:100%!important;line-height:1.4!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1393,7 +1403,7 @@ function selectedTracks(){
 }
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
- el('.checkedCount').innerHTML='<span class="geSelectedNumber">'+count+'</span><span>SELECTED</span>';
+ el('.checkedCount').innerHTML='<span class="geSelectedNumber">'+count+'</span>';
   const selectLabel=el('.songSelectAll');
   if(selectLabel)selectLabel.title='Select songs';
  el('.playSelected').disabled=count===0;
@@ -1969,6 +1979,7 @@ function appendSong(parent,track){
  checkbox.setAttribute('aria-label','Select '+track.title);
  checkbox.addEventListener('change',()=>{
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
+   if(checkbox.checked)state.lastSelectedAlbum=track.album;
    saveSelected();updateMeta();
    row.classList.toggle('selectedSong',checkbox.checked);
    if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
@@ -2224,7 +2235,7 @@ function render(){
   const firstPlaylistTrack=state.view==='playlist-display'?selectedTracks()[0]:null;
   const initial=albumDetail?state.view.slice(6):firstPlaylistTrack?.album||'Aether';
   const active=state.browseBackgroundAlbum||initial;
-  const background=albumDetail?initial:(firstPlaylistTrack?.album||active);
+  const background=state.lastSelectedAlbum||(albumDetail?initial:(firstPlaylistTrack?.album||active));
   musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(background)+'.jpg',location.href).href+'")');
  }else musicWindow.style.removeProperty('--ge-full-album-art');
  // The album layout chooser is no longer shown in the public MUSIC interface.
@@ -2260,7 +2271,7 @@ function render(){
  allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
  allCheck.indeterminate=allCount>0&&allCount<allTracks.length;
  // The dropdown always reflects the album currently displayed.
- const albumNames=[...new Set(allTracks.map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
+ const albumNames=[...new Set(allTracks.filter(t=>t.album!=='Singles').map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
  songFilter.replaceChildren(new Option('ALBUMS','albums'));
  for(const name of albumNames)songFilter.add(new Option('ALBUM · '+name,'album:'+name));
  songFilter.value=albumDetail?state.view:'albums';
@@ -2512,7 +2523,7 @@ function render(){
   if(state.view==='playlist-order'&&gePlaylistEditMode){
    scroller.append(elem('p','section','EDIT PLAYLIST · CHECK SONGS TO ADD OR REMOVE · DONE TO RETURN TO ARRANGE'));
   }
-  const shown=chosen.filter(filterTrack);
+  const shown=chosen.filter(t=>t.album!=='Singles').filter(filterTrack);
   if(state.view==='test-purchases'){
     scroller.append(elem('div','section','TEST PURCHASES · NOT PAID · THIS DEVICE ONLY'));
     if(!shown.length)scroller.append(elem('p','empty','No simulated purchases yet. Use SIMULATE PURCHASE in owner Sun Lab.'));
@@ -2529,7 +2540,7 @@ function render(){
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
         heading.setAttribute('aria-label','Jump to '+track.album+' in full song list');
-        heading.addEventListener('click',()=>setView('album:'+track.album));
+        heading.addEventListener('click',()=>{const tracks=state.tracks.filter(t=>t.album===track.album);const all=tracks.every(t=>state.selected.has(t.path));for(const t of tracks)all?state.selected.delete(t.path):state.selected.add(t.path);if(!all)state.lastSelectedAlbum=track.album;saveSelected();render()});
         scroller.append(heading);
       }
       appendSong(scroller,track);
@@ -2815,7 +2826,7 @@ const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','
 selectionAll.type='button';selectionClear.type='button';
 selectionAll.addEventListener('click',()=>{const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;for(const t of scope)if(!allowed||allowed.has(t.path))state.selected.add(t.path);saveSelected();render()});
 selectionClear.addEventListener('click',()=>{state.selected.clear();saveSelected();render()});
-selectionTools.append(selectionAll,selectionClear);el('.selectionBar').insertBefore(selectionTools,el('.selectionActions'));
+selectionTools.append(selectionClear,selectionAll);el('.selectionBar').insertBefore(selectionTools,el('.selectionActions'));
 const playlistTop=elem('button','gePlaylistTopButton','LOAD');
 playlistTop.type='button';
 playlistTop.addEventListener('click',()=>void openPlaylistPicker());
