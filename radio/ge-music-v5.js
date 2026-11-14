@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.45-20261114-SEARCH-SAVE-PLAYLIST';
+const BUILD='GE-MUSIC-V7.46-20261114-SEARCH-SAVE-PLAYLIST';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2130,7 +2130,7 @@ function render(){
  el('.geBrowseSave').disabled=state.savingShared||!state.selected.size;
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent=state.view==='user-playlists'||state.view==='playlist-display'?'SONGS':state.view.startsWith('album:')?'SONGS':'ALBUMS';
- el('.albumDetailPlaylist').textContent=state.view==='user-playlists'?'SONGS':'PLAYLIST';
+ el('.albumDetailPlaylist').textContent='PLAYLIST';
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
@@ -2474,7 +2474,7 @@ function close(){
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
 el('.albumDetailBack').addEventListener('click',()=>setView('browse-songs'));
-el('.albumDetailPlaylist').addEventListener('click',()=>setView(state.view==='user-playlists'?'browse-songs':'user-playlists'));
+el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'));
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').textContent='BACK';
 el('.close').addEventListener('click',close);
