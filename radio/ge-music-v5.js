@@ -1125,6 +1125,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumDetailClean > .selectionBar .geSelectionTools button{flex:1!important;min-height:42px!important;background:rgba(0,12,28,.35)!important;border:1px solid #aac6da!important;color:white!important;border-radius:8px!important}
 .window.geAlbumDetailClean > .selectionBar .selectionActions{width:100%!important;justify-content:center!important;margin:0!important}
 .window.geAlbumDetailClean > .selectionBar .selectionActions .buySelected,.window.geAlbumDetailClean > .selectionBar .selectionActions .playSelected{flex:1!important;width:auto!important;max-width:none!important}
+/* Compact album selection: highlighted track titles instead of checkboxes. */
+.window.geSimpleSongBrowser .scroll .song input[type=checkbox]{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.window.geSimpleSongBrowser .scroll .song,.window.geSimpleSongBrowser .scroll .song.selectedSong{width:100%!important;max-width:100%!important;margin:0 auto!important;background:transparent!important}
+.window.geSimpleSongBrowser .scroll .songInfo{justify-content:center!important;width:100%!important}
+.window.geSimpleSongBrowser .scroll .songTitlePlay{width:100%!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.35!important;min-height:46px!important;padding:8px 14px!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{background:rgba(255,255,255,.19)!important;box-shadow:0 0 20px 5px rgba(255,255,255,.5)!important;border-radius:12px!important;text-shadow:0 0 12px #fff,0 1px 3px #000!important}
+.window.geAlbumDetailClean .albumCollectionHeading{width:100%!important;max-width:none!important;text-align:center!important}
+.window.geAlbumDetailClean > .selectionBar{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important;padding:8px 8px max(10px,env(safe-area-inset-bottom))!important}
+.window.geAlbumDetailClean > .selectionBar .checkedCount{display:flex!important;flex:0 0 60px!important;width:60px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;font-size:10px!important;line-height:1.05!important}
+.window.geAlbumDetailClean > .selectionBar .checkedCount .geSelectedNumber{font-size:30px!important;line-height:1.1!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectionTools{flex:1 1 0!important;min-width:0!important;width:auto!important;gap:4px!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectionTools button{min-width:0!important;min-height:44px!important;padding:4px!important;font-size:clamp(9px,2.4vw,13px)!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions{flex:1 1 0!important;min-width:0!important;width:auto!important;gap:4px!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions .buySelected,.window.geAlbumDetailClean > .selectionBar .selectionActions .playSelected{min-width:0!important;min-height:44px!important;padding:4px!important;font-size:clamp(10px,2.6vw,14px)!important;background:rgba(6,22,42,.48)!important;color:#fff!important;border:1px solid rgba(240,250,255,.6)!important;box-shadow:none!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions > :not(.buySelected):not(.playSelected){display:none!important}
+.window.geAlbumDetailClean > .geBrowseTools{display:flex!important;flex-wrap:wrap!important;gap:5px!important}
+.window.geAlbumDetailClean > .geBrowseTools .geBrowseSearch{flex:1 1 120px!important;min-width:100px!important}
+.window.geAlbumDetailClean > .geBrowseTools .geBrowseSave,.window.geAlbumDetailClean > .geBrowseTools .gePlaylistTopButton{flex:0 0 auto!important;min-height:44px!important;padding:7px 10px!important;background:rgba(7,24,43,.5)!important;border:1px solid rgba(230,245,255,.6)!important;color:#fff!important;border-radius:8px!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1362,7 +1381,7 @@ function selectedTracks(){
 }
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
- el('.checkedCount').textContent=count+' SONG'+(count===1?'':'S')+' SELECTED';
+ el('.checkedCount').innerHTML='<span class="geSelectedNumber">'+count+'</span><span>SELECTED</span>';
   const selectLabel=el('.songSelectAll');
   if(selectLabel)selectLabel.title='Select songs';
  el('.playSelected').disabled=count===0;
@@ -2782,6 +2801,14 @@ selectionAll.type='button';selectionClear.type='button';
 selectionAll.addEventListener('click',()=>{const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;for(const t of scope)if(!allowed||allowed.has(t.path))state.selected.add(t.path);saveSelected();render()});
 selectionClear.addEventListener('click',()=>{state.selected.clear();saveSelected();render()});
 selectionTools.append(selectionAll,selectionClear);el('.selectionBar').insertBefore(selectionTools,el('.selectionActions'));
+const playlistTop=elem('button','gePlaylistTopButton','PLAYLISTS');
+playlistTop.type='button';
+playlistTop.addEventListener('click',()=>void openPlaylistPicker());
+const playlistDeleteTop=elem('button','gePlaylistTopButton','DELETE');
+playlistDeleteTop.type='button';
+playlistDeleteTop.addEventListener('click',()=>el('.quickPlaylistDelete').click());
+el('.geBrowseTools').append(playlistTop,playlistDeleteTop);
+
 const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
 shareSelectedButton.setAttribute('aria-label','Share selected songs or current playlist');
