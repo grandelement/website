@@ -971,6 +971,10 @@ universeStyle.textContent=`
 .geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 42px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
 .geUniverseAlbum{position:relative;display:block;justify-self:center;align-self:center;width:auto;height:100%;max-width:94vw;max-height:100%;aspect-ratio:1;min-height:0;min-width:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+/* Aether: soften the bright white core so the first cover transitions
+   into Fire without changing the original album art file. */
+.geUniverseAlbum[data-album="Aether"] img{filter:brightness(.82) contrast(.78) saturate(.74)}
+.geUniverseAlbum[data-album="Aether"]::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,transparent 18%,rgba(137,165,195,.13) 68%,rgba(9,19,35,.18) 100%);border-radius:inherit}
 .geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
 .geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:auto;height:100%;max-width:94vw;max-height:100%;border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
 .geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:6px}
@@ -987,7 +991,7 @@ universe.addEventListener('click',event=>{
 // Two-finger pinch changes scale only; the stack never pans away from center.
 const universeBoard=universe.querySelector('.geUniverseAlbums');
 let universeZoom=1,pinchStartDistance=0,pinchStartZoom=1,pinchInProgress=false;
-const zoomClamp=n=>Math.min(3,Math.max(1,Number(n)||1));
+const zoomClamp=n=>Math.min(3.5,Math.max(1,Number(n)||1));
 function setUniverseZoom(next){
  universeZoom=zoomClamp(next);
  universeBoard.style.setProperty('--ge-universe-zoom',String(universeZoom));
@@ -1061,6 +1065,7 @@ function renderStandaloneAlbums(){
  board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
   const item=document.createElement('button');item.type='button';item.className='geUniverseAlbum';
+  item.dataset.album=name;
   item.setAttribute('aria-label','Open '+name+' album');
   const image=document.createElement('img');
   image.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
