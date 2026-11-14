@@ -29,6 +29,10 @@ try {
    buyDisabled:root.querySelector('.buySelected')?.disabled,
    playDisabled:root.querySelector('.playSelected')?.disabled,
    art:getComputedStyle(windowEl,'::before').backgroundImage,
+   search:root.querySelector('.geBrowseSearch')?.placeholder||'',
+   searchVisible:visible(root.querySelector('.geBrowseSearch')),
+   saveVisible:visible(root.querySelector('.geBrowseSave')),
+   addButtons:[...root.querySelectorAll('.geSongAdd')].filter(visible).length,
    count:window.GEMusicV5.state().count
   };
  });
@@ -41,7 +45,22 @@ try {
  assert.equal(all.middleControl,false,'No middle album selector may exist');
  assert.equal(all.footer,false,'Browse list must not show disabled BUY/PLAY footer');
  assert(all.nav,'ALBUMS and PLAYLIST must be visible');
+ assert(all.searchVisible&&all.saveVisible,'Search and SAVE must always occupy the shared top row');
+ assert(all.addButtons>0,'Songs must have one-tap add controls without checkboxes');
  const before=all.count;
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geSongAdd').click());
+ assert.equal((await inspect()).count,before+1,'+ must add a song to the working playlist');
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geSongAdd.isAdded').click());
+ assert.equal((await inspect()).count,before,'Tapping the selected song + must remove it again');
+ await page.evaluate(()=>{
+  const search=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geBrowseSearch');
+  search.value='Prana';search.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ assert((await inspect()).songs.every(name=>name.toLowerCase().includes('prana')),'Search must filter songs');
+ await page.evaluate(()=>{
+  const search=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geBrowseSearch');
+  search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));
+ });
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   [...root.querySelectorAll('.albumBrowseHeading')].find(x=>x.textContent==='Aether').click();
@@ -67,7 +86,15 @@ try {
  const fire=await inspect();
  assert(fire.art.includes('Fire'),'Tapping artwork must show the selected album');
  assert.equal(fire.checks,0,'Artwork album browsing must not show checkboxes');
- console.log('PASS simple SONGS listing, album focus, album covers, no browse checkboxes, preserved selection');
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailPlaylist').click());
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.gePlaylistListTitle')?.textContent==='SAVED PLAYLISTS');
+ const playlists=await inspect();
+ assert(playlists.searchVisible&&playlists.saveVisible,'PLAYLIST must keep search and SAVE in the same location');
+ await page.evaluate(()=>{
+  const search=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geBrowseSearch');
+  search.value='test';search.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ console.log('PASS simple SONGS listing, + selection, search and SAVE, shared PLAYLIST layout');
 } finally {
  await browser.close();
 }
