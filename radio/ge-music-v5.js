@@ -2281,17 +2281,7 @@ function render(){
    const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
    breadcrumb(p?.name||'Playlist',isVault?'ge-playlists':'user-playlists');
   }
-  let currentAlbum='';
-  for(const t of shown){
-   if(false&&state.view==='all'&&t.album!==currentAlbum){
-     currentAlbum=t.album;
-     const group=elem('div','albumCollectionHeading'),tracks=state.tracks.filter(row=>row.album===currentAlbum);
-     applyAlbumStyle(group,currentAlbum);
-     albumSelectAll(group,currentAlbum,tracks);
-     scroller.append(group);
-   }
-   appendSong(scroller,t);
-  }
+  for(const t of shown)appendSong(scroller,t);
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
  }
  scroller.scrollTop=previous;
