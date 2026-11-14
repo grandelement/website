@@ -1057,7 +1057,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
  order:-1!important
 }
 .window.geSimpleSongBrowser .scroll .song.selectedSong .geSongAdd{
- color:#9dedc8!important;background:rgba(0,10,20,.25)!important
+ display:block!important;color:#9dedc8!important;
+ background:rgba(0,10,20,.25)!important
 }
 .window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{display:none!important}
 .window.geSimpleSongBrowser > .albumDetailNav{gap:8px!important}
