@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.37-20261114-UI-CONSOLIDATION';
+const BUILD='GE-MUSIC-V7.38-20261114-CONSOLIDATED-ALBUM';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -917,7 +917,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumFullArt::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.20) 27%,rgba(0,0,0,.48) 85%,rgba(0,0,0,.7))}
 .window.geAlbumFullArt>*{position:relative;z-index:1}
 .window.geAlbumFullArt .scroll{background:transparent!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:8px 12px 20px!important}
-.window.geAlbumFullArt .song{background:rgba(0,8,22,.28)!important;border-bottom:1px solid rgba(255,255,255,.22)!important;color:#fff!important;text-shadow:0 1px 4px #000}
+.window.geAlbumFullArt .song{border-bottom:1px solid rgba(255,255,255,.22)!important;color:#fff!important;text-shadow:0 1px 4px #000}
 .window.geAlbumFullArt .song .songLabel{color:#fff!important}
 .window.geAlbumFullArt .albumCollectionHeading{background:transparent!important;border:0!important;box-shadow:none!important}
 .window.geAlbumFullArt .breadcrumb{background:transparent!important;border:0!important}
@@ -932,6 +932,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
  display:flex!important;flex:0 0 auto;align-items:center;justify-content:space-between;
  padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;gap:12px;
  background:transparent;z-index:5
+}
+ .window.geAlbumDetailClean > .albumDetailNav .albumDetailFilter{
+ min-width:0;flex:1 1 auto;max-width:44%;height:44px;padding:6px;
+ background:rgba(4,18,38,.85);border:1px solid rgba(207,235,255,.65);
+ border-radius:10px;color:white;font-size:13px;text-align:center
 }
 .window.geAlbumDetailClean > .albumDetailNav button{
  min-height:44px;padding:8px 14px;background:rgba(4,18,38,.78);
@@ -964,7 +969,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
- <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
+ <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><select class="albumDetailFilter" aria-label="Choose album"></select><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -2011,6 +2016,15 @@ function render(){
  musicWindow.classList.toggle('geAlbumFullArt',albumDetail);
  musicWindow.classList.toggle('geAlbumDetailClean',albumDetail);
  if(albumDetail){
+  const albumFilter=el('.albumDetailFilter');
+  const name=state.view.slice(6);
+  const access=musicAccessActive();
+  const allowed=access?.restricted?new Set(access.allowed):null;
+  const albums=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
+  albumFilter.replaceChildren(...albums.map(album=>new Option(album,'album:'+album)));
+  albumFilter.value=state.view;
+ }
+ if(albumDetail){
   const albumName=state.view.slice(6);
   musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(albumName)+'.jpg',location.href).href+'")');
  }else musicWindow.style.removeProperty('--ge-full-album-art');
@@ -2329,6 +2343,7 @@ function close(){
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
 el('.albumDetailBack').addEventListener('click',()=>setView('albums'));
+el('.albumDetailFilter').addEventListener('change',event=>setView(event.target.value));
 el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'));
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').textContent='BACK';
