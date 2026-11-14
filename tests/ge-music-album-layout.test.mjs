@@ -28,7 +28,7 @@ try {
   if(!album)throw Error('Sessions II album is missing');
   album.click();
  });
- await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.window.geAlbumDetailClean .albumDetailFilter')?.parentElement?.querySelector('.albumDetailTitle')?.textContent==='Sessions II');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.window.geAlbumDetailClean .albumDetailFilter')?.closest('.window')?.querySelector('.albumDetailTitle')?.textContent==='Sessions II');
  const inspect=()=>page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const windowEl=root.querySelector('.window');
@@ -84,7 +84,7 @@ try {
   select.value='album:Aether';
   select.dispatchEvent(new Event('change',{bubbles:true}));
  });
- await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailFilter')?.parentElement?.querySelector('.albumDetailTitle')?.textContent==='Aether');
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailFilter')?.closest('.window')?.querySelector('.albumDetailTitle')?.textContent==='Aether');
  const aether=await inspect();
  assert.equal(aether.heading,'Aether','Album heading must follow the selected album');
  assert.equal(aether.filterValue,'','Chooser should reset to CHANGE ALBUM after switching');
