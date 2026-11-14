@@ -1193,6 +1193,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions{order:3!important;flex:1 1 0!important;min-width:0!important;display:flex!important;gap:3px!important}
 .window.geAlbumDetailClean > .selectionBar .geSelectedNumber,
 .window.gePlaylistWorkspace > .selectionBar .geSelectedNumber{font-size:38px!important;line-height:1!important}
+.window > .geMusicOfflineRow{display:flex!important;align-items:center!important;gap:9px!important;flex:0 0 auto!important;padding:7px 10px!important;background:rgba(3,19,35,.88)!important;color:#eaf7ff!important}
+.window > .geMusicOfflineRow[hidden]{display:none!important}
+.geMusicOfflineTrigger{flex:0 0 auto!important;min-height:42px!important;padding:7px 12px!important;border:1px solid #68c9b6!important;border-radius:8px!important;background:#145e57!important;color:white!important;font-weight:800!important}
+.geMusicOfflineMeter{display:flex!important;flex:1 1 0!important;min-width:0!important;flex-direction:column!important;gap:4px!important}
+.geMusicOfflineTrack{height:10px!important;border:1px solid #60b3d4!important;border-radius:10px!important;overflow:hidden!important;background:#06121e!important}
+.geMusicOfflineFill{height:100%!important;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7)!important;transition:width .2s linear!important}
+.geMusicOfflineNumbers{display:flex!important;justify-content:space-between!important;gap:8px!important;font:700 12px system-ui!important;font-variant-numeric:tabular-nums!important}
+.geMusicOfflineNumbers span{white-space:nowrap!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1867,6 +1875,7 @@ function musicAccessStatus(){
  // Neither the server's record label nor owner keys are used as a substitute.
  identity.textContent=access?String(access.displayName||'ACCESS ACTIVE').slice(0,80):'';
  el('.musicCodeClear').hidden=!access;
+ updateOfflineAccessVisibility();
 }
 function clearMusicAccess(){
  state.musicAccess=null;
@@ -1897,6 +1906,7 @@ async function redeemMusicCode(){
    const access={token:String(data.token||''),until:Number(data.session_expires_at)*1000,
      restricted:!!data.restricted,allowed,playlistIds:Array.isArray(data.playlist_ids)?data.playlist_ids:[],
      displayName:String(data.display_name||'').trim().slice(0,80),
+     offlineEnabled:data.offline_enabled===true,
      };
    if(!access.token||access.until<=Date.now())throw Error('Music session not confirmed.');
    state.musicAccess=access;
@@ -2273,6 +2283,7 @@ function render(){
  el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
  el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
  const cat=activeCategory();
+ updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
  playlistArrangeTop.hidden=cat!=='playlists';
  selectionTools.hidden=false;
@@ -2830,25 +2841,27 @@ musicOfflineDialog.addEventListener('click',event=>{
   window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);
  }
 });
-// Compact offline download telemetry, positioned above MUSIC's bottom actions.
-const geOfflineMeter=document.createElement('div');
-geOfflineMeter.className='geMusicOfflineMeter';
-geOfflineMeter.setAttribute('role','status');
-geOfflineMeter.setAttribute('aria-live','off');
-geOfflineMeter.innerHTML='<div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineRate"></span><span class="geMusicOfflineTime"></span></div>';
-const geOfflineMeterStyle=document.createElement('style');
-geOfflineMeterStyle.textContent='.geMusicOfflineMeter{display:none;flex:0 0 auto;padding:7px 10px 5px;background:#071e30;border-top:1px solid #477b9c;color:#eaf7ff;font:700 12px system-ui}.geMusicOfflineMeter.active{display:block}.geMusicOfflineTrack{height:12px;border:1px solid #60b3d4;border-radius:10px;overflow:hidden;background:#06121e}.geMusicOfflineFill{height:100%;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7);transition:width .2s}.geMusicOfflineNumbers{display:flex;justify-content:space-between;gap:8px;margin-top:4px}.geMusicOfflineNumbers span{white-space:nowrap}';
-document.head.append(geOfflineMeterStyle);
-el('.selectionActions').parentElement.insertBefore(geOfflineMeter,el('.selectionActions'));
+// Offline download row directly above the selection footer.
+const geOfflineRow=document.createElement('div');
+geOfflineRow.className='geMusicOfflineRow';
+geOfflineRow.hidden=true;
+geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
+el('.selectionBar').before(geOfflineRow);
+geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>el('.offlineSelected').click());
+const geOfflineMeter=geOfflineRow.querySelector('.geMusicOfflineMeter');
+function updateOfflineAccessVisibility(){
+ const enabled=!!musicAccessActive()?.offlineEnabled;
+ geOfflineRow.hidden=!enabled;
+}
 window.addEventListener('message',event=>{
  if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_PROGRESS')return;
+ if(!musicAccessActive()?.offlineEnabled)return;
  const p=event.data;
  const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
- geOfflineMeter.classList.add('active');
  geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
  geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
- geOfflineMeter.querySelector('.geMusicOfflineRate').textContent=p.speed>0?p.rate:'';
- geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=Number.isFinite(p.eta)?p.remaining:'';
+ const remaining=String(p.remaining||'').trim();
+ geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining)?remaining:'00:00';
 });
 const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','','SELECT ALL'),selectionClear=elem('button','','CLEAR');
 selectionAll.type='button';selectionClear.type='button';
@@ -2877,6 +2890,7 @@ shareSelectedButton.addEventListener('click',()=>{
  void window.GEShareMusicSelection?.(selected);
 });
 el('.offlineSelected').addEventListener('click',()=>{
+ if(!musicAccessActive()?.offlineEnabled)return;
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent='Choose what to save on this device.';
  musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
