@@ -1883,7 +1883,7 @@ function appendSong(parent,track){
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
    saveSelected();updateMeta();
    row.classList.toggle('selectedSong',checkbox.checked);
-   if(state.view==='checked'||state.view==='playlist-order')render();
+   if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
      control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
