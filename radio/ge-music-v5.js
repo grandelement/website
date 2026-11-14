@@ -1130,8 +1130,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 .window.geSimpleSongBrowser .scroll .song,.window.geSimpleSongBrowser .scroll .song.selectedSong{width:100%!important;max-width:100%!important;margin:0 auto!important;background:transparent!important}
 .window.geSimpleSongBrowser .scroll .songInfo{justify-content:center!important;width:100%!important}
-.window.geSimpleSongBrowser .scroll .songTitlePlay{width:100%!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.35!important;min-height:46px!important;padding:8px 14px!important}
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{background:rgba(255,255,255,.19)!important;box-shadow:0 0 20px 5px rgba(255,255,255,.5)!important;border-radius:12px!important;text-shadow:0 0 12px #fff,0 1px 3px #000!important}
+
+
 .window.geAlbumDetailClean .albumCollectionHeading{width:100%!important;max-width:none!important;text-align:center!important}
 .window.geAlbumDetailClean > .selectionBar{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important;padding:8px 8px max(10px,env(safe-area-inset-bottom))!important}
 .window.geAlbumDetailClean > .selectionBar .checkedCount{display:flex!important;flex:0 0 60px!important;width:60px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;font-size:10px!important;line-height:1.05!important}
@@ -1163,8 +1163,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions,.window.geAlbumDetailClean > .selectionBar .selectionActions{display:flex!important;flex:1 1 0!important;gap:5px!important;align-items:center!important;justify-content:center!important}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions .buySelected,.window.gePlaylistWorkspace > .selectionBar .selectionActions .playSelected{flex:1 1 0!important;min-height:44px!important;width:auto!important;min-width:0!important}
 .window.geSimpleSongBrowser .scroll .song .songInfo,.window.geSimpleSongBrowser .scroll .song .songLabel{min-width:0!important;max-width:100%!important}
-.window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;max-width:100%!important;line-height:1.4!important}
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
+
+
 /* Playlists use exactly the same footer controls as Songs. */
 .window.gePlaylistWorkspace > .selectionBar .geSelectionTools{display:flex!important;flex:1 1 0!important;min-width:0!important;gap:4px!important}
 .window.gePlaylistWorkspace > .selectionBar .geSelectionTools button{flex:1 1 0!important;min-width:0!important;min-height:44px!important;padding:4px!important;font-size:clamp(9px,2.4vw,13px)!important;color:white!important;background:rgba(5,20,37,.35)!important;border:1px solid rgba(240,250,255,.55)!important;border-radius:8px!important}
@@ -1177,11 +1177,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .song,
 .window.geSimpleSongBrowser .scroll .songInfo,
 .window.geSimpleSongBrowser .scroll .songLabel{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
-.window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;text-overflow:clip!important;overflow:visible!important;height:auto!important;min-height:44px!important;line-height:1.4!important;padding:10px 12px!important;text-align:center!important}
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;height:auto!important;overflow:visible!important;border-radius:12px!important;background:rgba(255,255,255,.2)!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
-/* Keep selected titles on one line, including their white glow. */
-.window.geSimpleSongBrowser .scroll .song .songTitlePlay,
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;overflow:hidden!important;text-overflow:ellipsis!important;height:auto!important;min-width:0!important}
+
+
+/* Title glow is styled only on .geSongTitleGlow below. */
+
 /* Bottom row: CLEAR / SELECT ALL / count / BUY / PLAY, with a small gap around count. */
 .window.geAlbumDetailClean > .selectionBar,
 .window.gePlaylistWorkspace > .selectionBar{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;gap:4px!important}
@@ -1201,13 +1200,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geMusicOfflineFill{height:100%!important;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7)!important;transition:width .2s linear!important}
 .geMusicOfflineNumbers{display:flex!important;justify-content:space-between!important;gap:8px!important;font:700 12px system-ui!important;font-variant-numeric:tabular-nums!important}
 .geMusicOfflineNumbers span{white-space:nowrap!important}
-/* Keep white song highlight inside a centered, bounded song column. */
+/* Keep the song rows at a comfortable reading width. */
 .window.geSimpleSongBrowser .scroll .song{width:min(100%,440px)!important;max-width:440px!important;margin-left:auto!important;margin-right:auto!important}
 .window.geSimpleSongBrowser .scroll .song .songInfo,
 .window.geSimpleSongBrowser .scroll .song .songLabel{width:100%!important;min-width:0!important;max-width:100%!important}
-.window.geSimpleSongBrowser .scroll .song .songTitlePlay,
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{display:block!important;width:calc(100% - 16px)!important;max-width:calc(100% - 16px)!important;margin:0 8px!important;box-sizing:border-box!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;overflow-wrap:normal!important;word-break:normal!important}
-.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{box-shadow:0 0 12px 2px rgba(255,255,255,.5)!important}
+
+
 /* Thick horizontal offline meter: percent at left, time at right. */
 .window > .geMusicOfflineRow .geMusicOfflineMeter{display:grid!important;grid-template-columns:45px minmax(0,1fr) 52px!important;align-items:center!important;gap:7px!important}
 .window > .geMusicOfflineRow .geMusicOfflineTrack{grid-column:2!important;grid-row:1!important;height:24px!important;border-radius:7px!important}
