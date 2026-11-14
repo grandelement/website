@@ -201,13 +201,13 @@ Preserve together:
     --star-tile: 900px;
 
     /* Planets (album dots) */
-    --planet-size: 47.3px;
+    --planet-size: 43.5px;
     --planet-hover-scale: 3;
     --planet-glow: 18px;
 
     /* Sun + Moon */
-    --sun-size: 200px;
-    --moon-size: 120px;
+    --sun-size: 184px;
+    --moon-size: 110px;
     --orbit-seconds: 60;
     --orbit-distance-desktop: 2.2;
     --orbit-distance-mobile: 1.35;
@@ -230,14 +230,14 @@ Preserve together:
          (max-height: 500px) and (orientation: landscape){
     :root{
       --orbit-gap-moons: var(--orbit-distance-mobile);
-      --planet-size: 17.325px;
-      --sun-size: 100px;
-      --moon-size: 50px;
+      --planet-size: 16px;
+      --sun-size: 92px;
+      --moon-size: 46px;
       --orbit-gap-moons: 1.1;
     }
     body:not(.game-mode-active) .planet{
-      width:17.325px!important;
-      height:17.325px!important;
+      width:16px!important;
+      height:16px!important;
     }
   }
 
@@ -490,9 +490,9 @@ Preserve together:
 
 @media (max-width: 900px) and (orientation: landscape){
   :root{
-    --sun-size: 100px;
-    --moon-size: 50px;
-    --planet-size: 23.1px;
+    --sun-size: 92px;
+    --moon-size: 46px;
+    --planet-size: 21.3px;
     --orbit-gap-moons: 1.35;
   }
 }
@@ -6209,6 +6209,8 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
     },
     selectTrackNumber:(n)=>selectTrackNumberWithinCurrentAlbum(n),
     playAlbum:(albumTitle)=>{
+      // The Album mode must light up even when the embedded player opens first.
+      setShuffleMode(false);
       if(window.GE_SITE_ALBUM_PLAYER?.open?.(albumTitle))return true;
       // Only use the existing private owner-demo path if the embedded
       // player could not start; guests never bypass the 33:33 Gate.
@@ -8328,11 +8330,11 @@ requestAnimationFrame(loop);
     if(e.cancelable)e.preventDefault();
     moved=true;
     const w=wrap.offsetWidth, h=wrap.offsetHeight;
-    const keep = (window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
+    const keep = 1; // The complete Blue Sun stays on-screen.
     let L=e.clientX-dx, T=e.clientY-dy;
 
     // L/T are the element's top-left before translate(-50%,-50%) is reapplied below.
-    // Keep at least 25% of the sun visible. In Game Mode use the legal playfield,
+    // Keep the entire sun visible. In Game Mode use the legal playfield,
     // otherwise use the viewport.
     let leftBound=0, rightBound=innerWidth, topBound=0, bottomBound=innerHeight;
     if(document.body.classList.contains('game-mode-active') && typeof getPlanetPlayBounds==='function'){
@@ -13859,6 +13861,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       if(b.dataset.autoMode==='keep'){window.GE_DREAM?.start();autopilotChoice={mode:'keep',album:null};ensureMusic();showAutopilotReady();return;}
       const album=b.dataset.autoAlbum||'';autopilotChoice={mode:'album',album};
       try{
+        window.GE_MUSIC_CONTROLLER?.setShuffle?.(false);
         const selected=window.GE_MUSIC_ALBUM_CONFIG?.getSelected?.()||[];
         if(album&&!selected.some(x=>String(x).toLowerCase()===String(album).toLowerCase()))window.GE_MUSIC_ALBUM_CONFIG?.setSelected?.([...selected,album]);
         window.GE_MUSIC_CONTROLLER?.playAlbum?.(album);
@@ -14582,9 +14585,10 @@ document.head.appendChild(sheet);
   }
   function move(x,y){
     const p=location();
-    // Intentional edge parking keeps at least one quarter of the disk visible.
-    const nx=clamp(x,-p.w*.25,innerWidth+p.w*.25);
-    const ny=clamp(y,-p.h*.25,innerHeight+p.h*.25);
+    // Keep the whole Blue Sun inside the viewport even after user drag or rotation.
+    const gap=Math.max(4,Math.min(12,Math.min(innerWidth,innerHeight)*.025));
+    const nx=clamp(x,Math.min(innerWidth/2,p.w/2+gap),Math.max(innerWidth/2,innerWidth-p.w/2-gap));
+    const ny=clamp(y,Math.min(innerHeight/2,p.h/2+gap),Math.max(innerHeight/2,innerHeight-p.h/2-gap));
     if(Math.abs(p.x-nx)<.15&&Math.abs(p.y-ny)<.15)return;
     sun.style.left=nx+'px';sun.style.top=ny+'px';
     sun.style.transform='translate(-50%,-50%)';
@@ -14660,6 +14664,7 @@ document.head.appendChild(sheet);
       previousWidth=innerWidth;previousHeight=innerHeight;
       returnAfter=now+HOME_WAIT_MS;
       if(park)maintainParking();
+      else { const current=location(); move(current.x,current.y); }
     }
     if(!blocked()&&!held&&!sun.classList.contains('dragging')){
       if(!initialized){
