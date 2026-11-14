@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.38-20261114-CONSOLIDATED-ALBUM';
+const BUILD='GE-MUSIC-V7.39-20261114-SELECTOR-CLEANUP';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -109,14 +109,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumCollectionHeading .albumPicker{flex:1;min-width:0;margin:0;padding:8px 10px;border:0!important;background:transparent!important}
 .albumCollectionHeading .albumText{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
 .albumCollectionHeading .albumTitle{display:block;max-width:100%;font-size:clamp(25px,7vw,30px);font-weight:950;letter-spacing:.02em;line-height:1.1;color:#fff;text-shadow:0 2px 3px rgba(0,12,24,.8);overflow-wrap:anywhere}
-.albumCollectionHeading .albumViewTitle{flex:1;min-width:0;align-self:center;padding:9px 11px;color:#fff;font-size:clamp(25px,7vw,30px);font-weight:950;letter-spacing:.02em;line-height:1.1;text-shadow:0 2px 3px rgba(0,12,24,.8);overflow-wrap:anywhere}
 
-.albumActions,.songActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}
+
+.albumActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}
 .albumActions{padding:3px}
 .albumActions button{min-height:36px;padding:5px 9px;font-size:12px}
-.songActions button{min-width:47px}
+
 .song.selectedSong{box-shadow:inset 0 0 0 1px rgba(200,231,255,.25)}
-@media(max-width:420px){.albumActions button{padding:5px 7px;font-size:11px}.songActions button{font-size:11px;min-width:43px;padding:6px}}
+@media(max-width:420px){.albumActions button{padding:5px 7px;font-size:11px}}
 
 .song button[disabled]{opacity:.48}
 .breadcrumb{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
@@ -146,7 +146,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .song .songLabel{flex:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
 .legacyToggle{width:100%;margin:10px 0 7px;min-height:47px;background:#0d304d;border:1px solid #6a91ad;color:#eef8ff;letter-spacing:.05em;font-weight:850}
 .legacyHeading{margin-top:6px;color:#b7d9ed;font-size:12px;padding:5px 8px}
-.albumJump{min-width:0;width:100%;margin-top:7px;padding:8px 10px;min-height:40px;border:1px solid #4b91bd;border-radius:9px;background:#09243a;color:white;font-size:14px}
+
 .song button{flex:0 0 auto;min-width:45px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
 .song .reorder{min-width:38px;padding:4px 6px;font-size:19px}
 .albumPicker{display:flex;align-items:center;gap:9px;background:#0b3553;border:1px solid #376f95;border-radius:7px;padding:9px;margin:8px 0 5px}
@@ -249,7 +249,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.arranging .song{min-height:50px;margin-bottom:4px}
 .window.arranging .song .reorder{min-width:36px;min-height:38px}
 .window.arranging .song .buyBtn{min-height:38px}
-@media(max-width:420px){.window.arranging .song{gap:4px}.window.arranging .songActions button{min-width:42px;padding:5px}.window.arranging .song .reorder{min-width:30px;padding:4px}.arrangeDock{padding:6px 8px}}
+@media(max-width:420px){.window.arranging .song{gap:4px}.window.arranging .song .reorder{min-width:30px;padding:4px}.arrangeDock{padding:6px 8px}}
 
 .playlist{margin:0 0 9px;padding:10px;border:1px solid #3d89ba;border-radius:10px;background:#0c2940}
 .playlist h3{margin:0 0 8px;font-size:15px}
@@ -582,7 +582,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .browse button{min-width:0!important;min-height:44px!important;white-space:normal!important;overflow-wrap:anywhere!important}
  .filterRow,.musicCodeTools{min-width:0!important;flex-wrap:wrap!important}
  .filterRow select,.filterRow input,.musicCodeTools input{max-width:100%!important;min-width:0!important}
- .song,.songActions,.albumBrowseRow,.selectionBar{min-width:0!important;max-width:100%!important}
+ .song,.albumBrowseRow,.selectionBar{min-width:0!important;max-width:100%!important}
  .song .songInfo,.song .songTitlePlay{min-width:0!important;overflow-wrap:anywhere!important}
 }
 @media(max-height:520px) and (orientation:landscape){
@@ -910,7 +910,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window:not(.arranging) .selectionBar .selectionActions{display:flex;flex:1;justify-content:flex-end;gap:10px}
 .window:not(.arranging) .selectionBar .selectionActions .buySelected,
 .window:not(.arranging) .selectionBar .selectionActions .playSelected{flex:1;max-width:240px}
-.window:not(.arranging) .songActions{display:none!important}
+
 /* Full-screen album art with songs over the same artwork; no separate panels. */
 .window.geAlbumFullArt{inset:0!important;top:0!important;bottom:0!important;left:0!important;transform:none!important;width:100%!important;height:100dvh!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#020817!important;isolation:isolate}
 .window.geAlbumFullArt::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--ge-full-album-art);background-position:center;background-size:cover;background-repeat:no-repeat;animation:geAlbumArtExpand .4s ease-out both}
