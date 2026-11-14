@@ -4278,30 +4278,64 @@ const backroomVaultManagers=(()=>{
     }catch(err){codeMaster.checked=!desired;accessStatus('MASTER SWITCH FAILED: '+String(err.message||err));}
     finally{codeMaster.disabled=false;}
   }
-  let radio1StatusBusy=false;
+  let radio1StatusBusy=false,radio1UseBusy=false,radio1Playlists=[];
+  const onAirSelect=$('brRadioLivePlaylist'),onAirUse=$('brRadioLivePlaylistUse');
+  const updateOnAirButton=()=>{
+    onAirUse.disabled=radio1StatusBusy||radio1UseBusy||onAirSelect.disabled||
+      !radio1Playlists.some(item=>String(item.id)===onAirSelect.value);
+  };
+  onAirSelect.addEventListener('change',updateOnAirButton);
   async function checkRadio1Bangers(){
-    if(radio1StatusBusy)return;
+    if(radio1StatusBusy||radio1UseBusy)return;
     radio1StatusBusy=true;
     const output=$('brRadio1Status'),button=$('brRadio1Check');
-    button.disabled=true;
+    button.disabled=true;onAirSelect.disabled=true;onAirUse.disabled=true;
     output.textContent='CHECKING BLITZ DJ CONTROL AND BANGERS PLAYLIST…';
     try{
       const [status,saved]=await Promise.all([
         geDJApi('/control/status'),geDJApi('/control/playlists')
       ]);
       if(!Array.isArray(saved.items))throw Error('DJ control did not return saved playlists');
-      const bangers=saved.items.find(item=>String(item?.name||'').trim().toLowerCase()==='bangers');
-      const selected=status.custom_mix_enabled===true&&bangers&&
-        String(status.custom_mix_id||'')===String(bangers.id||'');
-      const count=Array.isArray(bangers?.paths)?bangers.paths.length:0;
-      const playlist=bangers?'BANGERS FOUND · '+count+' playlist songs':'BANGERS NOT FOUND';
-      output.textContent='BLITZ DJ CONTROL CONNECTED · '+playlist+' · '+
-        (selected?'BANGERS SELECTED ON RADIO 1':'BANGERS IS NOT VERIFIED AS THE ACTIVE RADIO 1 PLAYLIST')+
-        ' · Live audio and current queue require a separate playback check.';
+      radio1Playlists=saved.items.filter(item=>item?.id&&Array.isArray(item.paths)&&item.paths.length);
+      const bangers=radio1Playlists.find(item=>String(item.name||'').trim().toLowerCase()==='bangers');
+      const liveId=status.custom_mix_enabled?String(status.custom_mix_id||''):'';
+      const bangersSelected=!!bangers&&liveId===String(bangers.id);
+      const livePlaylist=radio1Playlists.find(item=>String(item.id)===liveId);
+      onAirSelect.replaceChildren(new Option('CHOOSE ORIGINAL BLITZ PLAYLIST',''));
+      for(const item of radio1Playlists)onAirSelect.add(new Option(
+        String(item.name||'Unnamed').slice(0,100)+' · '+item.paths.length+' SONGS',String(item.id)));
+      onAirSelect.value=livePlaylist?liveId:(bangers?String(bangers.id):'');
+      onAirSelect.disabled=radio1Playlists.length===0;
+      const playlist=bangers?'BANGERS FOUND · '+bangers.paths.length+' SONGS':'BANGERS NOT FOUND';
+      const active=livePlaylist?'ON RADIO 1: '+String(livePlaylist.name||'').slice(0,100):
+        'BLITZ custom playlist not verified as active';
+      output.textContent='BLITZ DJ CONTROL CONNECTED · '+playlist+' · '+active+
+        (bangersSelected?' · BANGERS VERIFIED':'')+
+        ' · This does not verify live audio or Radio 2 queue parity.';
     }catch(error){
+      radio1Playlists=[];onAirSelect.disabled=true;onAirSelect.replaceChildren(new Option('CONNECTION UNAVAILABLE',''));
       output.textContent='RADIO 1 NOT VERIFIED · '+String(error?.message||error).slice(0,160);
-    }finally{radio1StatusBusy=false;button.disabled=false}
+    }finally{radio1StatusBusy=false;button.disabled=false;updateOnAirButton()}
   }
+  async function useRadio1Playlist(){
+    if(radio1UseBusy||radio1StatusBusy)return;
+    const playlist=radio1Playlists.find(item=>String(item.id)===onAirSelect.value);
+    if(!playlist||!playlist.paths?.length)return;
+    if(!confirm('USE '+String(playlist.name||'').slice(0,100)+' ON BLITZ RADIO 1?\\n\\nThis changes Radio 1 on-air rotation. Radio 2 is NOT automatically verified or synchronized by this action.'))return;
+    radio1UseBusy=true;onAirUse.disabled=true;
+    const output=$('brRadio1Status');
+    output.textContent='REQUESTING BLITZ ON-AIR PLAYLIST CHANGE…';
+    try{
+      await geDJApi('/control/custom-mix',{enabled:true,playlist_id:String(playlist.id)});
+      const latest=await geDJApi('/control/status');
+      if(!latest.custom_mix_enabled||String(latest.custom_mix_id||'')!==String(playlist.id))
+        throw Error('BLITZ did not confirm the requested playlist as active');
+      output.textContent='RADIO 1 VERIFIED · '+String(playlist.name||'').slice(0,100)+
+        ' selected on BLITZ. Radio 2 backup schedule and listener failover are NOT verified.';
+    }catch(error){output.textContent='RADIO 1 CHANGE NOT VERIFIED · '+String(error?.message||error).slice(0,160)}
+    finally{radio1UseBusy=false;updateOnAirButton()}
+  }
+  onAirUse.addEventListener('click',()=>void useRadio1Playlist());
   async function checkRadio2Bangers(){
     const output=$('brRadio2Status')||$('brDJPlaylistStatus');
     output.textContent='Checking the published Radio 2 Bangers program…';
