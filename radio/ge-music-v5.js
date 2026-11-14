@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.44-20261114-SEARCH-SAVE-PLAYLIST';
+const BUILD='GE-MUSIC-V7.45-20261114-SEARCH-SAVE-PLAYLIST';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2107,7 +2107,8 @@ function render(){
  musicWindow.classList.toggle('geAlbumDetailClean',songBrowsing);
  musicWindow.classList.toggle('geSimpleSongBrowser',songBrowsing);
  if(songBrowsing){
-  const initial=albumDetail?state.view.slice(6):'Aether';
+  const firstPlaylistTrack=state.view==='playlist-display'?selectedTracks()[0]:null;
+  const initial=albumDetail?state.view.slice(6):firstPlaylistTrack?.album||'Aether';
   const active=state.browseBackgroundAlbum||initial;
   const background=albumDetail?initial:active;
   musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(background)+'.jpg',location.href).href+'")');
@@ -2209,7 +2210,9 @@ function render(){
  if(state.view==='user-playlists'){
   const rows=[
    ...state.fanLists.map(p=>({p,source:'fan'})),
-   ...readMine().map(p=>({p,source:'local'}))
+   ...readMine().map(p=>({p,source:'local'})),
+   ...visibleSharedLists().map(p=>({p,source:'ge'})),
+   ...state.assignedLists.filter(p=>!visibleSharedLists().some(row=>row.id===p.id)).map(p=>({p,source:'assigned'}))
   ].filter(({p})=>!term||p.name.toLowerCase().includes(term));
   const heading=elem('strong','gePlaylistListTitle','SAVED PLAYLISTS');
   scroller.append(heading);
@@ -2218,7 +2221,7 @@ function render(){
    entry.type='button';
    entry.addEventListener('click',()=>{
     state.selected=new Set(p.songs.map(canonical).filter(Boolean));
-    state.activePlaylist={source:source==='fan'?'fan':'user',origin:source==='fan'?'vault':'local',id:p.id,name:p.name};
+    state.activePlaylist={source:source==='fan'?'fan':source==='local'?'user':'ge',origin:source==='fan'?'vault':source==='local'?'local':p.source||'github',id:p.id,name:p.name};
     state.playlistDraftName=p.name;
     saveSelected();setView('playlist-display');
    });
