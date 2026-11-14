@@ -1259,6 +1259,43 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window > .geBrowseTools .gePlaylistTopButton:last-child:not([hidden]){
  margin-left:auto!important;margin-right:auto!important;
 }
+/* SONGS is a continuous scroll of square album-art sections, in album order.
+   Artwork belongs to each album, not the fixed full-window background. */
+.window.geSimpleSongBrowser:has(.geSongsAlbumSquare)::before{background-image:none!important;animation:none!important}
+.window.geSimpleSongBrowser:has(.geSongsAlbumSquare) > .scroll{
+ padding:0!important;background:transparent!important;overflow-x:hidden!important
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
+ position:relative!important;isolation:isolate!important;
+ box-sizing:border-box!important;width:100%!important;
+ min-height:min(100vw,100dvh)!important;
+ aspect-ratio:1/1!important;
+ margin:0!important;padding:clamp(10px,3vw,24px) 10px!important;
+ display:flex!important;flex-direction:column!important;justify-content:center!important;
+ align-items:center!important;gap:0!important;
+ background-image:linear-gradient(rgba(0,9,21,.35),rgba(0,9,21,.42)),var(--ge-square-album-art)!important;
+ background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .albumBrowseHeading{
+ width:100%!important;max-width:100%!important;
+ margin:0 auto 8px!important;padding:5px!important;
+ text-align:center!important;min-height:0!important;
+ font-size:clamp(22px,5vw,38px)!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song{
+ width:min(100%,440px)!important;max-width:440px!important;
+ margin:0 auto!important;padding:0!important;
+ min-height:clamp(28px,4.6vh,42px)!important;
+ flex:0 0 auto!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .songTitlePlay{
+ min-height:28px!important;padding:2px 0!important;
+ white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .geSongTitleGlow{
+ padding:5px 10px!important;white-space:nowrap!important;
+ max-width:calc(100% - 12px)!important;
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1490,7 +1527,8 @@ function details(path){
  const m=stem.match(/(?:^|[ _-])(\d{1,3})(?=[ _-]|$)/);
  const title=(m?stem.slice(m.index+m[0].length):stem).replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
  // Keep the recording path stable for saved playlists and offline downloads.
- return{path,album,title:title||file,number:m?Number(m[1]):999};
+ const cleanTitle=album==='Singles'?title.replace(/^singles?\s*(?:[-–—:]\s*)?/i,'').trim():title;
+ return{path,album,title:cleanTitle||title||file,number:m?Number(m[1]):999};
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
@@ -2635,7 +2673,7 @@ function render(){
   if(state.view==='playlist-order'&&gePlaylistEditMode){
    scroller.append(elem('p','section','EDIT PLAYLIST · CHECK SONGS TO ADD OR REMOVE · DONE TO RETURN TO ARRANGE'));
   }
-  const shown=chosen.filter(t=>t.album!=='Singles').filter(filterTrack);
+  const shown=chosen.filter(t=>state.view==='browse-songs'||t.album!=='Singles').filter(filterTrack);
   if(state.view==='test-purchases'){
     scroller.append(elem('div','section','TEST PURCHASES · NOT PAID · THIS DEVICE ONLY'));
     if(!shown.length)scroller.append(elem('p','empty','No simulated purchases yet. Use SIMULATE PURCHASE in owner Sun Lab.'));
@@ -2645,17 +2683,21 @@ function render(){
    scroller.append(elem('strong','gePlaylistListTitle',state.activePlaylist?.name||'WORKING PLAYLIST'));
   }
   if(state.view==='browse-songs'){
-    let previousAlbum='';
+    let section=null,previousAlbum='';
     for(const track of shown){
       if(track.album!==previousAlbum){
         previousAlbum=track.album;
+        section=elem('section','geSongsAlbumSquare');
+        section.dataset.album=track.album;
+        section.style.setProperty('--ge-square-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href+'")');
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
-        heading.setAttribute('aria-label','Jump to '+track.album+' in full song list');
+        heading.setAttribute('aria-label','Select all songs on '+track.album);
         heading.addEventListener('click',()=>{const tracks=state.tracks.filter(t=>t.album===track.album);const all=tracks.every(t=>state.selected.has(t.path));for(const t of tracks)all?state.selected.delete(t.path):state.selected.add(t.path);if(!all)state.lastSelectedAlbum=track.album;saveSelected();render()});
-        scroller.append(heading);
+        section.append(heading);
+        scroller.append(section);
       }
-      appendSong(scroller,track);
+      appendSong(section,track);
     }
   }else if(state.view.startsWith('album:')){
     const name=state.view.slice(6);
