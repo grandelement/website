@@ -1472,7 +1472,7 @@ function installBackroomTabs(){
     }
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
-    if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();}
+    if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();window.GE_BACKROOM_RADIO_STATUS_CHECK?.();}
     for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
@@ -4269,6 +4269,30 @@ const backroomVaultManagers=(()=>{
     }catch(err){codeMaster.checked=!desired;accessStatus('MASTER SWITCH FAILED: '+String(err.message||err));}
     finally{codeMaster.disabled=false;}
   }
+  let radio1StatusBusy=false;
+  async function checkRadio1Bangers(){
+    if(radio1StatusBusy)return;
+    radio1StatusBusy=true;
+    const output=$('brRadio1Status'),button=$('brRadio1Check');
+    button.disabled=true;
+    output.textContent='CHECKING BLITZ DJ CONTROL AND BANGERS PLAYLIST…';
+    try{
+      const [status,saved]=await Promise.all([
+        geDJApi('/control/status'),geDJApi('/control/playlists')
+      ]);
+      if(!Array.isArray(saved.items))throw Error('DJ control did not return saved playlists');
+      const bangers=saved.items.find(item=>String(item?.name||'').trim().toLowerCase()==='bangers');
+      const selected=status.custom_mix_enabled===true&&bangers&&
+        String(status.custom_mix_id||'')===String(bangers.id||'');
+      const count=Array.isArray(bangers?.paths)?bangers.paths.length:0;
+      const playlist=bangers?'BANGERS FOUND · '+count+' playlist songs':'BANGERS NOT FOUND';
+      output.textContent='BLITZ DJ CONTROL CONNECTED · '+playlist+' · '+
+        (selected?'BANGERS SELECTED ON RADIO 1':'BANGERS IS NOT VERIFIED AS THE ACTIVE RADIO 1 PLAYLIST')+
+        ' · Live audio and current queue require a separate playback check.';
+    }catch(error){
+      output.textContent='RADIO 1 NOT VERIFIED · '+String(error?.message||error).slice(0,160);
+    }finally{radio1StatusBusy=false;button.disabled=false}
+  }
   async function checkRadio2Bangers(){
     const output=$('brRadio2Status')||$('brDJPlaylistStatus');
     output.textContent='Checking the published Radio 2 Bangers program…';
@@ -4294,6 +4318,19 @@ const backroomVaultManagers=(()=>{
         '. The current BLITZ playlist has not been verified.';
     }finally{clearTimeout(timer);}
   }
+  // Expose the existing authenticated BLITZ and public backup checks in RADIO.
+  $('brRadio1Check').addEventListener('click',()=>void checkRadio1Bangers());
+  $('brRadio2Check').addEventListener('click',()=>void checkRadio2Bangers());
+  let radioCombinedBusy=false;
+  async function checkRadioConnections(){
+    if(radioCombinedBusy)return;
+    radioCombinedBusy=true;
+    const button=$('brRadioAllCheck');button.disabled=true;
+    try{await Promise.allSettled([checkRadio1Bangers(),checkRadio2Bangers()]);}
+    finally{radioCombinedBusy=false;button.disabled=false}
+  }
+  $('brRadioAllCheck').addEventListener('click',()=>void checkRadioConnections());
+  window.GE_BACKROOM_RADIO_STATUS_CHECK=checkRadioConnections;
   let reconnectInProgress=false;
   async function reconnectAllSources(){
     if(reconnectInProgress)return false;
