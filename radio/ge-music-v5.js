@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.41-20261114-ALBUM-HEADING';
+const BUILD='GE-MUSIC-V7.42-20261114-SIMPLE-SONG-BROWSER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -23,7 +23,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'browse-songs',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -946,6 +946,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumDetailClean .geMusicOfflineMeter{
  display:none!important
 }
+/* Simple browsing has no checkboxes or panel backgrounds; selection remains in playlists. */
+.window.geSimpleSongBrowser .song input[type=checkbox],
+.window.geSimpleSongBrowser .albumPicker,
+.window.geSimpleSongBrowser .songSelectAll{display:none!important}
+.window.geSimpleSongBrowser .song,
+.window.geSimpleSongBrowser .songInfo{background:transparent!important;background-image:none!important;border-left:0!important;box-shadow:none!important}
+.window.geSimpleSongBrowser .song{border-bottom:1px solid rgba(255,255,255,.16)!important}
+.window.geSimpleSongBrowser .songLabel{width:100%!important;text-align:left!important;justify-content:flex-start!important;padding-left:7px!important}
+.window.geSimpleSongBrowser .albumBrowseHeading{
+ display:block;width:100%;margin:12px 0 5px;padding:8px 3px;min-height:56px;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ font-size:clamp(29px,7.2vw,44px);font-weight:950;line-height:1.15;
+ text-align:left;color:#fff;text-shadow:0 3px 7px #000
+}
+.window.geSimpleSongBrowser .albumCollectionHeading{background:transparent!important;border:0!important}
+.window.geSimpleSongBrowser:has(.albumBrowseHeading) > .selectionBar{display:none!important}
+.window.geSimpleSongBrowser .geMusicOfflineMeter{display:none!important}
+.window.geSimpleSongBrowser .albumDetailNav{justify-content:space-between!important}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
 .window.geAlbumDetailClean > .header,.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
@@ -990,7 +1008,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
- <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><select class="albumDetailFilter" aria-label="Choose album"></select><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
+ <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -1059,7 +1077,7 @@ root.appendChild(universeStyle);
 universe.addEventListener('click',event=>{
  if(universe.dataset.pinching==='true')return;
  if(event.target.closest('.geUniverseAlbum'))return;
- setView('albums');
+ setView('browse-songs');
 });
 // Two-finger pinch changes scale only; the stack never pans away from center.
 const universeBoard=universe.querySelector('.geUniverseAlbums');
@@ -1812,7 +1830,14 @@ function appendSong(parent,track){
   songText.type='button';
   songText.title='Play '+track.title;
   songText.setAttribute('aria-label','Play '+track.title+' in the main player');
-  songText.addEventListener('click',()=>void playTrack(track,checkedQueueStartingAt(track),true));
+  songText.addEventListener('click',()=>{
+  if(state.view==='browse-songs'||state.view.startsWith('album:')){
+   state.browseBackgroundAlbum=track.album;
+   el('.window').style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href+'")');
+   const list=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===track.album):state.tracks;
+   void playTrack(track,list.map(t=>t.path),true);
+  }else void playTrack(track,checkedQueueStartingAt(track),true);
+ });
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
@@ -1945,18 +1970,9 @@ document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDr
 // album or playlist replaces content inside the SAME scroll surface.
 function setView(view){
  // Obsolete ALL SONGS page is not a public destination. Keep the underlying catalog intact.
- if(view==='all'||view==='checked')view=state.view.startsWith('album:')?state.view:'albums';
+ if(view==='all'||view==='checked')view='browse-songs';
  if(dragSession)finishDrag(false);
- // Opening album artwork selects its songs once, without removing other saved selections.
- if(view.startsWith('album:')&&view!==state.view){
-  const name=view.slice(6);
-  const access=musicAccessActive();
-  const allowed=access?.restricted?new Set(access.allowed):null;
-  for(const track of state.tracks){
-   if(track.album===name&&(!allowed||allowed.has(track.path)))state.selected.add(track.path);
-  }
-  saveSelected();
- }
+ // Browsing an album never changes selected songs or saved playlists.
  state.view=view;state.arranging=view==='playlist-order';if(view!=='playlist-order')gePlaylistEditMode=false;
  if(state.arranging)state.arrangeReturnView='checked';
  state.term='';el('.search').value='';
@@ -2006,7 +2022,7 @@ function chosenSongs(){
   const lookup=new Map(state.tracks.map(t=>[t.path,t]));
   return(p?.songs||[]).map(path=>lookup.get(path)).filter(Boolean);
  }
- return state.view==='all'?state.tracks:[];
+ return state.view==='all'||state.view==='browse-songs'?state.tracks:[];
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
@@ -2034,22 +2050,17 @@ function render(){
  if(!state.open)return;
  const albumUniverseActive=state.view==='albums';
  const albumDetail=state.view.startsWith('album:');
+ const songBrowsing=albumDetail||state.view==='browse-songs';
  const musicWindow=el('.window');
  musicWindow.style.display=albumUniverseActive?'none':'';
- musicWindow.classList.toggle('geAlbumFullArt',albumDetail);
- musicWindow.classList.toggle('geAlbumDetailClean',albumDetail);
- if(albumDetail){
-  const albumFilter=el('.albumDetailFilter');
-  const name=state.view.slice(6);
-  const access=musicAccessActive();
-  const allowed=access?.restricted?new Set(access.allowed):null;
-  const albums=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
-  albumFilter.replaceChildren(new Option('CHANGE ALBUM',''),...albums.map(album=>new Option(album,'album:'+album)));
-  albumFilter.value='';
- }
- if(albumDetail){
-  const albumName=state.view.slice(6);
-  musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(albumName)+'.jpg',location.href).href+'")');
+ musicWindow.classList.toggle('geAlbumFullArt',songBrowsing);
+ musicWindow.classList.toggle('geAlbumDetailClean',songBrowsing);
+ musicWindow.classList.toggle('geSimpleSongBrowser',songBrowsing);
+ if(songBrowsing){
+  const initial=albumDetail?state.view.slice(6):'Aether';
+  const active=state.browseBackgroundAlbum||initial;
+  const background=albumDetail?initial:active;
+  musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(background)+'.jpg',location.href).href+'")');
  }else musicWindow.style.removeProperty('--ge-full-album-art');
  // The album layout chooser is no longer shown in the public MUSIC interface.
  universe.classList.toggle('isActive',albumUniverseActive);
@@ -2309,12 +2320,21 @@ function render(){
     if(!shown.length)scroller.append(elem('p','empty','No simulated purchases yet. Use SIMULATE PURCHASE in owner Sun Lab.'));
   }
 
-  if(state.view.startsWith('album:')){
-    const name=state.view.slice(6);breadcrumb(name,'albums');
-    const bar=elem('div','albumCollectionHeading');applyAlbumStyle(bar,name);
-    // Single master checkbox at the head of the song checkboxes.
-    // Checked = entire album; unchecked = none of that album.
-    albumSelectAll(bar,name,state.tracks.filter(t=>t.album===name),true);
+  if(state.view==='browse-songs'){
+    let previousAlbum='';
+    for(const track of shown){
+      if(track.album!==previousAlbum){
+        previousAlbum=track.album;
+        const heading=elem('button','albumBrowseHeading',track.album);
+        heading.type='button';heading.setAttribute('aria-label','Show only '+track.album+' songs');
+        heading.addEventListener('click',()=>setView('album:'+track.album));
+        scroller.append(heading);
+      }
+      appendSong(scroller,track);
+    }
+  }else if(state.view.startsWith('album:')){
+    const name=state.view.slice(6);
+    const bar=elem('div','albumCollectionHeading');
     bar.append(elem('strong','albumDetailTitle',name));
     scroller.append(bar);
   }
@@ -2323,7 +2343,7 @@ function render(){
    const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
    breadcrumb(p?.name||'Playlist',isVault?'ge-playlists':'user-playlists');
   }
-  for(const t of shown)appendSong(scroller,t);
+  if(state.view!=='browse-songs')for(const t of shown)appendSong(scroller,t);
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
  }
  scroller.scrollTop=previous;
@@ -2333,7 +2353,7 @@ function open(){
  if(state.open)return;
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='albums';state.arranging=false;state.term='';
+ state.view='browse-songs';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
@@ -2366,8 +2386,7 @@ function close(){
  document.body.style.overflow=oldBodyOverflow;
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
-el('.albumDetailBack').addEventListener('click',()=>setView('albums'));
-el('.albumDetailFilter').addEventListener('change',event=>setView(event.target.value));
+el('.albumDetailBack').addEventListener('click',()=>setView(state.view.startsWith('album:')?'browse-songs':'albums'));
 el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'));
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').textContent='BACK';
@@ -2628,11 +2647,21 @@ el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
  if(event.key==='Enter'){event.preventDefault();void ownerLoginAndSave()}
 });
 
-el('.playSelected').addEventListener('click',()=>void playCheckedSongs(true));
+el('.playSelected').addEventListener('click',()=>{
+ if(state.view.startsWith('album:')){
+  const tracks=state.tracks.filter(t=>t.album===state.view.slice(6));
+  if(tracks.length)void playTrack(tracks[0],tracks.map(t=>t.path),true);
+ }else void playCheckedSongs(true);
+});
 el('.buySelected').addEventListener('click',()=>{
+  if(state.view.startsWith('album:')){
+   const name=state.view.slice(6);
+   const tracks=state.tracks.filter(t=>t.album===name);
+   if(tracks.length)requestBuy({mode:'album',album:name,paths:tracks.map(t=>t.path),express:true});
+   return;
+  }
   const tracks=selectedTracks();
-  if(!tracks.length){say('Check at least one song to buy.');return;}
-  // Express is a checkout REVIEW only until real verified payments are enabled.
+  if(!tracks.length){say('Choose songs inside PLAYLIST to buy.');return;}
   requestBuy({mode:'tracks',paths:tracks.map(track=>track.path),express:true});
 });
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
@@ -2673,7 +2702,7 @@ el('.playlistFilter').addEventListener('change',event=>setView(event.target.valu
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
  if(b.dataset.tab==='albums')setView('albums');
- else if(b.dataset.tab==='songs')setView(state.view.startsWith('album:')?state.view:'albums');
+ else if(b.dataset.tab==='songs')setView('browse-songs');
  else setView('user-playlists');
 }));
 
