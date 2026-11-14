@@ -26,6 +26,7 @@ try{
  page.on('request',req=>{
    const url=req.url();
    if(!url.startsWith('https://ge-backroom-publisher.grandelement.workers.dev/')){
+     if(url.includes('/playlists/registry.json'))sourceReads.playlists++;
      void req.continue();return;
    }
    const route=new URL(url).pathname;
