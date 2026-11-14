@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.49-20261114-ALBUM-SONGS-NO-COUNTS';
+const BUILD='GE-MUSIC-V7.50-20261114-ALBUM-SONGS-COUNT-PRIVACY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1118,7 +1118,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
-   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
+   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
     <div class="arrangeLoad"><select class="arrangePlaylistSelect" aria-label="Load an existing playlist to arrange"><option value="">LOAD A SAVED PLAYLIST…</option></select><button type="button" class="arrangeLoadBtn">LOAD</button></div>
    <div class="arrangeCommands"><button type="button" class="arrangeSave">SAVE PLAYLIST</button><button type="button" class="arrangePlay">PLAY</button><button type="button" class="arrangeBuy buyBtn">BUY SELECTED</button></div>
@@ -1127,7 +1127,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite"></strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -1347,11 +1347,11 @@ function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='';
   const selectLabel=el('.songSelectAll');
-  if(selectLabel)selectLabel.title=count+' songs checked';
+  if(selectLabel)selectLabel.title='Select songs';
  el('.playSelected').disabled=count===0;
   el('.offlineSelected').disabled=false;
   el('.buySelected').disabled=count===0;
-  el('.buySelected').setAttribute('aria-label','Review purchase of '+count+' checked song'+(count===1?'':'s'));
+  el('.buySelected').setAttribute('aria-label','Review selected music purchase');
  el('.arrangePlay').disabled=count===0;
  el('.arrangeDone').disabled=count===0;
  el('[data-action=save]').disabled=count===0;
@@ -2781,7 +2781,7 @@ shareSelectedButton.addEventListener('click',()=>{
  void window.GEShareMusicSelection?.(selected);
 });
 el('.offlineSelected').addEventListener('click',()=>{
- musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent=selectedTracks().length+' songs checked. Choose what to save on this device.';
+ musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent='Choose what to save on this device.';
  musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
 });
