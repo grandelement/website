@@ -166,11 +166,11 @@ try{
  // The owner may have opened the parent ACCESS panel. Secret retrieval is
  // covered by backend unit tests, not an automated click on a hidden UI control.
  assert.equal(await page.evaluate(()=>document.getElementById('brAccessLabel')?.value),'Test 1');
- assert.equal(await page.$eval('#brAccessOfflineShortcut',b=>b.textContent),'OFFLINE');
- await page.click('#brAccessOfflineShortcut');
- assert.equal(await page.evaluate(()=>document.querySelector('[name="brAccessScope"][value="offline"]')?.closest('details')?.open),
-  true,'OFFLINE shortcut opens real saved-code permission editor');
- await page.evaluate(()=>document.getElementById('brAccessFansShortcut').click());
+ // Obsolete FANS / OFFLINE shortcuts are hidden by the simplified editor.
+ // Exercise the actual visible FANS navigation, not a CSS-hidden button.
+ assert.ok(await page.evaluate(()=>!!document.querySelector('[name="brAccessScope"][value="offline"]')),
+   'Offline scope stays available in the existing code record');
+ await page.click('#brTabFans');
  await page.waitForFunction(()=>document.querySelector('#brCodeFansPanel')?.open===true&&
    document.getElementById('brCodeFanSelect')?.options?.length>=3,{timeout:15000});
  assert.equal(await page.$eval('#brFanActiveProfile',x=>x.hidden),true,
