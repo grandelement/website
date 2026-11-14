@@ -1201,6 +1201,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geMusicOfflineFill{height:100%!important;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7)!important;transition:width .2s linear!important}
 .geMusicOfflineNumbers{display:flex!important;justify-content:space-between!important;gap:8px!important;font:700 12px system-ui!important;font-variant-numeric:tabular-nums!important}
 .geMusicOfflineNumbers span{white-space:nowrap!important}
+/* Keep white song highlight inside a centered, bounded song column. */
+.window.geSimpleSongBrowser .scroll .song{width:min(100%,440px)!important;max-width:440px!important;margin-left:auto!important;margin-right:auto!important}
+.window.geSimpleSongBrowser .scroll .song .songInfo,
+.window.geSimpleSongBrowser .scroll .song .songLabel{width:100%!important;min-width:0!important;max-width:100%!important}
+.window.geSimpleSongBrowser .scroll .song .songTitlePlay,
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{display:block!important;width:calc(100% - 16px)!important;max-width:calc(100% - 16px)!important;margin:0 8px!important;box-sizing:border-box!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;overflow-wrap:normal!important;word-break:normal!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{box-shadow:0 0 12px 2px rgba(255,255,255,.5)!important}
+/* Thick horizontal offline meter: percent at left, time at right. */
+.window > .geMusicOfflineRow .geMusicOfflineMeter{display:grid!important;grid-template-columns:45px minmax(0,1fr) 52px!important;align-items:center!important;gap:7px!important}
+.window > .geMusicOfflineRow .geMusicOfflineTrack{grid-column:2!important;grid-row:1!important;height:24px!important;border-radius:7px!important}
+.window > .geMusicOfflineRow .geMusicOfflineNumbers{display:contents!important}
+.window > .geMusicOfflineRow .geMusicOfflinePercent{grid-column:1!important;grid-row:1!important;text-align:right!important}
+.window > .geMusicOfflineRow .geMusicOfflineTime{grid-column:3!important;grid-row:1!important;text-align:left!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
