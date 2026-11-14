@@ -110,7 +110,7 @@ assert.ok(back.includes('id="brGameGeneralDefaults"')&&
 assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"),'Welcome and About transparency sliders must be visible in WEBSITE VIEW');
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
-assert.ok(!back.includes('id="brRadio2Check"'),'Remove confusing Radio 2 Bangers check control');
+assert.ok(back.includes('id="brRadio2Check"')&&back.includes("$('brRadio2Check').addEventListener('click',()=>void checkRadio2Bangers())"),'Radio 2 check must be an intentionally wired control');
 assert.ok(back.includes('id="brDJPlaylistEditor"')&&back.includes('id="brPlaylistName"')&&
   back.includes('/manage/github-playlists'),
   'Back Room playlist editor must use the canonical GitHub registry without changing the live DJ Booth');
