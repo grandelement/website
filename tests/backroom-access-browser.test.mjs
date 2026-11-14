@@ -12,6 +12,7 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
  const errors=[];
  let outage=false;
+ const sourceReads={codes:0,playlists:0};
  const savedFans=[
    {id:'fan_aaaaaaa1',display_name:'Fan One',code_id:'access_test1',code_label:'Test 1'},
    {id:'fan_bbbbbbb2',display_name:'Fan Two',code_id:'access_legacy_love_v1',code_label:'LOVE'}
@@ -28,6 +29,8 @@ try{
      void req.continue();return;
    }
    const route=new URL(url).pathname;
+   if(route==='/manage/access-codes'&&req.method()==='GET')sourceReads.codes++;
+   if(route==='/manage/github-playlists')sourceReads.playlists++;
    let data={ok:true},status=200;
    if(route==='/session')data={ok:true};
    else if(route==='/health')data={ok:true,configured:true,vault_service_bound:true,
@@ -72,6 +75,11 @@ try{
      }else{status=400;data={ok:false,error:'Unexpected fan write'};}
    }
    else if(route==='/manage/fan-access')data={ok:true,fans:savedFans,recent:[]};
+   else if(route==='/manage/vault-reconnect')data={ok:true,read_only:true,advice:'Verified mock health',checks:{
+     publisher_configured:true,service_binding:true,admin_token_configured:true,
+     vault_ready:true,access_tables_ready:true,fan_analytics_readable:true,access_codes_readable:true
+   }};
+   else if(route==='/manage/fan-geography')data={ok:true,totals:{visitors:2,sessions:2,events:3},states:[],event_types:[]};
    else{status=404;data={ok:false,error:'Unmocked route: '+route};}
    void req.respond({status,contentType:'application/json',
      headers:{'Access-Control-Allow-Origin':'*',
@@ -139,6 +147,14 @@ try{
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,'Main navigation works after More Tools');
  console.log('PASS: four priority buttons, separate Fans/Codes, one collapsed More Tools, website navigation');
+ await page.click('#brTabFans');
+ const readsBefore={...sourceReads};
+ await page.click('#brVaultReconnect');
+ await page.waitForFunction(()=>document.getElementById('brVaultReconnectStatus')?.textContent.includes('CONNECTED AND VERIFIED'),{timeout:15000});
+ assert.ok(sourceReads.codes>readsBefore.codes,'Vault verification must actually reload private access codes');
+ assert.ok(sourceReads.playlists>readsBefore.playlists,'Vault verification must actually reload GitHub playlist list');
+ console.log('PASS: Vault verification reloads both actual managers and checks fan geography');
+ await page.click('#brTabAccess');
  const before=await page.evaluate(()=>({
     vault:document.getElementById('brVaultConnection').textContent,
     codeNames:[...document.getElementById('brAccessSelect').options].map(x=>x.textContent),
