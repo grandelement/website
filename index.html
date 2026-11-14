@@ -4205,23 +4205,34 @@ body.ge-home-radio-ready #mini #geHomeRadioLink{
     const items=[...document.querySelectorAll('#geMerchFlybys .geMerchFlyby')];
     if(items.length!==2)return;
     let last=-1,timer=null;
-    const randomDelay=()=>45000+Math.random()*30000;
+    const settings=()=>window.GE_SITE_CONFIG?.merchandise||{};
+    const bounded=(v,fallback)=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?Math.max(5,Math.min(600,Number(v))):fallback;
+    const entryDelay=()=>{
+      const cfg=settings(),min=bounded(cfg.entryMinSeconds,45),max=Math.max(min,bounded(cfg.entryMaxSeconds,75));
+      return 1000*(cfg.entryTiming==='fixed'?min:min+Math.random()*(max-min));
+    };
+    const entryDirection=()=>{
+      const mode=settings().entryDirection;
+      return mode==='left'||mode==='right'?mode:(Math.random()<.5?'left':'right');
+    };
     const permitted=()=>!document.documentElement.classList.contains('ge-merch-hidden');
     const next=()=>{
-      if(!permitted()){timer=setTimeout(next,randomDelay());return}
+      if(!permitted()){timer=setTimeout(next,entryDelay());return}
       const quantity=Number(window.GE_SITE_CONFIG?.merchandise?.quantity??2);
       const choices=quantity===1?[1]:[0,1];
       const index=choices.length===1?choices[0]:(last===0?1:0);
       last=index;
       const el=items[index];
       el.classList.remove('ge-merch-flying');
+      el.style.animationDirection=entryDirection()==='right'?'reverse':'normal';
       el.style.animation='none';
       void el.offsetWidth;
       el.style.animation='';
+      el.style.animationDirection=el.style.animationDirection||'normal';
       el.classList.add('ge-merch-flying');
-      timer=setTimeout(next,randomDelay());
+      timer=setTimeout(next,entryDelay());
     };
-    // Begin soon, then randomly space consecutive entrances 45–75 seconds apart.
+    // First entrance soon; later entrances use the published fixed or random interval.
     timer=setTimeout(next,3000+Math.random()*9000);
     addEventListener('pagehide',()=>clearTimeout(timer),{once:true});
   })();
