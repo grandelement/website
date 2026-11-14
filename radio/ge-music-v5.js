@@ -1923,7 +1923,7 @@ function appendSong(parent,track){
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
    saveSelected();updateMeta();
    row.classList.toggle('selectedSong',checkbox.checked);
-   if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display')render();
+   if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
      control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
@@ -1931,19 +1931,11 @@ function appendSong(parent,track){
    });
  });
  const songText=elem('button','songLabel songTitlePlay',track.title);
-  // The checkbox changes selection; touching the song title starts that
-  // song in the main player. Keep both actions independent on iPhone.
+  // The song title toggles the same checkbox; only explicit PLAY buttons start audio.
   songText.type='button';
-  songText.title='Play '+track.title;
-  songText.setAttribute('aria-label','Play '+track.title+' in the main player');
-  songText.addEventListener('click',()=>{
-  if(state.view==='browse-songs'||state.view.startsWith('album:')){
-   state.browseBackgroundAlbum=track.album;
-   el('.window').style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href+'")');
-   const list=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===track.album):state.tracks;
-   void playTrack(track,list.map(t=>t.path),true);
-  }else void playTrack(track,checkedQueueStartingAt(track),true);
- });
+  songText.title='Select or deselect '+track.title;
+  songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
+  songText.addEventListener('click',()=>checkbox.click());
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
