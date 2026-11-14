@@ -1117,6 +1117,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 .window.geSimpleSongBrowser .scroll .song .geSongAdd,
 .window.geSimpleSongBrowser .scroll .song.selectedSong .geSongAdd{display:none!important}
+.window.geSimpleSongBrowser .scroll .song:not(.selectedSong) input[type=checkbox]{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{visibility:visible!important;opacity:1!important;accent-color:#168bff!important}
+.window.geAlbumDetailClean > .selectionBar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:7px!important;background:linear-gradient(0deg,rgba(0,7,17,.5),rgba(0,7,17,.08))!important;padding:8px 12px max(10px,env(safe-area-inset-bottom))!important}
+.window.geAlbumDetailClean > .selectionBar .checkedCount{display:block!important;text-align:center!important;color:white!important;font-size:13px!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectionTools{display:flex!important;gap:8px!important;width:100%!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectionTools button{flex:1!important;min-height:42px!important;background:rgba(0,12,28,.35)!important;border:1px solid #aac6da!important;color:white!important;border-radius:8px!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions{width:100%!important;justify-content:center!important;margin:0!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions .buySelected,.window.geAlbumDetailClean > .selectionBar .selectionActions .playSelected{flex:1!important;width:auto!important;max-width:none!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1354,7 +1362,7 @@ function selectedTracks(){
 }
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
- el('.checkedCount').textContent='';
+ el('.checkedCount').textContent=count+' SONG'+(count===1?'':'S')+' SELECTED';
   const selectLabel=el('.songSelectAll');
   if(selectLabel)selectLabel.title='Select songs';
  el('.playSelected').disabled=count===0;
@@ -2185,7 +2193,7 @@ function render(){
   const firstPlaylistTrack=state.view==='playlist-display'?selectedTracks()[0]:null;
   const initial=albumDetail?state.view.slice(6):firstPlaylistTrack?.album||'Aether';
   const active=state.browseBackgroundAlbum||initial;
-  const background=albumDetail?initial:active;
+  const background=albumDetail?initial:(firstPlaylistTrack?.album||active);
   musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(background)+'.jpg',location.href).href+'")');
  }else musicWindow.style.removeProperty('--ge-full-album-art');
  // The album layout chooser is no longer shown in the public MUSIC interface.
@@ -2211,7 +2219,8 @@ function render(){
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
  allLabel.hidden=cat!=='songs';
  const allAccess=musicAccessActive(),allowed=allAccess?.restricted?new Set(allAccess.allowed):null;
- const allTracks=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ const scope=albumDetail?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;
+ const allTracks=allowed?scope.filter(t=>allowed.has(t.path)):scope;
  const allCount=allTracks.filter(t=>state.selected.has(t.path)).length;
  allCheck.disabled=!state.loaded||!allTracks.length;
  allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
@@ -2245,11 +2254,7 @@ function render(){
  if(document.activeElement!==name&&name.value!==state.playlistDraftName)name.value=state.playlistDraftName;
  el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
  scroller.replaceChildren();updateMeta();
- if(albumDetail){
-  const albumTracks=state.tracks.filter(t=>t.album===state.view.slice(6));
-  el('.playSelected').disabled=!albumTracks.length;
-  el('.buySelected').disabled=!albumTracks.length||LEGACY_ALBUMS.has(state.view.slice(6));
- }
+ /* Album buttons honor selected songs only. */
  if(state.arranging){
    el('.arrangeCount').textContent='ARRANGE';
    const current=el('.arrangeCurrentName');
@@ -2772,6 +2777,11 @@ window.addEventListener('message',event=>{
  geOfflineMeter.querySelector('.geMusicOfflineRate').textContent=p.speed>0?p.rate:'';
  geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=Number.isFinite(p.eta)?p.remaining:'';
 });
+const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','','SELECT ALL'),selectionClear=elem('button','','CLEAR');
+selectionAll.type='button';selectionClear.type='button';
+selectionAll.addEventListener('click',()=>{const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;for(const t of scope)if(!allowed||allowed.has(t.path))state.selected.add(t.path);saveSelected();render()});
+selectionClear.addEventListener('click',()=>{state.selected.clear();saveSelected();render()});
+selectionTools.append(selectionAll,selectionClear);el('.selectionBar').insertBefore(selectionTools,el('.selectionActions'));
 const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
 shareSelectedButton.setAttribute('aria-label','Share selected songs or current playlist');
@@ -2825,23 +2835,8 @@ el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
  if(event.key==='Enter'){event.preventDefault();void ownerLoginAndSave()}
 });
 
-el('.playSelected').addEventListener('click',()=>{
- if(state.view.startsWith('album:')){
-  const tracks=state.tracks.filter(t=>t.album===state.view.slice(6));
-  if(tracks.length)void playTrack(tracks[0],tracks.map(t=>t.path),true);
- }else void playCheckedSongs(true);
-});
-el('.buySelected').addEventListener('click',()=>{
-  if(state.view.startsWith('album:')){
-   const name=state.view.slice(6);
-   const tracks=state.tracks.filter(t=>t.album===name);
-   if(tracks.length)requestBuy({mode:'album',album:name,paths:tracks.map(t=>t.path),express:true});
-   return;
-  }
-  const tracks=selectedTracks();
-  if(!tracks.length){say('Choose songs inside PLAYLIST to buy.');return;}
-  requestBuy({mode:'tracks',paths:tracks.map(track=>track.path),express:true});
-});
+el('.playSelected').addEventListener('click',()=>{void playCheckedSongs(true);});
+el('.buySelected').addEventListener('click',()=>{const tracks=selectedTracks();if(!tracks.length)return;say('Review selected songs for purchase.');requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});});
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
@@ -2867,7 +2862,8 @@ el('.reloadCatalogBtn').addEventListener('click',async()=>{
 });
 el('.selectAllSongs').addEventListener('change',event=>{
  const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;
- const rows=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;
+ const rows=allowed?scope.filter(t=>allowed.has(t.path)):scope;
  if(!state.loaded||!rows.length)return;
  for(const track of rows){
   if(event.target.checked)state.selected.add(track.path);
