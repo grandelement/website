@@ -732,6 +732,19 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   #backroomMain #brGeneralPublicChecks{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
 </style>
+<style id="br-radio-controls-restored-20261114">
+#backroomMain #brTabRadio{display:block!important;visibility:visible!important}
+#brPanel-radio #brRadioStationStatus{border:1px solid #376987;border-radius:11px;padding:12px;margin:10px 0;background:#071d30}
+#brPanel-radio #brRadioStationStatus strong{display:block;color:#b4e8ff;font-size:14px;margin:8px 0 4px}
+#brPanel-radio #brRadioStationStatus .brRadioStationChecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+#brPanel-radio #brRadioStationStatus button{min-height:44px;padding:6px 4px;font-size:clamp(10px,2.7vw,13px);white-space:normal}
+#brPanel-radio #brRadioStationStatus .brRadioStationNote{font-size:12px;line-height:1.45;color:#bcd9e7}
+#brPanel-radio #brRadioStationStatus .brCompactStatus{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+#brPanel-radio #brRadioPlaylistTools{margin:12px 0;border:1px solid #376987;border-radius:10px;padding:8px;background:#061b29}
+#brPanel-radio #brRadioPlaylistTools>summary{cursor:pointer;font-weight:900;font-size:14px;padding:8px}
+#brPanel-radio #brRadioPlaylistTools #brDJPlaylistEditor{padding:8px 0;max-width:100%;overflow:visible}
+#brPanel-radio #brPlaylistPicker{z-index:22}
+</style>
 <style id="br-geography-style">
 #brGeoPanel .brGeoFilters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #brGeoPanel label{font-size:11px;font-weight:800;color:#cbe7fa;display:grid;gap:4px}
@@ -967,16 +980,27 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
     <p id="brGeneralPublicStatus" role="status" style="font-size:12px">Reconnect the Back Room, then refresh to load general settings.</p>
   </section>
-  <p>RADIO 1 is BLITZ Primary. RADIO 2 is its Cloudflare backup. Both belong to one GE DJ Booth, using Bangers as the intended station playlist.</p>
-  <div class="backroomQuickLinks">
-    <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
-    <a href="../dj/" style="font-weight:900">OPEN DJ</a>
-  </div>
-  <p><strong>MAIN PLAYER PLAYLIST</strong> controls the default website music player. Select the enabled songs from Intergy through AETHER. Legacy songs are available only when explicitly selected elsewhere.</p>
+  <section id="brRadioStationStatus" aria-label="Radio 1 and Radio 2 status">
+    <strong>RADIO 1 · BLITZ PRIMARY</strong>
+    <p id="brRadio1Status" class="brCompactStatus" role="status" aria-live="polite">Not checked. Checking the DJ control connection does not verify live audio.</p>
+    <strong>RADIO 2 · CLOUDFLARE BACKUP</strong>
+    <p id="brRadio2Status" class="brCompactStatus" role="status" aria-live="polite">Not checked. The backup uses its own published Bangers program.</p>
+    <div class="brRadioStationChecks">
+      <button type="button" id="brRadio1Check">CHECK RADIO 1</button>
+      <button type="button" id="brRadio2Check">CHECK RADIO 2</button>
+      <button type="button" id="brRadioAllCheck" class="primary">CHECK BOTH</button>
+    </div>
+    <p class="brRadioStationNote">RADIO 1 is the BLITZ primary. RADIO 2 is the backup. Published backup tracks do not prove live queue synchronization or automatic failover. The original DJ Booth remains the authority for the on-air playlist, queue and shuffle.</p>
+  </section>
+  <details id="brRadioPlaylistTools">
+    <summary>STATION PLAYLISTS · BANGERS</summary>
+    <p>Edit the shared playlist here. The same editor appears under MUSIC, without a second playlist database.</p>
+    <div id="brRadioPlaylistMount"></div>
+  </details>
   <!-- Shared Radio Master editor; uses the same published config as player and access codes. -->
   <section id="brPublicPlayerProfile" aria-label="Public Player profile">
     <div class="brPlayerProfileHeader"><strong>PUBLIC PLAYER PROFILE</strong><button id="brPublicPlayerLoad" type="button">REFRESH</button><button id="brPublicPlayerSave" type="button" class="primary">SAVE PROFILE</button></div>
-    <label for="brPublicPlaylist"><span>DEFAULT PLAYER PLAYLIST</span>
+    <label for="brPublicPlaylist"><span>WEBSITE PLAYER SOURCE</span>
       <select id="brPublicPlaylist"><option value="">MASTER SONGS · DEFAULT</option></select>
     </label>
     <div class="brPublicScopeChecks" role="group" aria-label="Public Player permissions">
@@ -1001,8 +1025,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
   </section>
   </details>
-  <p>The DJ Booth separately controls live BLITZ playback and its BANGERS station playlist.</p>
-
 </section>
 
 <section data-br-tab="playlists" id="brDJPlaylistSection" style="display:none !important" aria-hidden="true">
@@ -1430,12 +1452,19 @@ function installBackroomTabs(){
   // Restore the single master-song approval editor to RADIO.
   const masterApprovals=$('brMusicRadioMaster');
   if(masterApprovals)panels.get('radio')?.appendChild(masterApprovals);
+  // One playlist editor, mounted in RADIO or MUSIC depending on the selected view.
+  // Never clone its controls or create a competing playlist store.
+  const radioPlaylistMount=$('brRadioPlaylistMount');
   function activate(tab,focus=false){
     if(tab==='playlists')tab='music';
     if(!panels.has(tab))tab='welcome';
     if(tab==='fans')accessView='fans';
     else if(tab==='access')tab=accessView;
     const grouped=['fans','access'].includes(tab),topTab=grouped?'access':tab;
+    const sharedPlaylistEditor=$('brDJPlaylistEditor');
+    const playlistDestination=tab==='radio'?radioPlaylistMount:panels.get('music');
+    if(sharedPlaylistEditor&&playlistDestination&&sharedPlaylistEditor.parentElement!==playlistDestination)
+      playlistDestination.appendChild(sharedPlaylistEditor);
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     accessSubnav.hidden=!grouped;
     for(const item of accessSubnav.querySelectorAll('button')){
