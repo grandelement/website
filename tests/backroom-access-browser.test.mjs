@@ -12,6 +12,7 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
  const errors=[];
  let outage=false;
+ const sourceReads={codes:0,playlists:0};
  const savedFans=[
    {id:'fan_aaaaaaa1',display_name:'Fan One',code_id:'access_test1',code_label:'Test 1'},
    {id:'fan_bbbbbbb2',display_name:'Fan Two',code_id:'access_legacy_love_v1',code_label:'LOVE'}
@@ -25,9 +26,12 @@ try{
  page.on('request',req=>{
    const url=req.url();
    if(!url.startsWith('https://ge-backroom-publisher.grandelement.workers.dev/')){
+     if(url.includes('/playlists/registry.json'))sourceReads.playlists++;
      void req.continue();return;
    }
    const route=new URL(url).pathname;
+   if(route==='/manage/access-codes'&&req.method()==='GET')sourceReads.codes++;
+   if(route==='/manage/github-playlists')sourceReads.playlists++;
    let data={ok:true},status=200;
    if(route==='/session')data={ok:true};
    else if(route==='/health')data={ok:true,configured:true,vault_service_bound:true,
@@ -72,6 +76,11 @@ try{
      }else{status=400;data={ok:false,error:'Unexpected fan write'};}
    }
    else if(route==='/manage/fan-access')data={ok:true,fans:savedFans,recent:[]};
+   else if(route==='/manage/vault-reconnect')data={ok:true,read_only:true,advice:'Verified mock health',checks:{
+     publisher_configured:true,service_binding:true,admin_token_configured:true,
+     vault_ready:true,access_tables_ready:true,fan_analytics_readable:true,access_codes_readable:true
+   }};
+   else if(route==='/manage/fan-geography')data={ok:true,totals:{visitors:2,sessions:2,events:3},states:[],event_types:[]};
    else{status=404;data={ok:false,error:'Unmocked route: '+route};}
    void req.respond({status,contentType:'application/json',
      headers:{'Access-Control-Allow-Origin':'*',
@@ -116,14 +125,42 @@ try{
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,
    'ACCESS CODES must return to codes even after visiting FANS');
+ await page.evaluate(()=>{
+   window.__geMoreClicks=[];
+   document.addEventListener('click',e=>{
+     if(e.target.closest?.('#brMoreTools,#backroomTabs'))
+       window.__geMoreClicks.push({event:'click',target:e.target.tagName,id:e.target.id||'',open:document.getElementById('brMoreTools')?.open});
+   },true);
+   document.getElementById('brMoreTools').addEventListener('toggle',e=>window.__geMoreClicks.push({event:'toggle',open:e.target.open}));
+ });
  await page.click('#brMoreTools > summary');
- assert.equal(await page.$eval('#brMoreTools',el=>el.open),true,'MORE TOOLS expands');
+ const moreDiag=await page.evaluate(()=>{
+   const details=document.getElementById('brMoreTools'),summary=details.querySelector('summary');
+   const r=summary.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+   return {open:details.open,clicks:window.__geMoreClicks,rect:{x,y,width:r.width,height:r.height},
+     elementAtPoint:document.elementFromPoint(x,y)?.outerHTML.slice(0,260)};
+ });
+ if(!moreDiag.open)console.error('MORE TOOLS CLICK DIAGNOSTIC',JSON.stringify(moreDiag));
+ assert.equal(moreDiag.open,true,'MORE TOOLS expands');
  await page.click('#brTabWelcome');
  assert.equal(await page.$eval('#brPanel-welcome',el=>el.hidden),false,'WELCOME opens website settings');
  assert.equal(await page.$eval('#brMoreTools',el=>el.open),false,'More Tools collapses after selection');
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,'Main navigation works after More Tools');
  console.log('PASS: four priority buttons, separate Fans/Codes, one collapsed More Tools, website navigation');
+ await page.click('#brTabFans');
+ const readsBefore={...sourceReads};
+ await page.click('#brVaultReconnect');
+ await page.waitForFunction(()=>document.getElementById('brVaultReconnectStatus')?.textContent.includes('CONNECTED AND VERIFIED'),{timeout:15000});
+ await page.waitForFunction(()=>document.getElementById('brVaultReconnect')?.disabled===false,{timeout:15000});
+ if(!(sourceReads.codes>readsBefore.codes&&sourceReads.playlists>readsBefore.playlists))
+   console.error('VAULT RELOAD DIAGNOSTIC',JSON.stringify({before:readsBefore,after:sourceReads,
+     state:await page.$eval('#brVaultConnection',el=>el.textContent),
+     message:await page.$eval('#brVaultReconnectStatus',el=>el.textContent)}));
+ assert.ok(sourceReads.codes>readsBefore.codes,'Vault verification must actually reload private access codes');
+ assert.ok(sourceReads.playlists>readsBefore.playlists,'Vault verification must actually reload GitHub playlist list');
+ console.log('PASS: Vault verification reloads both actual managers and checks fan geography');
+ await page.click('#brTabAccess');
  const before=await page.evaluate(()=>({
     vault:document.getElementById('brVaultConnection').textContent,
     codeNames:[...document.getElementById('brAccessSelect').options].map(x=>x.textContent),

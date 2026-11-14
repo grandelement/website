@@ -810,6 +810,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 /* On phones, use four large, readable targets in two rows, not tiny text. */
 @media(max-width:600px){
   #backroomMain .backroomTabs{
+    /* A sticky two-row navigation covered the adjacent More Tools drawer
+       and intercepted taps; keep both controls in normal document flow. */
+    position:static!important;top:auto!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:7px!important;
   }
@@ -4491,6 +4494,9 @@ const backroomVaultManagers=(()=>{
       return false;
     }finally{reconnectInProgress=false;button.disabled=false;}
   }
+  // Let the owner-facing verification button reload the actual code and
+  // playlist managers, not merely probe the Cloudflare health endpoint.
+  window.GE_BACKROOM_RECONNECT_SOURCES=()=>reconnectAllSources();
   function openTab(tab){
     if(tab==='access'){
       // Always expose Music and Access details, even when an API read fails.
@@ -5340,7 +5346,11 @@ $('gatePassword').focus();
     ['Access codes readable',c.access_codes_readable]];
    status.textContent=(data.ok?'CONNECTED AND VERIFIED':'CONNECTION NEEDS REPAIR')+'\\n'+
     names.map(([name,ok])=>(ok?'PASS':'FAIL')+' · '+name).join('\\n')+'\\n'+(data.advice||'');
-   if(data.ok)void refresh();
+   if(data.ok){
+    const reloaded=await window.GE_BACKROOM_RECONNECT_SOURCES?.();
+    if(reloaded===false)status.textContent+='\\nACCESS CODE OR GITHUB PLAYLIST RELOAD FAILED · Check the Vault indicator and Access Codes status.';
+    void refresh();
+   }
   }catch(error){status.textContent='VERIFICATION FAILED · '+String(error.message||error)}
   finally{button.disabled=false}
  });
