@@ -961,36 +961,60 @@ const universe=document.createElement('section');
 universe.className='geStandaloneAlbumUniverse';
 universe.setAttribute('role','dialog');
 universe.setAttribute('aria-label','Grand Element album universe');
-universe.innerHTML='<button type="button" class="geUniverseBack" aria-label="Back to radio">BACK</button><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
+universe.innerHTML='<div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
 el('.window').after(universe);
 const universeStyle=document.createElement('style');
 universeStyle.textContent=`
 .geStandaloneAlbumUniverse{display:none;position:absolute;inset:0;z-index:20;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#010510 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat;color:white;isolation:isolate}
 .geStandaloneAlbumUniverse.isActive{display:block}
-.geUniverseBack{position:sticky;top:calc(12px + env(safe-area-inset-top));left:14px;z-index:5;display:flex;align-items:center;justify-content:center;width:55px;height:55px;border-radius:50%;border:1px solid rgba(222,235,246,.38);background:rgba(180,197,213,.13);color:rgba(242,248,255,.86);font:800 11px system-ui;letter-spacing:.04em;box-shadow:0 0 19px 5px rgba(199,226,248,.17),inset 0 0 11px rgba(230,241,255,.1);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.geUniverseLight{position:absolute;pointer-events:none;top:48%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95) 0%,rgba(237,246,255,.8) 2%,rgba(174,212,248,.38) 8%,rgba(145,197,241,.12) 26%,transparent 70%);filter:blur(5px);opacity:.85}
-.geUniverseAlbums{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:center;align-items:center;justify-items:center;gap:clamp(30px,7vh,76px) 14px;min-height:calc(100% - 68px);padding:30px 16px max(75px,env(safe-area-inset-bottom))}
-.geUniverseAlbum{position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;width:min(27vw,112px);height:min(27vw,112px);min-width:0;padding:0;overflow:hidden;border-radius:50%;border:1px solid rgba(214,235,249,.35);background:radial-gradient(circle at 35% 28%,rgba(81,137,186,.52),rgba(1,9,24,.96));box-shadow:0 0 14px rgba(176,215,251,.19);color:#fff;cursor:pointer}
-.geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
-.geUniverseAlbum span{position:relative;z-index:1;max-width:95%;padding:4px 6px;border-radius:10px;background:rgba(0,7,20,.7);font:800 clamp(10px,2.7vw,13px)/1.15 system-ui;text-align:center;text-shadow:0 1px 3px #000;overflow-wrap:anywhere}
-.geUniverseAlbum:focus-visible,.geUniverseBack:focus-visible{outline:2px solid white;outline-offset:4px}
-.geUniverseAlbum:nth-child(3n+2){transform:translateY(12px)}
-.geUniverseAlbum:nth-child(3n+3){transform:translateY(-12px)}
-@media(min-width:821px){.geUniverseAlbums{grid-template-columns:repeat(4,minmax(0,1fr));max-width:900px;margin:auto}.geUniverseAlbum{width:130px;height:130px}}
+.geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
+.geUniverseAlbums{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;min-height:100%;width:100%;padding:calc(env(safe-area-inset-top) + 52px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
+.geUniverseAlbum{position:relative;display:block;flex:0 0 auto;width:min(76vw,340px);aspect-ratio:1;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
+.geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.geUniverseAlbum span{position:absolute;z-index:1;bottom:0;left:0;right:0;padding:10px 4px 6px;background:linear-gradient(transparent,rgba(0,7,20,.7));font:800 clamp(12px,3.5vw,16px)/1.2 system-ui;text-align:center;text-shadow:0 1px 3px #000}
+.geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
+.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:min(65vw,260px);border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
+.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:9px}
+@media(min-width:821px){.geUniverseAlbum{width:min(45vw,390px)}.geStandaloneAlbumUniverse[data-mode^="planets"] .geUniverseAlbum{width:min(38vw,310px)}}
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
 root.appendChild(universeStyle);
-universe.querySelector('.geUniverseBack').addEventListener('click',()=>close());
+// Tapping the starfield opens Songs; tapping artwork opens that album.
+universe.addEventListener('click',event=>{
+ if(event.target.closest('.geUniverseAlbum'))return;
+ setView('all');
+});
 universe.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
 universe.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
+const albumUniverseModeKey='GE_ALBUM_UNIVERSE_VIEW_V1';
+let albumUniverseMode='squares';
+try{const saved=localStorage.getItem(albumUniverseModeKey);if(['squares','planets-touch','planets-gap'].includes(saved))albumUniverseMode=saved}catch(_){}
+const albumViewChooser=document.createElement('label');
+albumViewChooser.className='geAlbumViewChooser';
+albumViewChooser.style.cssText='display:flex;align-items:center;gap:8px;margin:6px 0;color:#d7e8f6;font:600 12px system-ui';
+albumViewChooser.textContent='ALBUM VIEW';
+const albumViewSelect=document.createElement('select');
+albumViewSelect.setAttribute('aria-label','Album universe layout');
+for(const [value,label] of [['squares','SQUARE ALBUMS'],['planets-touch','PLANETS TOUCHING'],['planets-gap','PLANETS WITH GAP']]){
+ const option=document.createElement('option');option.value=value;option.textContent=label;albumViewSelect.append(option);
+}
+albumViewSelect.value=albumUniverseMode;
+albumViewSelect.style.cssText='max-width:210px;min-height:34px;background:#102c45;color:#fff;border:1px solid #6387a3;border-radius:6px';
+albumViewSelect.addEventListener('change',()=>{
+ albumUniverseMode=albumViewSelect.value;
+ try{localStorage.setItem(albumUniverseModeKey,albumUniverseMode)}catch(_){}
+});
+albumViewChooser.append(albumViewSelect);
+el('.tools').append(albumViewChooser);
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
+ universe.dataset.mode=albumUniverseMode;
  board.replaceChildren();
  if(!state.loaded){const loading=document.createElement('p');loading.textContent='Loading albums…';board.append(loading);return;}
  const access=musicAccessActive();
  const allowed=access?.restricted?new Set(access.allowed):null;
  const names=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
-  .filter(name=>!LEGACY_ALBUMS.has(name)&&name!=='Singles')
+  .filter(name=>name!=='Singles')
   .sort((a,b)=>rank(a)-rank(b));
  for(const name of names){
   const item=document.createElement('button');item.type='button';item.className='geUniverseAlbum';
@@ -1000,7 +1024,7 @@ function renderStandaloneAlbums(){
   image.alt='';image.loading='lazy';image.onerror=()=>image.remove();
   const title=document.createElement('span');title.textContent=name;
   item.append(image,title);
-  item.addEventListener('click',()=>setView('album:'+name));
+  item.addEventListener('click',event=>{event.stopPropagation();setView('album:'+name)});
   board.append(item);
  }
  if(!names.length){const empty=document.createElement('p');empty.textContent='No albums available';board.append(empty);}
@@ -1875,6 +1899,7 @@ function render(){
  if(!state.open)return;
  const albumUniverseActive=state.view==='albums';
  el('.window').style.display=albumUniverseActive?'none':'';
+ albumViewChooser.style.display=albumUniverseActive?'none':'flex';
  universe.classList.toggle('isActive',albumUniverseActive);
  universe.setAttribute('aria-hidden',String(!albumUniverseActive));
  if(albumUniverseActive){renderStandaloneAlbums();return;}
