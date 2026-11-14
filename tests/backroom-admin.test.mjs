@@ -28,6 +28,17 @@ for(const tab of tabs){
 }
 assert.ok(back.includes('data-tab="playlists"'),'Original DJ playlists need a dedicated tab next to RADIO');
 assert.ok(back.includes('data-tab="moon"'),'Radio Moon must have its own tab');
+assert.ok(back.includes("const primaryTabs=['radio','music','access','fans']"),
+ 'The four owner jobs must be the entire main bar');
+assert.ok(back.includes("moreTools.id='brMoreTools'") &&
+ back.includes("moreTools.insertAdjacentElement('afterend',accessSubnav)"),
+ 'Secondary tools must have one collapsible drawer before the content');
+assert.ok(!back.includes("else if(tab==='access')tab=accessView"),
+ 'ACCESS CODES must never redirect into FANS');
+assert.ok(!back.includes('proxy.dataset.websiteAction=actionId'),
+ 'Save and Publish must not be duplicated across secondary website screens');
+assert.ok(!back.includes("indicator.textContent='PLAYLISTS · GITHUB CONNECTED'"),
+ 'GitHub playlist reads must not overwrite Vault connection status');
 assert.ok(back.includes('grid-template-columns:repeat(28,minmax(0,1fr))!important'),
   'Four tabs in first row and seven in second row should fit without scrolling');
 assert.ok(back.includes('button:nth-child(-n+4){grid-column:span 7!important}'), 'Four first-row tabs');
@@ -37,7 +48,7 @@ assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling direc
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
-assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='fans'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
+assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='fans'\|\|category==='radio'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
 assert.ok(back.includes("category==='access'||category==='fans'||category==='playlists'"),'Access Codes and Fans open directly without a second accordion click');
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
 assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
