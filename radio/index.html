@@ -9068,6 +9068,17 @@ function geShareURLForSelection(selection){
  const paths=[...new Set((selection?.paths||[]).map(canonicalSongPath).filter(Boolean))];
  if(!paths.length)throw Error('Choose at least one song or album to share.');
  if(paths.length>250)throw Error('This playlist exceeds the 250-song share limit. Choose a smaller playlist.');
+ // Albums have permanent, human-readable pages. Keep exact mixes as portable snapshots.
+ // This link carries no playback preferences, timestamp, access key or private fan data.
+ if(selection?.kind==='album'){
+  const albumSlug={
+   'aether':'aether','fire':'fire','spirit':'spirit','soul':'soul',
+   'love':'love','intergy':'intergy','sessions ii':'sessions-ii',
+   'sessions i':'sessions-i','live':'live','trio':'trio',
+   'fundamental groove':'fundamental-groove'
+  }[String(selection.name||'').trim().toLowerCase()];
+  if(albumSlug)return 'https://grandelement.com/album/'+albumSlug+'/';
+ }
  const tokens=paths.map(geShareSongHash);
  if(new Set(tokens).size!==tokens.length)throw Error('Song identity collision. Cannot safely share this playlist.');
  const url=appendShareState(new URL('./',location.href));
