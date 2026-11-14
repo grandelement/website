@@ -1165,6 +1165,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .song .songInfo,.window.geSimpleSongBrowser .scroll .song .songLabel{min-width:0!important;max-width:100%!important}
 .window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;max-width:100%!important;line-height:1.4!important}
 .window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
+/* Playlists use exactly the same footer controls as Songs. */
+.window.gePlaylistWorkspace > .selectionBar .geSelectionTools{display:flex!important;flex:1 1 0!important;min-width:0!important;gap:4px!important}
+.window.gePlaylistWorkspace > .selectionBar .geSelectionTools button{flex:1 1 0!important;min-width:0!important;min-height:44px!important;padding:4px!important;font-size:clamp(9px,2.4vw,13px)!important;color:white!important;background:rgba(5,20,37,.35)!important;border:1px solid rgba(240,250,255,.55)!important;border-radius:8px!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions .buySelected{background:linear-gradient(120deg,#7a4b0e,#d7a43d,#8c570d)!important;color:white!important}
+.window.gePlaylistWorkspace > .selectionBar .selectionActions .playSelected{background:linear-gradient(115deg,#f6fcff,#c7eaff,#f6fcff)!important;color:#122d46!important}
+.window.gePlaylistWorkspace > .arrangeDock{display:none!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -2247,7 +2253,7 @@ function render(){
  const cat=activeCategory();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
  playlistArrangeTop.hidden=cat!=='playlists';
- selectionTools.hidden=cat==='playlists';
+ selectionTools.hidden=false;
  el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
