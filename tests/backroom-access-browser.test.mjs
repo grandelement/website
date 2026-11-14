@@ -152,6 +152,11 @@ try{
  const readsBefore={...sourceReads};
  await page.click('#brVaultReconnect');
  await page.waitForFunction(()=>document.getElementById('brVaultReconnectStatus')?.textContent.includes('CONNECTED AND VERIFIED'),{timeout:15000});
+ await page.waitForFunction(()=>document.getElementById('brVaultReconnect')?.disabled===false,{timeout:15000});
+ if(!(sourceReads.codes>readsBefore.codes&&sourceReads.playlists>readsBefore.playlists))
+   console.error('VAULT RELOAD DIAGNOSTIC',JSON.stringify({before:readsBefore,after:sourceReads,
+     state:await page.$eval('#brVaultConnection',el=>el.textContent),
+     message:await page.$eval('#brVaultReconnectStatus',el=>el.textContent)}));
  assert.ok(sourceReads.codes>readsBefore.codes,'Vault verification must actually reload private access codes');
  assert.ok(sourceReads.playlists>readsBefore.playlists,'Vault verification must actually reload GitHub playlist list');
  console.log('PASS: Vault verification reloads both actual managers and checks fan geography');
