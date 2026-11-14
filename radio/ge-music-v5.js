@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.40-20261114-ONE-ALBUM-FILTER';
+const BUILD='GE-MUSIC-V7.41-20261114-ALBUM-HEADING';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -925,6 +925,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geAlbumFullArt .selectionBar{background:transparent!important;border:0!important}
 @keyframes geAlbumArtExpand{from{transform:scale(.82);opacity:.65}to{transform:scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.window.geAlbumFullArt::before{animation:none}}
+/* Album heading is shown once, below a functional CHANGE ALBUM chooser. */
+.window.geAlbumDetailClean .albumCollectionHeading{
+ display:flex!important;align-items:center!important;gap:14px!important;
+ min-height:74px!important;padding:8px 12px!important
+}
+.window.geAlbumDetailClean .albumCollectionHeading .albumPickerCompact{
+ flex:0 0 38px!important;width:38px!important;min-width:38px!important;
+ margin:0!important;padding:0!important
+}
+.window.geAlbumDetailClean .albumCollectionHeading .albumPickerCompact input{
+ width:30px!important;height:30px!important
+}
+.window.geAlbumDetailClean .albumDetailTitle{
+ display:block;flex:1 1 auto;min-width:0;
+ font-size:clamp(32px,8vw,48px);line-height:1.08;font-weight:950;
+ color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.92);
+ overflow-wrap:anywhere
+}
+.window.geAlbumDetailClean .geMusicOfflineMeter{
+ display:none!important
+}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
 .window.geAlbumDetailClean > .header,.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
@@ -2023,8 +2044,8 @@ function render(){
   const access=musicAccessActive();
   const allowed=access?.restricted?new Set(access.allowed):null;
   const albums=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
-  albumFilter.replaceChildren(...albums.map(album=>new Option(album,'album:'+album)));
-  albumFilter.value=state.view;
+  albumFilter.replaceChildren(new Option('CHANGE ALBUM',''),...albums.map(album=>new Option(album,'album:'+album)));
+  albumFilter.value='';
  }
  if(albumDetail){
   const albumName=state.view.slice(6);
@@ -2294,6 +2315,7 @@ function render(){
     // Single master checkbox at the head of the song checkboxes.
     // Checked = entire album; unchecked = none of that album.
     albumSelectAll(bar,name,state.tracks.filter(t=>t.album===name),true);
+    bar.append(elem('strong','albumDetailTitle',name));
     scroller.append(bar);
   }
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
