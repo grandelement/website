@@ -951,6 +951,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
+  <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
+    <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
+    <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
+      <option value="squares">SQUARE ALBUMS</option>
+      <option value="planets-touch">PLANETS TOUCHING</option>
+      <option value="planets-gap">PLANETS WITH GAP</option>
+    </select>
+    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the album layout on this device.</p>
+  </section>
   <section id="brGeneralPublicAccess" aria-label="General public screen access" style="border:1px solid #376987;border-radius:12px;padding:12px;margin:10px 0">
     <strong>GENERAL SCREEN · PUBLIC ACCESS</strong>
     <p style="font-size:13px;margin:6px 0 10px">Checked buttons are available to everyone without a code.</p>
@@ -5201,6 +5210,23 @@ $('gatePassword').focus();
  for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'));
  panel.querySelectorAll('[data-ge-geo-period]').forEach(b=>b.addEventListener('click',()=>{$('brGeoPeriod').value=b.dataset.geGeoPeriod;void refresh()}));
  document.querySelectorAll('#brTabFans,[data-tab="fans"],#brAccessViews [data-br-access-view="fans"]').forEach(b=>b.addEventListener('click',()=>{if(sessionStorage.getItem(tokenKey))void refresh()}));
+})();
+</script>
+<script>
+/* Album layout is a presentation preference, separate from radio configuration. */
+(()=>{
+ const control=document.getElementById('brAlbumUniverseLayout');
+ const status=document.getElementById('brAlbumUniverseLayoutStatus');
+ const key='GE_ALBUM_UNIVERSE_VIEW_V1';
+ if(!control)return;
+ try{
+  const saved=localStorage.getItem(key);
+  if(['squares','planets-touch','planets-gap'].includes(saved))control.value=saved;
+ }catch(_){status.textContent='Device storage is unavailable. This setting may not persist.'}
+ control.addEventListener('change',()=>{
+  try{localStorage.setItem(key,control.value);status.textContent='Saved on this device. Reopen MUSIC to see the layout.'}
+  catch(_){status.textContent='Could not save on this device.'}
+ });
 })();
 </script>
 </body>
