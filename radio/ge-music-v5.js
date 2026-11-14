@@ -903,6 +903,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .quickPlaylistRow button{min-width:43px!important;min-height:35px!important;font-size:10px!important;padding:3px 4px!important}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .checkedCount{display:block!important;font-size:10px!important;padding:0 2px 3px!important}
 }
+/* Public MUSIC cleanup: keep checkbox on each album heading; preserve song-title playback. */
+.window:not(.arranging) .songSelectAll,.window:not(.arranging) .reloadCatalogBtn{display:none!important}
+.window:not(.arranging) .selectionBar .offlineSelected,
+.window:not(.arranging) .selectionBar .shareSelected{display:none!important}
+.window:not(.arranging) .selectionBar .selectionActions{display:flex;flex:1;justify-content:flex-end;gap:10px}
+.window:not(.arranging) .selectionBar .selectionActions .buySelected,
+.window:not(.arranging) .selectionBar .selectionActions .playSelected{flex:1;max-width:240px}
+.window:not(.arranging) .songActions{display:none!important}
 /* Full-screen album art with songs over the same artwork; no separate panels. */
 .window.geAlbumFullArt{inset:0!important;top:0!important;bottom:0!important;left:0!important;transform:none!important;width:100%!important;height:100dvh!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#020817!important;isolation:isolate}
 .window.geAlbumFullArt::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--ge-full-album-art);background-position:center;background-size:cover;background-repeat:no-repeat;animation:geAlbumArtExpand .4s ease-out both}
@@ -1088,7 +1096,7 @@ albumViewSelect.addEventListener('change',()=>{
  try{localStorage.setItem(albumUniverseModeKey,albumUniverseMode)}catch(_){}
 });
 albumViewChooser.append(albumViewSelect);
-el('.tools').append(albumViewChooser);
+// Album layout is configured privately in Back Room > Radio, not in public MUSIC.
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
  universe.dataset.mode=albumUniverseMode;
@@ -1776,11 +1784,8 @@ function appendSong(parent,track){
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
- const actions=elem('div','songActions');
- const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
- play.addEventListener('click',()=>void playTrack(track,checkedQueueStartingAt(track),true));actions.append(play);
-
- row.append(label,actions);
+ // Song title itself remains the play control; no duplicate PLAY button.
+ row.append(label);
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
@@ -1991,7 +1996,7 @@ function render(){
   const albumName=state.view.slice(6);
   musicWindow.style.setProperty('--ge-full-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(albumName)+'.jpg',location.href).href+'")');
  }else musicWindow.style.removeProperty('--ge-full-album-art');
- albumViewChooser.style.display=albumUniverseActive?'none':'flex';
+ // The album layout chooser is no longer shown in the public MUSIC interface.
  universe.classList.toggle('isActive',albumUniverseActive);
  universe.setAttribute('aria-hidden',String(!albumUniverseActive));
  if(albumUniverseActive){renderStandaloneAlbums();return;}
@@ -2267,7 +2272,7 @@ function render(){
      const group=elem('div','albumCollectionHeading'),tracks=state.tracks.filter(row=>row.album===currentAlbum);
      applyAlbumStyle(group,currentAlbum);
      albumSelectAll(group,currentAlbum,tracks);
-     group.append(albumActions(currentAlbum,tracks));scroller.append(group);
+     scroller.append(group);
    }
    appendSong(scroller,t);
   }
