@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.42-20261114-SIMPLE-SONG-BROWSER';
+const BUILD='GE-MUSIC-V7.43-20261114-SIMPLE-SONG-BROWSER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2112,6 +2112,11 @@ function render(){
  if(document.activeElement!==name&&name.value!==state.playlistDraftName)name.value=state.playlistDraftName;
  el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
  scroller.replaceChildren();updateMeta();
+ if(albumDetail){
+  const albumTracks=state.tracks.filter(t=>t.album===state.view.slice(6));
+  el('.playSelected').disabled=!albumTracks.length;
+  el('.buySelected').disabled=!albumTracks.length||LEGACY_ALBUMS.has(state.view.slice(6));
+ }
  if(state.arranging){
    el('.arrangeCount').textContent='ARRANGE · '+selectedTracks().length+' SONGS';
    const current=el('.arrangeCurrentName');
