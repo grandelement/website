@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.34-20261109-DELETE-ROUTE-FALLBACK';
+const BUILD='GE-MUSIC-V7.35-20261114-ALBUM-ROUTING-REPAIR';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -938,13 +938,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;width:100%!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,.window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{min-height:46px!important;width:100%!important;min-width:0!important;border-radius:9px!important}
 }
-/* Phone album view: compact track rows; BUY and PLAY anchored at bottom right. */
+/* MUSIC album view: compact track widths, right-docked persistent BUY / PLAY. */
 @media(max-width:820px){
- .window:has(.albumCollectionHeading .albumPickerCompact) .song{max-width:min(100%,440px)!important;margin-right:auto!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar{display:flex!important;justify-content:flex-end!important;align-items:center!important;position:relative!important;z-index:5!important}
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:flex!important;justify-content:flex-end!important;gap:8px!important;width:auto!important;max-width:100%!important;margin-left:auto!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .breadcrumb{display:none!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .albumCollectionHeading{max-width:440px!important;margin-right:auto!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .song{width:min(100%,440px)!important;max-width:440px!important;margin-right:auto!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:0!important;padding:6px 12px max(8px,env(safe-area-inset-bottom))!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .checkedCount{display:none!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions{display:flex!important;flex-direction:row!important;justify-content:flex-end!important;align-items:center!important;gap:8px!important;width:auto!important;max-width:100%!important;margin:0 0 0 auto!important}
  .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .buySelected,
- .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{flex:0 1 132px!important;width:clamp(94px,29vw,132px)!important;min-width:0!important}
+ .window:has(.albumCollectionHeading .albumPickerCompact) .selectionBar .selectionActions .playSelected{flex:0 0 clamp(100px,28vw,144px)!important;width:clamp(100px,28vw,144px)!important;min-width:0!important;min-height:46px!important}
 }
 /* Authoritative phone album universe: no chrome, only small planets and BACK. */
 @media(max-width:820px){
@@ -1037,7 +1040,7 @@ root.appendChild(universeStyle);
 universe.addEventListener('click',event=>{
  if(universe.dataset.pinching==='true')return;
  if(event.target.closest('.geUniverseAlbum'))return;
- setView('all');
+ setView('albums');
 });
 // Two-finger pinch changes scale only; the stack never pans away from center.
 const universeBoard=universe.querySelector('.geUniverseAlbums');
@@ -1639,7 +1642,7 @@ function clearMusicAccess(){
  state.musicAccess=null;
  try{sessionStorage.removeItem(musicSessionKey)}catch(_){}
  el('.musicCodeInput').value='';
- musicAccessStatus();say('Music code cleared. Guest previews remain available.');setView('all');
+ musicAccessStatus();say('Music code cleared. Guest previews remain available.');setView('albums');
 }
 async function musicCodeRequest(body){
  const response=await fetch(musicSessionEndpoint,{
@@ -1675,7 +1678,7 @@ async function redeemMusicCode(){
      say('Music code verified · ALL SONGS shown in the normal catalog order.');
    }else{
      if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
-     setView('all');say('Music code verified for the full library.');
+     setView('albums');say('Music code verified for the full library.');
    }
  }catch(error){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
@@ -1920,6 +1923,8 @@ document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDr
 // ONE music scroll surface. Category tabs stay pinned above it; selecting an
 // album or playlist replaces content inside the SAME scroll surface.
 function setView(view){
+ // Obsolete ALL SONGS page is not a public destination. Keep the underlying catalog intact.
+ if(view==='all'||view==='checked')view=state.view.startsWith('album:')?state.view:'albums';
  if(dragSession)finishDrag(false);
  state.view=view;state.arranging=view==='playlist-order';if(view!=='playlist-order')gePlaylistEditMode=false;
  if(state.arranging)state.arrangeReturnView='checked';
@@ -1937,6 +1942,7 @@ function card(parent,title,detail,action,album=''){
  b.addEventListener('click',action);parent.append(b);
 }
 function breadcrumb(label,back){
+ if(back==='albums')return; // Main ALBUMS tab already supplies navigation.
  const wrapper=elem('div','breadcrumb');
  const b=elem('button','','← '+back.toUpperCase());b.type='button';
  b.addEventListener('click',()=>setView(back));
@@ -2025,8 +2031,11 @@ function render(){
  allCheck.disabled=!state.loaded||!allTracks.length;
  allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
  allCheck.indeterminate=allCount>0&&allCount<allTracks.length;
- const songView=state.view==='access-code'?'all':state.view;
- songFilter.value=[...songFilter.options].some(o=>o.value===songView)?songView:'all';
+ // The dropdown always reflects the album currently displayed.
+ const albumNames=[...new Set(allTracks.map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
+ songFilter.replaceChildren(new Option('ALBUMS','albums'));
+ for(const name of albumNames)songFilter.add(new Option('ALBUM · '+name,'album:'+name));
+ songFilter.value=albumDetail?state.view:'albums';
  playlistFilter.value=state.view==='ge-playlists'?'ge-playlists':state.view==='user-playlists'?'user-playlists':'playlist-order';
  el('.search').placeholder=cat==='albums'?'Find an album':cat==='songs'?'Find a song or album':'Find a playlist or checked song';
  const previous=scroller.scrollTop;
@@ -2265,7 +2274,6 @@ function render(){
     // Single master checkbox at the head of the song checkboxes.
     // Checked = entire album; unchecked = none of that album.
     albumSelectAll(bar,name,state.tracks.filter(t=>t.album===name),true);
-    bar.append(elem('strong','albumViewTitle',name));
     scroller.append(bar);
   }
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
@@ -2275,7 +2283,7 @@ function render(){
   }
   let currentAlbum='';
   for(const t of shown){
-   if(state.view==='all'&&t.album!==currentAlbum){
+   if(false&&state.view==='all'&&t.album!==currentAlbum){
      currentAlbum=t.album;
      const group=elem('div','albumCollectionHeading'),tracks=state.tracks.filter(row=>row.album===currentAlbum);
      applyAlbumStyle(group,currentAlbum);
@@ -2630,7 +2638,7 @@ el('.playlistFilter').addEventListener('change',event=>setView(event.target.valu
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
  if(b.dataset.tab==='albums')setView('albums');
- else if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
+ else if(b.dataset.tab==='songs')setView(state.view.startsWith('album:')?state.view:'albums');
  else setView('user-playlists');
 }));
 
