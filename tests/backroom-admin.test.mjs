@@ -171,7 +171,8 @@ assert.match(vault,/normalizedCodeExperience\(body\)/);
 assert.doesNotMatch(back,/id="brCodeAutopilot"|id="brCodeGames"|id="brCodeRadioPlaylist"/,
   'Red-crossed Access Code experience controls are removed, not hidden');
 assert.match(back,/name="brAccessScope" value="radio"/);
-assert.doesNotMatch(back,/name="brAccessScope" value="(?:website|music|albums|games)"/);
+for(const scope of ['website','music','albums','games','offline'])
+ assert.ok(back.includes('name="brAccessScope" value="'+scope+'"'),'Existing access permission must remain available: '+scope);
 assert.match(back,/existing\?\.experience\|\|replacementExperience/,
   'Saved experience settings remain intact when editing existing codes');
 assert.match(back,/brCodeFansPanel/);
