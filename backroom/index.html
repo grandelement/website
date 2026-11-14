@@ -3026,12 +3026,7 @@ const backroomVaultManagers=(()=>{
     if(response.status===401){serverAuthenticated=false;setToken('');needsPublisherLogin();throw Error('Owner session expired; sign in again.');}
     if(response.status===404)throw Error('PUBLISHER UPDATE REQUIRED · The GitHub playlist route is not deployed yet. Run the GE Studios Workers GitHub Action for BACKROOM. Your playlists have not been deleted.');
     if(!response.ok||data?.ok!==true)throw Error(data?.error||('GitHub playlist API HTTP '+response.status));
-    const indicator=$('brVaultConnection');
-    if(indicator){
-      indicator.textContent='PLAYLISTS · GITHUB CONNECTED';
-      indicator.dataset.state='connected';
-      indicator.title='Playlists saved in grandelement/website/playlists/registry.json. Access codes remain a separate private feature.';
-    }
+    // A GitHub playlist response is not proof that the private Vault is connected.
     return data;
   }
   // Read the public GitHub playlist master without routing through Cloudflare.
@@ -3559,8 +3554,7 @@ const backroomVaultManagers=(()=>{
       const msg='GITHUB PLAYLIST CONNECTION FAILED · '+accessDJError;
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;
       accessPlaylistOptions();
-      const indicator=$('brVaultConnection');
-      if(indicator){indicator.textContent='PLAYLISTS · GITHUB UNAVAILABLE';indicator.dataset.state='offline';indicator.title=msg;}
+      // Report GitHub playlist failure in the MUSIC status, not the Vault indicator.
       renderPlaylistViewer();return false;
     }
   }
