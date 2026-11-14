@@ -922,6 +922,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>MERCHANDISE speed (%)</span><input id="brMerchSpeed" type="number" min="25" max="400" step="5" value="100"></label>
     <label><span>MERCHANDISE rotation (%)</span><input id="brMerchRotation" type="number" min="0" max="400" step="5" value="100"></label>
     <label><span>MERCHANDISE direction</span><select id="brMerchDirection"><option value="normal">CLOCKWISE</option><option value="reverse">COUNTERCLOCKWISE</option></select></label>
+    <label><span>ENTRY direction</span><select id="brMerchEntryDirection"><option value="random">RANDOM LEFT / RIGHT</option><option value="left">FROM LEFT</option><option value="right">FROM RIGHT</option></select></label>
+    <label><span>ENTRY timing</span><select id="brMerchEntryTiming"><option value="random">RANDOM INTERVAL</option><option value="fixed">FIXED INTERVAL</option></select></label>
+    <label><span>ENTRY minimum (seconds)</span><input id="brMerchEntryMin" type="number" min="5" max="600" step="1" value="45"></label>
+    <label><span>ENTRY maximum (seconds)</span><input id="brMerchEntryMax" type="number" min="5" max="600" step="1" value="75"></label>
     <label><span>MERCHANDISE quantity</span><select id="brMerchQuantity"><option value="2">BOTH ITEMS</option><option value="1">HAT ONLY</option><option value="0">HIDE BOTH</option></select></label>
   </div>
   <p class="brMerchHelp">100% is normal. The hat is already 25% smaller than its original size.</p>
@@ -2012,6 +2016,9 @@ function populate(){
   field('brMerchSize',merch.size??100);field('brMerchSpeed',merch.speed??100);
   field('brMerchRotation',merch.rotation??100);field('brMerchDirection',merch.direction==='reverse'?'reverse':'normal');
   field('brMerchQuantity',merch.quantity??2);
+  field('brMerchEntryDirection',['left','right','random'].includes(merch.entryDirection)?merch.entryDirection:'random');
+  field('brMerchEntryTiming',merch.entryTiming==='fixed'?'fixed':'random');
+  field('brMerchEntryMin',merch.entryMinSeconds??45);field('brMerchEntryMax',merch.entryMaxSeconds??75);
   for(const [id,key] of Object.entries({gamePoints:'points',gamePockets:'pockets',gamePlanets:'planets',gameGolf:'golf',gameGravity:'gravity',gameBody:'body',gameFlight:'flight'})){
     checked(id,cfg.games?.[key]!==false);
   }
@@ -2056,7 +2063,10 @@ function collect(){
   const merchBounded=(id,min,max,def)=>Math.max(min,Math.min(max,Number($(id).value)||def));
   cfg.merchandise={...(cfg.merchandise||{}),size:merchBounded('brMerchSize',25,250,100),
     speed:merchBounded('brMerchSpeed',25,400,100),rotation:Math.max(0,Math.min(400,Number($('brMerchRotation').value)||0)),
-    direction:$('brMerchDirection').value==='reverse'?'reverse':'normal',quantity:Number($('brMerchQuantity').value)};
+    direction:$('brMerchDirection').value==='reverse'?'reverse':'normal',quantity:Number($('brMerchQuantity').value),
+    entryDirection:$('brMerchEntryDirection').value,entryTiming:$('brMerchEntryTiming').value,
+    entryMinSeconds:merchBounded('brMerchEntryMin',5,600,45),entryMaxSeconds:merchBounded('brMerchEntryMax',5,600,75)};
+  if(cfg.merchandise.entryMaxSeconds<cfg.merchandise.entryMinSeconds)cfg.merchandise.entryMaxSeconds=cfg.merchandise.entryMinSeconds;
   cfg.games={...(cfg.games||{}),
     points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked,
     golf:$('gameGolf').checked,gravity:$('gameGravity').checked,body:$('gameBody').checked,flight:$('gameFlight').checked,
