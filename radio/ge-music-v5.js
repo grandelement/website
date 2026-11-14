@@ -1287,7 +1287,7 @@ document.body.appendChild(host);
 const legacyPlaylistControls=document.createElement('div');
 legacyPlaylistControls.className='geLegacyPlaylistControls';
 legacyPlaylistControls.hidden=true;
-legacyPlaylistControls.append(el('.quickPlaylistRow'));
+legacyPlaylistControls.append(root.querySelector('.quickPlaylistRow'));
 root.append(legacyPlaylistControls);
 function randomizePlayGlow(){
  if(!state.open||document.hidden||window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
