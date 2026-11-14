@@ -1214,6 +1214,35 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window > .geMusicOfflineRow .geMusicOfflineNumbers{display:contents!important}
 .window > .geMusicOfflineRow .geMusicOfflinePercent{grid-column:1!important;grid-row:1!important;text-align:right!important}
 .window > .geMusicOfflineRow .geMusicOfflineTime{grid-column:3!important;grid-row:1!important;text-align:left!important}
+/* Definitive title-glow architecture: the full-width button is a touch target,
+   but ONLY its content-sized child receives the selection highlight. */
+.window.geSimpleSongBrowser .scroll .song.selectedSong{background:transparent!important;box-shadow:none!important}
+.window.geSimpleSongBrowser .scroll .song .songTitlePlay,
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{
+ background:transparent!important;box-shadow:none!important;text-shadow:none!important;
+ border:0!important;outline:0!important;display:block!important;
+ width:calc(100% - 16px)!important;max-width:calc(100% - 16px)!important;
+ margin:0 8px!important;padding:5px 0!important;
+ text-align:center!important;white-space:nowrap!important;
+ overflow:visible!important;text-overflow:clip!important;
+}
+.window.geSimpleSongBrowser .scroll .song .geSongTitleGlow{
+ display:inline-block!important;box-sizing:border-box!important;
+ width:max-content!important;max-width:calc(100% - 12px)!important;
+ padding:8px 12px!important;margin:0!important;
+ vertical-align:middle!important;white-space:nowrap!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;
+ overflow-wrap:normal!important;word-break:normal!important;
+ line-height:1.35!important;text-align:center!important;
+ border:0!important;border-radius:11px!important;
+ background:transparent!important;box-shadow:none!important;
+ text-shadow:none!important;
+}
+.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongTitleGlow{
+ background:rgba(255,255,255,.22)!important;
+ box-shadow:0 0 12px 3px rgba(255,255,255,.58)!important;
+ text-shadow:0 0 9px rgba(255,255,255,.92),0 1px 3px #000!important;
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -2040,7 +2069,9 @@ function appendSong(parent,track){
      playlist_id:(state.view.startsWith('vault:')||state.view.startsWith('local:'))?state.view.slice(state.view.indexOf(':')+1):''
    });
  });
- const songText=elem('button','songLabel songTitlePlay',track.title);
+ const songText=elem('button','songLabel songTitlePlay');
+ const songGlow=elem('span','geSongTitleGlow',track.title);
+ songText.append(songGlow);
   // The song title toggles the same checkbox; only explicit PLAY buttons start audio.
   songText.type='button';
   songText.title='Select or deselect '+track.title;
