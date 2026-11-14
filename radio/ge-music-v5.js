@@ -1108,6 +1108,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
  flex:0 0 clamp(100px,28vw,144px)!important;width:clamp(100px,28vw,144px)!important;
  min-width:0!important;max-width:144px!important;min-height:48px!important
 }
+/* Song selection must always show a real, tappable checkbox. */
+.window.geSimpleSongBrowser .scroll .song input[type=checkbox],
+.window.geSimpleSongBrowser .scroll .song.selectedSong input[type=checkbox]{
+ display:block!important;visibility:visible!important;opacity:1!important;
+ appearance:auto!important;-webkit-appearance:checkbox!important;
+ width:23px!important;height:23px!important;min-width:23px!important;
+ flex:0 0 23px!important;margin:0 6px 0 0!important;
+ accent-color:#52c5ff!important;pointer-events:auto!important
+}
+.window.geSimpleSongBrowser .scroll .song .geSongAdd,
+.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongAdd{display:none!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
