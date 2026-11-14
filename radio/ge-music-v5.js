@@ -1179,6 +1179,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .songLabel{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
 .window.geSimpleSongBrowser .scroll .song .songTitlePlay{display:block!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;text-overflow:clip!important;overflow:visible!important;height:auto!important;min-height:44px!important;line-height:1.4!important;padding:10px 12px!important;text-align:center!important}
 .window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:normal!important;height:auto!important;overflow:visible!important;border-radius:12px!important;background:rgba(255,255,255,.2)!important;box-shadow:0 0 18px 4px rgba(255,255,255,.53)!important}
+/* Keep selected titles on one line, including their white glow. */
+.window.geSimpleSongBrowser .scroll .song .songTitlePlay,
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songTitlePlay{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;overflow:hidden!important;text-overflow:ellipsis!important;height:auto!important;min-width:0!important}
+/* Bottom row: CLEAR / SELECT ALL / count / BUY / PLAY, with a small gap around count. */
+.window.geAlbumDetailClean > .selectionBar,
+.window.gePlaylistWorkspace > .selectionBar{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;gap:4px!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectionTools,
+.window.gePlaylistWorkspace > .selectionBar .geSelectionTools{order:1!important;flex:1 1 0!important;min-width:0!important;display:flex!important;gap:3px!important}
+.window.geAlbumDetailClean > .selectionBar .checkedCount,
+.window.gePlaylistWorkspace > .selectionBar .checkedCount{order:2!important;flex:0 0 46px!important;width:46px!important;min-width:46px!important;margin:0 5px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.window.geAlbumDetailClean > .selectionBar .selectionActions,
+.window.gePlaylistWorkspace > .selectionBar .selectionActions{order:3!important;flex:1 1 0!important;min-width:0!important;display:flex!important;gap:3px!important}
+.window.geAlbumDetailClean > .selectionBar .geSelectedNumber,
+.window.gePlaylistWorkspace > .selectionBar .geSelectedNumber{font-size:38px!important;line-height:1!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
