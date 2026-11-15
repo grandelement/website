@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V9_NO_LEGACY_LITE_RADIO_20261114';
+const SITE_SHELL='GE_SITE_SHELL_V10_INTEGRATED_RADIO_RECOVERY_20261114';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
