@@ -6658,12 +6658,18 @@ async function loadFrozenAutoSongs(){
     return false;
   }
 }
+let geOfflineChosenQueue=[];
 function allowedCatalog(){
   // Offline must use saved media URLs, not online manifest URLs or the live stream.
   // This is restricted to existing owner/demo access pending verified paid entitlements.
   if(offlinePlaybackMode() && window.GEOffline?.isActive?.()){
     // Download rights are verified online. Offline playback uses only what is saved.
     const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)).sort(orderedSort);
+    if(geOfflineChosenQueue.length){
+      const stored=new Map(saved.map(url=>[canonicalSongPath(url),url]));
+      const chosen=geOfflineChosenQueue.map(path=>stored.get(canonicalSongPath(path))).filter(Boolean);
+      if(chosen.length)return chosen;
+    }
     if(personalSongMode){
       const chosen=saved.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
       if(chosen.length)return chosen;
@@ -8372,14 +8378,31 @@ function geShowMainPlaylistPlayer(){
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 // Prepare the music iframe on page load, not on the first song tap.
 // This keeps the selection tap in the same iPhone user gesture as audio.play().
-window.addEventListener('load',()=>{try{geInlineMusicInit();}catch(error){console.error('GE player initialization failed',error);}}, {once:true});
+window.addEventListener('load',()=>{if(offlinePlaybackMode()&&window.GEOffline?.isActive?.())return;try{geInlineMusicInit();}catch(error){console.error('GE player initialization failed',error);}}, {once:true});
 window.GEMusicV5Bridge={
- prepare:()=>geInlineMusicInit(),
+ prepare:()=>offlinePlaybackMode()&&window.GEOffline?.isActive?.()?null:geInlineMusicInit(),
  shuffleEnabled:()=>state.shuffle,
  showMainPlayer:()=>geShowMainPlaylistPlayer(),
  play:(input,orderedPaths,playlistName='',playlistDetails=null)=>{
   const path=canonicalSongPath(input);
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
+  // OFFLINE uses the existing single Radio audio element. No preview iframe,
+  // Vault music-session request or 33:33 Gate is involved after download.
+  if(offlinePlaybackMode()&&window.GEOffline?.isActive?.()){
+    const saved=new Map([...offlineAvailability.songs].map(url=>[canonicalSongPath(url),url]));
+    const chosen=saved.get(path);
+    if(!chosen)return {ok:false,message:'Download this song in OFFLINE before playing it without internet.'};
+    const requested=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
+    geOfflineChosenQueue=[...new Set(requested)].filter(p=>saved.has(p));
+    if(!geOfflineChosenQueue.includes(path))geOfflineChosenQueue.unshift(path);
+    state.shuffle=!!playlistDetails?.allLibrary?state.shuffle:!playlistDetails?.custom;
+    if(state.live||state.livePreparing)exitLiveMode('');
+    geInlineMusicActive=false;
+    syncModeButtons();
+    gePlaylistQuickSet(playlistName,geOfflineChosenQueue,{...playlistDetails,currentPath:path});
+    void playURL(chosen,{record:state.shuffle,backgroundChange:true,userAction:true});
+    return {ok:true};
+  }
   geInlineMusicCurrentPath=path;
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
@@ -9125,7 +9148,7 @@ playBtn?.addEventListener('click',()=>{
 });
 playerSeek?.addEventListener('input',()=>{
   if(geInlineMusicActive){const a=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();const d=Number(a?.duration);if(Number.isFinite(d)&&d>0)a.currentTime=d*(Number(playerSeek.value)||0)/1000;return;}
-  if(!geOwnerDemoEnabled())return;
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.()))return;
   const d=Number(audio.duration);
   if(Number.isFinite(d)&&d>0&&!state.live)audio.currentTime=d*(Number(playerSeek.value)||0)/1000;
 });
