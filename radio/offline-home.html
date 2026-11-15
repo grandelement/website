@@ -29,27 +29,60 @@ small{display:block;color:#9fbacd;line-height:1.5}
 </main>
 <script>
 (()=>{
+ 'use strict';
  const status=document.getElementById('status');
- const open=document.getElementById('open');
+ const link=document.getElementById('open');
  const installed=!!(window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true);
- // The button is always usable; existing iPhone Home Screen icons may still
- // point here even after manifest.start_url changes.
  if(!installed){
-  status.textContent='For offline listening, install Radio from Safari’s Add to Home Screen menu.';
-  return;
+   status.textContent='For offline listening, install Radio from Safari using Add to Home Screen.';
+   return;
  }
- status.textContent='Opening Radio. If this page stays here, tap OPEN RADIO.';
- // Avoid trapping the listener in an unhelpful "Opening..." screen. Any
- // failed automatic navigation leaves a clear manual entry point.
- const target=open.href;
- window.setTimeout(()=>{
-  try{location.replace(target)}
-  catch(_){status.textContent='Open the saved player using OPEN RADIO above.'}
- },800);
- window.setTimeout(()=>{
-  if(document.visibilityState==='visible')
-   status.textContent='Still on this page? Tap OPEN RADIO. If it cannot open while disconnected, reconnect and use OFFLINE → CHECK & REPAIR; do not delete saved music.';
- },2500);
+ const indexURL=new URL('./index.html',location.href);
+ const isRadioHTML=text=>/<!doctype html/i.test(text)&&
+   text.includes('<title>Grand Element Radio</title>')&&
+   text.includes('id="player"')&&text.includes('id="shipStage"');
+ // Older pinned iPhone icons still launch this legacy URL. Their old service
+ // worker may serve this launcher even when the Radio HTML is safely cached.
+ // Load that same saved shell here without requiring a second network navigation.
+ async function savedRadioHTML(){
+   if(!('caches' in window))return null;
+   const keys=await caches.keys();
+   const shells=keys.filter(name=>name.startsWith('ge-radio-shell-')).reverse();
+   for(const name of shells){
+     const cache=await caches.open(name);
+     const response=await cache.match(indexURL.href,{ignoreSearch:true})||
+       await cache.match(new URL('./',location.href).href,{ignoreSearch:true});
+     if(!response?.ok)continue;
+     const html=await response.text();
+     if(isRadioHTML(html))return html;
+   }
+   // Older service workers sometimes stored the home page in other caches.
+   const response=await caches.match(indexURL.href,{ignoreSearch:true});
+   if(response?.ok){
+     const html=await response.text();
+     if(isRadioHTML(html))return html;
+   }
+   return null;
+ }
+ (async()=>{
+   status.textContent='Opening your saved Radio player…';
+   let html=null;
+   try{html=await savedRadioHTML();}catch(error){
+     console.warn('Saved Radio shell recovery unavailable',error);
+   }
+   if(html){
+     // The launcher and Radio are both /radio/; relative scripts/assets retain
+     // their correct paths. document.write parses normal executable scripts.
+     // Never delete or reset existing downloaded audio, access, or playlists.
+     document.open();
+     document.write(html);
+     document.close();
+     return;
+   }
+   // No usable cached shell: retain manual navigation, including when an
+   // older worker can answer index.html requests but lacks CacheStorage access.
+   status.textContent='Saved Radio startup files not found. Tap OPEN RADIO. If offline opening fails, reconnect once online inside this same installed app to repair. Do not delete saved music.';
+ })();
 })();
 </script>
 </body>
