@@ -52,7 +52,7 @@ function makeHarness(){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.15-offline-rebuild-v1'
+    type:data.type,ready:true,missing:[],version:'2026.11.15-music-albums-offline-v2'
    });
   }
  };
@@ -98,7 +98,7 @@ function makeHarness(){
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.15-offline-rebuild-v1');
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.15-music-albums-offline-v2');
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
@@ -199,8 +199,8 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/ge-images\/img\/31\.gif/);
  assert.match(sw,/const ARTWORK=/);
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261115-unified-offline-v1/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261115-unified-offline-v1/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261115-music-albums-offline-v2/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261115-music-albums-offline-v2/);
  assert.match(html,/sw\.js\?v=20261115-offline-rebuild-v1/);
  assert.match(sw,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
  assert.match(source,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
