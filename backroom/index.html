@@ -1164,6 +1164,16 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brGeoTotals" class="brGeoTotals"></div>
     <div id="brGeoStates" class="brGeoStates"></div>
   </section>
+  <section id="brCodeAudience" aria-label="Access code audience" style="padding:12px;margin:12px 0;border:1px solid #3b7e9d;border-radius:12px;background:#071b2c">
+    <h3>ACCESS CODE AUDIENCE</h3>
+    <p>See visitors who redeemed a code, their sessions, music, games and activity. Fan IDs are anonymous browser identifiers, not verified people.</p>
+    <label for="brCodeAudienceCode">ACCESS CODE <select id="brCodeAudienceCode"><option value="">SIGN IN AND LOAD SAVED CODES</option></select></label>
+    <label for="brCodeAudiencePeriod">TIME <select id="brCodeAudiencePeriod"><option value="24h">24 HOURS</option><option value="7d" selected>7 DAYS</option><option value="30d">30 DAYS</option><option value="90d">90 DAYS</option></select></label>
+    <button id="brCodeAudienceRefresh" type="button" class="primary">VIEW CODE AUDIENCE</button>
+    <p id="brCodeAudienceStatus" role="status">Not loaded. Private Vault report required.</p>
+    <div id="brCodeAudienceTotals" aria-label="Audience totals"></div>
+    <div id="brCodeAudienceVisitors" aria-label="Visitor activity"></div>
+  </section>
   <div id="brFansHome"></div>
   <section id="brFanPlaylistVault" style="margin-top:14px;padding:12px;border:1px solid #385e7e;border-radius:12px;background:#071d2e">
     <h3>FAN PLAYLISTS · GE VAULT</h3>
@@ -5421,6 +5431,82 @@ $('gatePassword').focus();
   try{localStorage.setItem(key,control.value);status.textContent='Saved on this device. Reopen MUSIC to see the layout.'}
   catch(_){status.textContent='Could not save on this device.'}
  });
+})();
+</script>
+<script id="ge-access-code-audience-v1">
+/* Read-only code attribution. The private publisher Worker must authenticate
+   and resolve code_id server-side. Never expose raw codes or IP addresses. */
+(()=>{
+ const $=id=>document.getElementById(id);
+ const code=$('brCodeAudienceCode'),period=$('brCodeAudiencePeriod'),button=$('brCodeAudienceRefresh'),
+       status=$('brCodeAudienceStatus'),totals=$('brCodeAudienceTotals'),visitors=$('brCodeAudienceVisitors');
+ if(!code||!button||!status)return;
+ const publisher='https://ge-backroom-publisher.grandelement.workers.dev';
+ const tokenKey='GE_BACKROOM_PUBLISH_SESSION_V1';
+ let ready=false;
+ function clear(){totals.replaceChildren();visitors.replaceChildren();}
+ async function get(path){
+   const token=sessionStorage.getItem(tokenKey);
+   if(!token)throw Error('Sign in to Back Room first.');
+   const response=await fetch(publisher+path,{cache:'no-store',headers:{Authorization:'Bearer '+token}});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||data.ok!==true)throw Error(data.error||'Vault report unavailable (HTTP '+response.status+').');
+   return data;
+ }
+ function showTotals(data){
+   const row=document.createElement('p');
+   const t=data.totals||{};
+   row.textContent='FAN IDS: '+Number(t.visitors||0)+' · REDEMPTIONS: '+Number(t.redemptions||0)+
+     ' · SESSIONS: '+Number(t.sessions||0)+' · EVENTS: '+Number(t.events||0);
+   totals.append(row);
+ }
+ function showVisitors(rows){
+   for(const fan of rows.slice(0,100)){
+     const item=document.createElement('details'),summary=document.createElement('summary');
+     summary.textContent='FAN '+String(fan.fan_id||'Unknown').slice(0,60)+
+       ' · '+Number(fan.sessions||0)+' sessions · '+Number(fan.events||0)+' events';
+     item.append(summary);
+     const info=document.createElement('p');
+     info.textContent='FIRST: '+String(fan.first_seen||'Unknown')+' · LAST: '+String(fan.last_seen||'Unknown')+
+       ' · REGION: '+String(fan.region||'Unknown')+' · SONGS: '+Number(fan.song_plays||0)+
+       ' · GAMES: '+Number(fan.game_plays||0);
+     item.append(info);
+     const history=document.createElement('ul');
+     for(const event of (Array.isArray(fan.activity)?fan.activity:[]).slice(0,50)){
+       const li=document.createElement('li');
+       li.textContent=String(event.at||'')+' · '+String(event.type||'')+
+         (event.title?' · '+String(event.title).slice(0,140):'');
+       history.append(li);
+     }
+     item.append(history);visitors.append(item);
+   }
+ }
+ async function loadCodes(){
+   try{
+     const data=await get('/manage/access-code-audience/codes');
+     if(!Array.isArray(data.codes))throw Error('Invalid access-code list.');
+     code.replaceChildren(new Option('SELECT SAVED CODE',''));
+     for(const c of data.codes){if(c.id&&c.label)code.append(new Option(String(c.label),String(c.id)));}
+     ready=true;status.textContent='Choose a saved access code and tap VIEW CODE AUDIENCE.';
+   }catch(e){ready=false;status.textContent='REPORT NOT CONNECTED · '+String(e.message||e);}
+ }
+ button.addEventListener('click',async()=>{
+   clear();
+   if(!ready){await loadCodes();if(!ready)return;}
+   if(!code.value){status.textContent='Select an access code first.';return;}
+   button.disabled=true;status.textContent='Reading authenticated Vault report...';
+   try{
+     const query=new URLSearchParams({code_id:code.value,period:period.value});
+     const data=await get('/manage/access-code-audience?'+query);
+     if(!Array.isArray(data.visitors)||!data.totals)throw Error('Incomplete report. No totals shown.');
+     showTotals(data);showVisitors(data.visitors);
+     status.textContent='VAULT REPORT CONFIRMED · '+new Date().toLocaleTimeString()+
+       ' · Approximate location and browser IDs only. No legal identity verification.';
+   }catch(e){clear();status.textContent='REPORT UNAVAILABLE · '+String(e.message||e);}
+   finally{button.disabled=false;}
+ });
+ document.querySelectorAll('#brTabFans,[data-tab="fans"]').forEach(el=>
+   el.addEventListener('click',()=>{if(!ready)void loadCodes();}));
 })();
 </script>
 </body>
