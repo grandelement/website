@@ -115,5 +115,12 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  const media=await respond({method:'GET',mode:'cors',destination:'audio',url:song,headers:new Headers({'Range':'bytes=2-5'})});
  assert.equal(media.status,206);assert.equal(media.headers.get('Content-Range'),'bytes 2-5/8');
  assert.deepEqual([...new Uint8Array(await media.arrayBuffer())],[3,4,5,6]);
- assert.equal(networkCalls,0,'No network requests allowed in Airplane Mode');
+ // Safari sometimes continues reporting online after Airplane Mode. Both the
+ // installed launcher and tagged saved music must still be 100% cache-first.
+ self.navigator.onLine=true;
+ const tagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song+'?ge_offline=1',headers:new Headers()});
+ assert.equal(tagged.status,200);
+ const homeAgain=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
+ assert.equal(homeAgain.status,200);
+ assert.equal(networkCalls,0,'Installed offline launch and saved music must not retry the network');
 });
