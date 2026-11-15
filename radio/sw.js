@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.10-offline-fixes-v106';
+const VERSION='2026.11.14-offline-cold-start-v107';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -44,6 +44,16 @@ const SHELL=[
   // be ready when MUSIC is opened offline after a full download.
   ...['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles']
     .map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
+];
+
+// A new offline worker must never replace the existing worker unless all
+// essential pages, scripts, styles, and local catalogs are stored.
+const REQUIRED_SHELL=[
+  './ge-music-v5.js','./offline-player.html','./offline.webmanifest',
+  './manifest.json','./iam-private-studio.js','./ge-gate-audio.js',
+  './ge-gate-settings.js','./ge-purchase-demo.js',
+  '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
+  '../config/site-live.json','../playlists/registry.json'
 ];
 
 async function fetchFresh(requestOrURL){
@@ -89,9 +99,17 @@ self.addEventListener('install',event=>{
     await cache.put('./index.html',indexResponse.clone());
     await cache.put('./',indexResponse.clone());
 
-    // The remaining shell files are useful but one missing icon must not block
-    // the radio from becoming usable offline.
-    const optional=SHELL.filter(url=>url!=='./' && url!=='./index.html');
+    // Required shell assets are atomic. If one is missing, keep the prior
+    // installed worker and its existing caches rather than claiming readiness.
+    await Promise.all(REQUIRED_SHELL.map(async url=>{
+      const response=await fetch(url,{cache:'reload'});
+      if(!response.ok) throw new Error('Offline engine missing: '+url);
+      await cache.put(url,response.clone());
+    }));
+
+    // Decorative assets are optional; never block a valid offline engine.
+    const required=new Set(['./','./index.html',...REQUIRED_SHELL]);
+    const optional=SHELL.filter(url=>!required.has(url));
     await Promise.allSettled(optional.map(async url=>{
       const response=await fetch(url,{cache:'reload'});
       if(response.ok) await cache.put(url,response.clone());
@@ -164,6 +182,11 @@ async function offlineNavigationFallback(){
 }
 
 async function secondaryPageNavigationResponse(request){
+  // Offline must not attempt the network before using an already saved page.
+  if(self.navigator?.onLine===false){
+    return (await cachedResponse(request)) ||
+      new Response('This page has not been saved offline',{status:503});
+  }
   // Preview Lab and other Radio HTML pages must not be validated against the
   // main Radio index markup. The old handler replaced them with index.html.
   try{
@@ -190,6 +213,8 @@ async function navigationResponse(request){
   if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html')){
     return secondaryPageNavigationResponse(request);
   }
+  // Cold start in Airplane Mode: serve the installed app immediately.
+  if(self.navigator?.onLine===false)return offlineNavigationFallback();
   // Network first, but never cache or display a poisoned/plain-text index.html.
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),3500);
@@ -228,6 +253,12 @@ async function navigationResponse(request){
 }
 
 async function mediaResponse(request){
+  // An offline audio request, including byte ranges, must be 100% local.
+  if(self.navigator?.onLine===false){
+    const local=await cachedResponse(request);
+    return local?rangeFromCache(request,local):
+      new Response('This audio file was not saved',{status:503});
+  }
   // Same-path song replacements must win while ONLINE. The earlier
   // cache-first path kept playing obsolete recordings after an upload.
   // Offline still falls back to the listener's existing saved music.
@@ -253,6 +284,10 @@ async function mediaResponse(request){
 }
 
 async function staticResponse(request){
+  if(self.navigator?.onLine===false){
+    return (await cachedResponse(request)) ||
+      new Response('This app file was not saved',{status:503});
+  }
   // Always fetch the studio engine freshly, even when a versioned URL was
   // previously cached with ignoreSearch:true.
   if(new URL(request.url).pathname.endsWith('/iam-private-studio.js')){
