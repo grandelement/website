@@ -11,6 +11,7 @@ import json
 import math
 import subprocess
 from pathlib import Path
+from urllib.parse import quote
 
 SAMPLE_RATE = 8000
 FRAME_MS = 100
@@ -82,7 +83,7 @@ def main():
             continue
         try:
             packed, n = measure(path)
-            tracks["/" + filename.replace(" ", "%20")] = {"frames": packed, "count": n}
+            tracks["/" + quote(filename, safe="/")] = {"frames": packed, "count": n}
             print(f"{i}/{len(paths)} measured {filename}: {n} frames", flush=True)
         except Exception as error:
             skipped.append(filename)
