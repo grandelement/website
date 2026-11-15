@@ -10195,7 +10195,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261110-unified-access-player-v106',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261114-music-offline-dock-v107',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10220,6 +10220,46 @@ async function registerServiceWorker(){
   let activePlan=null;
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
+  const MUSIC_OFFLINE_TARGET_KEY='GE_MUSIC_OFFLINE_TARGET_V1';
+  const MUSIC_OFFLINE_FULL_TARGET_KEY='GE_MUSIC_OFFLINE_FULL_TARGET_V1';
+  function savedMusicOfflineTargets(key=MUSIC_OFFLINE_TARGET_KEY){
+    try{
+      const paths=JSON.parse(localStorage.getItem(key)||'null');
+      if(Array.isArray(paths)){
+        const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
+        return wanted.size?wanted:null;
+      }
+    }catch(_e){}
+    return null;
+  }
+  // Report completion only after checking each actual cached song.
+  // This is distinct from byte-transfer progress; 10 of 12 songs means 83%.
+  async function publishVerifiedMusicOfflineStatus(knownAudit=null){
+    try{
+      const wanted=savedMusicOfflineTargets();
+      const fallback=wanted||savedMusicOfflineTargets(MUSIC_OFFLINE_FULL_TARGET_KEY);
+      let audit=knownAudit;
+      if(!audit){
+        // Once downloaded, the saved target lets an iPhone verify progress
+        // without contacting GitHub, even after Wi-Fi has been disconnected.
+        const assets=navigator.onLine===false&&fallback?.size
+          ?[...fallback].map(path=>({url:absolute('../'+path),type:'song',size:0}))
+          :await buildAssetList();
+        const scoped=wanted?assets.filter(item=>item.type!=='song'||wanted.has(canonicalSongPath(item.url))):assets;
+        audit=await auditAssets(scoped,{copyExisting:true,readOnly:true});
+      }
+      if(!audit?.totalSongs)return;
+      const cached=Math.max(0,Math.min(audit.totalSongs,Number(audit.cachedSongs)||0));
+      const verifiedPercent=Math.round(100*cached/audit.totalSongs);
+      window.postMessage({type:'GE_MUSIC_OFFLINE_PROGRESS',verified:true,
+        percent:verifiedPercent,cachedSongs:cached,totalSongs:audit.totalSongs,
+        rate:'',remaining:''},location.origin);
+    }catch(error){console.warn('Offline progress verification unavailable',error)}
+  }
+  window.addEventListener('message',event=>{
+    if(event.origin===location.origin&&event.data?.type==='GE_MUSIC_OFFLINE_STATUS_REQUEST')
+      void publishVerifiedMusicOfflineStatus();
+  });
   // Store the offline playback receipt only after an authorized online
   // public setting or a verified, unexpired Vault access scope is confirmed.
   // This receipt unlocks already-saved audio locally, never Vault or purchases.
@@ -10267,6 +10307,7 @@ async function registerServiceWorker(){
       reportMusicOffline('An offline operation is already running.');return;
     }
     selectedOfflinePaths=null;
+    try{localStorage.removeItem(MUSIC_OFFLINE_TARGET_KEY)}catch(_e){}
     button.click();
   });
   // The Music library can request a smaller checked-song download.
@@ -10282,6 +10323,7 @@ async function registerServiceWorker(){
     const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
     if(!wanted.size)return;
     selectedOfflinePaths=wanted;
+    try{localStorage.setItem(MUSIC_OFFLINE_TARGET_KEY,JSON.stringify([...wanted]))}catch(_e){}
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
     button.click();
   });
@@ -10551,6 +10593,10 @@ async function registerServiceWorker(){
 
   async function scanExistingAssets(){
     const assets=await buildAssetList();
+    const fullPaths=[...new Set(assets.filter(item=>item.type==='song').map(item=>canonicalSongPath(item.url)).filter(Boolean))];
+    if(fullPaths.length){
+      try{localStorage.setItem(MUSIC_OFFLINE_FULL_TARGET_KEY,JSON.stringify(fullPaths))}catch(_e){}
+    }
     const audit=await auditAssets(assets,{copyExisting:true});
     await verifyOfflineLaunchAssets();
     // Preserve the stored Offline ON/OFF preference while checking cached files.
@@ -11034,7 +11080,7 @@ async function registerServiceWorker(){
     return removed;
   }
 
-  async function auditAssets(assets,{copyExisting=true}={}){
+  async function auditAssets(assets,{copyExisting=true,readOnly=false}={}){
     const active=await caches.open(CONFIG.OFFLINE_CACHE);
     const missing=[];
     const songs=new Set();
@@ -11076,9 +11122,13 @@ async function registerServiceWorker(){
       }
     }
 
-    offlineAvailability.songs=songs;
-    offlineAvailability.stations=stations;
-    saveOfflineAvailability();
+    // A status-only check must not replace Radio's full offline availability
+    // with just the checked-song subset.
+    if(!readOnly){
+      offlineAvailability.songs=songs;
+      offlineAvailability.stations=stations;
+      saveOfflineAvailability();
+    }
 
     const missingSongs=missing.filter(item=>item.type==='song').length;
     const missingOptional=missing.filter(item=>item.type==='background').length;
@@ -11089,12 +11139,12 @@ async function registerServiceWorker(){
     const requiredReady=shellReady && musicComplete && missingStations===0;
     const complete=missing.length===0;
 
-    currentAudit={
+    const audit={
       missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,missingStations,missingShell,shellReady,
       musicComplete,requiredReady,complete,existingBytes,totalBytes
     };
-    reflectButton(currentAudit);
-    return currentAudit;
+    if(!readOnly){currentAudit=audit;reflectButton(currentAudit)}
+    return audit;
   }
 
   async function cacheResponseStreaming(item,cache,signal,onChunk){
@@ -11347,6 +11397,7 @@ async function registerServiceWorker(){
       }
     }
 
+    await publishVerifiedMusicOfflineStatus(audit);
     return {
       added:completedFiles,failed,failedFiles,storageFull,total:missingSongFiles.length,
       complete:audit.musicComplete&&offlineLaunchReady,musicComplete:audit.musicComplete,
@@ -15100,7 +15151,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261114-album-squares-v66"></script>
+<script defer src="./ge-music-v5.js?v=20261114-offline-dock-v67"></script>
 <style id="ge-radio-hide-manual-reload-20261108">#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
 <style id="ge-offline-readiness-20261108">
