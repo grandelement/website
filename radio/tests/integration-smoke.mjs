@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const radio=read('index.html');
+const home=read('../index.html');
+const sharedViewDetector=/<script id="ge-safari-request-website-mode">([\\s\\S]*?)<\\/script>/;
+assert.equal(radio.match(sharedViewDetector)?.[1],home.match(sharedViewDetector)?.[1],
+  'Home and Radio must classify iPhone/tablet/desktop identically');
+
 const music=read('ge-music-v5.js');
 const worker=read('sw.js');
 const homeWorker=read('../sw.js');
@@ -25,6 +30,8 @@ for(const name of ['sunLabBtn','offlineBtn','reloadBtn'])has(footer,'id="'+name+
 assert.ok(footer.indexOf('id="sunLabBtn"')<footer.indexOf('id="offlineBtn"'),'Sun Lab must precede OFFLINE');
 assert.ok(footer.indexOf('>SUPPORT</span>')<footer.indexOf('id="offlineBtn"'),'SUPPORT must precede OFFLINE');
 has(radio,'ge-radio-mobile-canonical-footer-20261114','Mobile footer');
+has(radio,'id="sunLabBtn"','Sun Lab');
+has(radio,'id="offlineBtn"','Offline control');
 has(radio,'grid-area:2/2!important','Centered DEBUG');
 has(radio,"window.GERadioReloadAllowed",'Restricted Reload bridge');
 has(music,'geMusicReload','Music Reload only');
