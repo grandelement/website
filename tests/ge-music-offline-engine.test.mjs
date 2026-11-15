@@ -4,6 +4,9 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 
 const source=readFileSync('radio/offline-manager.js','utf8');
+const sw=readFileSync('radio/sw.js','utf8');
+const music=readFileSync('radio/ge-music-v5.js','utf8');
+const html=readFileSync('radio/index.html','utf8');
 const BASE='https://example.test/radio/index.html';
 const songs=[
  'ge-music/music/Grand Element - Aether/Aether_01-Frequency.mp3',
@@ -13,45 +16,44 @@ const songs=[
 const station='ge-music/clips/GE Station Identification - 1.m4a';
 const files=[...songs,station];
 function makeHarness(){
- const storage=new Map(),cachesMap=new Map(),requests=new Map();
- let failPrana=true,authorized=true;
- const k=url=>new URL(typeof url==='string'?url:url.url||String(url),BASE).href;
+ const values=new Map(),maps=new Map(),hits=new Map();
+ let failPrana=true,authorized=true,allowed=null;
+ const k=value=>new URL(typeof value==='string'?value:value.url,BASE).href;
  const cacheAPI={
-  keys:async()=>[...cachesMap.keys()],
+  keys:async()=>[...maps.keys()],
   async open(name){
-   if(!cachesMap.has(name))cachesMap.set(name,new Map());
-   const map=cachesMap.get(name);
+   if(!maps.has(name))maps.set(name,new Map());
+   const map=maps.get(name);
    return {
     async match(url,{ignoreSearch=false}={}){
-     const key=k(url);if(map.has(key))return map.get(key).clone();
-     if(ignoreSearch){const path=new URL(key).pathname;for(const [u,v] of map)if(new URL(u).pathname===path)return v.clone()}
+     const key=k(url);
+     if(map.has(key))return map.get(key).clone();
+     if(ignoreSearch)for(const [u,response] of map)
+      if(new URL(u).pathname===new URL(key).pathname)return response.clone();
      return undefined;
     },
-    put:async(url,response)=>{map.set(k(url),response.clone())},
-    keys:async()=>[...map.keys()].map(url=>new Request(url))
+    async put(url,response){map.set(k(url),response.clone())},
+    keys:async()=>[...map.keys()].map(u=>new Request(u))
    };
   },
   async match(url,opts){
-   for(const name of cachesMap.keys()){
-    const match=await (await this.open(name)).match(url,opts);
-    if(match)return match;
+   for(const name of maps.keys()){
+    const found=await (await this.open(name)).match(url,opts);
+    if(found)return found;
    }
    return undefined;
   }
  };
  const localStorage={
-  getItem:k=>storage.get(k)||null,
-  setItem:(k,v)=>storage.set(k,String(v)),
-  removeItem:k=>storage.delete(k)
+  getItem:key=>values.get(key)||null,
+  setItem:(key,value)=>values.set(key,String(value)),
+  removeItem:key=>values.delete(key)
  };
  const worker={
   postMessage(data,ports){
-   if(data.type==='GE_RADIO_SHELL_STATUS'){
-    ports[0].postMessage({
-      type:data.type,ready:true,missing:[],
-      version:'2026.11.15-offline-music-v117'
-    });
-   }
+   if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
+    type:data.type,ready:true,missing:[],version:'2026.11.15-offline-rebuild-v1'
+   });
   }
  };
  const registration={active:worker,waiting:null,installing:null,update:async()=>{}};
@@ -61,76 +63,70 @@ function makeHarness(){
    this.port2={onmessage:null,postMessage:data=>this.port1.onmessage?.({data}),close(){}};
   }
  }
- async function fetch(url,options={}){
+ async function fetch(url){
   const path=decodeURIComponent(new URL(url,BASE).pathname);
-  requests.set(path,(requests.get(path)||0)+1);
+  hits.set(path,(hits.get(path)||0)+1);
   if(path==='/radio/manifest.json')
-   return new Response(JSON.stringify({files}),{status:200,headers:{'Content-Type':'application/json'}});
-  if(path==='/ge-images/img/manifest.json')
-   return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
-  if(path.startsWith('/ge-images/images/'))
-   return new Response(new Uint8Array(260),{status:200,headers:{'Content-Type':'image/jpeg'}});
-  if(path.includes('Aether_04-Prana')&&failPrana)throw Error('Load failed');
-  if(path.endsWith('.mp3')||path.endsWith('.m4a')){
-   const bytes=new Uint8Array(256);bytes.set([73,68,51]);
-   return new Response(bytes,{status:200,headers:{'Content-Type':'audio/mpeg'}});
+   return new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}});
+  if(path.includes('Aether_04-Prana')&&failPrana)throw Error('Test network interruption');
+  if(/\.(mp3|m4a)$/i.test(path)){
+   const data=new Uint8Array(256);data.set([73,68,51]);
+   return new Response(data,{status:200,headers:{'content-type':'audio/mpeg'}});
   }
-  throw Error('unexpected network path '+path);
+  throw Error('Unexpected network path: '+path);
  }
- const window={
-  GERadioOfflineBridge:{
-   canDownload:()=>authorized,allowedPaths:()=>null,rescan:()=>{},
+ const window={GERadioOfflineBridge:{
+   canDownload:()=>authorized,
+   allowedPaths:()=>allowed,
+   rescan:()=>{},
    promptCode:()=>{}
-  },
-  matchMedia:()=>({matches:true})
- };
+  },matchMedia:()=>({matches:true})};
  const navigator={
   onLine:true,userAgent:'Desktop Chrome',platform:'Linux',maxTouchPoints:0,
   serviceWorker:{getRegistration:async()=>registration,register:async()=>registration}
  };
  const context={window,navigator,localStorage,caches:cacheAPI,fetch,MessageChannel,
-  URL,Response,Request,Headers,AbortController,setTimeout,clearTimeout,console,Date,
-  location:{href:BASE}};
+  URL,Response,Request,Headers,AbortController,setTimeout,clearTimeout,console,Date,location:{href:BASE}};
  runInNewContext(source,context);
  return {
-  engine:window.GEOfflineDownloads,storage,requests,
+  engine:window.GEOfflineDownloads,
   succeedPrana:()=>{failPrana=false},
   revoke:()=>{authorized=false},
-  has:async path=>{
-   const url=new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE);
-   return !!(await cacheAPI.match(url.href,{ignoreSearch:true}));
-  },
-  count:path=>requests.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0
+  setAllowed:paths=>{allowed=paths},
+  setOnline:value=>{navigator.onLine=value},
+  has:async path=>!!(await cacheAPI.match(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).href,{ignoreSearch:true})),
+  count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
+  storage:values
  };
 }
-
-test('all music saves once, reports partial on failed Prana, repairs only missing files',async()=>{
+test('download retains previous songs; partial failure repairs only missing media',async()=>{
  const h=makeHarness();
- const first=await h.engine.save({mode:'all'});
+ const events=[];
+ const first=await h.engine.save({mode:'all',onProgress:e=>events.push(e)});
  assert.equal(first.ready,false);
  assert.equal(first.saved,2);
  assert.equal(first.total,3);
  assert.equal(first.missing.length,1);
- assert.match(first.missing[0],/Prana/);
- assert.equal(h.engine.active(),true,'Partial authorized saved files stay playable');
+ assert.equal(h.engine.active(),true);
+ assert.equal(await h.has(station),true);
  assert.equal(await h.has(songs[0]),true);
  assert.equal(await h.has(songs[2]),true);
- assert.equal(await h.has(station),true);
- const oldFirstCount=h.count(songs[0]),oldNexusCount=h.count(songs[2]);
+ const n1=h.count(songs[0]),n3=h.count(songs[2]);
  h.succeedPrana();
- const second=await h.engine.repair();
- assert.equal(second.ready,true);
- assert.equal(second.saved,3);
- assert.equal(second.total,3);
- assert.equal(second.missing.length,0);
- assert.equal(h.count(songs[0]),oldFirstCount,'Update skips existing saved audio');
- assert.equal(h.count(songs[2]),oldNexusCount,'Update skips other saved audio');
+ const fixed=await h.engine.repair();
+ assert.equal(fixed.ready,true);
+ assert.equal(fixed.saved,3);
+ assert.equal(fixed.missing.length,0);
+ assert.equal(h.count(songs[0]),n1);
+ assert.equal(h.count(songs[2]),n3);
  assert.equal(await h.has(songs[1]),true);
  assert.equal(h.engine.plan().length,3);
+ assert.ok(events.some(e=>e.phase==='audio'&&Number.isInteger(e.percent)));
+ assert.ok(events.every(e=>!('current' in e)&&!('total' in e)&&!('completed' in e)));
 });
-
-test('offline access check controls new downloads, not existing local playback',async()=>{
+test('revoked access blocks new downloads but retains existing saved music',async()=>{
  const h=makeHarness();
+ h.succeedPrana();
  await h.engine.save({mode:'checked',paths:[songs[0]]});
  assert.equal(h.engine.active(),true);
  h.revoke();
@@ -139,15 +135,67 @@ test('offline access check controls new downloads, not existing local playback',
  assert.equal(await h.has(songs[0]),true);
  assert.equal(h.engine.active(),true);
 });
-
-test('saving new checked selection never deletes an earlier downloaded selection',async()=>{
+test('a new playlist never deletes older downloaded music or selections',async()=>{
  const h=makeHarness();
- const one=await h.engine.save({mode:'checked',paths:[songs[0]]});
- assert.equal(one.total,1);
- const two=await h.engine.save({mode:'playlist',paths:[songs[2]]});
- assert.equal(two.saved,2);
- assert.equal(two.total,2);
+ h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0]]});
+ const next=await h.engine.save({mode:'playlist',paths:[songs[2]]});
+ assert.equal(next.ready,true);
+ assert.equal(next.saved,2);
+ assert.equal(next.total,2);
  assert.equal(await h.has(songs[0]),true);
  assert.equal(await h.has(songs[2]),true);
  assert.deepEqual([...h.engine.plan()], [songs[0],songs[2]]);
+});
+test('restricted codes cannot fetch unassigned songs or remove prior files',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ h.setAllowed([songs[0]]);
+ await h.engine.save({mode:'all'});
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[1]),false);
+ h.setAllowed([songs[2]]);
+ const result=await h.engine.save({mode:'playlist',paths:[songs[2]]});
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[2]),true);
+ assert.equal(result.ready,true);
+});
+test('new downloads require connectivity; cached downloads are never erased',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0]]});
+ h.setOnline(false);
+ assert.equal((await h.engine.inspect()).ready,true);
+ assert.equal((await h.engine.save({mode:'all'})).error,'offline');
+ assert.equal(await h.has(songs[0]),true);
+});
+test('MUSIC OFFLINE shows only percent, ETA, progress bar, not counts or filenames',()=>{
+ const start=music.indexOf('async function offlineCheck(){');
+ const end=music.indexOf("el('.musicOfflineLaunch').addEventListener('click',openOffline)",start);
+ const ui=music.slice(start,end);
+ assert.ok(start>=0&&end>start);
+ assert.ok(music.includes('class="geOfflinePercent"'));
+ assert.ok(music.includes('class="geOfflineEta"'));
+ assert.ok(music.includes('class="geOfflineProgress"'));
+ assert.doesNotMatch(ui,/result\.saved\s*\+|result\.total|result\.missing\.length|event\.current|event\.total|event\.completed/);
+ assert.match(ui,/READY/);
+ assert.match(ui,/PARTIAL/);
+ assert.match(ui,/UPDATE MISSING/);
+ assert.match(music,/document\.getElementById\('offlineLaunchBtn'\)\?\.addEventListener\('click',openOffline\)/);
+});
+test('one service worker caches essential art, startup code and catalog; not all backgrounds',()=>{
+ assert.match(sw,/GE_RADIO_SHELL_STATUS/);
+ assert.match(sw,/ge-radio-media-v4/);
+ assert.match(sw,/ge-music-v5\.js/);
+ assert.match(sw,/offline-spectrum\.js/);
+ assert.match(sw,/iam-private-studio\.js/);
+ assert.match(sw,/playlists\/registry\.json/);
+ assert.match(sw,/ge-images\/img\/31\.gif/);
+ assert.match(sw,/const ARTWORK=/);
+ assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261115-unified-offline-v1/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261115-unified-offline-v1/);
+ assert.match(html,/sw\.js\?v=20261115-offline-rebuild-v1/);
+ assert.match(sw,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
+ assert.match(source,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
 });
