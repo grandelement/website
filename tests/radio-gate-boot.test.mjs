@@ -7,6 +7,15 @@ assert.equal(existsSync('lite/index.html'),false,'Legacy Lite radio page must no
 const siteWorker=readFileSync('sw.js','utf8');
 assert.match(siteWorker,/LEGACY_RADIO_PATHS\.some/,'Old Lite links must route to canonical Radio');
 assert.match(siteWorker,/cache\.delete\(url\.href\)/,'Obsolete Lite pages must be purged without removing saved music');
+const musicSource=readFileSync('radio/ge-music-v5.js','utf8');
+const radioSource=readFileSync('radio/index.html','utf8');
+assert.doesNotMatch(musicSource, /state\.view\s*=\s*['"]access-code['"]|setView\(['"]access-code['"]\)/,
+  'An access code may not force a separate Music UI');
+assert.doesNotMatch(radioSource, /location\.assign\(['"]\.\.\/support\/\?section=radio&flow=shop['"]\)/,
+  'Missing code may not navigate away from Radio');
+assert.match(radioSource, /Close access code and return to Radio/,
+  'Gate Back must remain on Radio');
+
 for(const path of ['index.html','radio/index.html']){
   const html=readFileSync(path,'utf8');
   assert.doesNotMatch(html,/location\.(?:replace|assign)\(['"]\/lite\//,
@@ -29,7 +38,7 @@ try{
       return Promise.reject(new DOMException('Autoplay blocked for test','NotAllowedError'));
     };
   });
-  page.on('pageerror',error=>errors.push(String(error?.message||error).slice(0,180)));
+  page.on('pageerror',error=>errors.push(String(error?.stack||error?.message||error).slice(0,900)));
   await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:30000});
   try{
     await page.waitForFunction(()=>typeof window.GEGate?.openCodeEntry==='function',{timeout:12000});

@@ -5166,7 +5166,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="geGateWaves" aria-hidden="true"></div>
   <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
   <section id="geGatePanel" aria-live="polite">
-    <div id="geGatePanelHeader"><button id="geGateBack" type="button" aria-label="Back to Grand Element website" title="Back">←</button><div id="geGateTitle">The Inner Frequency</div><span aria-hidden="true"></span></div>
+    <div id="geGatePanelHeader"><button id="geGateBack" type="button" aria-label="Close access code and return to Radio" title="Close access code">←</button><div id="geGateTitle">The Inner Frequency</div><span aria-hidden="true"></span></div>
     <div id="geGateEntry">
       <input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Enter access code" placeholder="Enter Code" inputmode="text">
       <button id="geGateEnter" type="button">ACCESS</button>
@@ -14450,9 +14450,9 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function wrongWord(){
-    // Unsupported code: go directly to the Radio membership page. Current
-    // checkout is preview-only; never claim an actual paid entitlement.
-    location.assign('../support/?section=radio&flow=shop');
+    // A missing code never navigates away from the ONE GE Radio.
+    if(status)status.textContent='Enter your GE access code to unlock Radio.';
+    word?.focus();
   }
   // Do not tie the accepted-code animation to successful stream reconnection.
   // This runs for EVERY code that successfully redeems the Radio scope in D1.
@@ -14677,11 +14677,13 @@ Vector ${vector}. ${pair[1]}.`;
     }
   }
 
-  // Back leaves the access screen for the GE website; it never grants Radio
-  // access, restarts the finite preview, or changes the Gate deadline.
+  // Back dismisses the code overlay without leaving Radio or granting access.
   $('geGateBack')?.addEventListener('click',()=>{
     syncListening();save(true);
-    location.assign('../');
+    if(closeTimer){clearTimeout(closeTimer);closeTimer=0;}
+    gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');
+    gate.setAttribute('aria-hidden','true');
+    if(word)word.value='';
   });
   enter?.addEventListener('click',unlock);
   $('geGateNextPreview')?.addEventListener('click',()=>{
@@ -15085,7 +15087,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261114-mobile-layout-arrange-removed-v67"></script>
+<script defer src="./ge-music-v5.js?v=20261114-unified-code-radio-v68"></script>
 <style id="ge-radio-hide-manual-reload-20261108">#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
 <style id="ge-offline-readiness-20261108">

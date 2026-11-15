@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.53-20261114-ALBUM-SONG-SELECTION';
+const BUILD='GE-MUSIC-V7.54-20261114-ONE-MUSIC-ACCESS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -23,7 +23,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -2059,12 +2059,14 @@ async function redeemMusicCode(){
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
      if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(allowed)}
-     saveSelected();void loadPublished();setView('access-code');
-     say('Music code verified · ALL SONGS shown in the normal catalog order.');
+     saveSelected();void loadPublished();
+     say('Code verified. Assigned songs unlocked in the same Music screen.');
    }else{
      if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
-     setView('albums');say('Music code verified for the full library.');
+     say('Music code verified for the full library.');
    }
+   // A code changes permissions, not pages, tabs or music screen designs.
+   render();
  }catch(error){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
@@ -2089,8 +2091,7 @@ function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
 
  // Existing preview transport remains in charge; code verification alone is
  // not proof of paid-content delivery or a full-length song license.
- const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:
-   state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
+ const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:[track.path];
  // Describe what the listener actually chose, not a stale playlist label.
  // An album, saved playlist, or checked selection is shareable in its exact order.
  // The automatic PLAYER/full-song catalog is NOT a listener-created playlist.
@@ -2366,15 +2367,6 @@ function chosenSongs(){
    return [...state.selected].map(path=>lookup.get(path)).filter(Boolean);
  }
  if(state.view==='test-purchases')return state.tracks.filter(t=>testPurchasedPaths().has(t.path));
- if(state.view==='access-code'){
-  const access=musicAccessActive();if(!access)return [];
-  // In ALL SONGS use the canonical album/track catalog order. Never use the
-  // access code's assigned track insertion order, which can be playlist-first.
-  // A separately loaded playlist still uses the explicit selected-song order.
-  if(!access.restricted)return state.tracks;
-  const allowed=new Set(access.allowed);
-  return state.tracks.filter(track=>allowed.has(track.path));
- }
  if(state.view.startsWith('album:'))return state.tracks.filter(t=>t.album===state.view.slice(6));
  if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
   const isVault=state.view.startsWith('vault:');
@@ -2701,14 +2693,6 @@ function render(){
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local)userPlaylistRow(p,'user');
   if(!local.length&&!personal.length)scroller.append(elem('p','empty','Check songs under SONGS, enter a playlist name, then SAVE. Your playlist is stored in your private Fan Vault.'));
- }else if(state.view==='access-code'&&state.accessView==='playlist'){
-  breadcrumb('YOUR ASSIGNED PLAYLISTS','all');
-  const allowed=new Set(musicAccessActive()?.allowed||[]);
-  const named=state.assignedLists.filter(p=>p.songs.some(song=>allowed.has(song)));
-  for(const p of named)card(scroller,p.name,'OPEN PLAYLIST',()=>{
-   state.accessView='order';state.accessPlaylistFilter=p.id;render();scroller.scrollTop=0;
-  });
-  if(!named.length)scroller.append(elem('p','empty','Your songs were selected individually. Choose MY ORDER.'));
  }else{
   const chosen=chosenSongs();
   if(state.view==='playlist-order'&&gePlaylistEditMode){
@@ -2770,11 +2754,7 @@ function open(){
  document.body.style.setProperty('overflow','hidden','important');
  host.style.display='block';button.setAttribute('aria-expanded','true');
  window.GEMusicV5Bridge?.prepare?.();
- const access=musicAccessActive();
- if(access?.restricted){
-  state.view='access-code';
-  if(access.radioPlaylistId)state.accessPlaylistFilter=access.radioPlaylistId;
- }
+ // All coded listeners open the same MUSIC tabs as guests.
  musicAccessStatus();
  // Every MUSIC opening refreshes the authoritative GitHub inventory.
  // Do not let a previously loaded manifest hide newly uploaded songs.
@@ -3141,9 +3121,9 @@ window.addEventListener('ge-vault-music-access-updated',()=>{
  const access=musicAccessActive();
  if(access?.restricted){
   if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(access.allowed)}
-  saveSelected();state.view='access-code';
-  state.accessView='order';state.accessPlaylistFilter='';void loadPublished();
+  saveSelected();void loadPublished();
  }
+ // Access update must never switch to another Music interface.
  musicAccessStatus();if(state.open)render();
 });
 root.querySelector('[data-action=clear]').addEventListener('click',()=>{state.selected.clear();saveSelected();say('Selection cleared.');render()});
@@ -3201,7 +3181,6 @@ function shareSelection(){
     state.activePlaylist.id);
  }
  const chosen=chosenSongs();
- if(state.view==='access-code'&&chosen.length)return make('My access songs',chosen.map(t=>t.path),'selection');
  if(state.view==='checked'||state.view==='playlist-order')
   return make(state.playlistDraftName||'My selected songs',chosen.map(t=>t.path),'selection');
  if(state.open&&state.selected.size)
