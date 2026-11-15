@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.54-20261114-ONE-MUSIC-ACCESS';
+const BUILD='GE-MUSIC-V7.55-20261114-SAME-MUSIC-SONGS-TAB';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -23,7 +23,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'browse-songs',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -2026,7 +2026,7 @@ function clearMusicAccess(){
  state.musicAccess=null;
  try{sessionStorage.removeItem(musicSessionKey)}catch(_){}
  el('.musicCodeInput').value='';
- musicAccessStatus();say('Music code cleared. Guest previews remain available.');setView('albums');
+ musicAccessStatus();say('Music code cleared. Guest previews remain available.');render();
 }
 async function musicCodeRequest(body){
  const response=await fetch(musicSessionEndpoint,{
@@ -2745,7 +2745,7 @@ function open(){
  if(state.open)return;
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='albums';state.arranging=false;state.term='';
+ state.view='browse-songs';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';

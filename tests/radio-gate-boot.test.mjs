@@ -56,13 +56,9 @@ try{
   assert.equal(new URL(page.url()).pathname,canonicalUrl,'CODE Back must not navigate to another website');
   await page.click('#geMusicV5Button');
   await page.waitForFunction(()=>window.GEMusicV5?.state?.().open===true,{timeout:8000});
-  await page.evaluate(()=>{
-    // Opening SONGS is a normal UI change within the same Radio, not code routing.
-    const root=document.querySelector('#geMusicV5Host').shadowRoot;
-    root.querySelector('.geStandaloneAlbumUniverse').dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
-  });
   await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot
     ?.querySelector('[data-tab="songs"]')?.getAttribute('aria-pressed')==='true',{timeout:8000});
+  console.log('PASS: MUSIC opens normal SONGS on same Radio, without alternate CODE screen');
   const codeButton=await page.evaluate(()=>{
     const el=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.accessToggle');
     const rect=el.getBoundingClientRect();
