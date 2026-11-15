@@ -28,7 +28,7 @@ try{
   const offline=universe.querySelector('.geUniverseOfflineLaunch');
   const rect=offline.getBoundingClientRect();
   return {visible:getComputedStyle(universe).display!=='none'&&rect.width>40&&rect.height>=40,
-   button:offline.textContent.trim(),view:window.GEMusicV5.state().view};
+   button:offline.textContent.trim(),view:universe.classList.contains('isActive')?'albums':'other'};
  });
  assert.equal(albumEntry.visible,true,'ALBUMS must expose an OFFLINE button on phone');
  assert.equal(albumEntry.button,'OFFLINE');
@@ -53,7 +53,10 @@ try{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   root.querySelector('.geStandaloneAlbumUniverse').dispatchEvent(new MouseEvent('click',{bubbles:true}));
  });
- await page.waitForFunction(()=>window.GEMusicV5.state().view==='browse-songs');
+ await page.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  return !!root?.querySelector('.window.geAlbumDetailClean .albumDetailSongs[aria-pressed="true"]');
+ });
  const songEntry=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   const head=root.querySelector('.window.geAlbumDetailClean > .header');
