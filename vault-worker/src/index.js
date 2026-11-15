@@ -1,4 +1,3 @@
-import {handlePrivateMusic} from "./private-media.mjs";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -2910,6 +2909,7 @@ export default {
       // Use the existing signed, revocable D1 Music session permission checks.
       if (url.pathname === "/v1/private/music/sign" ||
           url.pathname.startsWith("/v1/private/music/file/")) {
+        const {handlePrivateMusic}=await import("./private-media.mjs");
         const response=await handlePrivateMusic(request,env,async(token,trackPath)=>{
           const verifyRequest=new Request(new URL("/v1/public/access/music-session",url.origin),{
             method:"POST",
