@@ -181,7 +181,7 @@ async function erase(){
  finally{busy(false);await inspect();status(message)}
 }
 function close(){if(running){status('Stop the download before closing.');return}surface.hidden=true;returnFocus?.focus?.()}
-function open(){returnFocus=document.activeElement;surface.hidden=false;btn('close').focus();void inspect()}
+function open(){returnFocus=document.activeElement;surface.hidden=false;btn('close').focus();if(window.GEOfflineSetup?.readiness)void window.GEOfflineSetup.readiness();else void inspect()}
 launch.addEventListener('click',open);
 surface.addEventListener('click',event=>{
  if(event.target===surface){close();return}
