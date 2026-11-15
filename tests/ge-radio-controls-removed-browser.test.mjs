@@ -16,6 +16,9 @@ try{
     document.body.classList.remove('view-ship');
     document.body.classList.add('view-player');
     if(innerWidth<700)document.body.classList.add('portrait-player');
+    sessionStorage.removeItem('GE_VAULT_SCOPED_ACCESS_V1');
+    window.GERadioSyncOfflineAccess?.();
+    const guestSunVisible=!document.getElementById('sunLabBtn').hidden;
     sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
       verifiedFor:'radio',until:Date.now()+60000,scopes:['radio','sunlab'],sunLab:true
     }));
@@ -23,13 +26,14 @@ try{
     const sun=document.getElementById('sunLabBtn'),support=document.querySelector('#geUtilityRow a.bc-btn'),offline=document.getElementById('offlineLaunchBtn');
     const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,width:r.width}};
     const forbidden=['reloadBtn','geDebugOpen','offlineBtn','geOfflineDecision','offlinePanel'];
-    return {bad:forbidden.filter(id=>document.getElementById(id)),offline:rect(offline),sun:rect(sun),support:rect(support),
+    return {bad:forbidden.filter(id=>document.getElementById(id)),guestSunVisible,grantedSunVisible:!sun.hidden,offline:rect(offline),sun:rect(sun),support:rect(support),
       code:!!document.getElementById('accessLaunchBtn'),
       radio:!!document.getElementById('liveBtn'),
       musicButton:!!document.getElementById('geMusicV5Button')};
    });
    assert.deepEqual(state.bad,[],'Old Radio controls returned: '+JSON.stringify(state));
    assert(state.code&&state.radio&&state.musicButton,'Main player controls were lost');
+   assert(state.guestSunVisible&&state.grantedSunVisible,'SUN LAB button must remain visible before and after access code');
    assert(state.sun.width>25,'Granted SUN LAB must be visible and tappable');
    assert(state.offline.right<=state.support.left+2,'OFFLINE must be left of SUPPORT: '+JSON.stringify(state));
    assert(state.support.right<=state.sun.left+2,'SUPPORT must be left of SUN LAB: '+JSON.stringify(state));
