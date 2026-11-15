@@ -189,7 +189,7 @@ surface.addEventListener('click',event=>{
  if(action==='close')close();
  if(action==='selected'||action==='all')void download(action);
  if(action==='art')void saveArt();
- if(action==='verify')void inspect();
+ if(action==='verify'&&!window.GEOfflineSetup)void inspect();
  if(action==='delete')void erase();
  if(action==='stop'){cancelled=true;abort?.abort()}
 });
