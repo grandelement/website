@@ -47,6 +47,13 @@ async function valid(cache,url){
  if(Number(item.headers.get('content-length')||0)>128)return true;
  try{return (await item.blob()).size>128}catch(_){return false}
 }
+async function anySaved(url){
+ for(const name of await caches.keys()){
+  const c=await caches.open(name);
+  if(await valid(c,url))return true;
+ }
+ return false;
+}
 async function manifest(){
  const url=new URL('./manifest.json',location.href).href;
  let r=null;
@@ -81,9 +88,9 @@ function busy(value){
 async function inspect(){
  if(!('caches'in window)){status('Browser storage is unavailable.');return}
  try{
-  const all=await manifest(),cache=await caches.open(CACHE);
+  const all=await manifest();
   let count=0;
-  for(const path of all)if(await valid(cache,fileURL(path)))count++;
+  for(const path of all)if(await anySaved(fileURL(path)))count++;
   find('geOfflineMeter').textContent=count+' of '+all.length+' published songs stored on this device';
   progress(count,all.length);
   if(!running)status('Choose songs in MUSIC, then SAVE SELECTED, or select SAVE ALL ALLOWED. Cached files do not guarantee Airplane Mode playback.');
@@ -104,7 +111,7 @@ async function download(kind){
   for(const path of target){
    if(cancelled)break;
    const url=fileURL(path);
-   if(await valid(cache,url)){done++;progress(done,target.length);continue}
+   if(await anySaved(url)){done++;progress(done,target.length);continue}
    abort=new AbortController();const timer=setTimeout(()=>abort.abort(),45000);
    try{
     const response=await fetch(url,{cache:'no-store',signal:abort.signal});
@@ -123,6 +130,7 @@ async function download(kind){
   }
  }finally{
   busy(false);
+  await bridge().rescan?.();
   status(cancelled?'Stopped. Earlier downloads were kept.':failed?failed+' songs failed. Press SAVE again to retry missing files.':'Audio stored and checked. Verify actual playback in Airplane Mode.');
  }
 }
@@ -153,12 +161,20 @@ async function erase(){
  if(!window.confirm('Delete downloaded AUDIO from this device? Your playlists, purchases and access rights stay intact.'))return;
  busy(true);
  try{
-  const cache=await caches.open(CACHE),keys=await cache.keys();let n=0;
-  for(const req of keys)if(/\/ge-music\/(?:music|clips)\//.test(new URL(req.url).pathname)){if(await cache.delete(req))n++}
+  let n=0;
+  for(const name of await caches.keys()){
+   const cache=await caches.open(name);
+   for(const req of await cache.keys()){
+    const pathname=new URL(req.url).pathname;
+    if(!/\/ge-music\/(?:music|clips)\/.*\.(mp3|m4a|ogg|wav)$/i.test(pathname))continue;
+    if(await cache.delete(req))n++;
+   }
+  }
   for(const key of ['GE_OFFLINE_PLAYABLE_V6','GE_OFFLINE_STATIONS_V6',PLAN])try{localStorage.removeItem(key)}catch(_){}
-  status('Removed '+n+' audio downloads. Playlists and permissions preserved.');
+  await bridge().rescan?.();
+  status('Removed '+n+' cached audio copies across all browser caches. Playlists and permissions preserved.');
  }catch(e){status('Delete failed: '+String(e.message||e))}
- finally{busy(false);await inspect()}
+ finally{busy(false);await inspect();status('Delete operation finished. Browser audio caches have been rechecked.')}
 }
 function close(){if(running){status('Stop the download before closing.');return}surface.hidden=true;returnFocus?.focus?.()}
 function open(){returnFocus=document.activeElement;surface.hidden=false;btn('close').focus();void inspect()}
