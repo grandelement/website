@@ -85,61 +85,59 @@ try{
  assert.equal(await page.evaluate(()=>browserWakeOnRadioTap()),false,'RADIO tap must not redirect to un-deployed 404 wake route');
  assert.equal(await page.evaluate(()=>typeof wakeBlitzFromPageVisit),'function','Radio page must attempt a browser-based wake on load');
  assert.equal(wakeLink.display,'none','Connection status must stay inside RADIO button');
- // OFFLINE is discoverable without a code, but only a Vault-verified scope
- // may start a download. The locked button must open the existing CODE gate.
- await page.waitForFunction(()=>document.querySelector('#offlineBtn')?.getAttribute('aria-disabled')==='true',{timeout:12000});
+ // OFFLINE belongs in MUSIC and must open its local CODE entry when locked.
+ // Never put OFFLINE, RELOAD or DEBUG back in the public footer.
+ await page.waitForFunction(()=>typeof window.GEMusicV5?.open==='function',{timeout:12000});
+ await page.evaluate(()=>window.GEMusicV5.open());
+ await page.waitForFunction(()=>{
+  const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
+  return !!root?.querySelector('.geMusicOfflineTrigger');
+ },{timeout:12000});
  const offline=await page.evaluate(()=>{
-  const b=document.querySelector('#offlineBtn'),style=getComputedStyle(b),box=b.getBoundingClientRect();
-  return {hidden:b.hidden,display:style.display,events:style.pointerEvents,
-    bounds:{top:box.top,bottom:box.bottom,width:box.width},
-    locked:b.getAttribute('aria-disabled'),text:b.textContent.trim()};
+  const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
+  const b=root.querySelector('.geMusicOfflineTrigger'),r=b.getBoundingClientRect();
+  return {text:b.textContent.trim(),width:r.width,hidden:b.hidden,display:getComputedStyle(b).display,
+    publicOffline:!!document.querySelector('#bottomActions > #offlineBtn'),
+    publicReload:!!document.querySelector('#geUtilityRow > #reloadBtn'),
+    publicDebug:!!document.querySelector('#geUtilityRow > #geDebugOpen')};
  });
- assert.equal(offline.hidden,false,'OFFLINE must not be hidden before code entry');
- assert.notEqual(offline.display,'none','OFFLINE must be visible to guests');
- assert.notEqual(offline.events,'none','OFFLINE must open the Gate when locked');
- assert.ok(offline.bounds.width>0 && offline.bounds.top>=0 && offline.bounds.bottom<=844,
-  'OFFLINE must fit within the iPhone viewport');
- assert.equal(offline.locked,'true','Guest OFFLINE must remain locked');
- await page.click('#offlineBtn',{timeout:12000});
- // Locked Offline now explains the missing entitlement without deleting files.
- // Its ENTER CODE choice opens the same existing Gate code-entry dialog.
- await page.waitForFunction(()=>document.querySelector('#geOfflineDecision')?.hidden===false,{timeout:8000});
- assert.equal(await page.evaluate(()=>document.querySelector('#geOfflineDecisionTitle')?.textContent),'Offline Access Required',
-  'Locked OFFLINE must show visible permission feedback');
- await page.click('#geOfflineResume',{timeout:8000});
- await page.waitForFunction(()=>document.querySelector('#geGate')?.getAttribute('aria-hidden')==='false',{timeout:8000});
- assert.equal(await page.evaluate(()=>document.querySelector('#geGate')?.classList.contains('open')),true,
-  'ENTER CODE must open the existing code entry');
- // The actual historic LOVE record is verified in the Vault unit test.
- // Simulate its returned scoped receipt here to verify responsive placement.
+ assert.equal(offline.publicOffline,false,'OFFLINE must not appear in public Radio');
+ assert.equal(offline.publicReload,false,'RELOAD must not appear in public Radio');
+ assert.equal(offline.publicDebug,false,'DEBUG must not appear in public Radio');
+ assert.ok(offline.text.includes('LOCKED'),'Guest MUSIC OFFLINE must say locked');
+ assert.ok(offline.width>0&&offline.display!=='none'&&!offline.hidden,
+  'Guest MUSIC OFFLINE must be visible and tappable');
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geMusicOfflineTrigger').click());
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.musicCodeTools')?.hidden===false,{timeout:8000});
+ assert.equal(await page.evaluate(()=>window.GEMusicV5.state()?.open),true,
+  'Locked MUSIC OFFLINE must open access code without leaving MUSIC');
+ await page.evaluate(()=>window.GEMusicV5.close());
+
+ // SUN LAB is permission gated and left of SUPPORT; both must be on one row.
  const sunLab=await page.evaluate(()=>{
   sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
    scopes:['website','radio','music','albums','games','offline','reload'],
    until:Date.now()+3600000,verifiedFor:'radio',sunLab:true
   }));
   window.GERadioSyncOfflineAccess?.();
-  const dimensions=id=>{
-   const element=document.getElementById(id),rect=element.getBoundingClientRect();
-   return {hidden:element.hidden,top:rect.top,left:rect.left,right:rect.right,width:rect.width};
+  const dims=element=>{
+   const r=element.getBoundingClientRect();
+   return {hidden:element.hidden,top:r.top,left:r.left,right:r.right,width:r.width,height:r.height};
   };
-  return {sun:dimensions('sunLabBtn'),support:dimensions('bottomActions')&&(()=>{
-   const r=document.querySelector('#bottomActions > .bc-btn').getBoundingClientRect();
-   return {top:r.top,left:r.left,right:r.right,width:r.width}})(),
-   offline:dimensions('offlineBtn')};
+  return {
+   sun:dims(document.getElementById('sunLabBtn')),
+   support:dims(document.querySelector('#geUtilityRow > .bc-btn'))
+  };
  });
  assert.equal(sunLab.sun.hidden,false,'Verified LOVE must show SUN LAB');
- assert.ok(sunLab.sun.width>0,'SUN LAB must have a clickable width');
- assert.ok(Math.abs(sunLab.sun.top-sunLab.support.top)<5 &&
-           Math.abs(sunLab.sun.top-sunLab.offline.top)<5,
-  'SUN LAB, SUPPORT, OFFLINE must be on the same row');
- assert.ok(sunLab.sun.right<=sunLab.support.left+2 &&
-           sunLab.support.right<=sunLab.offline.left+2,
-  'SUN LAB must be left of SUPPORT, and OFFLINE must be right');
+ assert.ok(sunLab.sun.width>0,'SUN LAB must be clickable');
+ assert.ok(Math.abs(sunLab.sun.top-sunLab.support.top)<5,'SUN LAB and SUPPORT should share a row');
+ assert.ok(sunLab.sun.right<=sunLab.support.left+2,'SUN LAB must be left of SUPPORT');
  const songTitle=await page.evaluate(()=>{
    window.GEInlineMusic?.beforePlay?.('FIRE · SOUL');
    return document.querySelector('#titleBtn')?.textContent?.trim();
  });
  assert.equal(songTitle,'FIRE · SOUL',
    'When a song begins the actual Album / Song title must appear above PLAY');
- console.log('PASS: Main PLAY ALL and track title, Radio 1 separation, guest OFFLINE and SUN LAB placement.');
+ console.log('PASS: Main PLAY ALL and track title, Radio 1 separation, MUSIC OFFLINE and SUN LAB placement.');
 }finally{await browser.close();}
