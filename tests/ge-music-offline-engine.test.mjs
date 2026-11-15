@@ -158,3 +158,17 @@ test('saving new checked selection never deletes an earlier downloaded selection
  assert.equal(await h.has(songs[2]),true);
  assert.deepEqual([...h.engine.plan()], [songs[0],songs[2]]);
 });
+
+test('MUSIC OFFLINE only displays a percent, ETA and one progress bar',()=>{
+ const ui=readFileSync('radio/ge-music-v5.js','utf8');
+ const start=ui.indexOf('<section class="geOfflineWorkspace"');
+ const end=ui.indexOf('</section>',start);
+ const panel=ui.slice(start,end);
+ assert.match(panel,/class="geOfflinePercent">0%/);
+ assert.match(panel,/class="geOfflineEta">ETA: /);
+ assert.equal((panel.match(/class="geOfflineProgress"/g)||[]).length,1);
+ assert.match(ui,/document\.getElementById\('offlineLaunchBtn'\)\?\.addEventListener\('click',openOffline\)/);
+ const uiLogic=ui.slice(ui.indexOf('function offlineMissingSummary('),ui.indexOf("el('.musicOfflineLaunch').addEventListener('click',openOffline)"));
+ assert.doesNotMatch(uiLogic,/result\.saved\+'\/'\+result\.total|Saving '\+event\.completed|result\.missing\.length\+' songs'/);
+ assert.match(uiLogic,/offlineEta\.textContent/);
+});
