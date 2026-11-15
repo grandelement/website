@@ -77,10 +77,10 @@ async function prepare(input){
      return true;
     }
    }
-   // Fetches the song already saved by OFFLINE. It never taps or changes the
-   // audible player, which must remain the sole media element on iPhone.
-   const source=await fetch(url,{cache:'force-cache'});
-   if(!source.ok)throw Error('Audio file unavailable for local analysis');
+   // Use only the locally stored recording; never re-download it or touch
+   // the audible iPhone media element while computing visual frequencies.
+   const source=await caches.match(url,{ignoreSearch:true});
+   if(!source?.ok||/text\/html|application\/json/i.test(source.headers.get('content-type')||''))throw Error('Save the song to enable local analysis');
    const bytes=await source.arrayBuffer();
    if(bytes.byteLength>28*1024*1024)throw Error('Large recording: visual analysis unavailable');
    const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
