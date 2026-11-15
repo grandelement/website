@@ -11,6 +11,11 @@ try{
    await page.waitForFunction(()=>document.getElementById('sunLabBtn')&&
      document.getElementById('playBtn')&&window.GEMusicV5?.open,{timeout:16000});
    const state=await page.evaluate(()=>{
+    // Use a test-only unexpired scoped receipt to verify SUN LAB placement.
+    sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+      verifiedFor:'radio',until:Date.now()+60000,scopes:['radio','sunlab'],sunLab:true
+    }));
+    window.GERadioSyncOfflineAccess?.();
     const sun=document.getElementById('sunLabBtn'),support=document.querySelector('#geUtilityRow a.bc-btn');
     const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,width:r.width}};
     const forbidden=['reloadBtn','geDebugOpen','offlineBtn','geOfflineDecision','offlinePanel'];
@@ -21,6 +26,7 @@ try{
    });
    assert.deepEqual(state.bad,[],'Old Radio controls returned: '+JSON.stringify(state));
    assert(state.code&&state.radio&&state.musicButton,'Main player controls were lost');
+   assert(state.sun.width>25,'Granted SUN LAB must be visible and tappable');
    assert(state.sun.right<=state.support.left+2,'SUN LAB must appear left of SUPPORT: '+JSON.stringify(state));
    assert(Math.abs(state.sun.top-state.support.top)<5,'SUN LAB and SUPPORT must be on same line');
    await page.evaluate(()=>window.GEMusicV5.open());
