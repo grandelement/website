@@ -7,7 +7,7 @@ const PLAN='GE_RADIO_OFFLINE_PLAN_V1',ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
 const SONG=/^ge-music\/music\/.+\.(mp3|wav|m4a|ogg)$/i;
 const STATION=/^ge-music\/clips\/GE Station Identification - \d+\.(mp3|wav|m4a|ogg)$/i;
 const ALBUMS=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
-const workerVersion='2026.11.15-offline-music-v117';
+const workerVersion='2026.11.15-offline-music-v118';
 let busy=false,stopRequested=false,abort=null;
 const bridge=()=>window.GERadioOfflineBridge||{};
 const active=()=>{try{return localStorage.getItem(ACTIVATED)==='yes'}catch(_){return false}};
