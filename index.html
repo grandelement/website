@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- GE_SITE_HOME_BUILD_20261114_CANONICAL_V1 -->
 <!--
 GE CONSOLIDATED MASTER — 2026-09-16
 Revision scope begins with: New Game must preserve the selected game / players / controls.
@@ -106,7 +107,7 @@ Preserve together:
   const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
   const touch=Number(navigator.maxTouchPoints||0)>0;
   const shortSide=Math.min(Number(screen.width)||9999,Number(screen.height)||9999);
-  const phoneHardware=shortSide<=600&&(mobileUA||macUA&&touch||typeof navigator.standalone==='boolean');
+  const phoneHardware=shortSide<=600; // Physical phone size wins over spoofed desktop Safari UA.
   const tabletHardware=touch&&macUA&&shortSide<=1100;
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
   let preference='auto';
@@ -120,34 +121,41 @@ Preserve together:
       if(saved==='mobile'||saved==='desktop')preference=saved;
     }
   }catch(_){}
-  const layout=preference==='auto'?
-    (phoneHardware||tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
+  const layout=phoneHardware?'mobile':preference==='auto'?
+    (tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
   const html=document.documentElement;
   html.dataset.geDeviceLayout=layout;
   html.dataset.geDevicePreference=preference;
   html.classList.toggle('ge-mobile-device',layout==='mobile');
   html.classList.toggle('ge-desktop-device',layout==='desktop');
   // Virtual desktop rendering is an OPT-IN, never a Safari user-agent guess.
-  const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
+  const requestedDesktop=preference==='desktop'&&!phoneHardware&&tabletHardware;
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
   const viewport=document.querySelector('meta[name="viewport"]');
   function applyViewport(){
     if(!viewport)return;
-    if(requestedDesktop){
+    if(requestedDesktop&&!phoneHardware){
       viewport.content='width=1160,initial-scale=1,viewport-fit=cover';
     }else if(layout==='mobile'&&phoneHardware){
       // Safari's "Request Desktop Website" can use a Macintosh user-agent
       // and desktop CSS width even on an iPhone. Use its real screen width.
-      const w=Number(screen.width)||390,h=Number(screen.height)||844;
-      const landscape=window.matchMedia?.('(orientation: landscape)').matches===true;
-      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
-      viewport.content='width='+width+',initial-scale=1,viewport-fit=cover';
+      // Follow Safari's current visual viewport on rotation. Physical screen
+      // dimensions can be stale or swapped during iOS orientation changes.
+      viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }else{
       viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }
   }
   applyViewport();
-  window.addEventListener?.('orientationchange',applyViewport,{passive:true});
+  window.addEventListener?.('orientationchange',()=>{
+    applyViewport();
+    // Rotation can preserve the old landscape horizontal scroll offset.
+    // Recenter the radio UI after Safari settles its new viewport.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(html.classList.contains('ge-radio-ui')&&layout==='mobile'&&window.scrollX!==0)window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
+    }));
+  },{passive:true});
+  window.addEventListener?.('resize',applyViewport,{passive:true});
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},
@@ -163,21 +171,17 @@ Preserve together:
 })();
 </script>
 <script>try{window.GE_A11Y_ZOOM=localStorage.getItem('GE_ACCESS_ZOOM_V1')==='1'}catch(_e){window.GE_A11Y_ZOOM=false}</script>
-<script>
+<script id="ge-lite-mode-explicit-only">
+/* Avoid unexpected alternate Radio UI on slow links, low-memory phones, or stale user agents.
+   Keep the accessible lite page available ONLY by explicit ?lite=1 request. */
 (function(){
   try{
-    var q=(window.location.search||'').toLowerCase();
-    if(q.indexOf('full=1')!==-1)return;
-    var lite=q.indexOf('lite=1')!==-1;
-    if(!lite){
-      try{new Function('var a={b:1};return a?.b;');}catch(e){lite=true;}
+    var url=new URL(window.location.href);
+    if(url.searchParams.get('lite')==='1'&&url.searchParams.get('full')!=='1'&&
+       window.location.pathname.indexOf('/lite/')===-1){
+      window.location.replace('/lite/?mode=manual');
     }
-    if(!lite&&window.screen&&screen.width&&screen.width<=280)lite=true;
-    var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-    if(!lite&&c&&(c.saveData||c.effectiveType==='slow-2g'||c.effectiveType==='2g'))lite=true;
-    if(!lite&&typeof navigator.deviceMemory==='number'&&navigator.deviceMemory<=1)lite=true;
-    if(lite&&window.location.pathname.indexOf('/lite/')===-1)window.location.replace('/lite/');
-  }catch(e){}
+  }catch(_e){}
 })();
 </script>
 <title>Grand Element (Official Site) - Welcome!</title>

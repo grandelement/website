@@ -1,8 +1,8 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.10-offline-fixes-v106';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
+const VERSION='2026.11.14-canonical-recovery-v107';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261114_CANONICAL_UTILITIES_V3';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -148,14 +148,13 @@ async function rangeFromCache(request,response){
 
 async function offlineNavigationFallback(){
   const shell=await caches.open(SHELL_CACHE);
+  // Current release only. Older Radio HTML must never reappear after an outage.
   const candidates=[
     await shell.match('./index.html',{ignoreSearch:true}),
-    await shell.match('./',{ignoreSearch:true}),
-    await caches.match('./index.html',{ignoreSearch:true}),
-    await caches.match('./',{ignoreSearch:true})
+    await shell.match('./',{ignoreSearch:true})
   ];
   for(const candidate of candidates){
-    if(candidate && await isValidRadioHTML(candidate)) return candidate;
+    if(candidate && await isValidRadioHTML(candidate,{requireCurrent:true})) return candidate;
   }
   return new Response('Grand Element Radio needs to be opened once online to repair its offline app.',{
     status:503,
@@ -174,7 +173,8 @@ async function secondaryPageNavigationResponse(request){
     }
     return response;
   }catch(_error){
-    const cached=await cachedResponse(request);
+    const current=await caches.open(SHELL_CACHE);
+    const cached=await current.match(request,{ignoreSearch:true});
     if(cached)return cached;
     return new Response('Music selection is unavailable offline until opened online.',{
       status:503,
@@ -276,7 +276,9 @@ async function staticResponse(request){
     }
     if(response.status!==503 && response.status!==504)return response;
   }catch(_e){}
-  const cached=await cachedResponse(request);
+  // Only use assets from the current shell, not stale legacy app caches.
+  const current=await caches.open(SHELL_CACHE);
+  const cached=await current.match(request,{ignoreSearch:true});
   if(cached)return cached;
   return new Response('Radio app file unavailable offline',{status:503});
 }

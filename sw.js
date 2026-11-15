@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109';
+const SITE_SHELL='GE_SITE_SHELL_V8_CANONICAL_20261114';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -12,7 +12,8 @@ async function validHomepage(response){
   if(!response||!response.ok)return false;
   try{
     const html=await response.clone().text();
-    return html.includes('<html') && html.includes('id="offlinePanel"') &&
+    return html.includes('GE_SITE_HOME_BUILD_20261114_CANONICAL_V1') &&
+      html.includes('<html') && html.includes('id="offlinePanel"') &&
       html.includes('id="gameOfflineBtn"') && html.includes('</html>');
   }catch(_){return false;}
 }
@@ -21,6 +22,10 @@ async function fromAnyCache(request){
   const current=await caches.open(SITE_SHELL);
   const direct=await current.match(request,{ignoreSearch:true});
   if(direct)return direct;
+  // Never resurrect an older UI document or executable from another cache.
+  // Independently downloaded music and artwork remain available offline.
+  const url=new URL(request.url);
+  if(request.mode==='navigate'||/\.(?:html?|js|css|json|webmanifest)$/i.test(url.pathname))return null;
   return (await caches.match(request,{ignoreSearch:true}))||null;
 }
 function offlineRecovery(){
@@ -33,7 +38,8 @@ async function installShell(){
   // The page may respond 200 with an incomplete deploy; never install that
   // as the offline application. Validate its core UI and recovery bootstrap.
   const html=await response.clone().text();
-  if(!html.includes('id="offlinePanel"')||
+  if(!html.includes('GE_SITE_HOME_BUILD_20261114_CANONICAL_V1')||
+     !html.includes('id="offlinePanel"')||
      !html.includes('ge-offline-boot-recovery-v1')||
      !html.includes('id="gameOfflineBtn"')){
     throw new Error('Grand Element homepage is incomplete; retaining previous offline worker');
@@ -50,7 +56,13 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{await installShell();await self.skipWaiting()})());
 });
 self.addEventListener('activate',event=>{
-  event.waitUntil((async()=>{await self.clients.claim()})());
+  event.waitUntil((async()=>{
+    const names=await caches.keys();
+    // Shells contain UI snapshots. Keep the separately downloaded music library.
+    await Promise.all(names.filter(name=>name.startsWith('GE_SITE_SHELL_')&&name!==SITE_SHELL)
+      .map(name=>caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 
 function acceptableAsset(url){
@@ -121,15 +133,8 @@ async function verifiedHome(){
     const r=await current.match(key,{ignoreSearch:true});
     if(await validHomepage(r))return r;
   }
-  // During migration, recover a known-good older cached shell.
-  const keys=await caches.keys();
-  for(const name of keys.filter(n=>n.startsWith('GE_SITE_SHELL_')||n==='GE_SHARED_OFFLINE_V2').reverse()){
-    const cache=await caches.open(name);
-    for(const key of [HOME.href,HOME_INDEX.href]){
-      const r=await cache.match(key,{ignoreSearch:true});
-      if(await validHomepage(r))return r;
-    }
-  }
+  // Do not open obsolete home pages from previous releases.
+
   return null;
 }
 async function asset(request,url){

@@ -35,6 +35,26 @@ const dj=read('radio/ge-dj.html');
 const radio=read('radio/index.html');
 const siteSW=read('sw.js');
 const radioSW=read('radio/sw.js');
+assert(home.includes('GE_SITE_HOME_BUILD_20261114_CANONICAL_V1'),'Canonical home build marker missing');
+assert(radio.includes('GE_RADIO_UI_BUILD_20261114_CANONICAL_UTILITIES_V3'),'Canonical Radio build marker missing');
+assert(siteSW.includes('GE_SITE_SHELL_V8_CANONICAL_20261114'),'New website cache version missing');
+assert(radioSW.includes('2026.11.14-canonical-recovery-v107'),'New Radio cache version missing');
+assert(!home.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in home');
+assert(!radio.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in Radio');
+function deviceDetector(html){
+  const tag='<script id="ge-safari-request-website-mode">';
+  const begin=html.indexOf(tag);
+  if(begin<0)return '';
+  const end=html.indexOf('</script>',begin+tag.length);
+  return end<0?'':html.slice(begin+tag.length,end);
+}
+assert(deviceDetector(home) && deviceDetector(home)===deviceDetector(radio),
+  'Home and Radio must use the same device-view contract');
+
+assert(!radioSW.includes("await caches.match('./index.html',{ignoreSearch:true})"),'Legacy Radio HTML cache fallback must not return');
+assert(radioSW.includes('isValidRadioHTML(candidate,{requireCurrent:true})'),'Radio offline backup must validate the current build');
+assert(!siteSW.includes('During migration, recover a known-good older cached shell'),'Old home recovery must not resurrect obsolete pages');
+
 const continuity=JSON.parse(read('operations/service-register.json'));
 const published=JSON.parse(read('config/site-live.json'));
 const manifest=JSON.parse(read('radio/manifest.json'));
@@ -64,7 +84,8 @@ assert(!backroom.includes('async async function'),'Duplicate async regression de
 assert(backroom.includes('GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1'),'Published config fallback missing');
 assert(backroom.includes("if(serverAuthenticated)backroomVaultManagers.init()"),'Private Vault must not auto-initialize for local editor');
 assert(home.includes('ge-merch-random-scheduler'),'Merchandise random scheduler missing');
-assert(home.includes('45000+Math.random()*30000'),'Merchandise spacing must be 45–75 seconds');
+assert(home.includes('bounded(cfg.entryMinSeconds,45)') && home.includes('bounded(cfg.entryMaxSeconds,75)'),
+  'Merchandise scheduler default interval must remain 45–75 seconds');
 assert(home.includes('--ge-merch-factor:.5625'),'Reduced hat size missing');
 assert(home.includes('ge-merch-flying'),'Merchandise flyby animation hook missing');
 assert(!home.includes('.workers.dev'),'Public homepage must not require a Cloudflare Worker URL');
@@ -79,7 +100,7 @@ assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in boun
 assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
 assert(home.includes('ge-vault-client.js?v=20261112-emergency-fan-tracking-v4'),'Website must load approved Vault client');
 assert(vault.includes('GE_EVENT_COOLDOWN_KEY'),'Vault retry backoff must persist across page reloads');
-assert(siteSW.includes('GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109'),'Current website shell cache key missing');
+assert(siteSW.includes('GE_SITE_SHELL_V8_CANONICAL_20261114'),'Current website shell cache key missing');
 for(const file of ['ge-vault-client.js','config/site-live.json','radio/manifest.json','radio/ge-home-gate-stop.js','ge-dream.js'])
   assert(siteSW.includes('./'+file),'Public offline core asset missing: '+file);
 assert(siteSW.includes("relative.startsWith('backroom/')"),'Owner Back Room must not be served from public offline cache');
@@ -87,6 +108,7 @@ assert(siteSW.includes('response.status>=500'),'Hosting outage cache fallback mi
 assert(radio.includes('GE_RADIO_AUTO_CATALOG_CHECK_V1'),'Radio must throttle optional external GitHub catalog API');
 assert(radio.includes('Date.now()-lastChecked<6*60*60*1000'),'Radio catalog API throttle changed');
 assert(radio.includes('loadMusicManifest('),'Radio must retain static music manifest fallback');
+assert(!radio.includes(".slice(-2,-1)[0].toLowerCase()"),'Radio album labels must handle folderless paths without crashing');
 assert(radioSW.includes('const MEDIA_CACHE='),'Downloaded radio media preservation missing');
 assert(continuity.schemaVersion===1&&continuity.designRules.baseWebsiteRequiresBackend===false,
   'Ten-year continuity service register schema invalid');
