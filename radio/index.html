@@ -10246,14 +10246,14 @@ async function registerServiceWorker(){
     const message=String(text?.textContent||'').trim();
     if(message&&selectedOfflinePaths)reportMusicOffline(message);
   }).observe(text,{childList:true,characterData:true,subtree:true});
-  // MUSIC and Radio share this one offline cache/download controller.
+  // Internal MUSIC requests must bypass the Radio shortcut and reach the single downloader.\n  let geMusicOfflineInternalRequest=false;\n  const dispatchMusicOfflineDownload=()=>{\n    geMusicOfflineInternalRequest=true;\n    try{button.click();}finally{geMusicOfflineInternalRequest=false;}\n  };\n  // MUSIC and Radio share this one offline cache/download controller.
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_ALL')return;
     if(button.classList.contains('downloading')||button.disabled){
       reportMusicOffline('An offline operation is already running.');return;
     }
     selectedOfflinePaths=null;
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   // The Music library can request a smaller checked-song download.
   window.addEventListener('message',event=>{
@@ -10269,7 +10269,7 @@ async function registerServiceWorker(){
     if(!wanted.size)return;
     selectedOfflinePaths=wanted;
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
@@ -11384,6 +11384,7 @@ async function registerServiceWorker(){
   // The Radio OFFLINE shortcut only navigates to the Music download manager.
   // Capture before the legacy downloader handler so it never starts a second job.
   button.addEventListener('click',event=>{
+    if(geMusicOfflineInternalRequest)return;
     if(button.classList.contains('downloading'))return;
     event.stopImmediatePropagation();
     const musicButton=$('geMusicV5Button');
