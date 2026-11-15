@@ -7,6 +7,8 @@
 - `ge-music-v5.js` owns presentation, the four choices, progress and STOP.
 - `offline-manager.js` owns permitted download planning, saved-file checks, retry, song caching, station IDs, art and offline readiness. It owns no screen and cannot change purchases, playlists or codes.
 - `sw.js` owns offline startup shell and byte-range delivery; it never invalidates downloaded MP3s on an interface update.
+- Required package: published authorized songs selected in MUSIC, 8 station ID clips, the Radio shell (player, scripts, catalog and playlists), 12 album covers, the GE logo, and the default 31.gif background. Download the essential graphics once; do not fetch the entire 200+ MiB decorative GIF gallery.
+- READY requires verified cache entries for songs, station IDs, essential graphics, and startup shell. Report individual missing categories as PARTIAL, not READY. Browser checks cannot establish iPhone physical persistence.
 
 ## iPhone listener flow
 
