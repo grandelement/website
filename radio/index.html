@@ -5361,8 +5361,6 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="shipOwnerActions">
     <button id="shipSunLabBtn" type="button" hidden>SUN LAB</button>
     <button id="shipGateTestBtn" type="button" hidden>TEST GATE</button>
-    <button data-proxy="offlineBtn" type="button" aria-label="Manage offline music or enter a code">OFFLINE</button>
-    <button data-proxy="reloadBtn" hidden>Reload Library</button>
   </div>
 
   <section id="shipArrivalContact" aria-live="polite" aria-label="Inner horizon reflection">
@@ -5603,7 +5601,6 @@ document.addEventListener('DOMContentLoaded',function(){
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="offlineBtn" type="button" aria-hidden="false">OFFLINE</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <button id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE</button>
@@ -5611,11 +5608,15 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="installBtn">Install App</button>
   </div>
   <div id="geUtilityRow" aria-label="Radio utility controls">
-    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
-    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="sunLabBtn" type="button">SUN LAB</button>
+    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
+  <!-- Internal controllers stay in the DOM for the MUSIC tools, not the visible player. -->
+  <div id="geRadioInternalControls" hidden aria-hidden="true" style="display:none!important">
+    <button id="offlineBtn" type="button" hidden aria-hidden="true" tabindex="-1">OFFLINE</button>
+    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
+  </div>
   <div id="offlinePanel">
     <div id="offlineBarTrack"><div id="offlineBar"></div></div>
     <div id="offlineText" role="status" aria-live="polite"></div>
@@ -8058,6 +8059,8 @@ function geRadioIAMAllowed(){
   }catch(_){return false}
 }
 window.GERadioIAMAllowed=geRadioIAMAllowed;
+window.GERadioReloadAllowed=()=>geRadioUtilityAllowed('reload');
+window.GERadioDebugAllowed=()=>geRadioUtilityAllowed('debug');
 function syncRadioOfflineAccessUI(){
   const localTest=geRadioLocalTestAccess();
   const permissions={offline:geRadioUtilityAllowed('offline'),
@@ -8077,9 +8080,9 @@ function syncRadioOfflineAccessUI(){
   // Keep OFFLINE visible even when locked; click opens existing code notice.
   const offlineButton=$('offlineBtn');
   if(offlineButton){
-    offlineButton.hidden=false;
-    offlineButton.setAttribute('aria-hidden','false');
-    offlineButton.tabIndex=0;
+    offlineButton.hidden=true;
+    offlineButton.setAttribute('aria-hidden','true');
+    offlineButton.tabIndex=-1;
     offlineButton.classList.toggle('ge-offline-locked',!permissions.offline);
     offlineButton.setAttribute('aria-disabled',String(!permissions.offline));
     offlineButton.setAttribute('aria-label',permissions.offline?
@@ -8087,8 +8090,8 @@ function syncRadioOfflineAccessUI(){
     offlineButton.title=permissions.offline?'Manage offline music':'Enter an access code to unlock OFFLINE';
     if(!offlineButton.classList.contains('downloading'))offlineButton.textContent='OFFLINE';
   }
-  // Restore Reload Library for access codes with reload permission.
-  setUtility($('reloadBtn'),geRadioUtilityAllowed('reload')); // Verified Reload scope.
+  // RELOAD remains callable only from the verified MUSIC owner tool.
+  setUtility($('reloadBtn'),false);
   setUtility($('legacyBtn'),permissions.legacy);
   // SUN LAB is a scoped utility, not a public button shown to everyone.
   const sunLabUtility=$('sunLabBtn');
@@ -8098,7 +8101,8 @@ function syncRadioOfflineAccessUI(){
     sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open Sun Lab':'Sun Lab requires an access code');
     sunLabUtility.title=permissions.sunLab?'Open Sun Lab':'Enter CODE to unlock Sun Lab';
   }
-  setUtility($('geDebugOpen'),geRadioUtilityAllowed('debug'));
+  // DEBUG's launcher is internal; the owner enters through MUSIC.
+  setUtility($('geDebugOpen'),false);
   if(!geRadioUtilityAllowed('debug')){const panel=$('geDebugPanel');if(panel)panel.hidden=true;}
   setUtility($('iamLaunchRow'),permissions.iam);
   // A previously opened I AM studio never persists after a permission loss.
@@ -15521,7 +15525,7 @@ function mount(){
  var status=document.createElement('p');status.textContent='Opening the panel runs delivery tests.';
  var report=document.createElement('textarea');report.readOnly=true;report.setAttribute('aria-label','Copyable radio diagnostics report');
  panel.append(title,note,tools,status,report);
- (()=>{const utilities=document.getElementById('geUtilityRow');if(utilities)utilities.appendChild(open);else document.body.appendChild(open);})();
+ (()=>{const internal=document.getElementById('geRadioInternalControls');(internal||document.body).appendChild(open);})();
  document.body.appendChild(panel);
  ui={panel:panel,open:open,status:status,report:report,service:null};
  if(typeof syncRadioOfflineAccessUI==='function')syncRadioOfflineAccessUI();
@@ -15541,11 +15545,11 @@ else mount();
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 <style id="ge-radio-footer-layout">
 
-/* Only owner of the RELOAD / SUPPORT / SUN LAB arrangement.
-   Permission visibility comes exclusively from syncRadioOfflineAccessUI. */
+/* Permanent front utility layout: SUN LAB | SUPPORT only.
+   Internal RELOAD, DEBUG and OFFLINE controllers live outside this dock. */
 html body.view-player #geUtilityRow {
   display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
   grid-template-rows:minmax(42px,auto)!important;
   grid-auto-flow:row!important;
   align-items:stretch!important;
@@ -15598,7 +15602,7 @@ html body.view-player #geUtilityRow > .bc-btn {
   border:1px solid #fa805c!important;
 }
 html body.view-player #geUtilityRow > #sunLabBtn {
-  grid-column:3!important;
+  grid-column:1!important;
   background:rgba(9,34,68,.83)!important;
   border:1px solid #67b8e5!important;
 }
@@ -15647,6 +15651,7 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
    padding:0!important;border:0!important;
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
  }
  /* First row: CODE | CONTACT | SHARE */
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
@@ -15658,7 +15663,7 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{
    grid-area:1 / 3 / 2 / 4!important;
  }
- /* Second row: RELOAD | SUPPORT | SUN LAB */
+ /* Second row: SUN LAB | SUPPORT (owner utilities are in MUSIC) */
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #reloadBtn{
    grid-area:1 / 1 / 2 / 2!important;
  }
@@ -15666,7 +15671,7 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
    grid-area:1 / 2 / 2 / 3!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn{
-   grid-area:1 / 3 / 2 / 4!important;
+   grid-area:1 / 1 / 2 / 2!important;
  }
  /* Bottom row: DEBUG alone, directly under RELOAD */
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #geDebugOpen:not([hidden]){
