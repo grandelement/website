@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.15-offline-ready-v114';
+const VERSION='2026.11.15-offline-ready-v115';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -131,11 +131,11 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const names=await caches.keys();
-    await Promise.all(
-      names
-        .filter(name=>name.startsWith('ge-radio-shell-') && name!==SHELL_CACHE)
-        .map(name=>caches.delete(name))
-    );
+    // Preserve the most recent previous shell as a recovery copy. Audio and
+    // artwork caches are not touched. Never erase every known working startup.
+    const previous=names.filter(name=>name.startsWith('ge-radio-shell-')&&name!==SHELL_CACHE);
+    const keepPrevious=previous.at(-1);
+    await Promise.all(previous.filter(name=>name!==keepPrevious).map(name=>caches.delete(name)));
     await self.clients.claim();
   })());
 });
