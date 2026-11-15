@@ -3054,7 +3054,7 @@ window.addEventListener('message',event=>{
  const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
  geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
  geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
- const remaining=String(p.remaining||'').trim().replace(/\\s+left$/i,'');
+ const remaining=String(p.remaining||'').trim().replace(/\s+left$/i,'');
  geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=remaining.length<=18?remaining:'';
  geOfflineMeter.querySelector('.geMusicOfflineRate').textContent=String(p.rate||'').slice(0,16);
  geOfflineMeter.querySelector('.geMusicOfflineComet').style.left=percent+'%';
