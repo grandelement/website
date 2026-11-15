@@ -109,11 +109,12 @@ async function readiness({quiet=false}={}){
   try{if(await manager.anySaved(manager.fileURL(path)))saved++}catch(_){}
  }
  const installed=!isIOS()||isInstalled();
- const ready=!!shell.ready&&planned.length>0&&saved===planned.length&&active()&&installed;
- const result={ready,engine:!!shell.ready,saved,total:planned.length,missing:shell.missing||[],installed};
+ const stations=await stationStatus();
+ const ready=!!shell.ready&&planned.length>0&&saved===planned.length&&stations.total>0&&stations.saved===stations.total&&active()&&installed;
+ const result={ready,engine:!!shell.ready,saved,total:planned.length,stations,missing:shell.missing||[],installed};
  updateInstallLine();
  find('geOfflineMeter').textContent=(ready?'READY FOR OFFLINE':'NOT FULLY READY')+
-  ' · ENGINE '+(shell.ready?'OK':'MISSING')+' · MUSIC '+saved+'/'+planned.length;
+  ' · ENGINE '+(shell.ready?'OK':'MISSING')+' · MUSIC '+saved+'/'+planned.length+' · STATION IDs '+stations.saved+'/'+stations.total;
  find('geOfflineProgress').max=Math.max(1,planned.length);find('geOfflineProgress').value=saved;
  if(!quiet)say(ready?
   'Engine and planned recordings are saved. Test by closing the app, enabling Airplane Mode, then opening the Home Screen icon and playing music.':
@@ -122,6 +123,46 @@ async function readiness({quiet=false}={}){
   (saved===planned.length&&planned.length?'':'Missing saved recordings. ')+
   'Your existing files are preserved.');
  return result;
+}
+async function publishedStations(){
+ try{
+  const url=new URL('./manifest.json',location.href).href;
+  let response=await caches.match(url,{ignoreSearch:true});
+  if(!response?.ok&&online())response=await fetch(url,{cache:'no-store'});
+  if(!response?.ok)return [];
+  const data=await response.json();
+  return (Array.isArray(data.files)?data.files:[]).filter(p=>
+    typeof p==='string'&&/^ge-music\/clips\/GE Station Identification - \d+\.(m4a|mp3|wav|ogg)$/i.test(p));
+ }catch(_){return []}
+}
+async function stationStatus(){
+ const clips=await publishedStations();let saved=0;
+ for(const path of clips)if(await manager.anySaved(manager.fileURL(path)))saved++;
+ return {saved,total:clips.length};
+}
+async function saveStations(){
+ const list=await publishedStations(),cache=await caches.open('ge-radio-media-v4');
+ let saved=0,failed=0;
+ for(const path of list){
+  if(stopping)break;
+  const url=manager.fileURL(path);
+  if(await manager.anySaved(url)){saved++;continue}
+  try{
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+   let response;
+   try{response=await fetch(url,{cache:'no-store',signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   if(!response.ok||response.status!==200||/text\/html|application\/json/i.test(response.headers.get('content-type')||''))throw Error('Invalid station clip');
+   const blob=await response.blob();
+   if(blob.size<=128)throw Error('Empty station clip');
+   const headers=new Headers(response.headers);headers.set('Content-Length',String(blob.size));
+   await cache.put(url,new Response(blob,{status:200,headers}));
+   if(!(await manager.anySaved(url)))throw Error('Station clip not stored');
+   saved++;
+  }catch(_){failed++}
+ }
+ try{await bridge().rescan?.()}catch(_){}
+ return {saved,failed,total:list.length};
 }
 async function backgrounds(){
  const manifestURL=new URL('../ge-images/img/manifest.json',location.href).href;
@@ -173,6 +214,8 @@ async function prepareAll(){
   if(!shell.ready){say('Engine incomplete: '+shell.missing.slice(0,5).join(', ')+'. Reopen Radio online to activate the new startup engine.');return}
   await manager.download('all');
   if(stopping)return;
+  await saveStations();
+  if(stopping)return;
   await manager.saveArt();
   if(stopping)return;
   const bg=await backgrounds();
@@ -189,6 +232,7 @@ async function repairAll(){
   if(!requireInstalled()||!permission())return;
   const reg=await worker();await reg.update().catch(()=>{});
   await manager.download('all');
+  await saveStations();
   const after=await readiness({quiet:true});
   say(after.ready?'REPAIR COMPLETE. Ready for Airplane Mode testing.':
    'Repair incomplete: '+after.saved+'/'+after.total+' songs; engine '+(after.engine?'OK':'missing')+'.');
@@ -204,6 +248,7 @@ async function update(){
   if(wanted.length&&hasPermission()&&requireInstalled()){
    // Existing files are skipped; newly published songs are saved without deleting anything.
    await manager.download('all');
+   await saveStations();
   }
   if(!hasPermission()&&wanted.length){
    say('App updates checked. Existing songs are safe. CODE is needed only to download new tracks.');
