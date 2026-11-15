@@ -64,7 +64,28 @@ try{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
      return window.GEMusicV5?.state?.().open===true&&!root?.querySelector('.window.geOfflineOpen');
    },{timeout:8000});
+   // The compact MUSIC strip is a second trigger for this same workspace.
+   const mini=await page.evaluate(()=>{
+     const root=document.getElementById('geMusicV5Host').shadowRoot;
+     const bar=root.querySelector('.geOfflineMiniBar');
+     const button=bar?.querySelector('.geOfflineMiniButton');
+     const percent=bar?.querySelector('.geOfflineMiniPercent');
+     const eta=bar?.querySelector('.geOfflineMiniETA');
+     return {visible:!!bar&&bar.getBoundingClientRect().height>0,
+       button:button?.textContent.trim(),height:button?.getBoundingClientRect().height,
+       percent:percent?.textContent,eta:eta?.textContent};
+   });
+   assert(mini.visible,'Compact MUSIC offline strip must appear above the selection footer');
+   assert.equal(mini.button,'OFFLINE');
+   assert(mini.height<40,'Compact shortcut must not enlarge the selection footer');
+   assert.match(mini.percent,/^\\d+%$/);
+   assert.match(mini.eta,/^(?:--|\\d\\d):\\d\\d$/);
    await page.evaluate(()=>{
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineMiniButton').click();
+   });
+   await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host')?.shadowRoot.querySelector('.window.geOfflineOpen'),{timeout:8000});
+   await page.evaluate(()=>{
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineBack').click();
      document.getElementById('geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').click();
    });
    await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host')?.shadowRoot.querySelector('.window.geOfflineOpen'),{timeout:8000});
