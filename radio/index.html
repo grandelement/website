@@ -8481,9 +8481,13 @@ function geInlineMusicInit(){
       geBackgroundOnConfirmedSong('player',geInlineMusicCurrentPath||geInlineMusicTitle);
       window.GEMusicV5?.reportPlayback?.('PLAYING · '+geInlineMusicTitle);
     }else if(data.type==='ge-radio-music-gate'){
-      geInlineMusicGateAutoOpened=!geInlineMusicPanel.classList.contains('ge-open');
-      geInlineMusicPanel.classList.add('ge-gate-active');
-      geInlineMusicShow(true);
+      // Do not expose the embedded preview document as another Radio website.
+      // Audio stays protected by its 33:33 Gate; input uses existing Music CODE.
+      geInlineMusicGateAutoOpened=false;
+      geInlineMusicPanel.classList.remove('ge-gate-active');
+      geInlineMusicHide();
+      window.GEMusicV5?.openCodeEntry?.();
+      setStatus('Music preview complete. Enter a Music access code to continue.');
     }else if(data.type==='ge-radio-music-gate-clear'){
       geInlineMusicPanel.classList.remove('ge-gate-active');
       if(geInlineMusicGateAutoOpened)geInlineMusicHide();
@@ -15087,7 +15091,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261114-one-music-songs-v69"></script>
+<script defer src="./ge-music-v5.js?v=20261114-one-music-gate-v70"></script>
 <style id="ge-radio-hide-manual-reload-20261108">#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
 <style id="ge-offline-readiness-20261108">

@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.55-20261114-SAME-MUSIC-SONGS-TAB';
+const BUILD='GE-MUSIC-V7.56-20261114-NO-SECOND-GATE-SCREEN';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2065,6 +2065,12 @@ async function redeemMusicCode(){
      if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
      say('Music code verified for the full library.');
    }
+   // Notify the embedded audio engine that the SAME Music UI verified a code.
+   // The engine keeps the server-verified playback limit, never a second visible page.
+   try{document.getElementById('geInlineMusicFrame')?.contentWindow?.postMessage(
+     {type:'ge-vault-music-access-updated'},location.origin)}catch(_){}
+   el('.musicCodeTools').hidden=true;
+   el('.accessToggle').setAttribute('aria-expanded','false');
    // A code changes permissions, not pages, tabs or music screen designs.
    render();
  }catch(error){
@@ -2774,6 +2780,16 @@ function close(){
  document.body.style.overflow=oldBodyOverflow;
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
 }
+// Music's existing Code field is the only visual prompt for a protected
+// Music preview. The transport remains embedded and server-gated behind Radio.
+function openCodeEntry(){
+ if(!state.open)open();
+ if(state.view==='albums')setView('browse-songs');
+ const panel=el('.musicCodeTools');
+ panel.hidden=false;
+ el('.accessToggle').setAttribute('aria-expanded','true');
+ el('.musicCodeInput').focus();
+}
 el('.albumDetailBack').addEventListener('click',()=>setView('albums'));
 el('.albumDetailSongs').addEventListener('click',()=>setView('browse-songs'));
 el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'));
@@ -3193,7 +3209,7 @@ function shareExplicitAlbum(name){
  if(!selection.paths.length){say('This album is not loaded yet.');return}
  void window.GEShareMusicSelection?.(selection);
 }
-window.GEMusicV5={open,close,preload:preloadCatalog,shareSelection,showTestLibrary:openTestLibrary,
+window.GEMusicV5={open,close,openCodeEntry,preload:preloadCatalog,shareSelection,showTestLibrary:openTestLibrary,
  acceptRadioCatalog:(urls)=>{
   const paths=[...new Set((Array.isArray(urls)?urls:[]).map(canonical).filter(Boolean))];
   if(!paths.length)throw Error('Radio supplied no playable songs');

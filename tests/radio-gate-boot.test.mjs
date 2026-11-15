@@ -15,6 +15,13 @@ assert.doesNotMatch(radioSource, /location\.assign\(['"]\.\.\/support\/\?section
   'Missing code may not navigate away from Radio');
 assert.match(radioSource, /Close access code and return to Radio/,
   'Gate Back must remain on Radio');
+assert.doesNotMatch(radioSource,/geInlineMusicPanel\.classList\.add\('ge-gate-active'\)/,
+  'Embedded preview must not take over the entire Radio interface');
+assert.match(radioSource,/GEMusicV5\?\.openCodeEntry\?\.\(\)/,
+  'Expired Music preview must prompt for its code in existing Music UI');
+assert.match(musicSource,/function openCodeEntry\(\)/,
+  'One Music screen owns code entry while the preview engine stays hidden');
+
 
 for(const path of ['index.html','radio/index.html']){
   const html=readFileSync(path,'utf8');
