@@ -3057,6 +3057,31 @@ geOfflineRow.className='geMusicOfflineRow';
 geOfflineRow.hidden=false;
 geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
 el('.selectionBar').before(geOfflineRow);
+// Owner-only library refresh belongs beside OFFLINE inside MUSIC, never Radio.
+const geMusicReload= document.createElement('button');
+geMusicReload.type='button';geMusicReload.className='geMusicReload';
+geMusicReload.textContent='RELOAD';geMusicReload.hidden=true;
+geMusicReload.setAttribute('aria-label','Reload music library');
+geOfflineRow.querySelector('.geMusicOfflineTrigger').after(geMusicReload);
+function syncMusicReload(){
+ const allowed=typeof window.GERadioReloadAllowed==='function'&&window.GERadioReloadAllowed();
+ geMusicReload.hidden=!allowed;
+ geMusicReload.disabled=!allowed;
+}
+geMusicReload.addEventListener('click',()=>{
+ syncMusicReload();
+ if(geMusicReload.hidden)return;
+ const controller=document.getElementById('reloadBtn');
+ if(!controller){say('LIBRARY RELOAD UNAVAILABLE.');return;}
+ controller.click();
+});
+window.addEventListener('ge-access-experience-updated',syncMusicReload);
+window.addEventListener('focus',syncMusicReload);
+syncMusicReload();
+const geMusicReloadStyle=document.createElement('style');
+geMusicReloadStyle.textContent='.geMusicOfflineRow .geMusicReload{flex:0 0 auto!important;min-height:28px!important;height:30px!important;padding:2px 8px!important;border:1px solid #5b98b8!important;border-radius:7px!important;background:#12344c!important;color:#eaf9ff!important;font-size:11px!important;font-weight:800!important}.geMusicOfflineRow .geMusicReload[hidden]{display:none!important}';
+root.appendChild(geMusicReloadStyle);
+
 // The existing Music code controls are usable on all Music views, including album art.
 geOfflineRow.append(el('.musicCodeTools'));
 function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');say('OFFLINE LOCKED · Enter your GE access code here.');el('.musicCodeInput').focus();}
