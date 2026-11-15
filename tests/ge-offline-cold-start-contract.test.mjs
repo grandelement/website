@@ -5,13 +5,18 @@ import vm from 'node:vm';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const sw=read('radio/sw.js');
 const siteSW=read('sw.js');
+const library=read('ge-offline-library.js');
 const radio=read('radio/index.html');
 const offline=read('radio/offline-player.html');
 const boot=offline.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
 assert.ok(boot,'Standalone OFFLINE player inline script exists');
 new vm.Script(sw,{filename:'radio/sw.js'});
 new vm.Script(siteSW,{filename:'sw.js'});
+new vm.Script(library,{filename:'ge-offline-library.js'});
 new vm.Script(boot,{filename:'radio/offline-player.html'});
+assert.match(library,/const fullySaved=urls.length>0 && !missing.length && fail===0 && skipped===0 && done===urls.length/,'Full-site READY requires every file');
+assert.match(library,/response.status!==200/,'Offline download rejects partial audio responses');
+assert.match(library,/Cached file failed local verification/,'Saved audio is checked after Cache.put');
 assert.match(siteSW,/const REQUIRED_OFFLINE_FILES=/,'Website worker defines its own required startup files');
 for(const file of ['./radio/','./radio/index.html','./radio/offline-player.html','./ge-offline-library.js']){
  assert.ok(siteSW.includes("'"+file+"'"),'Website offline core contains '+file);
