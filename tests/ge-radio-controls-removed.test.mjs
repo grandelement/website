@@ -35,6 +35,7 @@ assert.match(music,/data-ge-offline="checked"/,'Checked song option retained');
 assert.match(music,/data-ge-offline="playlist"/,'Playlist option retained');
 assert.match(music,/data-ge-offline="update"/,'Missing song update option retained');
 assert.match(music,/class="geOfflineStart"/,'Exactly one DOWNLOAD action');
+assert.match(music,/const all=\[\.\.\.visibleSharedLists\(\)/,'Offline playlist choices must obey published/assigned visibility');
 assert.match(music,/document\.getElementById\('offlineLaunchBtn'\)\?\.addEventListener\('click',openOffline\)/,
   'Front OFFLINE must open the one MUSIC offline workspace');
 assert.match(offline,/window\.GEOfflineDownloads=\{/,'One canonical download API');
