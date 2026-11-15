@@ -1385,6 +1385,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geOfflinePlaylistRow select{width:100%;min-height:46px;border:1px solid #83c7e9;background:#0b324f;color:white;border-radius:9px;padding:8px;font:inherit}
 .geOfflineStart{width:100%;min-height:58px!important;font-size:18px!important;background:#126392!important;border:2px solid #b0e8ff!important}
 .geOfflineStatus{min-height:65px;color:#dbf0fa!important;overflow-wrap:anywhere;white-space:pre-line}
+.geOfflineMetrics{display:flex;align-items:center;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
+.geOfflinePercent{font-size:22px;font-weight:800;color:#fff}
+.geOfflineEta{font-size:15px;color:#d4e9fb;font-weight:700;text-align:right}
 .geOfflineWorkspace progress{width:100%;height:18px;accent-color:#2fcd99}
 .geOfflineFooter{display:flex;gap:9px;flex-wrap:wrap}
 .geOfflineFooter button{flex:1;min-height:46px}
@@ -1423,6 +1426,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
   </div>
   <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
   <button class="geOfflineStart" type="button">DOWNLOAD</button>
+  <div class="geOfflineMetrics" role="group" aria-label="Download progress and estimated time remaining">
+   <span class="geOfflinePercent">0%</span>
+   <span class="geOfflineEta">ETA: —</span>
+  </div>
   <progress class="geOfflineProgress" value="0" max="100" aria-label="Offline download progress"></progress>
   <p class="geOfflineStatus" role="status" aria-live="polite">Checking saved music…</p>
   <div class="geOfflineFooter">
@@ -2835,15 +2842,43 @@ const offlineStatus=el('.geOfflineStatus');
 const offlineStart=el('.geOfflineStart');
 const offlineStop=el('.geOfflineStop');
 const offlineProgress=el('.geOfflineProgress');
+const offlinePercent=el('.geOfflinePercent');
+const offlineEta=el('.geOfflineEta');
+let offlineStartAt=0,offlineLastPercent=0;
 function setOfflineMessage(message){offlineStatus.textContent=String(message)}
 function offlineMissingSummary(result){
  const parts=[];
- if(result.missing?.length)parts.push(result.missing.length+' songs');
- const clips=(result.stationTotal||0)-(result.stations||0);
- if(clips>0)parts.push(clips+' station IDs');
- if(result.artworkMissing?.length)parts.push(result.artworkMissing.length+' graphics');
- if(result.engineMissing?.length)parts.push(result.engineMissing.length+' startup files');
- return parts.join(' · ')||'startup check pending';
+ if(result.missing?.length)parts.push('music');
+ if((result.stationTotal||0)>(result.stations||0))parts.push('station IDs');
+ if(result.artworkMissing?.length)parts.push('artwork');
+ if(result.engineMissing?.length)parts.push('Radio startup files');
+ return parts.join(', ')||'the offline package';
+}
+function offlineTime(seconds){
+ const n=Math.max(0,Math.ceil(seconds));
+ if(n>=3600)return Math.floor(n/3600)+'h '+Math.ceil((n%3600)/60)+'m';
+ if(n>=60)return Math.floor(n/60)+'m '+(n%60)+'s';
+ return n+'s';
+}
+function setOfflineProgress(percent,{estimate=false,done=false}={}){
+ const n=Math.max(0,Math.min(done?100:99,Math.floor(percent)));
+ offlineLastPercent=n;
+ offlineProgress.max=100;
+ offlineProgress.value=n;
+ offlinePercent.textContent=n+'%';
+ if(done)offlineEta.textContent='ETA: 0s';
+ else if(estimate&&offlineStartAt&&n>0){
+  const elapsed=(Date.now()-offlineStartAt)/1000;
+  // A moving estimate based on completed work; file sizes and connections vary.
+  offlineEta.textContent=elapsed>=2
+   ?'ETA: ~'+offlineTime(elapsed*(100-n)/n)
+   :'ETA: calculating…';
+ }else offlineEta.textContent='ETA: —';
+}
+function offlineSavedPercent(result){
+ const total=(result.total||0)+(result.stationTotal||0)+(result.artworkTotal||0);
+ const saved=(result.saved||0)+(result.stations||0)+(result.artwork||0);
+ return total?Math.min(99,Math.floor(saved/total*99)):0;
 }
 function offlinePlaylistPaths(){
  const key=el('.geOfflinePlaylist').value,entry=offlinePlaylistChoices.find(p=>p.key===key);
@@ -2900,28 +2935,28 @@ async function offlineCheck(){
  try{
   const result=await engine.inspect();
   if(offlineBusy)return;
+  setOfflineProgress(result.ready?100:offlineSavedPercent(result),{done:result.ready});
   if(result.ready)
-   setOfflineMessage('READY · '+result.saved+'/'+result.total+' songs · '+result.stations+' station IDs · '+
-    result.artwork+' graphics · Radio startup files verified. Test Airplane Mode.');
+   setOfflineMessage('READY · Music and Radio files verified. Test Airplane Mode.');
   else if(result.partial)
-   setOfflineMessage('PARTIAL · '+result.saved+'/'+result.total+' songs saved · Missing: '+
-    offlineMissingSummary(result)+'. UPDATE MISSING repairs them without deleting songs.');
-  else setOfflineMessage('NOT READY · '+result.saved+'/'+result.total+' songs saved · Missing: '+
-    offlineMissingSummary(result)+'. Connect online, choose ALL MUSIC and press DOWNLOAD.');
+   setOfflineMessage('PARTIAL · Missing '+offlineMissingSummary(result)+'. Use UPDATE MISSING to repair.');
+  else setOfflineMessage('NOT READY · Prepare your music and Radio files with DOWNLOAD.');
  }catch(error){setOfflineMessage('Offline check failed: '+String(error?.message||error))}
 }
 function offlineProgressUpdate(event){
  if(!state.open||!el('.window').classList.contains('geOfflineOpen'))return;
  if(event.phase==='audio'){
-  offlineProgress.max=Math.max(1,event.total);
-  offlineProgress.value=event.completed;
-  setOfflineMessage('Saving '+event.completed+'/'+event.total+' · '+event.current+
-    (event.failed?' · '+event.failed+' need retry':''));
+  // Audio is the substantial portion of the package; artwork finishes it.
+  setOfflineProgress(event.total?94*event.completed/event.total:0,{estimate:true});
+  setOfflineMessage('Downloading offline music…');
  }else if(event.phase==='images'){
-  setOfflineMessage('Music saved. Saving artwork '+event.completed+'/'+event.total+'…');
+  setOfflineProgress(94+(event.total?5*event.completed/event.total:0),{estimate:true});
+  setOfflineMessage('Saving Radio artwork…');
  }else if(event.phase==='checking'){
-  setOfflineMessage('Checking saved music '+event.completed+'/'+event.total+'…');
- }else if(event.phase==='error')setOfflineMessage('ERROR · '+event.message);
+  setOfflineMessage('Verifying offline files…');
+ }else if(event.phase==='error'){
+  setOfflineMessage('Download error. Tap UPDATE MISSING to repair.');
+ }
 }
 async function offlineDownload(){
  if(offlineBusy)return;
@@ -2951,7 +2986,8 @@ async function offlineDownload(){
  }
  offlineBusy=true;
  offlineStart.disabled=true;offlineStop.hidden=false;
- offlineProgress.value=0;offlineProgress.max=1;
+ offlineStartAt=Date.now();
+ setOfflineProgress(0,{estimate:true});
  setOfflineMessage('Preparing your offline music…');
  try{
   const result=await engine.save({mode,paths,onProgress:offlineProgressUpdate});
@@ -2959,13 +2995,9 @@ async function offlineDownload(){
    setOfflineMessage(result.error==='access'?'Enter OFFLINE CODE to download.':
     'Could not finish: '+(result.message||result.error));
   }else{
-   offlineProgress.max=Math.max(1,result.total);
-   offlineProgress.value=result.saved;
-   setOfflineMessage(result.ready?'READY · '+result.saved+'/'+result.total+' songs · '+result.stations+
-     ' station IDs · '+result.artwork+' graphics · startup verified. Test Airplane Mode.':
-     'PARTIAL · '+result.saved+'/'+result.total+' songs saved · Missing: '+
-     offlineMissingSummary(result)+'. '+(result.failures?.slice(0,2).map(x=>x.path.split('/').pop()).join(', ')||'')+
-     ' · Tap UPDATE MISSING. Your saved music stays intact.');
+   setOfflineProgress(result.ready?100:Math.max(offlineLastPercent,offlineSavedPercent(result)),{done:result.ready});
+   setOfflineMessage(result.ready?'READY · Music and Radio files verified. Test Airplane Mode.':
+     'PARTIAL · Missing '+offlineMissingSummary(result)+'. Tap UPDATE MISSING. Your saved music stays intact.');
   }
  }catch(error){setOfflineMessage('Download interrupted: '+String(error?.message||error))}
  finally{offlineBusy=false;offlineStart.disabled=false;offlineStop.hidden=true}
