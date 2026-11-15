@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.15-offline-ready-v115';
+const VERSION='2026.11.15-offline-recovery-v116';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -366,6 +366,13 @@ self.addEventListener('fetch',event=>{
 
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  // Explicit OFFLINE downloads are stored once by the download manager.
+  // Do not silently duplicate huge MP3s in the service-worker media cache.
+  if(request.headers.get('X-GE-Offline-Download')==='1'){
+    event.respondWith(fetchWithTimeout(request,{cache:'no-store'},60000));
+    return;
+  }
 
   if(request.headers.get('X-GE-Reload-Media')==='1'){
     event.respondWith((async()=>{
