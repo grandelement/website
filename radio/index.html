@@ -5611,9 +5611,9 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="installBtn">Install App</button>
   </div>
   <div id="geUtilityRow" aria-label="Radio utility controls">
-    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
-    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="sunLabBtn" type="button">SUN LAB</button>
+    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
+    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <div id="offlinePanel">
@@ -8074,7 +8074,7 @@ function syncRadioOfflineAccessUI(){
     element.setAttribute('aria-hidden',allowed?'false':'true');
     element.tabIndex=allowed?0:-1;
   };
-  // Keep OFFLINE visible even when locked; click opens existing code notice.
+  // OFFLINE opens MUSIC, where the real download manager lives.\n  // Keep OFFLINE visible even when locked; click opens existing code notice.
   const offlineButton=$('offlineBtn');
   if(offlineButton){
     offlineButton.hidden=false;
@@ -8130,6 +8130,7 @@ function syncRadioOfflineAccessUI(){
 // bottom utilities rather than adding another player or duplicate button.
 const utilityBar=$('bottomActions'),legacyUtility=$('legacyBtn');
 if(utilityBar&&legacyUtility)utilityBar.insertBefore(legacyUtility,$('shareBtn'));
+window.GERadioReloadAllowed=()=>geRadioUtilityAllowed('reload');
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
 setInterval(syncRadioOfflineAccessUI,60000); // expire client controls when a code expires
@@ -10246,14 +10247,14 @@ async function registerServiceWorker(){
     const message=String(text?.textContent||'').trim();
     if(message&&selectedOfflinePaths)reportMusicOffline(message);
   }).observe(text,{childList:true,characterData:true,subtree:true});
-  // MUSIC and Radio share this one offline cache/download controller.
+  // Internal MUSIC requests must bypass the Radio shortcut and reach the single downloader.\n  let geMusicOfflineInternalRequest=false;\n  const dispatchMusicOfflineDownload=()=>{\n    geMusicOfflineInternalRequest=true;\n    try{button.click();}finally{geMusicOfflineInternalRequest=false;}\n  };\n  // MUSIC and Radio share this one offline cache/download controller.
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_ALL')return;
     if(button.classList.contains('downloading')||button.disabled){
       reportMusicOffline('An offline operation is already running.');return;
     }
     selectedOfflinePaths=null;
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   // The Music library can request a smaller checked-song download.
   window.addEventListener('message',event=>{
@@ -10269,7 +10270,7 @@ async function registerServiceWorker(){
     if(!wanted.size)return;
     selectedOfflinePaths=wanted;
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
@@ -11380,6 +11381,17 @@ async function registerServiceWorker(){
     bar.style.width='0';
     text.textContent='Offline music removed. The small app shell remains installed.';
   }
+
+  // The Radio OFFLINE shortcut only navigates to the Music download manager.
+  // Capture before the legacy downloader handler so it never starts a second job.
+  button.addEventListener('click',event=>{
+    if(geMusicOfflineInternalRequest)return;
+    if(button.classList.contains('downloading'))return;
+    event.stopImmediatePropagation();
+    const musicButton=$('geMusicV5Button');
+    if(musicButton){musicButton.click();return;}
+    if(!geRadioUtilityAllowed('offline'))void showOfflineAccessNotice();
+  },true);
 
   button.addEventListener('click',async()=>{
     // A user can always stop an ongoing download, even if access changes.
@@ -15977,6 +15989,41 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
   display:none!important;
  }
 }
+</style>
+
+<style id="ge-radio-access-stable-footer-20261114">
+/* Access grants never add a row or reflow the public radio footer. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:48px!important;gap:7px!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #offlineBtn{
+  grid-area:2/1/3/2!important;min-height:0!important;height:42px!important;
+  font-size:12px!important;align-self:center!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:48px!important;gap:7px!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #sunLabBtn{
+  grid-area:1/1/2/2!important;min-height:0!important;height:46px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow .bc-btn{
+  grid-area:1/2/2/3!important;min-height:0!important;height:46px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #reloadBtn:not([hidden]){
+  grid-area:1/3/2/4!important;min-height:0!important;height:42px!important;
+  font-size:12px!important;align-self:center!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #reloadBtn[hidden],
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #sunLabBtn[hidden]{display:none!important}
+}
+</style>
+<style id="ge-reload-music-only-20261114">
+/* The reload action remains a single radio controller; its visible control lives in MUSIC. */
+html.ge-radio-ui #geUtilityRow #reloadBtn,
+html.ge-radio-ui #shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
 </body>
 </html>
