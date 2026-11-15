@@ -1,8 +1,8 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.15-offline-recovery-v116';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
+const VERSION='2026.11.15-offline-music-v117';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_MUSIC_V3';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -15,7 +15,6 @@ const SHELL=[
   './ge-music-v5.js',
   './offline-manager.js',
   './offline-spectrum.js',
-  './offline-control.js',
   './ge-purchase-demo.js',
   '../ge-vault-client.js',
   '../ge-accessibility.js',
@@ -51,7 +50,7 @@ const SHELL=[
 // A new offline worker must never replace the existing worker unless all
 // essential pages, scripts, styles, and local catalogs are stored.
 const REQUIRED_SHELL=[
-  './offline-home.html','./ge-music-v5.js','./offline-manager.js','./offline-spectrum.js','./offline-control.js',
+  './offline-home.html','./ge-music-v5.js','./offline-manager.js','./offline-spectrum.js',
   './manifest.json','./iam-private-studio.js','./ge-gate-audio.js',
   './ge-gate-settings.js','./ge-purchase-demo.js',
   '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',

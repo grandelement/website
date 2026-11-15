@@ -9,7 +9,7 @@ try{
    const errors=[];page.on('pageerror',err=>errors.push(String(err?.message||err)));
    await page.goto('http://127.0.0.1:8765/radio/?ge_view='+(!isMobile?'desktop':'mobile'),{waitUntil:'domcontentloaded',timeout:45000});
    await page.waitForFunction(()=>document.getElementById('sunLabBtn')&&
-     document.getElementById('playBtn')&&window.GEMusicV5?.open&&window.GERadioOfflineManager?.open,{timeout:16000});
+     document.getElementById('playBtn')&&window.GEMusicV5?.openOffline&&window.GEOfflineDownloads?.inspect,{timeout:16000});
    const state=await page.evaluate(()=>{
     // Use a test-only unexpired scoped receipt to verify SUN LAB placement.
     // Compare player controls in player mode; desktop may default to Ship.
@@ -40,11 +40,34 @@ try{
    assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,'Footer buttons must use equal columns: '+JSON.stringify(state));
    assert(Math.abs(state.sun.top-state.support.top)<5&&Math.abs(state.offline.top-state.support.top)<5,'All footer controls must stay on one line');
    await page.click('#offlineLaunchBtn');
-   await page.waitForFunction(()=>!document.getElementById('geOfflineSurface')?.hidden,{timeout:5000});
-   await page.click('[data-offline="close"]');
-   await page.waitForFunction(()=>document.getElementById('geOfflineSurface')?.hidden===true,{timeout:5000});
-   await page.evaluate(()=>window.GEMusicV5.open());
-   await page.waitForFunction(()=>window.GEMusicV5?.state?.().open===true,{timeout:8000});
+   await page.waitForFunction(()=>{
+     const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+     return !!root?.querySelector('.window.geOfflineOpen .geOfflineWorkspace');
+   },{timeout:8000});
+   const offlineUI=await page.evaluate(()=>{
+     const root=document.getElementById('geMusicV5Host').shadowRoot;
+     const view=root.querySelector('.geOfflineWorkspace');
+     const labels=[...view.querySelectorAll('[data-ge-offline]')].map(b=>b.textContent.trim());
+     return {labels,downloads:view.querySelectorAll('.geOfflineStart').length,
+       selected:view.querySelector('[data-ge-offline="all"]').getAttribute('aria-pressed'),
+       actualHeight:view.getBoundingClientRect().height,otherDialog:!!document.getElementById('geOfflineSurface')};
+   });
+   assert.deepEqual(offlineUI.labels,['ALL MUSIC','CHECKED SONGS','PLAYLIST','UPDATE MISSING']);
+   assert.equal(offlineUI.downloads,1,'There must be only one DOWNLOAD button');
+   assert.equal(offlineUI.selected,'true','ALL MUSIC must be the one-click default');
+   assert(offlineUI.actualHeight>100,'MUSIC owns a visible offline screen');
+   assert.equal(offlineUI.otherDialog,false,'No duplicate global offline dialog');
+   await page.evaluate(()=>{
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineBack').click();
+   });
+   await page.waitForFunction(()=>{
+     const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+     return window.GEMusicV5?.state?.().open===true&&!root?.querySelector('.window.geOfflineOpen');
+   },{timeout:8000});
+   await page.evaluate(()=>{
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').click();
+   });
+   await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host')?.shadowRoot.querySelector('.window.geOfflineOpen'),{timeout:8000});
    const music=await page.evaluate(()=>{
      const root=document.querySelector('#geMusicV5Host').shadowRoot;
      return {offline:root.querySelectorAll('.offlineSelected,.geMusicOfflineRow,.geMusicOfflineTrigger').length,
@@ -52,11 +75,11 @@ try{
        code:!!root.querySelector('.musicCodeTools'),
        play:!!root.querySelector('.playSelected')};
    });
-   assert.equal(music.offline,0,'MUSIC OFFLINE interface returned');
+   assert.equal(music.offline,0,'Retired MUSIC offline duplicate returned');
    assert.equal(music.reload,0,'MUSIC reload button returned');
    assert(music.code&&music.play,'MUSIC code and PLAY preserved');
    if(errors.length)throw Error('Radio JS errors after removal: '+JSON.stringify(errors.slice(0,8)));
-   console.log('PASS '+width+'x'+height+': OFFLINE SUPPORT SUN LAB aligned; old controls absent; PLAY/CODE/MUSIC working');
+   console.log('PASS '+width+'x'+height+': front OFFLINE opens MUSIC download chooser; one engine, four options; footer aligned');
   }finally{await page.close();}
  }
 }finally{await browser.close();}

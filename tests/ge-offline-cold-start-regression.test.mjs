@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const sw=readFileSync('radio/sw.js','utf8');
 const radio=readFileSync('radio/index.html','utf8');
 const manager=readFileSync('radio/offline-manager.js','utf8');
-const control=readFileSync('radio/offline-control.js','utf8');
+const music=readFileSync('radio/ge-music-v5.js','utf8');
 const spectrum=readFileSync('radio/offline-spectrum.js','utf8');
 const launcher=readFileSync('radio/offline-home.html','utf8');
 const webmanifest=JSON.parse(readFileSync('radio/manifest.webmanifest','utf8'));
@@ -19,7 +19,8 @@ test('offline worker keeps media cache and requires essential app files',()=>{
  assert.ok(sw.indexOf('await Promise.all(REQUIRED_SHELL.map')<sw.indexOf('await self.skipWaiting()'));
  assert.match(sw,/offlineNavigationFallback/);
  assert.match(sw,/'.\/offline-home\.html'/);
- assert.match(sw,/'.\/offline-control\.js'/);
+ assert.doesNotMatch(sw,/'.\/offline-control\.js'/,'Duplicate offline controller must not be cached');
+ assert.match(sw,/'.\/offline-manager\.js'/);
  assert.match(sw,/'.\/offline-spectrum\.js'/);
  assert.match(sw,/GE_RADIO_SHELL_STATUS/);
 });
@@ -42,29 +43,35 @@ test('radio cold start checks stored identity with no Vault request',()=>{
  assert.match(radio,/Number\(receipt\?\.until\|\|grant\?\.until\|\|0\)/);
  assert.match(radio,/geRadioUtilityAllowed\('offline'\)/);
 });
-test('new offline manager is scoped to verified Radio grants, not a retired player',()=>{
+test('single MUSIC offline engine is scoped to verified Radio grants',()=>{
  assert.match(sw,/'.\/offline-manager\.js'/);
  assert.match(radio,/window\.GERadioOfflineBridge=\{/);
  assert.match(radio,/canDownload:\(\)=>geRadioUtilityAllowed\('offline'\)/);
  assert.match(radio,/allowedPaths:\(\)=>\{const allowed=geOfflineSongAllowance\(\)/);
- assert.match(manager,/const CACHE='ge-radio-media-v4'/);
+ assert.match(manager,/const AUDIO='ge-radio-media-v4'/);
  assert.match(manager,/bridge\(\)\.canDownload\?\.\(\)/);
  assert.match(manager,/cache\.put\(url,new Response\(blob,\{status:200,headers\}\)\)/);
- assert.match(manager,/window\.confirm\('Delete downloaded AUDIO/);
+ assert.doesNotMatch(manager,/window\.confirm\('Delete downloaded AUDIO/,'No destructive action in the single OFFLINE download screen');
+ assert.doesNotMatch(manager,/geOfflineSurface|surface\.innerHTML/,'MUSIC owns the sole UI');
  assert.doesNotMatch(sw,/offline-player\.html/);
 });
-test('Home Screen installs a cached launch entry, and download activation survives expiry',()=>{
+test('MUSIC owns offline actions and local playback activation survives access expiry',()=>{
  assert.equal(webmanifest.start_url,'./index.html?ge_home=1','New Home Screen apps must open Radio directly');
  assert.match(launcher,/index\.html\?ge_home=1/);
- assert.match(control,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
- assert.match(control,/onSaved/);
- assert.match(control,/GE Station Identification/,'Station IDs must be saved for true offline Radio');
- assert.match(control,/stations\.saved===stations\.total/,'Ready status requires station clips');
- assert.match(control,/PARTIAL OFFLINE · REPAIR NEEDED/,'Partial packages must not say ready');
- assert.match(control,/missingSongs\.length/,'Readiness should identify exact missing recordings');
+ assert.match(manager,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
+ assert.match(manager,/window\.GEOfflineDownloads=\{/,'Exposes one MUSIC downloader API');
+ assert.match(manager,/GE Station Identification/,'Station IDs must be saved for true offline Radio');
+ assert.match(manager,/stationSaved===stations\.length/,'Ready status requires station clips');
+ assert.match(music,/PARTIAL ·/,'MUSIC must clearly report partial downloads');
+ assert.match(manager,/missing,/,'Engine returns missing recording paths');
  assert.match(manager,/X-GE-Offline-Download/,'Downloads must bypass service-worker duplicate caching');
  assert.match(sw,/X-GE-Offline-Download/,'Streaming worker must preserve a single cached download');
  assert.match(manager,/attempt<=3/,'Transient mobile download failures need bounded retries');
+ assert.match(music,/data-ge-offline="all"/,'MUSIC owns the default one-tap full download');
+ assert.match(music,/data-ge-offline="checked"/,'MUSIC has checked songs');
+ assert.match(music,/data-ge-offline="playlist"/,'MUSIC has playlists');
+ assert.match(music,/data-ge-offline="update"/,'MUSIC has missing song update');
+ assert.match(music,/class="geOfflineStart"/,'One download action in MUSIC');
  assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
  assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
  assert.match(radio,/geRadioSunLabPrivateAllowed/);

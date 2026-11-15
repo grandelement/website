@@ -1,35 +1,29 @@
-# Grand Element Radio 40: Installed Offline Player QA
+# Grand Element Radio OFFLINE: one MUSIC workflow
 
-Status: draft pull request. Do not call this tested on iPhone until the Airplane Mode steps below pass on a real device.
+## Architecture
 
-## Preparation
-1. From iPhone Safari, visit Grand Element Radio while connected.
-2. Share > Add to Home Screen > Add. Open the new Grand Element Radio Home Screen icon.
-3. Do NOT prepare downloads in the Safari tab. Home Screen web apps can use separate storage.
-4. In the installed app, open OFFLINE. Verify it reports HOME SCREEN APP.
-5. Enter the authorized CODE. Return to OFFLINE and choose PREPARE FOR OFFLINE.
-6. Keep the app foregrounded until downloads finish. The package includes the service-worker shell, published authorized songs, station IDs, album art, and published backgrounds.
-7. Run CHECK READINESS. Verify the installed startup engine, the planned music count, and the station ID count. Read the status; it must say READY FOR OFFLINE before proceeding.
+- MUSIC is the only owner of the offline download controls and listener song/playlist selections.
+- The Radio footer OFFLINE button opens MUSIC's OFFLINE workspace. There is no second download window.
+- `ge-music-v5.js` owns presentation, the four choices, progress and STOP.
+- `offline-manager.js` owns permitted download planning, saved-file checks, retry, song caching, station IDs, art and offline readiness. It owns no screen and cannot change purchases, playlists or codes.
+- `sw.js` owns offline startup shell and byte-range delivery; it never invalidates downloaded MP3s on an interface update.
 
-## No-connection restart
-1. Close the installed app completely.
-2. Enable Airplane Mode, disable Wi-Fi, and reopen the app from its Home Screen icon.
-3. Confirm the full Radio player opens from its locally cached entry without requiring Safari, Vault, a login, or a network connection.
-4. Press PLAY. Confirm saved audio actually plays and NEXT / PREVIOUS work.
-5. Open MUSIC. Select saved tracks or a previously created playlist. Confirm it plays through the main Radio transport with no preview iframe or online gate.
-6. Open SUN LAB. Test PLASMA, SPECTRUM, GLOW, WATERFALL. Confirm local audio analysis drives SPECTRUM and WATERFALL without muting playback. A visual analyser error must never silence music.
-7. While still in Airplane Mode, choose OFFLINE > RELOAD / UPDATE. Confirm the saved app reopens and music still plays.
+## iPhone listener flow
 
-## Connected updates
-1. Re-enable internet. Upload a new published recording and regenerate its published catalog.
-2. Open OFFLINE > RELOAD / UPDATE.
-3. Confirm the new song is available online. Enter CODE for an authorized offline download if prompted; the previously saved music must remain available.
-4. Save or prepare the updated offline package. Recheck readiness, then repeat the Airplane Mode restart.
-5. Verify existing playlist names, song selections, SUN LAB profiles, and purchased rights were not erased.
+1. Open Radio from the installed Home Screen icon, connected to Wi-Fi.
+2. Tap OFFLINE (front Radio or inside MUSIC). Both open the SAME MUSIC workspace.
+3. Choose one of ALL MUSIC (default), CHECKED SONGS, PLAYLIST or UPDATE MISSING.
+4. Tap **DOWNLOAD** once. Already saved music is skipped. A valid OFFLINE code is required to add new songs, not to listen to saved songs.
+5. Wait until the status says READY. PARTIAL means it is not complete; existing downloaded songs remain usable.
+6. Close Radio, enable Airplane Mode, reopen the Home Screen icon. Check startup, PLAY, NEXT, playlist, SUN LAB SPECTRUM and WATERFALL.
+7. When connected, select UPDATE MISSING to fetch only absent or newly published authorized files. Do not delete saved music.
 
-## Recovery and safety
-- Interrupt a download with STOP. Restart it and confirm already saved music is kept.
-- Run CHECK & REPAIR with a missing component and confirm it repairs only when connected.
-- Verify DELETE SAVED SONGS requires confirmation and does not erase playlists.
-- On low storage, iOS may remove web app files; the readiness check must detect missing files. Neither Apple nor the website guarantees permanent storage.
-- Full native iPhone audio session and storage behavior cannot be certified by Node/Chrome tests. Preserve this as a separate physical-device gate.
+## Regression acceptance gates
+
+- The front OFFLINE button must open the MUSIC shadow-root OFFLINE workspace; the MUSIC OFFLINE button must open exactly that same screen.
+- One primary DOWNLOAD button, four choices and visible progress; no separate OFFLINE CONTROL CENTER or destructively labeled DELETE action.
+- MUSIC song selection, playlist identity and saved order must remain intact after downloads.
+- Unverified users cannot fetch new restricted audio; saved authorized music remains playable locally even after the online session ends.
+- The installed engine must verify the current HTML and required scripts before reporting READY.
+- Incomplete audio, missing station clips or an outdated engine is NOT READY. STOP keeps previously saved recordings.
+- Full iPhone Airplane Mode startup, storage eviction and visualization performance must be validated on the physical device. Desktop browser and Node checks cannot certify iOS storage limits.
