@@ -124,7 +124,13 @@ async function navigation(request){
   const url=new URL(request.url);
   const isHome=urlIsHome(url.href);
   try{
-    const response=await fetch(request);
+    // iPhone Safari may leave a navigation hanging after Airplane Mode.
+    // Bound network startup; always return a saved page or recovery.
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),2000);
+    let response;
+    try{response=await fetch(request,{signal:controller.signal});}
+    finally{clearTimeout(timeout);}
     if(response.ok){
       // Never promote a partial homepage into the device's offline backup.
       if(isHome){
