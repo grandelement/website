@@ -60,8 +60,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
  padding:5px 8px;border:1px solid #5898c7;border-radius:8px;background:#10314d;
  color:#eaffff;font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
 .filterRow .songSelectAll[hidden]{display:none!important}
-.filterRow .reloadCatalogBtn{min-height:42px;width:43px;padding:5px;font-size:22px;flex:0 0 43px;border-color:#72bdec;background:#10314d;color:#ecfaff}
-.filterRow .reloadCatalogBtn:disabled{opacity:.55}
 .filterRow .songSelectAll input{width:18px;height:18px;min-width:18px;margin:0;accent-color:#48baff}
 .filterRow select{width:100%;min-width:0;min-height:42px;padding:8px 10px;border:1px solid #5898c7;border-radius:9px;background:#10314d;color:#ecfaff;font-size:clamp(13px,3.5vw,16px);font-weight:750}
 .filterRow select[hidden]{display:none!important}
@@ -712,7 +710,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
   grid-column:1!important;grid-row:3!important;padding:3px 12px 9px!important;
  }
 }
-.selectionActions .offlineSelected{background:linear-gradient(135deg,#123e3c,#145e57)!important;border-color:#68c9b6!important;color:#e0fff6!important;font-weight:850!important}
 
 /* Album browser: centered edge-to-edge within the MUSIC content window.
    Preserve the album checkbox, title, details, and PLAY ALBUM controls. */
@@ -878,9 +875,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .browse button[aria-pressed=true]{background:rgba(21,117,189,.85)!important;box-shadow:none!important}
  .search{margin-top:5px!important;min-height:36px!important;padding:5px 9px!important;background:rgba(0,9,24,.62)!important;border:1px solid rgba(117,179,222,.26)!important;border-radius:5px!important}
  .filterRow{margin-top:4px!important;gap:4px!important}
- .filterRow select,.filterRow .songSelectAll,.filterRow .reloadCatalogBtn{min-height:35px!important;border:0!important;border-radius:5px!important;background:rgba(17,52,81,.7)!important;font-size:11px!important}
+ .filterRow select,.filterRow .songSelectAll{min-height:35px!important;border:0!important;border-radius:5px!important;background:rgba(17,52,81,.7)!important;font-size:11px!important}
  .filterRow .songSelectAll{padding:4px 6px!important}
- .filterRow .reloadCatalogBtn{width:36px!important;flex-basis:36px!important;font-size:19px!important}
  .tools .notice{margin:2px 0 0!important;min-height:0!important;font-size:10px!important;line-height:1.2!important;opacity:.7}
  .scroll,.scroll.geAlbumUniverse{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover no-repeat!important;background-attachment:local!important}
  .scroll{padding:3px 7px 10px!important}
@@ -904,8 +900,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:has(.browse [data-tab="playlists"][aria-pressed="true"]) .selectionBar .checkedCount{display:block!important;font-size:10px!important;padding:0 2px 3px!important}
 }
 /* Public MUSIC cleanup: keep checkbox on each album heading; preserve song-title playback. */
-.window:not(.arranging) .songSelectAll,.window:not(.arranging) .reloadCatalogBtn{display:none!important}
-.window:not(.arranging) .selectionBar .offlineSelected,
+.window:not(.arranging) .songSelectAll{display:none!important}
 .window:not(.arranging) .selectionBar .shareSelected{display:none!important}
 .window:not(.arranging) .selectionBar .selectionActions{display:flex;flex:1;justify-content:flex-end;gap:10px}
 .window:not(.arranging) .selectionBar .selectionActions .buySelected,
@@ -942,9 +937,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
  font-size:clamp(32px,8vw,48px);line-height:1.08;font-weight:950;
  color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.92);
  overflow-wrap:anywhere
-}
-.window.geAlbumDetailClean .geMusicOfflineMeter{
- display:none!important
 }
 /* Shared MUSIC top search / save toolbar, same location in Songs and Playlists. */
 .geBrowseTools{display:none}
@@ -995,8 +987,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
  text-align:left;color:#fff;text-shadow:0 3px 7px #000
 }
 .window.geSimpleSongBrowser .albumCollectionHeading{background:transparent!important;border:0!important}
-/* Songs album headings must not hide the bottom selection bar. */
-.window.geSimpleSongBrowser .geMusicOfflineMeter{display:none!important}
 .window.geSimpleSongBrowser .albumDetailNav{justify-content:space-between!important}
 /* Quiet song rows: no full-width dividers or unselected checkboxes.
    Selected songs reveal their existing native checkbox and get a dark tint.
@@ -1093,7 +1083,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 .window.geAlbumDetailClean > .selectionBar .checkedCount,
 .window.geAlbumDetailClean > .selectionBar .quickPlaylistRow,
-.window.geAlbumDetailClean > .selectionBar .offlineSelected,
 .window.geAlbumDetailClean > .selectionBar .shareSelected,
 .window.geAlbumDetailClean > .selectionBar .arrangeBtn{display:none!important}
 .window.geAlbumDetailClean > .selectionBar .selectionActions{
@@ -1192,26 +1181,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.gePlaylistWorkspace > .selectionBar .selectionActions{order:3!important;flex:1 1 0!important;min-width:0!important;display:flex!important;gap:3px!important}
 .window.geAlbumDetailClean > .selectionBar .geSelectedNumber,
 .window.gePlaylistWorkspace > .selectionBar .geSelectedNumber{font-size:38px!important;line-height:1!important}
-.window > .geMusicOfflineRow{display:flex!important;align-items:center!important;gap:9px!important;flex:0 0 auto!important;padding:7px 10px!important;background:rgba(3,19,35,.88)!important;color:#eaf7ff!important}
-.window > .geMusicOfflineRow[hidden]{display:none!important}
-.geMusicOfflineTrigger{flex:0 0 auto!important;min-height:42px!important;padding:7px 12px!important;border:1px solid #68c9b6!important;border-radius:8px!important;background:#145e57!important;color:white!important;font-weight:800!important}
-.geMusicOfflineMeter{display:flex!important;flex:1 1 0!important;min-width:0!important;flex-direction:column!important;gap:4px!important}
-.geMusicOfflineTrack{height:10px!important;border:1px solid #60b3d4!important;border-radius:10px!important;overflow:hidden!important;background:#06121e!important}
-.geMusicOfflineFill{height:100%!important;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7)!important;transition:width .2s linear!important}
-.geMusicOfflineNumbers{display:flex!important;justify-content:space-between!important;gap:8px!important;font:700 12px system-ui!important;font-variant-numeric:tabular-nums!important}
-.geMusicOfflineNumbers span{white-space:nowrap!important}
 /* Keep the song rows at a comfortable reading width. */
 .window.geSimpleSongBrowser .scroll .song{width:min(100%,440px)!important;max-width:440px!important;margin-left:auto!important;margin-right:auto!important}
 .window.geSimpleSongBrowser .scroll .song .songInfo,
 .window.geSimpleSongBrowser .scroll .song .songLabel{width:100%!important;min-width:0!important;max-width:100%!important}
 
 
-/* Thick horizontal offline meter: percent at left, time at right. */
-.window > .geMusicOfflineRow .geMusicOfflineMeter{display:grid!important;grid-template-columns:45px minmax(0,1fr) 52px!important;align-items:center!important;gap:7px!important}
-.window > .geMusicOfflineRow .geMusicOfflineTrack{grid-column:2!important;grid-row:1!important;height:24px!important;border-radius:7px!important}
-.window > .geMusicOfflineRow .geMusicOfflineNumbers{display:contents!important}
-.window > .geMusicOfflineRow .geMusicOfflinePercent{grid-column:1!important;grid-row:1!important;text-align:right!important}
-.window > .geMusicOfflineRow .geMusicOfflineTime{grid-column:3!important;grid-row:1!important;text-align:left!important}
+/* Thick horizontal offline meter: percent at left{display:grid!important;grid-template-columns:45px minmax(0,1fr) 52px!important;align-items:center!important;gap:7px!important}
 /* Definitive title-glow architecture: the full-width button is a touch target,
    but ONLY its content-sized child receives the selection highlight. */
 .window.geSimpleSongBrowser .scroll .song.selectedSong{background:transparent!important;box-shadow:none!important}
@@ -1350,13 +1326,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser > .selectionBar .selectionActions{order:3!important;min-width:0!important;flex:1 1 0!important}
 .window.geAlbumDetailClean > .scroll .albumCollectionHeading{display:flex!important;visibility:visible!important;opacity:1!important;justify-content:center!important;min-height:44px!important;padding:7px 5px!important;margin:0 auto 6px!important}
 .window.geAlbumDetailClean > .scroll .albumDetailTitle{display:block!important;visibility:visible!important;opacity:1!important;text-align:center!important;font-size:clamp(23px,6.5vw,34px)!important;font-weight:900!important;color:white!important}
-/* OFFLINE is always findable. If locked, the existing Music code box opens in place. */
-.window > .geMusicOfflineRow{display:flex!important;flex-wrap:wrap!important;gap:5px!important;padding:4px 9px!important}
-.window > .geMusicOfflineRow .geMusicOfflineMeter[hidden]{display:none!important}
-.window > .geMusicOfflineRow .geMusicOfflineTrigger{min-height:38px!important;padding:5px 11px!important;font-size:12px!important}
-.window > .geMusicOfflineRow.locked .geMusicOfflineTrigger{background:#10354d!important;border-color:#8bb6d7!important}
-.window > .geMusicOfflineRow .musicCodeTools{order:3!important;flex:1 1 100%!important;width:100%!important;min-width:0!important}
-.window > .geMusicOfflineRow .musicCodeTools[hidden]{display:none!important}
+/* OFFLINE is always findable. If locked{display:flex!important;flex-wrap:wrap!important;gap:5px!important;padding:4px 9px!important}
 
 
 /* All three MUSIC views: tabs first, compact search and commands in one row. */
@@ -1368,21 +1338,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser > .tools{order:4!important}
 .window.geSimpleSongBrowser > .arrangeDock{order:5!important}
 .window.geSimpleSongBrowser > .scroll{order:6!important;flex:1 1 auto!important;min-height:0!important}
-.window.geSimpleSongBrowser > .geMusicOfflineRow{order:7!important}
 .window.geSimpleSongBrowser > .selectionBar{order:8!important}
 .window.geSimpleSongBrowser > .geBrowseTools .gePlaylistNameInline{background:#061a30!important;border:1px solid #83c9f2!important;border-radius:8px!important;color:white!important}
 .window.geSimpleSongBrowser > .geBrowseTools .geBrowseSearch[hidden],.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistNameInline[hidden]{display:none!important}
 /* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
 .window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
-/* Restore the existing offline action in normal SONGS and PLAYLISTS.
-   It reuses the Radio download controller; no second offline library. */
-.window:not(.arranging) > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected),
-.window.geAlbumDetailClean > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected),
-.window.gePlaylistWorkspace > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected){
- display:inline-flex!important;align-items:center!important;justify-content:center!important;
- visibility:visible!important;pointer-events:auto!important;min-width:48px!important;min-height:44px!important;
- flex:1 1 0!important;
-}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1391,7 +1351,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><input class="gePlaylistNameInline" type="text" maxlength="100" autocomplete="off" placeholder="Playlist name" aria-label="Name playlist to save" hidden><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
@@ -1402,7 +1362,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-hidden="true"></strong><button class="gePlayerSunReturn" type="button" aria-label="Return to the Radio player" title="Return to player"><img src="../ge-images/images/ge-logo-2.jpg" alt=""></button><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-hidden="true"></strong><button class="gePlayerSunReturn" type="button" aria-label="Return to the Radio player" title="Return to player"><img src="../ge-images/images/ge-logo-2.jpg" alt=""></button><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -1633,7 +1593,6 @@ function updateMeta(){
   const selectLabel=el('.songSelectAll');
   if(selectLabel)selectLabel.title='Select songs';
  el('.playSelected').disabled=count===0;
-  el('.offlineSelected').disabled=false;
   el('.buySelected').disabled=count===0;
   el('.buySelected').setAttribute('aria-label','Review selected music purchase');
  el('.arrangePlay').disabled=count===0;
@@ -2065,7 +2024,6 @@ function musicAccessStatus(){
  // Neither the server's record label nor owner keys are used as a substitute.
  identity.textContent=access?String(access.displayName||'ACCESS ACTIVE').slice(0,80):'';
  el('.musicCodeClear').hidden=!access;
- updateOfflineAccessVisibility();
 }
 function clearMusicAccess(){
  state.musicAccess=null;
@@ -2473,7 +2431,6 @@ function render(){
  el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
  el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
  const cat=activeCategory();
- updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
  const activeNav=cat==='albums'?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
  for(const nav of ['.albumDetailBack','.albumDetailSongs','.albumDetailPlaylist']){
@@ -2991,102 +2948,6 @@ el('.accessToggle').addEventListener('click',()=>{
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
  if(opened)el('.musicCodeInput').focus();
 });
-// Both offline entry points use the same Radio cache controller.
- // MUSIC supplies only the checked-song filter, never a second downloader.
-const musicOfflineDialog=document.createElement('dialog');
-musicOfflineDialog.setAttribute('aria-label','Offline download choices');
-musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
-musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
-document.body.append(musicOfflineDialog);
-musicOfflineDialog.addEventListener('click',event=>{
- const action=event.target.closest('button')?.dataset.action;
- if(!action)return;
- musicOfflineDialog.close();
- if(action==='cancel')return;
- if(action==='status'){
-  void (async()=>{
-   try{
-    const result=await window.GEOffline?.diagnose?.();
-    if(!result){say('OFFLINE STATUS UNAVAILABLE · Open RADIO once online.');return;}
-    say('OFFLINE STATUS · '+result.savedSongCount+' SONGS SAVED · PLAYER '+(result.cachedAppShell?'CACHED':'NOT CACHED')+' · SERVICE WORKER '+(result.serviceWorkerRegistered?'ACTIVE':'NOT READY')+' · '+(result.readyToTestDisconnected?'READY FOR AIRPLANE MODE TEST':'SETUP INCOMPLETE'));
-   }catch(error){say('OFFLINE STATUS ERROR · '+String(error?.message||error))}
-  })();
-  return;
- }
- if(action==='playlist'){
-  if(!state.activePlaylist){say('LOAD A PLAYLIST FIRST.');return;}
-  const paths=selectedTracks().map(track=>track.path);
-  if(!paths.length){say('CURRENT PLAYLIST HAS NO SONGS.');return;}
-  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
-  return;
- }
- if(action==='update'){window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);return;}
- if(action==='remove'){
-  void (async()=>{
-   if(!window.confirm('REMOVE OFFLINE MUSIC from this device? This deletes downloaded song files only. Vault accounts, purchases and playlists will not be deleted.'))return;
-   if(!('caches' in window)){say('OFFLINE STORAGE IS NOT AVAILABLE.');return;}
-   let removed=0,failed=0;
-   try{
-    for(const cacheName of await caches.keys()){
-     const cache=await caches.open(cacheName);
-     for(const request of await cache.keys()){
-      const url=new URL(request.url);
-      const audioPath=decodeURIComponent(url.pathname).toLowerCase();
-      if(url.origin!==location.origin||!audioPath.startsWith('/ge-music/music/')||!['.mp3','.m4a','.aac','.wav','.ogg','.flac'].some(ext=>audioPath.endsWith(ext)))continue;
-      try{if(await cache.delete(request))removed++;else failed++;}catch(_){failed++;}
-     }
-    }
-    try{localStorage.removeItem('GE_OFFLINE_READY');}catch(_){}
-    say(failed?'REMOVED '+removed+' OFFLINE SONG FILES · '+failed+' COULD NOT BE REMOVED.':'REMOVED '+removed+' OFFLINE SONG FILES. PLAYLISTS AND VAULT PRESERVED.');
-    geOfflineMeter.classList.remove('active');
-   }catch(error){say('REMOVE OFFLINE FAILED · '+String(error.message||error));}
-  })();
-  return;
- }
- if(action==='checked'){
-  const paths=selectedTracks().map(track=>track.path);
-  if(!paths.length){say('CHECK SONGS FIRST.');return;}
-  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
- }else{
-  window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);
- }
-});
-// Offline download row directly above the selection footer.
-const geOfflineRow=document.createElement('div');
-geOfflineRow.className='geMusicOfflineRow';
-geOfflineRow.hidden=false;
-geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
-el('.selectionBar').before(geOfflineRow);
-// The existing Music code controls are usable on all Music views, including album art.
-geOfflineRow.append(el('.musicCodeTools'));
-function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');say('OFFLINE LOCKED · Enter your GE access code here.');el('.musicCodeInput').focus();}
-geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>{if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}el('.offlineSelected').click();});
-const geOfflineMeter=geOfflineRow.querySelector('.geMusicOfflineMeter');
-function musicOfflineAllowed(){
- const access=musicAccessActive();
- if(access?.offlineEnabled===true)return true;
- try{
-  const grant=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
-  return !!grant&&grant.verifiedFor==='radio'&&Number(grant.until)>Date.now()&&
-   Array.isArray(grant.scopes)&&grant.scopes.includes('offline')&&
-   (grant.scopes.includes('radio')||grant.scopes.includes('website'));
- }catch(_){return false}
-}
-function updateOfflineAccessVisibility(){
- const enabled=musicOfflineAllowed();geOfflineRow.hidden=false;geOfflineRow.classList.toggle('locked',!enabled);
- const trigger=geOfflineRow.querySelector('.geMusicOfflineTrigger');trigger.textContent=enabled?'OFFLINE':'OFFLINE · LOCKED';
- trigger.setAttribute('aria-label',enabled?'Open offline downloads':'Enter an access code to unlock offline downloads');geOfflineMeter.hidden=!enabled;
-}
-window.addEventListener('message',event=>{
- if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_PROGRESS')return;
- if(!musicOfflineAllowed())return;
- const p=event.data;
- const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
- geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
- geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
- const remaining=String(p.remaining||'').trim();
- geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining)?remaining:'00:00';
-});
 const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','','SELECT ALL'),selectionClear=elem('button','','CLEAR');
 selectionAll.type='button';selectionClear.type='button';
 selectionAll.addEventListener('click',()=>{const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;for(const t of scope)if(!allowed||allowed.has(t.path))state.selected.add(t.path);saveSelected();render()});
@@ -3108,18 +2969,6 @@ shareSelectedButton.addEventListener('click',()=>{
  const selected=shareSelection();
  if(!selected){say('Select an album, playlist or songs to share.');return}
  void window.GEShareMusicSelection?.(selected);
-});
-el('.offlineSelected').addEventListener('click',()=>{
- if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}
- musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent='Choose what to save on this device.';
- musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
- if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
-});
-// The parent offline controller owns Cache Storage. Its status must be shown
-// in MUSIC rather than treating a posted request as a completed download.
-window.addEventListener('message',event=>{
- if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_STATUS')return;
- if(typeof event.data.message==='string')say(event.data.message.slice(0,260));
 });
 el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.quickPlaylistName').addEventListener('input',event=>{state.playlistDraftName=event.target.value.slice(0,100)});
@@ -3159,26 +3008,6 @@ el('.buySelected').addEventListener('click',()=>{const tracks=selectedTracks();i
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
-el('.reloadCatalogBtn').addEventListener('click',async()=>{
- // Use the full Radio reload pipeline when this session has permission.
- // That pipeline updates Radio, MUSIC, playlists, assets and offline media.
- const radioReload=document.getElementById('reloadBtn');
- if(radioReload&&!radioReload.hidden&&!radioReload.disabled){
-   radioReload.click();
-   say('RELOADING SHARED RADIO AND MUSIC LIBRARY…');
-   return;
- }
- const button=el('.reloadCatalogBtn');
- if(state.loading)return;
- state.loading=true;button.disabled=true;
- say('SCANNING GITHUB · BUILDING FRESH LIBRARY…');
- try{
-  const result=await fetchCatalog({strict:true});
-  void loadPublished();void loadFanPlaylists();
-  showCatalogSource(result.source==='master-manifest'?'MASTER MANIFEST':'PREVIOUS LIBRARY',result.count);
- }catch(error){say('GITHUB SCAN FAILED · OLD LIBRARY KEPT · '+String(error?.message||error))}
- finally{state.loading=false;button.disabled=false}
-});
 el('.selectAllSongs').addEventListener('change',event=>{
  const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;
  const scope=state.view.startsWith('album:')?state.tracks.filter(t=>t.album===state.view.slice(6)):state.tracks;
@@ -3326,7 +3155,7 @@ window.GEMusicV5={open,close,openCodeEntry,preload:preloadCatalog,shareSelection
   const first=permitted[shuffle?Math.floor(Math.random()*permitted.length):0];
   return playTrack(first,queue,true,true);
  },
- refresh:()=>{if(state.open)render()},reloadLibrary:()=>fetchCatalog(),
+ refresh:()=>{if(state.open)render()},
  syncUserPlaylists:loadFanPlaylists,
  reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
