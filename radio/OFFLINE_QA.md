@@ -23,7 +23,8 @@
 ## Regression acceptance gates
 
 - The front OFFLINE button must open the MUSIC shadow-root OFFLINE workspace; the MUSIC OFFLINE button must open exactly that same screen.
-- One primary DOWNLOAD button, four choices and visible progress; no separate OFFLINE CONTROL CENTER or destructively labeled DELETE action.
+- One primary DOWNLOAD button, four choices, a visible percentage, ETA and progress bar; no separate OFFLINE CONTROL CENTER or destructively labeled DELETE action.
+- Keep song counts, station clip counts, file paths and errors internal. Never expose how many songs exist or are downloading in the OFFLINE listener interface. No numbered file progress or filenames in the status.
 - MUSIC song selection, playlist identity and saved order must remain intact after downloads.
 - Unverified users cannot fetch new restricted audio; saved authorized music remains playable locally even after the online session ends.
 - The installed engine must verify the current HTML and required scripts before reporting READY.
