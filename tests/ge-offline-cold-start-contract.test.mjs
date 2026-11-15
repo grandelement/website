@@ -4,12 +4,20 @@ import vm from 'node:vm';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const sw=read('radio/sw.js');
+const siteSW=read('sw.js');
 const radio=read('radio/index.html');
 const offline=read('radio/offline-player.html');
 const boot=offline.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
 assert.ok(boot,'Standalone OFFLINE player inline script exists');
 new vm.Script(sw,{filename:'radio/sw.js'});
+new vm.Script(siteSW,{filename:'sw.js'});
 new vm.Script(boot,{filename:'radio/offline-player.html'});
+assert.match(siteSW,/const REQUIRED_OFFLINE_FILES=/,'Website worker defines its own required startup files');
+for(const file of ['./radio/','./radio/index.html','./radio/offline-player.html','./ge-offline-library.js']){
+ assert.ok(siteSW.includes("'"+file+"'"),'Website offline core contains '+file);
+}
+assert.match(siteSW,/for\(const path of REQUIRED_OFFLINE_FILES\)/,'Website checks required files before activation');
+assert.match(siteSW,/blob\.slice\(start,end\+1\)/,'Website serves media byte ranges without large ArrayBuffer copies');
 assert.match(sw,/const OFFLINE_CORE=/,'Service worker defines minimum offline startup bundle');
 for(const file of ['./offline-player.html','./ge-music-v5.js','./manifest.json','../ge-vault-client.js']){
  assert.ok(sw.includes("'"+file+"'"),'Required offline asset listed: '+file);
