@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.57-20261114-OFFLINE-RESTORED';
+const BUILD='GE-MUSIC-V7.58-20261114-TOOLBAR-SUN-OFFLINE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1336,6 +1336,28 @@ button:disabled{opacity:.5;cursor:not-allowed}
     margin:0!important;
   }
 }
+
+/* Compact controls: Search + SAVE + LOAD + DELETE remain on ONE row, even on iPhone. */
+.window.geSimpleSongBrowser > .geBrowseTools{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto auto!important;gap:5px!important;align-items:center!important;flex-wrap:nowrap!important;padding:5px 9px 7px!important;min-width:0!important}
+.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSearch{display:block!important;grid-column:1!important;flex:none!important;width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;padding:5px 7px!important;font-size:clamp(12px,3vw,14px)!important;box-sizing:border-box!important}
+.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSave,.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistTopButton{display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:none!important;min-width:0!important;width:auto!important;height:40px!important;min-height:40px!important;max-height:40px!important;padding:4px 7px!important;margin:0!important;font-size:clamp(10px,2.7vw,12px)!important;white-space:nowrap!important;line-height:1!important;border-radius:8px!important}
+@media(max-width:355px){.window.geSimpleSongBrowser > .geBrowseTools{gap:3px!important;padding-inline:5px!important}.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSave,.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistTopButton{font-size:10px!important;padding-inline:4px!important}}
+/* Number is private state, never a public counter. Blue Sun owns its position. */
+.window.geSimpleSongBrowser > .selectionBar .checkedCount,.window.geAlbumDetailClean > .selectionBar .checkedCount,.window.gePlaylistWorkspace > .selectionBar .checkedCount{display:none!important}
+.window.geSimpleSongBrowser > .selectionBar .gePlayerSunReturn,.window.geAlbumDetailClean > .selectionBar .gePlayerSunReturn,.window.gePlaylistWorkspace > .selectionBar .gePlayerSunReturn{display:inline-flex!important;order:2!important;flex:0 0 44px!important;width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;min-height:44px!important;align-items:center!important;justify-content:center!important;margin:0 4px!important;padding:2px!important;background:transparent!important;border:0!important;border-radius:50%!important;box-shadow:none!important;position:relative!important;z-index:5!important;pointer-events:auto!important;touch-action:manipulation!important}
+.window > .selectionBar .gePlayerSunReturn img{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;border-radius:50%!important;box-shadow:0 0 9px 2px rgba(54,174,255,.58)!important;pointer-events:none!important}
+.window.geSimpleSongBrowser > .selectionBar .geSelectionTools{order:1!important;min-width:0!important;flex:1 1 0!important}
+.window.geSimpleSongBrowser > .selectionBar .selectionActions{order:3!important;min-width:0!important;flex:1 1 0!important}
+.window.geAlbumDetailClean > .scroll .albumCollectionHeading{display:flex!important;visibility:visible!important;opacity:1!important;justify-content:center!important;min-height:44px!important;padding:7px 5px!important;margin:0 auto 6px!important}
+.window.geAlbumDetailClean > .scroll .albumDetailTitle{display:block!important;visibility:visible!important;opacity:1!important;text-align:center!important;font-size:clamp(23px,6.5vw,34px)!important;font-weight:900!important;color:white!important}
+/* OFFLINE is always findable. If locked, the existing Music code box opens in place. */
+.window > .geMusicOfflineRow{display:flex!important;flex-wrap:wrap!important;gap:5px!important;padding:4px 9px!important}
+.window > .geMusicOfflineRow .geMusicOfflineMeter[hidden]{display:none!important}
+.window > .geMusicOfflineRow .geMusicOfflineTrigger{min-height:38px!important;padding:5px 11px!important;font-size:12px!important}
+.window > .geMusicOfflineRow.locked .geMusicOfflineTrigger{background:#10354d!important;border-color:#8bb6d7!important}
+.window > .geMusicOfflineRow .musicCodeTools{order:3!important;flex:1 1 100%!important;width:100%!important;min-width:0!important}
+.window > .geMusicOfflineRow .musicCodeTools[hidden]{display:none!important}
+
 /* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
 .window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
 /* Restore the existing offline action in normal SONGS and PLAYLISTS.
@@ -1366,7 +1388,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite"></strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-hidden="true"></strong><button class="gePlayerSunReturn" type="button" aria-label="Return to the Radio player" title="Return to player"><img src="../ge-images/images/ge-logo-2.jpg" alt=""></button><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -2457,6 +2479,8 @@ function render(){
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent='ALBUMS';
  el('.albumDetailPlaylist').textContent='PLAYLIST';
+ el('.albumDetailSongs').textContent=albumDetail?state.view.slice(6).toUpperCase():'SONGS';
+ el('.albumDetailSongs').setAttribute('aria-label',albumDetail?'Selected album '+state.view.slice(6)+'. Tap to browse all songs.':'Browse all songs');
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
@@ -2805,6 +2829,7 @@ el('.albumDetailPlaylist').addEventListener('click',()=>setView('user-playlists'
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').textContent='BACK';
 el('.close').addEventListener('click',close);
+el('.gePlayerSunReturn').addEventListener('click',()=>{close();window.GEMusicV5Bridge?.showMainPlayer?.();});
 el('.geBrowseSearch').addEventListener('input',event=>{
  state.term=event.target.value;
  render();scroller.scrollTop=0;
@@ -3005,10 +3030,13 @@ musicOfflineDialog.addEventListener('click',event=>{
 // Offline download row directly above the selection footer.
 const geOfflineRow=document.createElement('div');
 geOfflineRow.className='geMusicOfflineRow';
-geOfflineRow.hidden=true;
+geOfflineRow.hidden=false;
 geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
 el('.selectionBar').before(geOfflineRow);
-geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>el('.offlineSelected').click());
+// The existing Music code controls are usable on all Music views, including album art.
+geOfflineRow.append(el('.musicCodeTools'));
+function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');say('OFFLINE LOCKED · Enter your GE access code here.');el('.musicCodeInput').focus();}
+geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>{if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}el('.offlineSelected').click();});
 const geOfflineMeter=geOfflineRow.querySelector('.geMusicOfflineMeter');
 function musicOfflineAllowed(){
  const access=musicAccessActive();
@@ -3021,7 +3049,9 @@ function musicOfflineAllowed(){
  }catch(_){return false}
 }
 function updateOfflineAccessVisibility(){
- geOfflineRow.hidden=!musicOfflineAllowed();
+ const enabled=musicOfflineAllowed();geOfflineRow.hidden=false;geOfflineRow.classList.toggle('locked',!enabled);
+ const trigger=geOfflineRow.querySelector('.geMusicOfflineTrigger');trigger.textContent=enabled?'OFFLINE':'OFFLINE · LOCKED';
+ trigger.setAttribute('aria-label',enabled?'Open offline downloads':'Enter an access code to unlock offline downloads');geOfflineMeter.hidden=!enabled;
 }
 window.addEventListener('message',event=>{
  if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_PROGRESS')return;
@@ -3056,11 +3086,7 @@ shareSelectedButton.addEventListener('click',()=>{
  void window.GEShareMusicSelection?.(selected);
 });
 el('.offlineSelected').addEventListener('click',()=>{
- if(!musicOfflineAllowed()){
-  close();
-  document.getElementById('offlineBtn')?.click();
-  return;
- }
+ if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent='Choose what to save on this device.';
  musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
