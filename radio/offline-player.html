@@ -23,8 +23,10 @@ async function cachedPlaylists(){
  let response=await caches.match(url,{ignoreSearch:true});
  // Only refresh the playlist registry when connected; never depend on it offline.
  if(navigator.onLine){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),3500);
   try{
-   const fresh=await fetch(url,{cache:'no-store'});
+   const fresh=await fetch(url,{cache:'no-store',signal:controller.signal});
    if(fresh.ok){
     const data=await fresh.clone().json();
     if(Array.isArray(data.playlists)){
@@ -34,6 +36,7 @@ async function cachedPlaylists(){
     }
    }
   }catch(_){}
+  finally{clearTimeout(timeout)}
  }
  if(!response)return [];
  try{const data=await response.json();return Array.isArray(data.playlists)?data.playlists:[];}catch(_){return [];}
