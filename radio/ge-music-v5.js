@@ -3097,14 +3097,9 @@ function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidde
 geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>{if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}el('.offlineSelected').click();});
 const geOfflineMeter=geOfflineRow.querySelector('.geMusicOfflineMeter');
 function musicOfflineAllowed(){
- const access=musicAccessActive();
- if(access?.offlineEnabled===true)return true;
- try{
-  const grant=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
-  return !!grant&&grant.verifiedFor==='radio'&&Number(grant.until)>Date.now()&&
-   Array.isArray(grant.scopes)&&grant.scopes.includes('offline')&&
-   (grant.scopes.includes('radio')||grant.scopes.includes('website'));
- }catch(_){return false}
+ // The download engine's verified Vault scope is authoritative.
+ // Do not show an unlocked MUSIC button that the controller will reject.
+ return window.GERadioOfflineAllowed?.()===true;
 }
 function updateOfflineAccessVisibility(){
  syncMusicOwnerTools();
