@@ -11,31 +11,32 @@ const spectrum=readFileSync('radio/offline-spectrum.js','utf8');
 const launcher=readFileSync('radio/offline-home.html','utf8');
 const webmanifest=JSON.parse(readFileSync('radio/manifest.webmanifest','utf8'));
 
-test('offline worker keeps media cache and requires essential app files',()=>{
+test('one worker verifies the startup shell and never deletes music',()=>{
  assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
- assert.match(sw,/const REQUIRED_SHELL=\[/);
- assert.match(sw,/Promise\.all\(REQUIRED_SHELL\.map/);
+ assert.match(sw,/const REQUIRED=\[/);
+ assert.match(sw,/Promise\.all\(REQUIRED\.map/);
  assert.match(sw,/await self\.skipWaiting\(\)/);
- assert.ok(sw.indexOf('await Promise.all(REQUIRED_SHELL.map')<sw.indexOf('await self.skipWaiting()'));
- assert.match(sw,/offlineNavigationFallback/);
+ assert.ok(sw.indexOf('await Promise.all(REQUIRED.map')<sw.indexOf('await self.skipWaiting()'));
+ assert.match(sw,/async function savedIndex/);
  assert.match(sw,/'.\/offline-home\.html'/);
- assert.doesNotMatch(sw,/'.\/offline-control\.js'/,'Duplicate offline controller must not be cached');
+ assert.doesNotMatch(sw,/'.\/offline-control\.js'/);
  assert.match(sw,/'.\/offline-manager\.js'/);
  assert.match(sw,/'.\/offline-spectrum\.js'/);
  assert.match(sw,/GE_RADIO_SHELL_STATUS/);
+ assert.match(sw,/ge-images\/img\/31\.gif/);
+ assert.match(sw,/ARTWORK\.map/);
+ assert.doesNotMatch(sw,/ge-radio-backgrounds-v1/);
 });
-test('network recovery is bounded even if Safari reports online incorrectly',()=>{
- assert.match(sw,/async function fetchWithTimeout\(/);
- assert.match(sw,/tag==='install'\?20000:3500/);
- for(const path of [
-  'secondaryPageNavigationResponse','mediaResponse','staticResponse'
- ]){
+test('network recovery is bounded when Safari reports online incorrectly',()=>{
+ assert.match(sw,/async function timeoutFetch\(/);
+ assert.match(sw,/await timeoutFetch\(update\.href,\{cache:'no-store'\},25000\)/);
+ for(const path of ['navigation','media','staticFile']){
   const start=sw.indexOf('async function '+path+'(');
   assert.ok(start>=0);
-  const segment=sw.slice(start,start+1500);
-  assert.match(segment,/fetchWithTimeout\(request/);
+  const segment=sw.slice(start,start+2600);
+  assert.match(segment,/timeoutFetch\(/);
  }
- assert.match(sw,/return new Response\('Media not available without a connection',\{status:503\}\)/);
+ assert.match(sw,/new Response\('Media unavailable',\{status:503\}\)/);
 });
 test('radio cold start checks stored identity with no Vault request',()=>{
  assert.match(radio,/window\.GEVault\?\.anonId\|\|localStorage\.getItem\('ge_vault_anon_id'\)/);
@@ -66,7 +67,7 @@ test('MUSIC owns offline actions and local playback activation survives access e
  assert.match(manager,/missing,/,'Engine returns missing recording paths');
  assert.match(manager,/X-GE-Offline-Download/,'Downloads must bypass service-worker duplicate caching');
  assert.match(sw,/X-GE-Offline-Download/,'Streaming worker must preserve a single cached download');
- assert.match(manager,/attempt<=3/,'Transient mobile download failures need bounded retries');
+ assert.match(manager,/attempt<3/,'Transient mobile download failures need bounded retries');
  assert.match(music,/data-ge-offline="all"/,'MUSIC owns the default one-tap full download');
  assert.match(music,/data-ge-offline="checked"/,'MUSIC has checked songs');
  assert.match(music,/data-ge-offline="playlist"/,'MUSIC has playlists');
@@ -108,7 +109,7 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  const cacheData=new Map();
  const origin='https://example.test';
  const song=origin+'/ge-music/music/Aether/01_song.mp3';
- const html='<!doctype html><html><head><title>grand element radio</title></head><body><div id="shipStage"></div><audio id="player"></audio></body></html>';
+ const html='<!doctype html><html><head><title>Grand Element Radio</title></head><body><div id="shipStage"></div><audio id="player"></audio></body></html>';
  const workerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1];
  assert.ok(workerVersion);
  const shell='ge-radio-shell-'+workerVersion;
