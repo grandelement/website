@@ -1256,9 +1256,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 .geLegacyPlaylistControls,.geLegacyPlaylistControls[hidden]{display:none!important}
 .window > .selectionBar .quickPlaylistRow{display:none!important}
-.window > .geBrowseTools .gePlaylistTopButton:last-child:not([hidden]){
- margin-left:auto!important;margin-right:auto!important;
-}
 /* SONGS is a continuous scroll of square album-art sections, in album order.
    Artwork belongs to each album, not the fixed full-window background. */
 .window.geSimpleSongBrowser:has(.geSongsAlbumSquare)::before{background-image:none!important;animation:none!important}
@@ -1269,7 +1266,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  position:relative!important;isolation:isolate!important;
  box-sizing:border-box!important;width:100%!important;
  min-height:min(100vw,100dvh)!important;
- aspect-ratio:1/1!important;
+ height:auto!important;max-height:none!important;aspect-ratio:auto!important;
  margin:0!important;padding:clamp(10px,3vw,24px) 10px!important;
  display:flex!important;flex-direction:column!important;justify-content:center!important;
  align-items:center!important;gap:0!important;
@@ -1285,17 +1282,62 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song{
  width:min(100%,440px)!important;max-width:440px!important;
  margin:0 auto!important;padding:0!important;
- min-height:clamp(28px,4.6vh,42px)!important;
+ min-height:46px!important;height:auto!important;
  flex:0 0 auto!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .songTitlePlay{
- min-height:28px!important;padding:2px 0!important;
- white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important;
+ min-height:40px!important;height:auto!important;padding:4px 0!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;overflow:visible!important;text-overflow:clip!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .geSongTitleGlow{
- padding:5px 10px!important;white-space:nowrap!important;
+ padding:5px 10px!important;white-space:normal!important;overflow-wrap:anywhere!important;
  max-width:calc(100% - 12px)!important;
 }
+
+/* Mobile SONGS: album backgrounds are minimum art panels, not fixed-height
+   containers. Every title must stay within its own album, even when the album
+   contains more tracks than the phone is wide. */
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
+  min-height:min(100vw,100dvh)!important;
+  height:auto!important;max-height:none!important;aspect-ratio:auto!important;
+  overflow:visible!important;row-gap:4px!important;
+  padding:20px 12px 24px!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .albumBrowseHeading{
+  flex:0 0 auto!important;line-height:1.25!important;
+  overflow-wrap:anywhere!important;margin-bottom:12px!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song{
+  box-sizing:border-box!important;
+  flex:0 0 auto!important;min-height:46px!important;height:auto!important;
+  overflow:visible!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .songTitlePlay,
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .geSongTitleGlow{
+  white-space:normal!important;overflow-wrap:anywhere!important;
+  height:auto!important;text-overflow:clip!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .song .geSongTitleGlow{
+  width:auto!important;max-width:100%!important;overflow:visible!important;
+}
+@media (max-width:640px){
+  .window.geSimpleSongBrowser > .geBrowseTools{
+    flex-wrap:wrap!important;gap:8px!important;
+    padding:8px 12px 12px!important;
+  }
+  .window.geSimpleSongBrowser > .geBrowseTools .geBrowseSearch{
+    flex:1 0 100%!important;width:100%!important;
+    min-width:0!important;box-sizing:border-box!important;
+  }
+  .window.geSimpleSongBrowser > .geBrowseTools .geBrowseSave,
+  .window.geSimpleSongBrowser > .geBrowseTools .gePlaylistTopButton{
+    flex:1 1 0!important;min-width:0!important;
+    min-height:44px!important;box-sizing:border-box!important;
+    margin:0!important;
+  }
+}
+/* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
+.window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -2390,7 +2432,6 @@ function render(){
  const cat=activeCategory();
  updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
- playlistArrangeTop.hidden=cat!=='playlists';
  const activeNav=cat==='albums'?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
  for(const nav of ['.albumDetailBack','.albumDetailSongs','.albumDetailPlaylist']){
   const selected=nav===activeNav;
@@ -2990,10 +3031,6 @@ const playlistDeleteTop=elem('button','gePlaylistTopButton','DELETE');
 playlistDeleteTop.type='button';
 playlistDeleteTop.addEventListener('click',()=>el('.quickPlaylistDelete').click());
 el('.geBrowseTools').append(playlistTop,playlistDeleteTop);
-const playlistArrangeTop=elem('button','gePlaylistTopButton','ARRANGE');
-playlistArrangeTop.type='button';
-playlistArrangeTop.addEventListener('click',()=>{if(!state.selected.size)return;setView('playlist-order')});
-el('.geBrowseTools').append(playlistArrangeTop);
 
 const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
