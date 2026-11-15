@@ -28,3 +28,9 @@ Scope: current GitHub main and proposed repair branch. This is a code audit, **n
 - Inspect Cloudflare Pages/Workers/DNS routes, redirects, caches and `grandelement.com` production host. This repo alone does not establish those live settings.
 - If an old interface persists, capture full address bar URL and browser/app type. Do **not** clear all site storage: that can erase downloaded music and saved local settings. Clear only confirmed obsolete UI caches after independent backup.
 - Resume Fan Verification PR #93 separately. It is not deployed by this repair.
+
+## Additional confirmed findings from regression triage
+- Home and Radio had different inline device-view detectors. They are now synchronized on the repair branch, including physical phone-size handling and Radio-only scroll recentering. The smoke test checks for future drift.
+- Radio album-label color mapping used `String(path||'').split('/').slice(-2,-1)[0].toLowerCase()`, which throws when there is no parent folder. The repair defaults a missing parent folder to an empty string and checks against recurrence.
+- The GitHub website smoke test passed after refreshing a stale merchandise timing assertion; the site already uses configurable default 45–75 second intervals, rather than the removed literal formula.
+- Several other regression workflows also failed on the pre-repair commit. Examples include a historical Music script URL expectation, an obsolete Radio 2 disabled flag expectation, and a browser boot error. These are **not** grounds to claim the current site is healthy and should be examined separately. No changed branch is automatically deployed merely because a pull request exists.
