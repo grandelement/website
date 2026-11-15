@@ -2,6 +2,7 @@ name: GE OFFLINE cold-start contract
 on:
   pull_request:
     paths:
+      - 'sw.js'
       - 'radio/sw.js'
       - 'radio/index.html'
       - 'radio/offline-player.html'
@@ -10,6 +11,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'sw.js'
       - 'radio/sw.js'
       - 'radio/index.html'
       - 'radio/offline-player.html'
@@ -23,7 +25,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check radio service worker syntax
-        run: node --check radio/sw.js
+      - name: Check website and radio worker syntax
+        run: |
+          node --check sw.js
+          node --check radio/sw.js
       - name: Check OFFLINE cold-start contract
         run: node tests/ge-offline-cold-start-contract.test.mjs
