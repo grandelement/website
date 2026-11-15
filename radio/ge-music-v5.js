@@ -2999,13 +2999,20 @@ el('.accessToggle').addEventListener('click',()=>{
 const musicOfflineDialog=document.createElement('dialog');
 musicOfflineDialog.setAttribute('aria-label','Offline download choices');
 musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
-musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
+musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="open">OPEN SAVED OFFLINE PLAYER</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
 document.body.append(musicOfflineDialog);
 musicOfflineDialog.addEventListener('click',event=>{
  const action=event.target.closest('button')?.dataset.action;
  if(!action)return;
  musicOfflineDialog.close();
  if(action==='cancel')return;
+ if(action==='open'){
+  if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}
+  // Independent saved launch page: works without reloading the online Radio
+  // UI once the service worker is confirmed active and controlling the tab.
+  const url=window.GERadioOfflineLaunchURL||new URL('./offline-player.html',location.href).href;
+  location.assign(url);return;
+ }
  if(action==='status'){
   void (async()=>{
    try{
