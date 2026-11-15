@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.14-music-mobile-v108';
+const VERSION='2026.11.14-offline-network-recovery-v109';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -59,6 +59,13 @@ const REQUIRED_SHELL=[
 async function fetchFresh(requestOrURL){
   return fetch(requestOrURL,{cache:'no-store'});
 }
+// Safari may misreport online state after Airplane Mode. Bound recovery fetches.
+async function fetchWithTimeout(requestOrURL,options={},timeoutMs=3500){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),timeoutMs);
+  try{return await fetch(requestOrURL,{...options,signal:controller.signal})}
+  finally{clearTimeout(timeout)}
+}
 
 async function isValidRadioHTML(response,{requireCurrent=false}={}){
   if(!response || !response.ok) return false;
@@ -78,7 +85,7 @@ async function isValidRadioHTML(response,{requireCurrent=false}={}){
 async function fetchValidatedIndex(tag='recovery'){
   const url=new URL('./index.html',self.location.href);
   url.searchParams.set('_ge_'+tag,VERSION+'-'+Date.now());
-  const response=await fetch(url.href,{cache:'no-store'});
+  const response=await fetchWithTimeout(url.href,{cache:'no-store'},tag==='install'?20000:3500);
   if(!(await isValidRadioHTML(response,{requireCurrent:true}))) throw new Error('Radio UI build is outdated or incomplete');
   return response;
 }
@@ -190,7 +197,7 @@ async function secondaryPageNavigationResponse(request){
   // Preview Lab and other Radio HTML pages must not be validated against the
   // main Radio index markup. The old handler replaced them with index.html.
   try{
-    const response=await fetch(request,{cache:'no-store'});
+    const response=await fetchWithTimeout(request,{cache:'no-store'});
     if(response.ok && /text\/html/i.test(response.headers.get('content-type')||'')){
       const cache=await caches.open(SHELL_CACHE);
       await cache.put(request,response.clone()).catch(()=>{});
@@ -264,7 +271,7 @@ async function mediaResponse(request){
   // Offline still falls back to the listener's existing saved music.
   const url=new URL(request.url);
   try{
-    const fresh=await fetch(request,{cache:'no-store'});
+    const fresh=await fetchWithTimeout(request,{cache:'no-store'});
     if(fresh.ok){
       if(fresh.status===200 && request.method==='GET' &&
          /^\/ge-music\/(?:music|clips)\//i.test(url.pathname)){
@@ -280,7 +287,7 @@ async function mediaResponse(request){
     ? (await caches.match(request,{ignoreSearch:false}))
     : await cachedResponse(request);
   if(cached)return rangeFromCache(request,cached);
-  return fetch(request,{cache:'no-store'});
+  return new Response('Media not available without a connection',{status:503});
 }
 
 async function staticResponse(request){
@@ -292,7 +299,7 @@ async function staticResponse(request){
   // previously cached with ignoreSearch:true.
   if(new URL(request.url).pathname.endsWith('/iam-private-studio.js')){
     try{
-      const fresh=await fetch(request,{cache:'no-store'});
+      const fresh=await fetchWithTimeout(request,{cache:'no-store'});
       if(fresh.ok){
         const cache=await caches.open(SHELL_CACHE);
         cache.put(request,fresh.clone()).catch(()=>{});
@@ -303,7 +310,7 @@ async function staticResponse(request){
   // UI architecture must update whenever online; cached UI is an
   // offline fallback only. Audio downloads stay in MEDIA_CACHE.
   try{
-    const response=await fetch(request,{cache:'no-store'});
+    const response=await fetchWithTimeout(request,{cache:'no-store'});
     if(response.ok){
       const cache=await caches.open(SHELL_CACHE);
       await cache.put(request,response.clone()).catch(()=>{});
