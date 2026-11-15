@@ -10396,6 +10396,20 @@ async function registerServiceWorker(){
       complete++;
       progress('Checked '+complete+' of '+OFFLINE_LAUNCH_FILES.length+' offline webpage files.',complete);
     }
+    // The iPhone EQ uses genuine per-song amplitude measurements. Cache
+    // this small optional data file alongside the offline music, without
+    // making the music launcher fail when an EQ build is unavailable.
+    if(!signal?.aborted){
+      try{
+        const eqURL=absolute('./eq/library-spectrum.json');
+        const eqResponse=await bounded(fetch(eqURL,{cache:'no-store',headers:{'X-GE-Offline':'1'}}),6000,'Song EQ analysis');
+        if(eqResponse?.ok){
+          const eqSnapshot=await eqResponse.clone().json();
+          if(eqSnapshot?.format==='ge-song-3band-timeline-v1'&&Object.keys(eqSnapshot.tracks||{}).length)
+            await cache.put(eqURL,eqResponse);
+        }
+      }catch(error){console.warn('Optional song EQ timeline not cached:',error);}
+    }
     const checked=await inspectOfflineLaunchAssets();
     // Save this browser's Fan Vault playlist names and song order as part
     // of a complete offline preparation. Failure leaves the prior copy safe.
