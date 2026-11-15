@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.62-20261115-UNIFIED-OFFLINE-REBUILD';
+const BUILD='GE-MUSIC-V7.63-20261115-ALBUMS-OFFLINE-ENTRY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -23,7 +23,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'browse-songs',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -1058,10 +1058,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .countHint{display:none!important}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
-.window.geAlbumDetailClean > .header,.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
+.window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
+.window.geAlbumDetailClean > .header{
+ display:flex!important;flex:0 0 auto!important;
+ min-height:calc(env(safe-area-inset-top) + 49px)!important;
+ padding:calc(env(safe-area-inset-top) + 6px) 10px 7px!important;
+ position:relative!important;z-index:9!important;
+ background:rgba(2,15,31,.92)!important;border:0!important;
+}
 .window.geAlbumDetailClean > .albumDetailNav{
  display:flex!important;flex:0 0 auto;align-items:center;justify-content:space-between;
- padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;gap:12px;
+ padding:7px 12px 8px;gap:12px;
  background:transparent;z-index:5
 }
  .window.geAlbumDetailClean > .albumDetailNav .albumDetailFilter{
@@ -1374,6 +1381,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
    there is no second overlay or copy of the download controls. */
 .window .geOfflineWorkspace{display:none}
 .window.geOfflineOpen > :not(.header):not(.geOfflineWorkspace){display:none!important}
+.window.geOfflineOpen > .header{display:flex!important;position:relative!important;z-index:5!important}
+.window.geOfflineOpen .musicOfflineLaunch{display:inline-flex!important}
 .window.geOfflineOpen .geOfflineWorkspace{display:flex!important;flex-direction:column;min-height:0;flex:1 1 auto;gap:12px;overflow:auto;padding:17px 14px;background:#071a2b}
 .geOfflineWorkspace h2{margin:0;font-size:clamp(19px,5.2vw,25px);line-height:1.2}
 .geOfflineWorkspace p{margin:0;line-height:1.45;color:#c9deee}
@@ -1469,7 +1478,7 @@ const universe=document.createElement('section');
 universe.className='geStandaloneAlbumUniverse';
 universe.setAttribute('role','dialog');
 universe.setAttribute('aria-label','Grand Element album universe');
-universe.innerHTML='<div class="geUniverseStarfield" aria-hidden="true"></div><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
+universe.innerHTML='<div class="geUniverseStarfield" aria-hidden="true"></div><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseToolbar"><strong>ALBUMS</strong><div><button type="button" class="geUniverseOfflineLaunch">OFFLINE</button><button type="button" class="geUniverseClose">BACK</button></div></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
 el('.window').after(universe);
 const universeStyle=document.createElement('style');
 universeStyle.textContent=`
@@ -1483,8 +1492,14 @@ universeStyle.textContent=`
  background-size:113px 139px,173px 191px,67px 97px,cover;
  background-position:0 0,21px 39px,13px 7px,center center;background-repeat:repeat,repeat,repeat,no-repeat}
 .geStandaloneAlbumUniverse.isActive{display:block}
+.geUniverseToolbar{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:10px;right:10px;z-index:35;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;pointer-events:auto}
+.geUniverseToolbar strong{font:900 17px system-ui,sans-serif;letter-spacing:.07em;text-shadow:0 1px 5px #000}
+.geUniverseToolbar>div{display:flex;gap:8px}
+.geUniverseToolbar button{appearance:none;min-width:75px;min-height:44px;padding:9px 11px;border:1px solid #a1dfff;border-radius:10px;background:rgba(2,28,55,.93);color:#fff;font:850 13px system-ui,sans-serif;touch-action:manipulation}
+.geUniverseToolbar .geUniverseOfflineLaunch{background:#087cbb;border:2px solid #d3f3ff}
+.geUniverseToolbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
-.geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 42px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
+.geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 66px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
 .geUniverseAlbum{position:relative;display:block;justify-self:center;align-self:center;width:auto;height:100%;max-width:94vw;max-height:100%;aspect-ratio:1;min-height:0;min-width:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 /* Aether: soften the bright white core so the first cover transitions
@@ -1498,6 +1513,9 @@ universeStyle.textContent=`
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
 root.appendChild(universeStyle);
+universe.querySelector('.geUniverseToolbar').addEventListener('click',event=>event.stopPropagation());
+universe.querySelector('.geUniverseOfflineLaunch').addEventListener('click',()=>openOffline());
+universe.querySelector('.geUniverseClose').addEventListener('click',()=>close());
 // Tapping the starfield opens Songs; tapping artwork opens that album.
 universe.addEventListener('click',event=>{
  if(universe.dataset.pinching==='true')return;
@@ -2492,6 +2510,11 @@ function render(){
  const albumDetail=state.view.startsWith('album:');
  const songBrowsing=albumDetail||state.view==='browse-songs'||state.view==='user-playlists'||state.view==='playlist-display';
  const musicWindow=el('.window');
+ if(musicWindow.classList.contains('geOfflineOpen')){
+  musicWindow.style.display='';
+  universe.classList.remove('isActive');
+  return;
+ }
  musicWindow.style.display=albumUniverseActive?'none':'';
  musicWindow.classList.toggle('geAlbumFullArt',songBrowsing);
  musicWindow.classList.toggle('geAlbumDetailClean',songBrowsing);
@@ -2877,7 +2900,10 @@ function chooseOffline(mode){
 }
 function showOfflinePanel(){
  universe.classList.remove('isActive');
- el('.window').classList.add('geOfflineOpen');
+ const window=el('.window');
+ window.style.display='';
+ window.classList.remove('geAlbumFullArt','geAlbumDetailClean','geSimpleSongBrowser');
+ window.classList.add('geOfflineOpen');
  fillOfflinePlaylists();
  chooseOffline(offlineChoice);
  offlineStart.focus();
@@ -2890,7 +2916,9 @@ function openOffline(){
 function hideOffline(){
  if(offlineBusy){setOfflineMessage('Download in progress. Use STOP before returning to MUSIC.');return}
  el('.window').classList.remove('geOfflineOpen');
- el('.musicOfflineLaunch').focus();
+ render();
+ if(state.view==='albums')universe.querySelector('.geUniverseOfflineLaunch').focus();
+ else el('.musicOfflineLaunch').focus();
 }
 function setOfflineProgress(percent,etaSeconds=null){
  const value=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
@@ -2987,9 +3015,8 @@ window.addEventListener('ge-access-experience-updated',()=>{
 let previousFocus=null,oldBodyOverflow='';
 function open(){
  if(state.open)return;
- // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
- // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='browse-songs';state.arranging=false;state.term='';
+ // MUSIC always opens at the ALBUMS universe. Song selections and playlists are retained.
+ state.view='albums';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
