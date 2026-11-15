@@ -11535,7 +11535,7 @@ async function registerServiceWorker(){
     try{
       // A failed plan write must not abort the actual song download or
       // falsely mark the stored songs as lost (iOS may be near quota).
-      try{await saveOfflinePlan(prepared.assets,{autoResume:false});}
+      try{await saveOfflinePlan(prepared.assets,{autoResume:true});}
       catch(error){console.warn('Offline plan metadata not saved:',error);}
       const result=await cacheMissingAssets({
         quiet:false,
@@ -11597,17 +11597,46 @@ async function registerServiceWorker(){
     rebuildQueue(state.currentURL);
   });
 
+  // An approved download is a persistent commitment, not a one-page request.
+  // iOS may suspend Safari; resume the missing complete songs on foreground/reopen.
+  let geResumeRunning=false;
+  let geResumeRetryAt=0;
+  async function resumeCommittedOfflineDownload(){
+    if(geResumeRunning||button.classList.contains('downloading')||navigator.onLine===false||document.hidden)return;
+    if(Date.now()<geResumeRetryAt)return;
+    if(!geRadioUtilityAllowed('offline'))return;
+    geResumeRunning=true;
+    try{
+      const planned=await scanApprovedPlan();
+      if(!planned?.plan?.autoResume)return;
+      if(planned.audit.musicComplete){await setOfflinePlanAutoResume(false);return;}
+      if(!planned.audit.missingSongs)return;
+      panel.style.display='block';
+      text.textContent='Resuming committed offline download: '+planned.audit.missingSongs+' songs remaining.';
+      const result=await cacheMissingAssets({quiet:false,reason:'auto-resume',prepared:planned});
+      if(!result.musicComplete)geResumeRetryAt=Date.now()+30000;
+    }catch(error){
+      geResumeRetryAt=Date.now()+30000;
+      console.warn('Offline auto-resume will retry after reconnect/foreground',error);
+    }finally{geResumeRunning=false;}
+  }
+  window.addEventListener('pageshow',()=>{void resumeCommittedOfflineDownload();});
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden)void resumeCommittedOfflineDownload();
+  });
+  window.addEventListener('online',()=>{void resumeCommittedOfflineDownload();});
+
   (async()=>{
     try{
       // Online startup must audit the LATEST inventory, not a months-old
       // saved download plan that keeps showing "Resume 10 Songs".
       if(navigator.onLine!==false){
-        try{await scanExistingAssets();return;}
+        try{await scanExistingAssets();void resumeCommittedOfflineDownload();return;}
         catch(error){console.warn('Fresh offline audit unavailable',error);}
       }
       // Offline or unavailable GitHub: show saved plan status only.
       const planned=await scanApprovedPlan();
-      if(planned?.plan?.autoResume)await setOfflinePlanAutoResume(false);
+      if(planned?.plan?.autoResume)void resumeCommittedOfflineDownload();
     }catch(error){console.warn('Offline status scan failed',error);}
   })();
 
@@ -12645,7 +12674,7 @@ Vector ${vector}. ${pair[1]}.`;
   // never interrupts the native <audio> player or its Gate/volume.
   let geBlitzSpectrumAt=0,geBlitzSpectrumRequestAt=0,geBlitzSpectrumPending=false;
   async function pollBlitzSpectrum(){
-    if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
+    if(!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
     const now=performance.now();
     if(now-geBlitzSpectrumRequestAt<225)return;
     geBlitzSpectrumRequestAt=now;
@@ -16024,6 +16053,38 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
 /* The reload action remains a single radio controller; its visible control lives in MUSIC. */
 html.ge-radio-ui #geUtilityRow #reloadBtn,
 html.ge-radio-ui #shipStage [data-proxy="reloadBtn"]{display:none!important}
+</style>
+<style id="ge-radio-mobile-access-layout-guard-20261114">
+/* Access rights must never resize the Blue Sun or move it outside the viewport.
+   Only the portrait Player is affected; Ship Mode and desktop remain untouched. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
+   box-sizing:border-box!important;
+   padding-top:max(18px,env(safe-area-inset-top))!important;
+   overflow-x:clip!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
+   position:relative!important;inset:auto!important;transform:none!important;
+   flex:0 0 auto!important;height:auto!important;min-height:0!important;
+   margin:0 auto 10px!important;padding:0!important;overflow:visible!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header .logo-wrap{
+   position:relative!important;inset:auto!important;transform:none!important;
+   display:block!important;flex:0 0 auto!important;
+   width:clamp(126px,36vw,180px)!important;height:clamp(126px,36vw,180px)!important;
+   min-height:126px!important;max-height:180px!important;
+   margin:0 auto 8px!important;overflow:visible!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header h1,
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header .tag{
+   position:static!important;inset:auto!important;transform:none!important;
+   flex:0 0 auto!important;margin:0 auto!important;max-width:96vw!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
+   position:relative!important;inset:auto!important;transform:none!important;
+   max-width:100%!important;min-width:0!important;
+ }
+}
 </style>
 </body>
 </html>
