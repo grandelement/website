@@ -68,19 +68,39 @@ async function discover(){
 }
 async function save(url,cache){
  const req=new Request(url,{credentials:'same-origin'});
- if(await cache.match(req,{ignoreSearch:true}))return 'cached';
+ const path=new URL(url).pathname;
+ const audio=/\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(path);
+ const valid=async response=>{
+  if(!response||!response.ok||response.status!==200)return false;
+  const mime=String(response.headers.get('content-type')||'').toLowerCase();
+  if(audio && (mime.includes('text/html')||mime.includes('application/json')))return false;
+  if(!audio)return true;
+  if(Number(response.headers.get('content-length'))>0)return true;
+  // Missing size header: check real readable cached bytes, not just body existence.
+  const reader=response.clone().body?.getReader();
+  if(!reader)return false;
+  try{const chunk=await reader.read();return !chunk.done&&!!chunk.value?.byteLength}
+  catch(_){return false}
+  finally{try{await reader.cancel()}catch(_){}}
+ };
+ // Never count a partial HTTP 206 or a cached HTML error as a saved song.
+ if(await valid(await cache.match(req,{ignoreSearch:true})))return 'cached';
  const r=await fetch(req,{cache:'no-store'});
- if(!r.ok||r.type==='opaque')throw new Error('HTTP '+r.status);
- const mime=r.headers.get('content-type')||'';
- if(mime.includes('text/html')&&!/\/(?:index\.html)?$/i.test(new URL(url).pathname)&&!new URL(url).pathname.endsWith('/')){
+ if(!r.ok||r.status!==200||r.type==='opaque')throw new Error('HTTP '+r.status);
+ const mime=String(r.headers.get('content-type')||'').toLowerCase();
+ if((audio&&(mime.includes('text/html')||mime.includes('application/json')))||
+    (mime.includes('text/html')&&!/\/(?:index\.html)?$/i.test(path)&&!path.endsWith('/'))){
   throw new Error('Unexpected HTML instead of asset');
  }
- // Cache Storage streams large recordings without building an extra JS Blob.
+ // Cache Storage streams recordings without building an extra JS Blob.
  await cache.put(req,r);
+ if(!await valid(await cache.match(req,{ignoreSearch:true})))
+  throw new Error('Cached file failed local verification');
  return 'saved';
 }
 async function run(){
- if(downloading||!navigator.onLine)return;
+ if(downloading)return;
+ if(!navigator.onLine){say('Already offline. Saved files stay available locally; connect only to download missing files.');return;}
  downloading=true;const btn=fullButton();if(btn)btn.disabled=true;
  let done=0,fail=0,skipped=0;
  try{
@@ -107,12 +127,15 @@ async function run(){
   const required=groups.critical.filter(u=>!/\/$/.test(new URL(u).pathname));
   const missing=[];
   for(const url of required){if(!await cache.match(url,{ignoreSearch:true})&&!await caches.match(url,{ignoreSearch:true}))missing.push(url);}
-  if(!missing.length){
+  // "READY" must mean every requested offline asset is present, not just
+  // that the basic HTML shell installed while some music downloads failed.
+  const fullySaved=urls.length>0 && !missing.length && fail===0 && skipped===0 && done===urls.length;
+  if(fullySaved){
    try{localStorage.setItem('GE_OFFLINE_READY','1')}catch(_){}
-   say('OFFLINE SITE READY · '+done+' files saved/available, '+fail+' failed, '+skipped+' not downloaded. Live radio and online services still require internet.');
+   say('OFFLINE READY · '+done+' site, artwork and music files saved on this device. Live streaming and Vault services remain online-only.');
   }else{
    try{localStorage.removeItem('GE_OFFLINE_READY')}catch(_){}
-   say('OFFLINE INCOMPLETE · '+missing.length+' essential files missing. '+done+' saved/available; '+fail+' failed. Reconnect and retry.');
+   say('OFFLINE INCOMPLETE · '+missing.length+' essential files missing, '+fail+' failed, '+skipped+' skipped. '+done+' locally saved. Reconnect to finish; saved files were kept.');
   }
   if(errors.length)console.warn('GE offline missing assets',errors);
  }catch(e){say('Offline download interrupted: '+String(e.message||e));}
