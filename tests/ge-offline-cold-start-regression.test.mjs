@@ -67,6 +67,30 @@ test('Home Screen installs a cached launch entry, and download activation surviv
  assert.match(spectrum,/getChannelData/);
  assert.match(spectrum,/GEOfflineSpectrum/);
 });
+test('OFFLINE membership permits approved Radio recordings without a separate MUSIC code',()=>{
+ const start=radio.indexOf('function geOfflineSongAllowance(){');
+ const end=radio.indexOf('function geRadioUtilityAllowed(',start);
+ assert.ok(start>=0&&end>start);
+ const access=JSON.stringify({verifiedFor:'radio',until:Date.now()+120000,scopes:['radio','offline']});
+ const sessions={'GE_VAULT_SCOPED_ACCESS_V1':access};
+ const authorized=['ge-music/music/Grand Element - Aether/approved.mp3'];
+ const privateTrack='ge-music/music/Grand Element - Aether/private.mp3';
+ const get=Function('geRadioLocalTestAccess','publicPlayerProfile','sessionStorage','approvedAutoPaths',
+  'offlinePlaybackMode','geOfflineDeviceGrantValid','canonicalSongPath','localStorage','GE_OFFLINE_LOCAL_ENTITLEMENT',
+  radio.slice(start,end)+'return geOfflineSongAllowance;')(
+    ()=>false,{scopes:[]},{getItem:k=>sessions[k]||null},new Set(authorized),
+    ()=>false,()=>false,p=>p,{getItem:()=>null},'unused');
+ const granted=get();
+ assert.ok(granted instanceof Set);
+ assert.ok(granted.has(authorized[0]));
+ assert.ok(!granted.has(privateTrack),'OFFLINE code must never grant private or non-master files');
+ sessions['GE_MUSIC_CODE_SESSION_V1']=JSON.stringify({
+    token:'test',until:Date.now()+120000,restricted:true,allowed:[privateTrack]
+ });
+ const restricted=get();
+ assert.deepEqual([...restricted],[privateTrack],
+  'An explicit restricted MUSIC grant controls its own allowed catalog');
+});
 test('airplane-mode worker serves cached navigation and ranged audio with no network',async()=>{
  const handlers=new Map();
  const cacheData=new Map();
