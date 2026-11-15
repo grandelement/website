@@ -2092,7 +2092,11 @@ async function redeemMusicCode(){
      setView('albums');say('Music code verified for the full library.');
    }
  }catch(error){
-   clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
+   // An invalid replacement code must not erase a still-valid Vault session
+   // or force the listener into a different MUSIC page. Only explicit CLEAR
+   // or a confirmed expiry may revoke the existing access receipt.
+   el('.musicCodeState').hidden=false;
+   say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
 function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
