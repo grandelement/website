@@ -108,6 +108,7 @@ assert(siteSW.includes('response.status>=500'),'Hosting outage cache fallback mi
 assert(radio.includes('GE_RADIO_AUTO_CATALOG_CHECK_V1'),'Radio must throttle optional external GitHub catalog API');
 assert(radio.includes('Date.now()-lastChecked<6*60*60*1000'),'Radio catalog API throttle changed');
 assert(radio.includes('loadMusicManifest('),'Radio must retain static music manifest fallback');
+assert(!radio.includes(".slice(-2,-1)[0].toLowerCase()"),'Radio album labels must handle folderless paths without crashing');
 assert(radioSW.includes('const MEDIA_CACHE='),'Downloaded radio media preservation missing');
 assert(continuity.schemaVersion===1&&continuity.designRules.baseWebsiteRequiresBackend===false,
   'Ten-year continuity service register schema invalid');
