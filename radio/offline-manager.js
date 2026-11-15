@@ -130,7 +130,7 @@ async function download(kind){
   }
  }finally{
   busy(false);
-  await bridge().rescan?.();
+  await Promise.resolve(bridge().rescan?.()).catch(()=>{});
   status(cancelled?'Stopped. Earlier downloads were kept.':failed?failed+' songs failed. Press SAVE again to retry missing files.':'Audio stored and checked. Verify actual playback in Airplane Mode.');
  }
 }
@@ -159,7 +159,7 @@ async function saveArt(){
 async function erase(){
  if(running)return;
  if(!window.confirm('Delete downloaded AUDIO from this device? Your playlists, purchases and access rights stay intact.'))return;
- busy(true);
+ busy(true);let message='';
  try{
   let n=0;
   for(const name of await caches.keys()){
@@ -171,10 +171,10 @@ async function erase(){
    }
   }
   for(const key of ['GE_OFFLINE_PLAYABLE_V6','GE_OFFLINE_STATIONS_V6',PLAN])try{localStorage.removeItem(key)}catch(_){}
-  await bridge().rescan?.();
-  status('Removed '+n+' cached audio copies across all browser caches. Playlists and permissions preserved.');
- }catch(e){status('Delete failed: '+String(e.message||e))}
- finally{busy(false);await inspect();status('Delete operation finished. Browser audio caches have been rechecked.')}
+  await Promise.resolve(bridge().rescan?.()).catch(()=>{});
+  message='Removed '+n+' cached audio copies across all browser caches. Playlists and permissions preserved.';
+ }catch(e){message='Delete failed: '+String(e.message||e)}
+ finally{busy(false);await inspect();status(message)}
 }
 function close(){if(running){status('Stop the download before closing.');return}surface.hidden=true;returnFocus?.focus?.()}
 function open(){returnFocus=document.activeElement;surface.hidden=false;btn('close').focus();void inspect()}
