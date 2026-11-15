@@ -220,11 +220,14 @@ async function navigationResponse(request){
   // Installed Home Screen entry stays cache-first. It must never wait for
   // the server when Safari relaunches this app with no connection.
   if(path.endsWith('/radio/offline-home.html')){
-    const shell=await caches.open(SHELL_CACHE);
-    const saved=await shell.match('./offline-home.html',{ignoreSearch:true}) ||
-      await caches.match('./offline-home.html',{ignoreSearch:true});
-    if(saved?.ok)return saved;
-    return secondaryPageNavigationResponse(request);
+    // Existing installed iPhone icons are permanently bound to this older
+    // launch URL. Serve the REAL saved Radio page directly. No redirect,
+    // network check or client-side timer is required to show its controls.
+    const player=await offlineNavigationFallback();
+    if(player?.ok)return player;
+    // The only reason to show the rescue launcher is an incomplete shell.
+    const saved=await cachedResponse(request);
+    return saved?.ok?saved:new Response('Offline startup engine incomplete. Reconnect to repair.',{status:503});
   }
   // The Home Screen entry opens the last known-good player immediately;
   // RELOAD/UPDATE performs its own network refresh afterward.
