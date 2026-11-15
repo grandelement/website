@@ -58,6 +58,8 @@ test('Home Screen installs a cached launch entry, and download activation surviv
  assert.match(launcher,/index\.html\?ge_home=1/);
  assert.match(control,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
  assert.match(control,/onSaved/);
+ assert.match(control,/GE Station Identification/,'Station IDs must be saved for true offline Radio');
+ assert.match(control,/stations\.saved===stations\.total/,'Ready status requires station clips');
  assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
  assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
  assert.match(radio,/geRadioSunLabPrivateAllowed/);
