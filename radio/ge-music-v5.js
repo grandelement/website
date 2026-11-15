@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.58-20261114-TOOLBAR-SUN-OFFLINE';
+const BUILD='GE-MUSIC-V7.59-20261114-INLINE-PLAYLIST-SAVE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1358,6 +1358,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window > .geMusicOfflineRow .musicCodeTools{order:3!important;flex:1 1 100%!important;width:100%!important;min-width:0!important}
 .window > .geMusicOfflineRow .musicCodeTools[hidden]{display:none!important}
 
+
+/* All three MUSIC views: tabs first, compact search and commands in one row. */
+.window.geSimpleSongBrowser > .albumDetailNav{order:1!important;display:flex!important}
+.window.geSimpleSongBrowser > .geBrowseTools{order:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto auto auto!important;gap:5px!important;flex-wrap:nowrap!important;padding:5px 9px!important}
+.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSearch,.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistNameInline{grid-column:1!important;width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;box-sizing:border-box!important;font-size:13px!important;padding:5px 8px!important}
+.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSave,.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistTopButton{width:auto!important;min-width:0!important;height:40px!important;min-height:40px!important;padding:4px 7px!important;font-size:clamp(10px,2.7vw,12px)!important;white-space:nowrap!important}
+.window.geSimpleSongBrowser > .geBrowseMessage{order:3!important}
+.window.geSimpleSongBrowser > .tools{order:4!important}
+.window.geSimpleSongBrowser > .arrangeDock{order:5!important}
+.window.geSimpleSongBrowser > .scroll{order:6!important;flex:1 1 auto!important;min-height:0!important}
+.window.geSimpleSongBrowser > .geMusicOfflineRow{order:7!important}
+.window.geSimpleSongBrowser > .selectionBar{order:8!important}
+.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistNameInline{background:#061a30!important;border:1px solid #83c9f2!important;border-radius:8px!important;color:white!important}
+.window.geSimpleSongBrowser > .geBrowseTools .geBrowseSearch[hidden],.window.geSimpleSongBrowser > .geBrowseTools .gePlaylistNameInline[hidden]{display:none!important}
 /* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
 .window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
 /* Restore the existing offline action in normal SONGS and PLAYLISTS.
@@ -1374,7 +1388,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailSongs">SONGS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
- <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
+ <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><input class="gePlaylistNameInline" type="text" maxlength="100" autocomplete="off" placeholder="Playlist name" aria-label="Name playlist to save" hidden><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
@@ -2834,15 +2848,25 @@ el('.geBrowseSearch').addEventListener('input',event=>{
  state.term=event.target.value;
  render();scroller.scrollTop=0;
 });
+const inlinePlaylistName=el('.gePlaylistNameInline');
+let inlinePlaylistNaming=false;
+function cancelInlinePlaylistNaming(){
+ inlinePlaylistNaming=false;inlinePlaylistName.hidden=true;el('.geBrowseSearch').hidden=false;
+}
 el('.geBrowseSave').addEventListener('click',()=>{
- if(!state.selected.size){say('Tap + on songs to build your playlist.');render();return;}
- const suggested=state.activePlaylist?.name||state.playlistDraftName||'';
- const typed=window.prompt('Name this playlist to save it in your Fan Vault:',suggested);
- if(typed===null)return;
- const name=typed.trim().slice(0,100);
- if(!name){say('Playlist name required.');render();return;}
- state.playlistDraftName=name;
- void saveSharedArrangement();
+ if(!state.selected.size){say('Select songs before saving.');render();return;}
+ if(!inlinePlaylistNaming){
+  inlinePlaylistNaming=true;inlinePlaylistName.value=state.playlistDraftName||state.activePlaylist?.name||'';
+  el('.geBrowseSearch').hidden=true;inlinePlaylistName.hidden=false;inlinePlaylistName.focus();inlinePlaylistName.select();
+  say('Enter playlist name above, then tap SAVE.');return;
+ }
+ const name=inlinePlaylistName.value.trim().slice(0,100);
+ if(!name){say('Enter a playlist name.');inlinePlaylistName.focus();return;}
+ state.playlistDraftName=name;cancelInlinePlaylistNaming();void saveSharedArrangement();
+});
+inlinePlaylistName.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();cancelInlinePlaylistNaming();}
+ if(event.key==='Enter'){event.preventDefault();el('.geBrowseSave').click();}
 });
 el('.search').addEventListener('input',event=>{
  state.term=event.target.value;if(state.term)state.arranging=false;
