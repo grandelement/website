@@ -1461,6 +1461,9 @@ universeStyle.textContent=`
 
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
+const geMusicOfflineCompactStyle=document.createElement('style');
+geMusicOfflineCompactStyle.textContent="\n/* Mobile MUSIC: compact offline controls; reserve width for progress and ETA. */\n@media(max-width:700px){\n .window > .geMusicOfflineRow{padding:2px 6px!important;gap:4px!important;min-height:30px!important}\n .window > .geMusicOfflineRow .geMusicOfflineTrigger{min-height:28px!important;height:28px!important;padding:2px 7px!important;font-size:10px!important;border-radius:6px!important}\n .window > .geMusicOfflineRow .geMusicOfflineMeter{grid-template-columns:30px minmax(0,1fr) 42px!important;gap:4px!important}\n .window > .geMusicOfflineRow .geMusicOfflineTrack{height:12px!important;min-width:0!important}\n .window > .geMusicOfflineRow .geMusicOfflineNumbers span{font-size:10px!important}\n}\n";
+root.appendChild(geMusicOfflineCompactStyle);
 root.appendChild(universeStyle);
 // Tapping the starfield opens Songs; tapping artwork opens that album.
 universe.addEventListener('click',event=>{
@@ -2475,7 +2478,7 @@ function render(){
  const cat=activeCategory();
  updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
- const activeNav=cat==='albums'?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
+ const activeNav=(cat==='albums'||albumDetail)?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
  for(const nav of ['.albumDetailBack','.albumDetailSongs','.albumDetailPlaylist']){
   const selected=nav===activeNav;
   el(nav).setAttribute('aria-pressed',String(selected));
@@ -2485,7 +2488,7 @@ function render(){
  el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
- root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===cat)));
+ root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===(albumDetail?'albums':cat))));
  const browserSearch=el('.geBrowseSearch');
  if(document.activeElement!==browserSearch&&browserSearch.value!==state.term)browserSearch.value=state.term;
  browserSearch.placeholder=state.view==='user-playlists'?'Search playlists':'Search songs or playlists';
@@ -2493,8 +2496,8 @@ function render(){
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent='ALBUMS';
  el('.albumDetailPlaylist').textContent='PLAYLIST';
- el('.albumDetailSongs').textContent=albumDetail?state.view.slice(6).toUpperCase():'SONGS';
- el('.albumDetailSongs').setAttribute('aria-label',albumDetail?'Selected album '+state.view.slice(6)+'. Tap to browse all songs.':'Browse all songs');
+ el('.albumDetailSongs').textContent='SONGS';
+ el('.albumDetailSongs').setAttribute('aria-label','Browse all songs');
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
@@ -2798,7 +2801,7 @@ function open(){
  if(state.open)return;
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='browse-songs';state.arranging=false;state.term='';
+ state.view='albums';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
@@ -3109,8 +3112,10 @@ window.addEventListener('message',event=>{
  const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
  geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
  geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
- const remaining=String(p.remaining||'').trim();
- geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining)?remaining:'00:00';
+ const eta=Number(p.eta);
+ const remaining=String(p.remaining||'').replace(/\\s*left\\s*$/i,'').trim();
+ const valid=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining);
+ geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=valid?remaining:(p.eta!=null&&Number.isFinite(eta)&&eta>=0?Math.floor(eta/60)+':'+String(Math.floor(eta%60)).padStart(2,'0'):'--:--');
 });
 const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','','SELECT ALL'),selectionClear=elem('button','','CLEAR');
 selectionAll.type='button';selectionClear.type='button';
