@@ -7,7 +7,15 @@ const PLAN='GE_RADIO_OFFLINE_PLAN_V1',ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
 const SONG=/^ge-music\/music\/.+\.(mp3|wav|m4a|ogg)$/i;
 const STATION=/^ge-music\/clips\/GE Station Identification - \d+\.(mp3|wav|m4a|ogg)$/i;
 const ALBUMS=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
-const workerVersion='2026.11.15-offline-music-v117';
+// Only the artwork required for the offline Radio and MUSIC experience.
+// Do not pull every decorative GIF in the backgrounds directory (over 200 MiB).
+const ESSENTIAL_ART=[
+ ...ALBUMS.map(name=>'ge-images/images/Grand Element - '+name+'.jpg'),
+ 'ge-images/images/ge-logo-2.jpg'
+];
+const ESSENTIAL_BACKGROUNDS=['ge-images/img/31.gif'];
+const ESSENTIAL_VISUALS=[...ESSENTIAL_ART,...ESSENTIAL_BACKGROUNDS];
+const workerVersion='2026.11.15-radio42-offline-package-v1';
 let busy=false,stopRequested=false,abort=null;
 const bridge=()=>window.GERadioOfflineBridge||{};
 const active=()=>{try{return localStorage.getItem(ACTIVATED)==='yes'}catch(_){return false}};
@@ -38,6 +46,16 @@ async function stored(url){
  for(const name of await caches.keys()){
   const cache=await caches.open(name);
   if(await valid(cache,url))return true;
+ }
+ return false;
+}
+// Artwork must be a verified image, not a failed HTML page cached as a JPG.
+async function storedImage(url){
+ for(const name of await caches.keys()){
+  const cache=await caches.open(name);
+  const response=await cache.match(url,{ignoreSearch:true});
+  if(!response?.ok || !/image\//i.test(response.headers.get('content-type')||''))continue;
+  try{if((await response.blob()).size>128)return true}catch(_){}
  }
  return false;
 }
@@ -110,10 +128,16 @@ async function inspect({onProgress}={}){
   stations=(await catalog()).stations;
   for(const p of stations)if(await stored(fileURL(p)))stationSaved++;
  }catch(_){}
+ const visualsMissing=[];
+ for(const path of ESSENTIAL_VISUALS){
+  if(!(await storedImage(fileURL(path))))visualsMissing.push(path);
+ }
  const full=paths.length>0&&saved===paths.length&&stations.length>0&&stationSaved===stations.length;
- const ready=!!engine.ready&&full&&(!ios()||installed())&&active();
+ const ready=!!engine.ready&&full&&visualsMissing.length===0&&(!ios()||installed())&&active();
  const result={ready,partial:saved>0&&!ready,engine:!!engine.ready,engineMissing:engine.missing||[],
-   saved,total:paths.length,missing,stations:stationSaved,stationTotal:stations.length,installed:installed()};
+   saved,total:paths.length,missing,stations:stationSaved,stationTotal:stations.length,
+   artwork:ESSENTIAL_VISUALS.length-visualsMissing.length,artworkTotal:ESSENTIAL_VISUALS.length,
+   artworkMissing:visualsMissing,installed:installed()};
  notify(onProgress,{phase:'status',...result});
  return result;
 }
@@ -147,33 +171,34 @@ async function downloadOne(path,cache){
  throw last||Error('Stopped');
 }
 async function saveImages(onProgress){
- // Artwork and backgrounds never decide whether saved audio can play.
- const covers=ALBUMS.map(n=>new URL('../ge-images/images/Grand Element - '+encodeURIComponent(n)+'.jpg',location.href).href);
- let backgrounds=[];
- try{
-  const response=await fetch(new URL('../ge-images/img/manifest.json',location.href),{cache:'no-store'});
-  if(response.ok){
-   const names=await response.json();
-   if(Array.isArray(names))backgrounds=names.filter(x=>typeof x==='string'&&/^[\w .-]+\.(png|jpe?g|gif|webp)$/i.test(x))
-    .map(n=>new URL('../ge-images/img/'+encodeURIComponent(n),location.href).href);
-  }
- }catch(_){}
- const files=[...covers.map(url=>({url,cache:ART})),...backgrounds.map(url=>({url,cache:BACKGROUNDS}))];
+ // All required visuals come from one explicit package list. No bulk GIF crawl.
+ const files=[
+  ...ESSENTIAL_ART.map(path=>({path,cache:ART})),
+  ...ESSENTIAL_BACKGROUNDS.map(path=>({path,cache:BACKGROUNDS}))
+ ];
  let done=0,errors=0;
  for(const file of files){
   if(stopRequested)break;
+  const url=fileURL(file.path);
+  if(await storedImage(url)){
+   done++;
+   notify(onProgress,{phase:'images',completed:done,total:files.length});
+   continue;
+  }
   const cache=await caches.open(file.cache);
-  if((await cache.match(file.url))?.ok){done++;continue}
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
   abort=controller;
   try{
-   const r=await fetch(file.url,{cache:'no-store',signal:controller.signal});
-   if(!r.ok||!/image\//i.test(r.headers.get('content-type')||''))throw Error('Invalid image');
-   await cache.put(file.url,r);
+   const response=await fetch(url,{cache:'no-store',signal:controller.signal});
+   if(!response.ok||!/image\//i.test(response.headers.get('content-type')||''))throw Error('Invalid image');
+   const blob=await response.blob();
+   if(blob.size<=128)throw Error('Empty artwork');
+   await cache.put(url,new Response(blob,{status:200,headers:response.headers}));
+   if(!(await storedImage(url)))throw Error('Artwork storage verification failed');
    done++;
   }catch(_){errors++}
   finally{clearTimeout(timer);abort=null}
-  if(done%8===0)notify(onProgress,{phase:'images',completed:done,total:files.length});
+  notify(onProgress,{phase:'images',completed:done,total:files.length,failed:errors});
  }
  return {saved:done,total:files.length,failed:errors};
 }
