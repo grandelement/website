@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.61-20261115-OFFLINE-ONE-MUSIC-SOURCE';
+const BUILD='GE-MUSIC-V7.62-20261115-UNIFIED-OFFLINE-REBUILD';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1386,6 +1386,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geOfflineStart{width:100%;min-height:58px!important;font-size:18px!important;background:#126392!important;border:2px solid #b0e8ff!important}
 .geOfflineStatus{min-height:65px;color:#dbf0fa!important;overflow-wrap:anywhere;white-space:pre-line}
 .geOfflineWorkspace progress{width:100%;height:18px;accent-color:#2fcd99}
+.geOfflineReadout{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#e5f5ff}
+.geOfflinePercent{font-size:clamp(22px,6vw,30px);font-variant-numeric:tabular-nums}
+.geOfflineEta{font-size:14px;color:#badbee;font-variant-numeric:tabular-nums}
 .geOfflineFooter{display:flex;gap:9px;flex-wrap:wrap}
 .geOfflineFooter button{flex:1;min-height:46px}
 .geOfflineStop[hidden]{display:none!important}
@@ -1423,6 +1426,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
   </div>
   <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
   <button class="geOfflineStart" type="button">DOWNLOAD</button>
+  <div class="geOfflineReadout" aria-label="Offline download progress and estimated time">
+   <strong class="geOfflinePercent">0%</strong>
+   <span class="geOfflineEta">ETA: —</span>
+  </div>
   <progress class="geOfflineProgress" value="0" max="100" aria-label="Offline download progress"></progress>
   <p class="geOfflineStatus" role="status" aria-live="polite">Checking saved music…</p>
   <div class="geOfflineFooter">
@@ -2885,78 +2892,82 @@ function hideOffline(){
  el('.window').classList.remove('geOfflineOpen');
  el('.musicOfflineLaunch').focus();
 }
+function setOfflineProgress(percent,etaSeconds=null){
+ const value=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
+ offlineProgress.max=100;offlineProgress.value=value;
+ el('.geOfflinePercent').textContent=value+'%';
+ let eta='ETA: —';
+ if(Number.isFinite(etaSeconds)&&etaSeconds>0){
+  const seconds=Math.ceil(etaSeconds);
+  eta='ETA: ~'+(seconds>=3600?Math.floor(seconds/3600)+'h ':'')+
+   (seconds>=60?Math.floor(seconds%3600/60)+'m ':'')+
+   (seconds%60)+'s';
+ }else if(value>0&&value<100&&offlineBusy)eta='ETA: calculating…';
+ el('.geOfflineEta').textContent=eta;
+}
 async function offlineCheck(){
  const engine=window.GEOfflineDownloads;
- if(!engine){setOfflineMessage('Offline download engine unavailable. Reopen Radio online to update.');return}
+ if(!engine){setOfflineMessage('NOT READY · Offline engine unavailable. Reconnect to update.');return}
  try{
   const result=await engine.inspect();
   if(offlineBusy)return;
-  if(result.ready)
-   setOfflineMessage('READY · '+result.saved+'/'+result.total+' saved songs · installed engine and station IDs checked.');
-  else if(result.partial)
-   setOfflineMessage('PARTIAL · '+result.saved+'/'+result.total+' saved. '+result.missing.length+
-    ' missing. UPDATE MISSING will retry; saved music stays intact.');
-  else setOfflineMessage('NOT READY · '+result.saved+'/'+result.total+
-     ' saved songs. Connect online, choose ALL MUSIC and press DOWNLOAD.');
- }catch(error){setOfflineMessage('Offline check failed: '+String(error?.message||error))}
+  setOfflineProgress(result.ready?100:result.percent);
+  setOfflineMessage(result.ready?
+   'READY · Music and Radio startup files verified. Test Airplane Mode.':
+   result.partial?
+    'PARTIAL · Some saved files are missing. Use UPDATE MISSING.':
+    'NOT READY · Connect online, choose your music and press DOWNLOAD.');
+ }catch(_){setOfflineMessage('NOT READY · Could not verify saved files. Reconnect and repair.')}
 }
 function offlineProgressUpdate(event){
  if(!state.open||!el('.window').classList.contains('geOfflineOpen'))return;
- if(event.phase==='audio'){
-  offlineProgress.max=Math.max(1,event.total);
-  offlineProgress.value=event.completed;
-  setOfflineMessage('Saving '+event.completed+'/'+event.total+' · '+event.current+
-    (event.failed?' · '+event.failed+' need retry':''));
- }else if(event.phase==='images'){
-  setOfflineMessage('Music saved. Saving artwork '+event.completed+'/'+event.total+'…');
- }else if(event.phase==='checking'){
-  setOfflineMessage('Checking saved music '+event.completed+'/'+event.total+'…');
- }else if(event.phase==='error')setOfflineMessage('ERROR · '+event.message);
+ if(Number.isFinite(event.percent))setOfflineProgress(event.percent,event.etaSeconds);
+ if(event.phase==='preparing')setOfflineMessage('Preparing offline music…');
+ else if(event.phase==='audio')setOfflineMessage('Saving offline music…');
+ else if(event.phase==='checking'||event.phase==='verifying')
+  setOfflineMessage('Verifying offline files…');
+ else if(event.phase==='error')setOfflineMessage('Download interrupted. UPDATE MISSING will repair saved music.');
 }
 async function offlineDownload(){
  if(offlineBusy)return;
  const engine=window.GEOfflineDownloads;
- if(!engine){setOfflineMessage('Offline engine unavailable. Connect and reopen Radio.');return}
+ if(!engine){setOfflineMessage('NOT READY · Connect online to update Radio.');return}
  const mode=offlineChoice;
  let paths=[];
  if(mode==='checked')paths=[...state.selected];
  if(mode==='playlist')paths=offlinePlaylistPaths();
  if((mode==='checked'||mode==='playlist')&&!paths.length){
-  setOfflineMessage(mode==='checked'?'No checked songs. Tap BACK TO MUSIC, check songs, then return.':
-   'No playlist selected. Choose a playlist in MUSIC first.');return
+  setOfflineMessage(mode==='checked'?'Choose songs in MUSIC first.':'Choose a playlist in MUSIC first.');
+  return;
  }
  if(navigator.onLine===false){
-  setOfflineMessage('You are offline. Saved music is available; reconnect to download new files.');return
+  setOfflineMessage('Offline now. Your previously saved music remains available.');
+  return;
  }
  if(!engine.canDownload()){
-  setOfflineMessage('Enter your OFFLINE access code first. Your saved music is safe.');
+  setOfflineMessage('Enter an OFFLINE CODE before downloading. Saved music stays intact.');
   offlineResumeAfterAccess=true;
-  hideOffline();
-  close();
-  engine.promptCode();
+  hideOffline();close();engine.promptCode();
   return;
  }
  if(!engine.installed()&&/iPhone|iPad|iPod/i.test(navigator.userAgent)){
-  setOfflineMessage('Use the Grand Element Radio Home Screen app to download on iPhone. Safari tabs have separate storage.');return;
+  setOfflineMessage('Open the installed Radio Home Screen app to download on iPhone.');
+  return;
  }
- offlineBusy=true;
- offlineStart.disabled=true;offlineStop.hidden=false;
- offlineProgress.value=0;offlineProgress.max=1;
- setOfflineMessage('Preparing your offline music…');
+ offlineBusy=true;offlineStart.disabled=true;offlineStop.hidden=false;
+ setOfflineProgress(0);setOfflineMessage('Preparing your offline music…');
  try{
   const result=await engine.save({mode,paths,onProgress:offlineProgressUpdate});
   if(result.error){
    setOfflineMessage(result.error==='access'?'Enter OFFLINE CODE to download.':
-    'Could not finish: '+(result.message||result.error));
+    'NOT READY · '+(result.message||'Reconnect and use UPDATE MISSING.'));
   }else{
-   offlineProgress.max=Math.max(1,result.total);
-   offlineProgress.value=result.saved;
-   setOfflineMessage(result.ready?'READY · '+result.saved+'/'+result.total+' songs saved and startup verified. Test Airplane Mode.':
-     'PARTIAL · '+result.saved+'/'+result.total+' songs saved; '+
-     result.missing.length+' need retry. '+(result.failures?.slice(0,2).map(x=>x.path.split('/').pop()).join(', ')||'')+
-     ' · Tap UPDATE MISSING. Your saved music stays intact.');
+   setOfflineProgress(result.ready?100:result.percent);
+   setOfflineMessage(result.ready?
+    'READY · Music and Radio files verified. Test Airplane Mode.':
+    'PARTIAL · Some files need repair. Press UPDATE MISSING. Existing music is safe.');
   }
- }catch(error){setOfflineMessage('Download interrupted: '+String(error?.message||error))}
+ }catch(_){setOfflineMessage('PARTIAL · Download interrupted. Use UPDATE MISSING.')}
  finally{offlineBusy=false;offlineStart.disabled=false;offlineStop.hidden=true}
 }
 el('.musicOfflineLaunch').addEventListener('click',openOffline);

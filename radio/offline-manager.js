@@ -1,245 +1,216 @@
-/* GE Radio OFFLINE engine. MUSIC owns all controls; Radio's OFFLINE is a shortcut.
-   Never creates a second dialog/player. Never deletes authorized cached songs on update. */
+/* Grand Element Radio · Unified OFFLINE engine.
+   MUSIC owns the only interface; Radio's OFFLINE button opens MUSIC.
+   The service worker owns the startup shell. This engine owns authorized media downloads.
+   Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const AUDIO='ge-radio-media-v4',ART='ge-radio-art-v1',BACKGROUNDS='ge-radio-backgrounds-v1';
-const PLAN='GE_RADIO_OFFLINE_PLAN_V1',ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
-const SONG=/^ge-music\/music\/.+\.(mp3|wav|m4a|ogg)$/i;
-const STATION=/^ge-music\/clips\/GE Station Identification - \d+\.(mp3|wav|m4a|ogg)$/i;
-const ALBUMS=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
-const workerVersion='2026.11.15-offline-music-v117';
-let busy=false,stopRequested=false,abort=null;
+const VERSION='2026.11.15-offline-rebuild-v1';
+const AUDIO='ge-radio-media-v4';
+const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
+const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
+const SONG=/^ge-music\/music\/.+\.(?:mp3|wav|m4a|ogg)$/i;
+const STATION=/^ge-music\/clips\/GE Station Identification - \d+\.(?:mp3|wav|m4a|ogg)$/i;
+const safe=(value,pattern)=>typeof value==='string'&&value.length<1024&&
+  !value.split('/').some(x=>x==='.'||x==='..'||!x)&&pattern.test(value);
+const unique=a=>[...new Set((Array.isArray(a)?a:[]).filter(x=>typeof x==='string'))];
 const bridge=()=>window.GERadioOfflineBridge||{};
 const active=()=>{try{return localStorage.getItem(ACTIVATED)==='yes'}catch(_){return false}};
-window.GEOffline={isActive:active};
 const installed=()=>!!(window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true);
-const ios=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-const canDownload=()=>bridge().canDownload?.()===true&&navigator.onLine!==false;
-const fileURL=path=>new URL('../'+String(path).split('/').map(encodeURIComponent).join('/'),location.href).href;
-const unique=items=>[...new Set((Array.isArray(items)?items:[]).filter(x=>typeof x==='string'&&x.length))];
-const safePath=path=>String(path||'').replace(/^\/+/,'');
-const notify=(cb,event)=>{try{cb?.(event)}catch(error){console.warn('Offline progress callback',error)}};
+const ios=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent)||
+  (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const canDownload=()=>navigator.onLine!==false&&bridge().canDownload?.()===true;
+const address=path=>new URL('../'+path.split('/').map(encodeURIComponent).join('/'),location.href).href;
+const report=(fn,event)=>{try{fn?.(event)}catch(error){console.warn('Offline progress callback failed',error)}};
+let busy=false,stopped=false,currentAbort=null;
 function plan(){
- try{const value=JSON.parse(localStorage.getItem(PLAN)||'null');return unique(value?.paths).filter(p=>SONG.test(p))}catch(_){return []}
+ try{return unique(JSON.parse(localStorage.getItem(PLAN)||'null')?.paths).filter(x=>safe(x,SONG))}catch(_){return []}
 }
 function setPlan(paths){
- try{localStorage.setItem(PLAN,JSON.stringify({type:'music',paths:unique(paths).filter(p=>SONG.test(p)),at:Date.now()}))}catch(_){}
+ try{localStorage.setItem(PLAN,JSON.stringify({type:'music',paths:unique(paths).filter(x=>safe(x,SONG)),at:Date.now()}))}catch(_){}
 }
-function audioResponse(r){
- return !!r&&r.ok&&r.status===200&&!/text\/html|application\/json|text\/plain|image\/|video\//i.test(r.headers.get('content-type')||'');
+function audioResponse(response){
+ return !!response?.ok&&response.status===200&&
+  !/text\/html|application\/json|text\/plain|image\/|video\//i.test(response.headers.get('content-type')||'');
 }
-async function valid(cache,url){
+async function validAudio(cache,url){
  const r=await cache.match(url,{ignoreSearch:true});
  if(!audioResponse(r))return false;
- if(Number(r.headers.get('content-length')||0)>128)return true;
+ const length=Number(r.headers.get('content-length'));
+ if(Number.isFinite(length)&&length>128)return true;
  try{return (await r.blob()).size>128}catch(_){return false}
 }
-async function stored(url){
+async function alreadySaved(url){
+ // All old audio caches remain valid after the rebuild. Do not duplicate blobs.
  for(const name of await caches.keys()){
   const cache=await caches.open(name);
-  if(await valid(cache,url))return true;
+  if(await validAudio(cache,url))return true;
  }
  return false;
 }
 async function catalog(){
  const url=new URL('./manifest.json',location.href).href;
- let response=null;
+ let response;
  if(navigator.onLine!==false){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7500);
-  try{response=await fetch(url,{cache:'no-store',signal:controller.signal})}catch(_){}
-  finally{clearTimeout(timer)}
+  const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),8000);
+  try{response=await fetch(url,{cache:'no-store',signal:abort.signal})}catch(_){}
+  finally{clearTimeout(timeout)}
  }
  if(!response?.ok)response=await caches.match(url,{ignoreSearch:true});
- if(!response?.ok)throw Error('Music catalog unavailable. Connect online once.');
- const data=await response.json();
- const files=unique(data?.files);
- return {songs:files.filter(p=>SONG.test(p)),stations:files.filter(p=>STATION.test(p))};
+ if(!response?.ok)throw Error('Offline library catalog is unavailable. Connect online once.');
+ let manifest;
+ try{manifest=await response.json()}catch(_){throw Error('Music catalog is invalid. Reconnect and repair.')}
+ const files=unique(manifest?.files);
+ return {songs:files.filter(p=>safe(p,SONG)),stations:files.filter(p=>safe(p,STATION))};
 }
-function approved(songs){
- const permitted=bridge().allowedPaths?.();
- if(permitted===null)return songs;
- if(!Array.isArray(permitted))return [];
- const set=new Set(permitted.map(safePath));
- return songs.filter(p=>set.has(p));
+function authorized(paths){
+ const given=bridge().allowedPaths?.();
+ if(given===null)return paths;
+ if(!Array.isArray(given))return [];
+ const permitted=new Set(given);
+ return paths.filter(x=>permitted.has(x));
 }
-async function workerStatus({refresh=false}={}){
- if(!('serviceWorker' in navigator))return {ready:false,missing:['Offline engine unsupported']};
+async function shell({refresh=false}={}){
+ if(!navigator.serviceWorker)return {ready:false,missing:['Offline startup not supported']};
  try{
   let reg=await navigator.serviceWorker.getRegistration('./');
-  if(!reg&&navigator.onLine!==false)
-   reg=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
-  if(!reg)return {ready:false,missing:['Offline engine not installed']};
+  if(!reg&&navigator.onLine!==false)reg=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+  if(!reg)return {ready:false,missing:['Offline startup not installed']};
   if(refresh&&navigator.onLine!==false)await reg.update().catch(()=>{});
   if(reg.installing){
-   const s=reg.installing;
-   await Promise.race([
-    new Promise(resolve=>{
-     const fn=()=>{if(['installed','activated','redundant'].includes(s.state)){s.removeEventListener('statechange',fn);resolve()}};
-     s.addEventListener('statechange',fn);fn();
-    }),
-    new Promise(resolve=>setTimeout(resolve,14000))
-   ]);
+   const worker=reg.installing;
+   await Promise.race([new Promise(done=>{
+    const changed=()=>{if(['installed','activated','redundant'].includes(worker.state)){
+     worker.removeEventListener('statechange',changed);done();
+    }};
+    worker.addEventListener('statechange',changed);changed();
+   }),new Promise(done=>setTimeout(done,16000))]);
   }
   reg=await navigator.serviceWorker.getRegistration('./')||reg;
-  const sw=reg.waiting||reg.active||navigator.serviceWorker.controller;
-  if(!sw)return {ready:false,missing:['Engine not active']};
-  const result=await new Promise(resolve=>{
+  const worker=reg.waiting||reg.active||navigator.serviceWorker.controller;
+  if(!worker)return {ready:false,missing:['Offline startup inactive']};
+  const status=await new Promise(done=>{
    const chan=new MessageChannel();
-   let settled=false;
-   const finish=data=>{if(settled)return;settled=true;clearTimeout(timer);chan.port1.close();resolve(data)};
-   const timer=setTimeout(()=>finish({ready:false,missing:['Engine check timed out']}),6000);
-   chan.port1.onmessage=e=>finish(e.data);
-   try{sw.postMessage({type:'GE_RADIO_SHELL_STATUS'},[chan.port2])}
-   catch(e){finish({ready:false,missing:[String(e.message||e)]})}
+   let finished=false;
+   const settle=value=>{if(finished)return;finished=true;clearTimeout(timer);chan.port1.close?.();done(value)};
+   const timer=setTimeout(()=>settle({ready:false,missing:['Offline startup check timed out']}),6500);
+   chan.port1.onmessage=e=>settle(e.data);
+   try{worker.postMessage({type:'GE_RADIO_SHELL_STATUS'},[chan.port2])}
+   catch(_){settle({ready:false,missing:['Offline startup check failed']})}
   });
-  if(result?.version!==workerVersion)return {ready:false,missing:['Install updated Radio engine online'],version:result?.version};
-  return result;
- }catch(error){return {ready:false,missing:[String(error?.message||error)]}}
+  if(status?.version!==VERSION)return {ready:false,missing:['Radio app update required']};
+  return {ready:status?.ready===true,missing:status?.missing||[]};
+ }catch(_){return {ready:false,missing:['Offline startup check failed']}}
 }
 async function inspect({onProgress}={}){
- const engine=await workerStatus();
- const paths=plan();
- let saved=0;const missing=[];
- for(let i=0;i<paths.length;i++){
-  if(await stored(fileURL(paths[i])))saved++;
-  else missing.push(paths[i]);
-  if(i%12===0)notify(onProgress,{phase:'checking',completed:i+1,total:paths.length});
+ const engine=await shell();
+ const savedPlan=plan(),missing=[];
+ let saved=0;
+ for(let i=0;i<savedPlan.length;i++){
+  if(await alreadySaved(address(savedPlan[i])))saved++;
+  else missing.push(savedPlan[i]);
+  if(i%8===0)report(onProgress,{phase:'checking',percent:savedPlan.length?Math.floor((i+1)/savedPlan.length*100):0});
  }
  let stations=[],stationSaved=0;
- try{
-  stations=(await catalog()).stations;
-  for(const p of stations)if(await stored(fileURL(p)))stationSaved++;
+ try{stations=(await catalog()).stations;
+  for(const path of stations)if(await alreadySaved(address(path)))stationSaved++;
  }catch(_){}
- const full=paths.length>0&&saved===paths.length&&stations.length>0&&stationSaved===stations.length;
- const ready=!!engine.ready&&full&&(!ios()||installed())&&active();
- const result={ready,partial:saved>0&&!ready,engine:!!engine.ready,engineMissing:engine.missing||[],
-   saved,total:paths.length,missing,stations:stationSaved,stationTotal:stations.length,installed:installed()};
- notify(onProgress,{phase:'status',...result});
+ const all=savedPlan.length>0&&saved===savedPlan.length&&
+  stations.length>0&&stationSaved===stations.length;
+ const ready=all&&engine.ready&&(!ios()||installed())&&active();
+ const result={ready,partial:!ready&&(saved>0||stationSaved>0),
+  engine:engine.ready,engineMissing:engine.missing,
+  saved,total:savedPlan.length,missing,stations:stationSaved,stationTotal:stations.length,
+  installed:installed(),percent:ready?100:(savedPlan.length?Math.floor(saved/savedPlan.length*95):0)};
+ report(onProgress,{phase:'status',ready,partial:result.partial,percent:result.percent});
  return result;
 }
-function stop(){stopRequested=true;try{abort?.abort()}catch(_){}}
-async function downloadOne(path,cache){
- const url=fileURL(path);
- if(await stored(url))return;
- let last;
- for(let attempt=1;attempt<=3&&!stopRequested;attempt++){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
-  abort=controller;
-  try{
-   // The worker forwards explicit downloads without its automatic duplicate
-   // media cache.put. A saved MP3 is written exactly once here.
-   const response=await fetch(url,{cache:'no-store',signal:controller.signal,
-     headers:{'X-GE-Offline-Download':'1'}});
-   if(!audioResponse(response))throw Error('HTTP '+response.status+' or invalid audio');
-   const blob=await response.blob();
-   if(blob.size<128)throw Error('Empty audio file');
-   const headers=new Headers(response.headers);headers.set('Content-Length',String(blob.size));
-   await cache.put(url,new Response(blob,{status:200,headers}));
-   if(!(await valid(cache,url)))throw Error('Storage verification failed');
-   return;
-  }catch(e){
-   last=e;
-   if(stopRequested)break;
-   if(/quota|storage|space|disk/i.test(String(e.message||e)))break;
-   if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*500));
-  }finally{clearTimeout(timer);abort=null}
- }
- throw last||Error('Stopped');
+function stop(){
+ stopped=true;
+ try{currentAbort?.abort()}catch(_){}
 }
-async function saveImages(onProgress){
- // Artwork and backgrounds never decide whether saved audio can play.
- const covers=ALBUMS.map(n=>new URL('../ge-images/images/Grand Element - '+encodeURIComponent(n)+'.jpg',location.href).href);
- let backgrounds=[];
- try{
-  const response=await fetch(new URL('../ge-images/img/manifest.json',location.href),{cache:'no-store'});
-  if(response.ok){
-   const names=await response.json();
-   if(Array.isArray(names))backgrounds=names.filter(x=>typeof x==='string'&&/^[\w .-]+\.(png|jpe?g|gif|webp)$/i.test(x))
-    .map(n=>new URL('../ge-images/img/'+encodeURIComponent(n),location.href).href);
-  }
- }catch(_){}
- const files=[...covers.map(url=>({url,cache:ART})),...backgrounds.map(url=>({url,cache:BACKGROUNDS}))];
- let done=0,errors=0;
- for(const file of files){
-  if(stopRequested)break;
-  const cache=await caches.open(file.cache);
-  if((await cache.match(file.url))?.ok){done++;continue}
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
-  abort=controller;
+async function downloadAudio(path,cache){
+ const url=address(path);
+ if(await alreadySaved(url))return;
+ let last;
+ for(let attempt=0;attempt<3&&!stopped;attempt++){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);
+  currentAbort=controller;
   try{
-   const r=await fetch(file.url,{cache:'no-store',signal:controller.signal});
-   if(!r.ok||!/image\//i.test(r.headers.get('content-type')||''))throw Error('Invalid image');
-   await cache.put(file.url,r);
-   done++;
-  }catch(_){errors++}
-  finally{clearTimeout(timer);abort=null}
-  if(done%8===0)notify(onProgress,{phase:'images',completed:done,total:files.length});
+   const response=await fetch(url,{cache:'no-store',signal:controller.signal,
+    headers:{'X-GE-Offline-Download':'1'}});
+   if(!audioResponse(response))throw Error('Music file did not download correctly');
+   const blob=await response.blob();
+   if(blob.size<=128)throw Error('Music file is incomplete');
+   const headers=new Headers(response.headers);
+   headers.set('Content-Length',String(blob.size));
+   await cache.put(url,new Response(blob,{status:200,headers}));
+   if(!(await validAudio(cache,url)))throw Error('Downloaded file could not be verified');
+   return;
+  }catch(error){
+   last=error;
+   if(stopped||/quota|storage|space|disk/i.test(String(error?.message||error)))break;
+   if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
+  }finally{clearTimeout(timer);currentAbort=null}
  }
- return {saved:done,total:files.length,failed:errors};
+ throw last||Error('Download interrupted');
 }
 async function save({mode='all',paths=[],onProgress}={}){
- if(busy)return {error:'A download is already running'};
- if(navigator.onLine===false)return {error:'Connect online to download new songs',...await inspect()};
- if(!canDownload())return {error:'access',message:'Enter a valid OFFLINE access code before downloading. Saved songs still work.'};
- if(ios()&&!installed())return {error:'installation',message:'Open the Radio Home Screen app before downloading music.'};
- busy=true;stopRequested=false;
- const failures=[];let completed=0,oldPlan=plan();
+ if(busy)return {error:'busy',message:'Download already running'};
+ if(navigator.onLine===false)return {error:'offline',message:'Connect online to download new music'};
+ if(!canDownload())return {error:'access',message:'Enter your OFFLINE access code before downloading. Saved music stays available.'};
+ if(ios()&&!installed())return {error:'installation',message:'Open the Radio Home Screen app to download on iPhone.'};
+ busy=true;stopped=false;
+ let failures=[],completed=0;
+ const start=Date.now();
  try{
-  notify(onProgress,{phase:'starting',mode});
-  const worker=await workerStatus({refresh:true});
-  if(!worker.ready)return {error:'engine',message:'Offline startup engine needs repair: '+(worker.missing||[]).join(', ')};
-  const list=await catalog(),authorized=approved(list.songs);
-  if(!authorized.length)return {error:'access',message:'This access code has no published songs available'};
-  const permitted=new Set(authorized);
-  const chosen=mode==='all'?authorized:
-   mode==='update'?unique([...oldPlan,...authorized]).filter(p=>permitted.has(p)||oldPlan.includes(p)):
-   unique(paths).filter(p=>permitted.has(p));
-  if(!chosen.length)return {error:'selection',message:'No authorized songs selected. Choose songs or a playlist in MUSIC.'};
-  // Keep every previous plan entry when saving a new selection. Never
-  // narrow or erase an existing music package on change of mode.
-  const desired=unique([...oldPlan,...chosen]);setPlan(desired);
+  report(onProgress,{phase:'preparing',percent:0,etaSeconds:null});
+  const engine=await shell({refresh:true});
+  if(!engine.ready)return {error:'engine',message:'Offline startup files are incomplete. Reconnect and update Radio.'};
+  const list=await catalog();
+  if(!list.stations.length)return {error:'catalog',message:'Station identification files are missing from the catalog.'};
+  const allowed=authorized(list.songs),allow=new Set(allowed),previous=plan();
+  if(!allowed.length)return {error:'access',message:'Your access code does not include published songs.'};
+  const chosen=mode==='all'?allowed:
+   mode==='update'?allowed:unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
+  if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
+  // Preserve all earlier planned songs, even if today's access scope is narrower.
+  const desired=unique([...previous,...chosen]);setPlan(desired);
+  const permittedDownloads=desired.filter(p=>allow.has(p));
+  const downloads=unique([...permittedDownloads,...list.stations]);
   const cache=await caches.open(AUDIO);
-  const stations=list.stations;
-  const downloads=[...unique(chosen),...stations];
-  let remaining=0;
-  for(const path of downloads)if(!(await stored(fileURL(path))))remaining++;
-  notify(onProgress,{phase:'starting-download',completed:0,total:downloads.length,remaining});
+  const total=downloads.length;
   for(const path of downloads){
-   if(stopRequested)break;
-   try{await downloadOne(path,cache)}catch(error){
+   if(stopped)break;
+   try{await downloadAudio(path,cache)}catch(error){
     const message=String(error?.message||error);
     failures.push({path,error:message});
-    // On a constrained iPhone, a quota failure is a hard stop. Continuing
-    // through the entire library or saving GIFs may evict working recordings.
-    if(/quota|storage full|out of space|disk full/i.test(message))stopRequested=true;
+    if(/quota|storage full|out of space|disk full/i.test(message)){stopped=true}
    }
    completed++;
-   notify(onProgress,{phase:'audio',completed,total:downloads.length,
-     remaining:Math.max(0,downloads.length-completed),
-     current:path.split('/').pop(),failed:failures.length});
+   const fraction=Math.min(0.98,completed/Math.max(1,total));
+   const percent=Math.floor(fraction*99);
+   const elapsed=(Date.now()-start)/1000;
+   const etaSeconds=completed>0?Math.max(0,Math.ceil(elapsed*(total-completed)/completed)):null;
+   report(onProgress,{phase:'audio',percent,etaSeconds});
   }
-  // A partial authorized download is still playable if its saved songs verify.
-  // STOP never revokes or erases songs the listener already downloaded.
   if(completed>0){
    try{localStorage.setItem(ACTIVATED,'yes')}catch(_){}
    try{await bridge().rescan?.()}catch(_){}
   }
-  let images={saved:0,total:0,failed:0};
-  // Music always takes priority. Decorative images are deferred if any
-  // recording failed or STOP was pressed; preserve the audio that succeeded.
-  if(!stopRequested&&failures.length===0)images=await saveImages(onProgress);
-  const audited=await inspect();
-  const result={...audited,mode,failures,images,stopped:stopRequested,
-    completed,attempted:downloads.length};
-  notify(onProgress,{phase:'finished',...result});
+  report(onProgress,{phase:'verifying',percent:99,etaSeconds:null});
+  const checked=await inspect();
+  const result={...checked,mode,failures,stopped,completed,attempted:total};
+  report(onProgress,{phase:'finished',percent:checked.ready?100:checked.percent,
+   ready:checked.ready,partial:checked.partial,stopped});
   return result;
  }catch(error){
   const message=String(error?.message||error);
-  notify(onProgress,{phase:'error',message});
-  return {error:'download',message,failures};
- }finally{busy=false;abort=null}
+  report(onProgress,{phase:'error',message:'Download interrupted. Use UPDATE MISSING to retry.'});
+  return {error:'download',message:'Download interrupted. Use UPDATE MISSING to retry.',failures};
+ }finally{busy=false;currentAbort=null}
 }
 async function repair(args={}){return save({...args,mode:'update'})}
+window.GEOffline={isActive:active};
 window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,
-  isBusy:()=>busy,promptCode:()=>bridge().promptCode?.()};
+ isBusy:()=>busy,promptCode:()=>bridge().promptCode?.()};
 })();
