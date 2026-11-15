@@ -96,7 +96,12 @@ function makeHarness(){
   setOnline:value=>{navigator.onLine=value},
   has:async path=>!!(await cacheAPI.match(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).href,{ignoreSearch:true})),
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
-  storage:values
+  storage:values,
+  primeCatalog:async()=>{
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.15-offline-rebuild-v1');
+   await shell.put(new URL('./manifest.json',BASE).href,
+    new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
+  }
  };
 }
 test('download retains previous songs; partial failure repairs only missing media',async()=>{
@@ -164,6 +169,7 @@ test('new downloads require connectivity; cached downloads are never erased',asy
  const h=makeHarness();
  h.succeedPrana();
  await h.engine.save({mode:'checked',paths:[songs[0]]});
+ await h.primeCatalog();
  h.setOnline(false);
  assert.equal((await h.engine.inspect()).ready,true);
  assert.equal((await h.engine.save({mode:'all'})).error,'offline');
