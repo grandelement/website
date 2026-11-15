@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.59-20261114-INLINE-PLAYLIST-SAVE';
+const BUILD='GE-MUSIC-V7.60-20261115-ALBUM-ART-CONTINUITY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1246,8 +1246,34 @@ button:disabled{opacity:.5;cursor:not-allowed}
  margin:0!important;padding:clamp(10px,3vw,24px) 10px!important;
  display:flex!important;flex-direction:column!important;justify-content:center!important;
  align-items:center!important;gap:0!important;
- background-image:linear-gradient(rgba(0,9,21,.35),rgba(0,9,21,.42)),var(--ge-square-album-art)!important;
- background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;
+ background:#071524!important;border:0!important;outline:0!important;box-shadow:none!important;
+}
+/* Blend adjoining album artwork instead of exposing a hard image boundary.
+   Each following section overlaps only the previous artwork, while its heading
+   and songs stay below the transition and retain their own touch targets. */
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
+ background:transparent!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare{
+ margin-top:-72px!important;
+ padding-top:92px!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare > .geAlbumSectionArt,
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare::before{
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
+ mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
+}
+/* Real image elements avoid CSS-background failures and a painted section seam. */
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > .geAlbumSectionArt{
+ position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;
+ object-position:center;z-index:0;pointer-events:none;margin:0;padding:0;border:0;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare::before{
+ content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+ background:linear-gradient(rgba(0,9,21,.35),rgba(0,9,21,.42));
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > :not(.geAlbumSectionArt){
+ position:relative;z-index:2;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .albumBrowseHeading{
  width:100%!important;max-width:100%!important;
@@ -1674,7 +1700,7 @@ async function fetchCatalog(options={}){
  };
  // The committed master manifest is authoritative. Check the published copy
  // too, but never replace a newer GitHub manifest with an older CDN snapshot.
- const sources=[
+ const sources=navigator.onLine===false?['./manifest.json']:[
   'https://raw.githubusercontent.com/grandelement/website/main/radio/manifest.json',
   './manifest.json'
  ];
@@ -2724,7 +2750,12 @@ function render(){
         previousAlbum=track.album;
         section=elem('section','geSongsAlbumSquare');
         section.dataset.album=track.album;
-        section.style.setProperty('--ge-square-album-art','url("'+new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href+'")');
+        const art=document.createElement('img');
+        art.className='geAlbumSectionArt';
+        art.alt='';art.loading='eager';art.decoding='async';
+        art.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href;
+        art.addEventListener('error',()=>console.warn('Album artwork unavailable:',art.src),{once:true});
+        section.append(art);
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
         heading.setAttribute('aria-label','Select all songs on '+track.album);

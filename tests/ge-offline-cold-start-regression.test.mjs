@@ -5,7 +5,11 @@ import vm from 'node:vm';
 
 const sw=readFileSync('radio/sw.js','utf8');
 const radio=readFileSync('radio/index.html','utf8');
-const player=readFileSync('radio/offline-player.html','utf8');
+const manager=readFileSync('radio/offline-manager.js','utf8');
+const control=readFileSync('radio/offline-control.js','utf8');
+const spectrum=readFileSync('radio/offline-spectrum.js','utf8');
+const launcher=readFileSync('radio/offline-home.html','utf8');
+const webmanifest=JSON.parse(readFileSync('radio/manifest.webmanifest','utf8'));
 
 test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
@@ -14,6 +18,10 @@ test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/await self\.skipWaiting\(\)/);
  assert.ok(sw.indexOf('await Promise.all(REQUIRED_SHELL.map')<sw.indexOf('await self.skipWaiting()'));
  assert.match(sw,/offlineNavigationFallback/);
+ assert.match(sw,/'.\/offline-home\.html'/);
+ assert.match(sw,/'.\/offline-control\.js'/);
+ assert.match(sw,/'.\/offline-spectrum\.js'/);
+ assert.match(sw,/GE_RADIO_SHELL_STATUS/);
 });
 test('network recovery is bounded even if Safari reports online incorrectly',()=>{
  assert.match(sw,/async function fetchWithTimeout\(/);
@@ -34,12 +42,54 @@ test('radio cold start checks stored identity with no Vault request',()=>{
  assert.match(radio,/Number\(receipt\?\.until\|\|grant\?\.until\|\|0\)/);
  assert.match(radio,/geRadioUtilityAllowed\('offline'\)/);
 });
-test('offline player registers independently and enforces expiry and song scope',()=>{
- assert.match(player,/navigator\.serviceWorker\.register\('\.\/sw\.js/);
- assert.match(player,/const timeout=setTimeout\(\(\)=>controller\.abort\(\),3500\)/);
- assert.match(player,/Number\(receipt\.until\)>now/);
- assert.match(player,/Number\(grant\.until\)>now/);
- assert.match(player,/\.filter\(url=>!allowed\|\|allowed\.has\(normalizedPath\(url\)\)\)/);
+test('new offline manager is scoped to verified Radio grants, not a retired player',()=>{
+ assert.match(sw,/'.\/offline-manager\.js'/);
+ assert.match(radio,/window\.GERadioOfflineBridge=\{/);
+ assert.match(radio,/canDownload:\(\)=>geRadioUtilityAllowed\('offline'\)/);
+ assert.match(radio,/allowedPaths:\(\)=>\{const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(manager,/const CACHE='ge-radio-media-v4'/);
+ assert.match(manager,/bridge\(\)\.canDownload\?\.\(\)/);
+ assert.match(manager,/cache\.put\(url,new Response\(blob,\{status:200,headers\}\)\)/);
+ assert.match(manager,/window\.confirm\('Delete downloaded AUDIO/);
+ assert.doesNotMatch(sw,/offline-player\.html/);
+});
+test('Home Screen installs a cached launch entry, and download activation survives expiry',()=>{
+ assert.equal(webmanifest.start_url,'./offline-home.html');
+ assert.match(launcher,/index\.html\?ge_home=1/);
+ assert.match(control,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
+ assert.match(control,/onSaved/);
+ assert.match(control,/GE Station Identification/,'Station IDs must be saved for true offline Radio');
+ assert.match(control,/stations\.saved===stations\.total/,'Ready status requires station clips');
+ assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
+ assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
+ assert.match(radio,/geRadioSunLabPrivateAllowed/);
+ assert.match(spectrum,/decodeAudioData/);
+ assert.match(spectrum,/getChannelData/);
+ assert.match(spectrum,/GEOfflineSpectrum/);
+});
+test('OFFLINE membership permits approved Radio recordings without a separate MUSIC code',()=>{
+ const start=radio.indexOf('function geOfflineSongAllowance(){');
+ const end=radio.indexOf('function geRadioUtilityAllowed(',start);
+ assert.ok(start>=0&&end>start);
+ const access=JSON.stringify({verifiedFor:'radio',until:Date.now()+120000,scopes:['radio','offline']});
+ const sessions={'GE_VAULT_SCOPED_ACCESS_V1':access};
+ const authorized=['ge-music/music/Grand Element - Aether/approved.mp3'];
+ const privateTrack='ge-music/music/Grand Element - Aether/private.mp3';
+ const get=Function('geRadioLocalTestAccess','publicPlayerProfile','sessionStorage','approvedAutoPaths',
+  'offlinePlaybackMode','geOfflineDeviceGrantValid','canonicalSongPath','localStorage','GE_OFFLINE_LOCAL_ENTITLEMENT',
+  radio.slice(start,end)+'return geOfflineSongAllowance;')(
+    ()=>false,{scopes:[]},{getItem:k=>sessions[k]||null},new Set(authorized),
+    ()=>false,()=>false,p=>p,{getItem:()=>null},'unused');
+ const granted=get();
+ assert.ok(granted instanceof Set);
+ assert.ok(granted.has(authorized[0]));
+ assert.ok(!granted.has(privateTrack),'OFFLINE code must never grant private or non-master files');
+ sessions['GE_MUSIC_CODE_SESSION_V1']=JSON.stringify({
+    token:'test',until:Date.now()+120000,restricted:true,allowed:[privateTrack]
+ });
+ const restricted=get();
+ assert.deepEqual([...restricted],[privateTrack],
+  'An explicit restricted MUSIC grant controls its own allowed catalog');
 });
 test('airplane-mode worker serves cached navigation and ranged audio with no network',async()=>{
  const handlers=new Map();
@@ -52,7 +102,8 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  const shell='ge-radio-shell-'+workerVersion;
  cacheData.set(shell,new Map([
   [origin+'/radio/index.html',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})],
-  [origin+'/radio/',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})]
+  [origin+'/radio/',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})],
+  [origin+'/radio/offline-home.html',new Response(launcher,{status:200,headers:{'Content-Type':'text/html'}})]
  ]));
  cacheData.set('ge-radio-media-v4',new Map([
   [song,new Response(new Uint8Array([1,2,3,4,5,6,7,8]),{status:200,headers:{'Content-Type':'audio/mpeg'}})]
@@ -85,8 +136,17 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  };
  const page=await respond({method:'GET',mode:'navigate',url:origin+'/radio/',headers:new Headers()});
  assert.equal(page.status,200);assert.match(await page.text(),/id="shipStage"/);
+ const entry=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
+ assert.equal(entry.status,200);assert.match(await entry.text(),/OPEN RADIO/);
  const media=await respond({method:'GET',mode:'cors',destination:'audio',url:song,headers:new Headers({'Range':'bytes=2-5'})});
  assert.equal(media.status,206);assert.equal(media.headers.get('Content-Range'),'bytes 2-5/8');
  assert.deepEqual([...new Uint8Array(await media.arrayBuffer())],[3,4,5,6]);
- assert.equal(networkCalls,0,'No network requests allowed in Airplane Mode');
+ // Safari sometimes continues reporting online after Airplane Mode. Both the
+ // installed launcher and tagged saved music must still be 100% cache-first.
+ self.navigator.onLine=true;
+ const tagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song+'?ge_offline=1',headers:new Headers()});
+ assert.equal(tagged.status,200);
+ const homeAgain=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
+ assert.equal(homeAgain.status,200);
+ assert.equal(networkCalls,0,'Installed offline launch and saved music must not retry the network');
 });

@@ -4,7 +4,11 @@ on:
     paths:
       - 'radio/sw.js'
       - 'radio/index.html'
-      - 'radio/offline-player.html'
+      - 'radio/offline-manager.js'
+      - 'radio/offline-control.js'
+      - 'radio/offline-spectrum.js'
+      - 'radio/offline-home.html'
+      - 'radio/manifest.webmanifest'
       - 'tests/ge-offline-cold-start-regression.test.mjs'
       - '.github/workflows/ge-offline-cold-start.yml'
   push:
@@ -12,7 +16,11 @@ on:
     paths:
       - 'radio/sw.js'
       - 'radio/index.html'
-      - 'radio/offline-player.html'
+      - 'radio/offline-manager.js'
+      - 'radio/offline-control.js'
+      - 'radio/offline-spectrum.js'
+      - 'radio/offline-home.html'
+      - 'radio/manifest.webmanifest'
       - 'tests/ge-offline-cold-start-regression.test.mjs'
       - '.github/workflows/ge-offline-cold-start.yml'
 jobs:
@@ -24,12 +32,19 @@ jobs:
           sparse-checkout: |
             radio/sw.js
             radio/index.html
-            radio/offline-player.html
+            radio/offline-manager.js
+            radio/offline-control.js
+            radio/offline-spectrum.js
+            radio/offline-home.html
+            radio/manifest.webmanifest
             tests/ge-offline-cold-start-regression.test.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --check radio/sw.js
+      - run: node --check radio/offline-manager.js
+      - run: node --check radio/offline-control.js
+      - run: node --check radio/offline-spectrum.js
       - run: node --check tests/ge-offline-cold-start-regression.test.mjs
       - run: node --test tests/ge-offline-cold-start-regression.test.mjs

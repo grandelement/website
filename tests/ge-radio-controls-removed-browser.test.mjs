@@ -9,30 +9,40 @@ try{
    const errors=[];page.on('pageerror',err=>errors.push(String(err?.message||err)));
    await page.goto('http://127.0.0.1:8765/radio/?ge_view='+(!isMobile?'desktop':'mobile'),{waitUntil:'domcontentloaded',timeout:45000});
    await page.waitForFunction(()=>document.getElementById('sunLabBtn')&&
-     document.getElementById('playBtn')&&window.GEMusicV5?.open,{timeout:16000});
+     document.getElementById('playBtn')&&window.GEMusicV5?.open&&window.GERadioOfflineManager?.open,{timeout:16000});
    const state=await page.evaluate(()=>{
     // Use a test-only unexpired scoped receipt to verify SUN LAB placement.
     // Compare player controls in player mode; desktop may default to Ship.
     document.body.classList.remove('view-ship');
     document.body.classList.add('view-player');
     if(innerWidth<700)document.body.classList.add('portrait-player');
+    sessionStorage.removeItem('GE_VAULT_SCOPED_ACCESS_V1');
+    window.GERadioSyncOfflineAccess?.();
+    const guestSunVisible=!document.getElementById('sunLabBtn').hidden;
     sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
       verifiedFor:'radio',until:Date.now()+60000,scopes:['radio','sunlab'],sunLab:true
     }));
     window.GERadioSyncOfflineAccess?.();
-    const sun=document.getElementById('sunLabBtn'),support=document.querySelector('#geUtilityRow a.bc-btn');
+    const sun=document.getElementById('sunLabBtn'),support=document.querySelector('#geUtilityRow a.bc-btn'),offline=document.getElementById('offlineLaunchBtn');
     const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,width:r.width}};
     const forbidden=['reloadBtn','geDebugOpen','offlineBtn','geOfflineDecision','offlinePanel'];
-    return {bad:forbidden.filter(id=>document.getElementById(id)),sun:rect(sun),support:rect(support),
+    return {bad:forbidden.filter(id=>document.getElementById(id)),guestSunVisible,grantedSunVisible:!sun.hidden,offline:rect(offline),sun:rect(sun),support:rect(support),
       code:!!document.getElementById('accessLaunchBtn'),
       radio:!!document.getElementById('liveBtn'),
       musicButton:!!document.getElementById('geMusicV5Button')};
    });
    assert.deepEqual(state.bad,[],'Old Radio controls returned: '+JSON.stringify(state));
    assert(state.code&&state.radio&&state.musicButton,'Main player controls were lost');
+   assert(state.guestSunVisible&&state.grantedSunVisible,'SUN LAB button must remain visible before and after access code');
    assert(state.sun.width>25,'Granted SUN LAB must be visible and tappable');
-   assert(state.sun.right<=state.support.left+2,'SUN LAB must appear left of SUPPORT: '+JSON.stringify(state));
-   assert(Math.abs(state.sun.top-state.support.top)<5,'SUN LAB and SUPPORT must be on same line');
+   assert(state.offline.right<=state.support.left+2,'OFFLINE must be left of SUPPORT: '+JSON.stringify(state));
+   assert(state.support.right<=state.sun.left+2,'SUPPORT must be left of SUN LAB: '+JSON.stringify(state));
+   assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,'Footer buttons must use equal columns: '+JSON.stringify(state));
+   assert(Math.abs(state.sun.top-state.support.top)<5&&Math.abs(state.offline.top-state.support.top)<5,'All footer controls must stay on one line');
+   await page.click('#offlineLaunchBtn');
+   await page.waitForFunction(()=>!document.getElementById('geOfflineSurface')?.hidden,{timeout:5000});
+   await page.click('[data-offline="close"]');
+   await page.waitForFunction(()=>document.getElementById('geOfflineSurface')?.hidden===true,{timeout:5000});
    await page.evaluate(()=>window.GEMusicV5.open());
    await page.waitForFunction(()=>window.GEMusicV5?.state?.().open===true,{timeout:8000});
    const music=await page.evaluate(()=>{
@@ -46,7 +56,7 @@ try{
    assert.equal(music.reload,0,'MUSIC reload button returned');
    assert(music.code&&music.play,'MUSIC code and PLAY preserved');
    if(errors.length)throw Error('Radio JS errors after removal: '+JSON.stringify(errors.slice(0,8)));
-   console.log('PASS '+width+'x'+height+': no deleted controls, SUN LAB left of SUPPORT, PLAY/CODE/MUSIC working');
+   console.log('PASS '+width+'x'+height+': OFFLINE SUPPORT SUN LAB aligned; old controls absent; PLAY/CODE/MUSIC working');
   }finally{await page.close();}
  }
 }finally{await browser.close();}

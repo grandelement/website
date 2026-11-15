@@ -1,8 +1,8 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.15-control-removal-v111';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261115_CONTROL_REMOVAL_V1';
+const VERSION='2026.11.15-offline-ready-v115';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -10,8 +10,12 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
+  './offline-home.html',
   '../playlists/registry.json',
   './ge-music-v5.js',
+  './offline-manager.js',
+  './offline-spectrum.js',
+  './offline-control.js',
   './ge-purchase-demo.js',
   '../ge-vault-client.js',
   '../ge-accessibility.js',
@@ -47,7 +51,7 @@ const SHELL=[
 // A new offline worker must never replace the existing worker unless all
 // essential pages, scripts, styles, and local catalogs are stored.
 const REQUIRED_SHELL=[
-  './ge-music-v5.js',
+  './offline-home.html','./ge-music-v5.js','./offline-manager.js','./offline-spectrum.js','./offline-control.js',
   './manifest.json','./iam-private-studio.js','./ge-gate-audio.js',
   './ge-gate-settings.js','./ge-purchase-demo.js',
   '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
@@ -127,11 +131,11 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const names=await caches.keys();
-    await Promise.all(
-      names
-        .filter(name=>name.startsWith('ge-radio-shell-') && name!==SHELL_CACHE)
-        .map(name=>caches.delete(name))
-    );
+    // Preserve the most recent previous shell as a recovery copy. Audio and
+    // artwork caches are not touched. Never erase every known working startup.
+    const previous=names.filter(name=>name.startsWith('ge-radio-shell-')&&name!==SHELL_CACHE);
+    const keepPrevious=previous.at(-1);
+    await Promise.all(previous.filter(name=>name!==keepPrevious).map(name=>caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -213,6 +217,21 @@ async function secondaryPageNavigationResponse(request){
 
 async function navigationResponse(request){
   const path=new URL(request.url).pathname;
+  // Installed Home Screen entry stays cache-first. It must never wait for
+  // the server when Safari relaunches this app with no connection.
+  if(path.endsWith('/radio/offline-home.html')){
+    const shell=await caches.open(SHELL_CACHE);
+    const saved=await shell.match('./offline-home.html',{ignoreSearch:true}) ||
+      await caches.match('./offline-home.html',{ignoreSearch:true});
+    if(saved?.ok)return saved;
+    return secondaryPageNavigationResponse(request);
+  }
+  // The Home Screen entry opens the last known-good player immediately;
+  // RELOAD/UPDATE performs its own network refresh afterward.
+  if(new URL(request.url).searchParams.has('ge_home')){
+    const saved=await offlineNavigationFallback();
+    if(saved?.ok)return saved;
+  }
   // Only the home page can use the strict Grand Element Radio index validator.
   // The separate music/preview page is a legitimate HTML document.
   if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html')){
@@ -258,8 +277,9 @@ async function navigationResponse(request){
 }
 
 async function mediaResponse(request){
-  // An offline audio request, including byte ranges, must be 100% local.
-  if(self.navigator?.onLine===false){
+  const url=new URL(request.url);
+  // Saved audio explicitly requests local-first, even if Safari reports online.
+  if(self.navigator?.onLine===false||url.searchParams.has('ge_offline')){
     const local=await cachedResponse(request);
     return local?rangeFromCache(request,local):
       new Response('This audio file was not saved',{status:503});
@@ -267,7 +287,6 @@ async function mediaResponse(request){
   // Same-path song replacements must win while ONLINE. The earlier
   // cache-first path kept playing obsolete recordings after an upload.
   // Offline still falls back to the listener's existing saved music.
-  const url=new URL(request.url);
   try{
     const fresh=await fetchWithTimeout(request,{cache:'no-store'});
     if(fresh.ok){
@@ -321,17 +340,32 @@ async function staticResponse(request){
   return new Response('Radio app file unavailable offline',{status:503});
 }
 
+// MessageChannel readiness check never requires a live Vault or remote API.
+self.addEventListener('message',event=>{
+  if(event.data?.type!=='GE_RADIO_SHELL_STATUS')return;
+  event.waitUntil((async()=>{
+    const result={type:'GE_RADIO_SHELL_STATUS',version:VERSION,ready:false,missing:[]};
+    try{
+      const shell=await caches.open(SHELL_CACHE);
+      for(const path of [...new Set(['./','./index.html','./offline-home.html',...REQUIRED_SHELL])]){
+        const response=await shell.match(path,{ignoreSearch:true});
+        if(!response?.ok){result.missing.push(path);continue;}
+        if(path==='./index.html' && !(await isValidRadioHTML(response,{requireCurrent:true}))){
+          result.missing.push(path+' (invalid Radio page)');
+        }
+      }
+      result.ready=result.missing.length===0;
+    }catch(error){result.missing.push(String(error?.message||error))}
+    try{event.ports?.[0]?.postMessage(result)}catch(_){}
+  })());
+});
+
 self.addEventListener('fetch',event=>{
   const request=event.request;
   if(request.method!=='GET') return;
 
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
-
-  if(request.headers.get('X-GE-Offline')==='1'){
-    event.respondWith(fetchFresh(request));
-    return;
-  }
 
   if(request.headers.get('X-GE-Reload-Media')==='1'){
     event.respondWith((async()=>{
