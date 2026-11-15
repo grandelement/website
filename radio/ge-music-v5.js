@@ -3048,9 +3048,9 @@ musicOfflineDialog.addEventListener('click',event=>{
  if(action==='checked'){
   const paths=selectedTracks().map(track=>track.path);
   if(!paths.length){say('CHECK SONGS FIRST.');return;}
-  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
+  if(!window.GEOffline?.requestSelection?.(paths))say('OFFLINE DOWNLOAD REQUEST COULD NOT START.');
  }else{
-  window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);
+  if(!window.GEOffline?.requestAll?.())say('OFFLINE DOWNLOAD REQUEST COULD NOT START.');
  }
 });
 // Offline download row directly above the selection footer.
