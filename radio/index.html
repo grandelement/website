@@ -9871,29 +9871,35 @@ async function registerServiceWorker(){
     if(message&&selectedOfflinePaths)reportMusicOffline(message);
   }).observe(text,{childList:true,characterData:true,subtree:true});
   // MUSIC and Radio share this one offline cache/download controller.
-  window.addEventListener('message',event=>{
-    if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_ALL')return;
+  function requestAllOffline(){
     if(button.classList.contains('downloading')||button.disabled){
-      reportMusicOffline('An offline operation is already running.');return;
+      reportMusicOffline('An offline operation is already running.');return false;
     }
     selectedOfflinePaths=null;
     void requestOffline();
-  });
-  // The Music library can request a smaller checked-song download.
-  window.addEventListener('message',event=>{
-    if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_SELECTED')return;
-    const paths=event.data.paths;
-    if(!Array.isArray(paths)||!paths.length)return;
+    return true;
+  }
+  // One downloader handles full and selected-song plans.
+  function requestSelectedOffline(paths){
+    if(!Array.isArray(paths)||!paths.length)return false;
     if(button.classList.contains('downloading')||button.disabled){
       reportMusicOffline('A download or offline check is already running. Finish it before requesting another playlist.');
       setStatus('Finish the current offline operation before selecting another playlist.');
-      return;
+      return false;
     }
     const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
-    if(!wanted.size)return;
+    if(!wanted.size)return false;
     selectedOfflinePaths=wanted;
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
     void requestOffline();
+    return true;
+  }
+  // Compatibility for existing embedded MUSIC callers. The main MUSIC UI
+  // invokes GEOffline directly instead of sending a synthetic window message.
+  window.addEventListener('message',event=>{
+    if(event.origin!==location.origin)return;
+    if(event.data?.type==='GE_MUSIC_OFFLINE_ALL')requestAllOffline();
+    else if(event.data?.type==='GE_MUSIC_OFFLINE_SELECTED')requestSelectedOffline(event.data.paths);
   });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
@@ -11284,6 +11290,8 @@ async function registerServiceWorker(){
   }
   window.GEOffline={
     request:requestOffline,
+    requestAll:requestAllOffline,
+    requestSelection:requestSelectedOffline,
     isActive:isEnabled,
     scan:scanExistingAssets,
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
