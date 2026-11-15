@@ -79,6 +79,56 @@ test('MUSIC owns offline actions and local playback activation survives access e
  assert.match(spectrum,/getChannelData/);
  assert.match(spectrum,/GEOfflineSpectrum/);
 });
+test('legacy pinned iPhone launcher restores saved Radio shell in Airplane Mode without a redirect',async()=>{
+ const script=launcher.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(script,'Legacy PWA launcher must keep an inline recovery script');
+ const html='<!doctype html><html><head><title>Grand Element Radio</title></head><body><div id="shipStage"></div><audio id="player"></audio></body></html>';
+ let written='',opens=0,closes=0,deletions=0,network=0;
+ const status={textContent:''},open={href:'https://example.test/radio/index.html?ge_home=1'};
+ const document={
+  getElementById(id){return id==='status'?status:id==='open'?open:null},
+  open(){opens++},write(text){written=text},close(){closes++}
+ };
+ const cache={
+  async match(req){
+   return req.startsWith('https://example.test/radio/')?{ok:true,text:async()=>html}:undefined
+  }
+ };
+ const caches={
+  keys:async()=>['ge-radio-media-v4','ge-radio-shell-2026.11.15-old'],
+  open:async(name)=>name.startsWith('ge-radio-shell-')?cache:{match:async()=>undefined},
+  match:async()=>undefined,
+  delete:async()=>{deletions++;throw Error('Never erase saved songs')}
+ };
+ const window={matchMedia:()=>({matches:true})};
+ const location={href:'https://example.test/radio/offline-home.html',replace(){network++;throw Error('No navigation in Airplane Mode')}};
+ vm.runInNewContext(script,{document,window,navigator:{standalone:true},location,caches,URL,console,Promise});
+ // The inline recovery is async; let CacheStorage and response.text microtasks drain.
+ for(let i=0;i<20&&!written;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(opens,1);
+ assert.equal(closes,1);
+ assert.equal(written,html,'The previously cached real player must replace the broken launcher');
+ assert.equal(network,0,'Opening the saved player must not require another navigation');
+ assert.equal(deletions,0,'Recovery must never clear songs, playlists or caches');
+});
+test('legacy pinned launcher gives a non-destructive recovery message if no shell is stored',async()=>{
+ const script=launcher.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ let wrote=false,network=0;
+ const status={textContent:''};
+ const document={
+  getElementById(id){return id==='status'?status:{href:'https://example.test/radio/index.html?ge_home=1'}},
+  open(){wrote=true},write(){wrote=true},close(){}
+ };
+ const caches={keys:async()=>[],match:async()=>undefined};
+ const window={matchMedia:()=>({matches:true})};
+ const location={href:'https://example.test/radio/offline-home.html',replace(){network++}};
+ vm.runInNewContext(script,{document,window,navigator:{standalone:true},location,caches,URL,console,Promise});
+ for(let i=0;i<20&&!status.textContent.includes('not found');i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(wrote,false);
+ assert.equal(network,0);
+ assert.match(status.textContent,/reconnect once online/i);
+});
+
 test('OFFLINE membership permits approved Radio recordings without a separate MUSIC code',()=>{
  const start=radio.indexOf('function geOfflineSongAllowance(){');
  const end=radio.indexOf('function geRadioUtilityAllowed(',start);
