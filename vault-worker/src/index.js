@@ -1,3 +1,4 @@
+import {handlePrivateMusic} from "./private-media.mjs";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -2903,6 +2904,25 @@ export default {
           storage: accessCodesReady ? "READY" : "ACCESS CODES UNAVAILABLE",
           access_codes_ready: accessCodesReady, time: now(),
         }, accessCodesReady ? 200 : 503, cors);
+      }
+
+      // Private R2 audio is optional and never falls back to public GitHub.
+      // Use the existing signed, revocable D1 Music session permission checks.
+      if (url.pathname === "/v1/private/music/sign" ||
+          url.pathname.startsWith("/v1/private/music/file/")) {
+        const response=await handlePrivateMusic(request,env,async(token,trackPath)=>{
+          const verifyRequest=new Request(new URL("/v1/public/access/music-session",url.origin),{
+            method:"POST",
+            headers:{"content-type":"application/json"},
+            body:JSON.stringify({action:"verify",token,track_path:trackPath})
+          });
+          const verified=await accessMusicSession(verifyRequest,env);
+          if(!verified.ok)return false;
+          const result=await verified.json();
+          return result.ok===true&&result.authorized===true;
+        });
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
       }
 
       if (url.pathname === "/v1/public/access/music-session" && request.method === "POST") {
