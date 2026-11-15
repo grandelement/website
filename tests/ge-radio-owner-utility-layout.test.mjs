@@ -37,6 +37,10 @@ for(const oldId of ['reloadBtn','geDebugOpen','offlineBtn'])
  assert.doesNotMatch(staticCSS,new RegExp('#'+oldId+'\\b'),'Dead legacy '+oldId+' CSS must not return');
 assert.match(radio,/PUBLIC RADIO BUTTONS: one owner for geometry/,'Canonical public button geometry missing');
 assert.match(radio,/geReloadBusy/,'RELOAD requests need a concurrency guard');
+assert.ok(radio.includes("requestAll:requestAllOffline")&&radio.includes("requestSelection:requestSelectedOffline"),'MUSIC must share one direct offline downloader');
+assert.ok(music.includes("window.GEOffline?.requestSelection?.(paths)")&&music.includes("window.GEOffline?.requestAll?.()"),'MUSIC must call the offline downloader directly');
+assert.ok(music.includes("return window.GERadioOfflineAllowed?.()===true;"),'MUSIC and Radio must agree on the verified Offline grant');
+assert.ok(!music.includes("window.postMessage({type:'GE_MUSIC_OFFLINE_"),'No synthetic offline command messages in the Music UI');
 const inlineScripts=[...radio.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
  .filter(m=>!/\bsrc\s*=|\btype\s*=\s*["'](?:application\/json|application\/ld\+json)/i.test(m[1]));
 for(let i=0;i<inlineScripts.length;i++)
