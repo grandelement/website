@@ -2084,7 +2084,14 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(allowed)}
+     const restored=restoreWorkingOrder();
+     if(!restored){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set()}
+     else{
+       // Keep only deliberately checked tracks permitted by this code.
+       // A new code does not automatically check every granted song.
+       const allowedPaths=new Set(allowed);
+       state.selected=new Set([...state.selected].filter(path=>allowedPaths.has(path)));
+     }
      saveSelected();void loadPublished();setView('access-code');
      say('Music code verified · ALL SONGS shown in the normal catalog order.');
    }else{
