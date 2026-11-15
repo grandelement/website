@@ -3098,7 +3098,7 @@ playlistTop.addEventListener('click',()=>void openPlaylistPicker());
 const playlistDeleteTop=elem('button','gePlaylistTopButton','DELETE');
 playlistDeleteTop.type='button';
 playlistDeleteTop.addEventListener('click',()=>el('.quickPlaylistDelete').click());
-el('.geBrowseTools').append(playlistTop,playlistDeleteTop);
+el('.geBrowseTools').append(playlistDeleteTop,playlistTop);
 
 const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
