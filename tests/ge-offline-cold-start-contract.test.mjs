@@ -24,6 +24,7 @@ assert.match(offline,/!navigator\.onLine/,'OFFLINE boot does not require re-regi
 assert.match(offline,/Number\(receipt\.until\)>Date\.now\(\)/,'Offline entitlements remain expiry-checked');
 assert.match(offline,/receipt\.device_id===id/,'Offline entitlement is scoped to this browser device');
 assert.match(radio,/window\.GEVault\?\.anonId\|\|localStorage\.getItem\('ge_vault_anon_id'\)/,'Offline radio recovers persisted identity');
+assert.doesNotMatch(radio,/if\(isSingles\(request\.url\) \|\| isStationID\(request\.url\)\)/,'Saved Singles must not be excluded from offline catalog');
 const version=sw.match(/const VERSION='([^']+)'/)?.[1];
 assert.ok(version&&radio.includes(version)&&offline.includes(version),'Radio and Offline player register the same worker version');
 console.log('OFFLINE cold-start and authorization contracts OK');
