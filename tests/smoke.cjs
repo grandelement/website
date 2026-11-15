@@ -35,6 +35,16 @@ const dj=read('radio/ge-dj.html');
 const radio=read('radio/index.html');
 const siteSW=read('sw.js');
 const radioSW=read('radio/sw.js');
+assert(home.includes('GE_SITE_HOME_BUILD_20261114_CANONICAL_V1'),'Canonical home build marker missing');
+assert(radio.includes('GE_RADIO_UI_BUILD_20261114_CANONICAL_UTILITIES_V3'),'Canonical Radio build marker missing');
+assert(siteSW.includes('GE_SITE_SHELL_V8_CANONICAL_20261114'),'New website cache version missing');
+assert(radioSW.includes('2026.11.14-canonical-recovery-v107'),'New Radio cache version missing');
+assert(!home.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in home');
+assert(!radio.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in Radio');
+assert(!radioSW.includes("await caches.match('./index.html',{ignoreSearch:true})"),'Legacy Radio HTML cache fallback must not return');
+assert(radioSW.includes('isValidRadioHTML(candidate,{requireCurrent:true})'),'Radio offline backup must validate the current build');
+assert(!siteSW.includes('During migration, recover a known-good older cached shell'),'Old home recovery must not resurrect obsolete pages');
+
 const continuity=JSON.parse(read('operations/service-register.json'));
 const published=JSON.parse(read('config/site-live.json'));
 const manifest=JSON.parse(read('radio/manifest.json'));
