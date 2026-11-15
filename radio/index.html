@@ -1,4 +1,4 @@
-<!-- GE_RADIO_UI_BUILD_20261115_OFFLINE_REBUILD_V1 -->
+<!-- GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2 -->
 <!-- GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2 : legacy service-worker transition only -->
 <!--
 GE RADIO REBUILD 07 — PROTECTED THROTTLE + RECOVERED SUN LAB
@@ -5019,6 +5019,10 @@ document.addEventListener('DOMContentLoaded',function(){
  }
 }
 </style>
+<style id="ge-sun-lab-public-control-style">
+#sunLabPanel.ge-sunlab-public #sunLabAdvancedToggle,
+#sunLabPanel.ge-sunlab-public #sunLabAdvancedTools{display:none!important}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -6657,10 +6661,9 @@ async function loadFrozenAutoSongs(){
 function allowedCatalog(){
   // Offline must use saved media URLs, not online manifest URLs or the live stream.
   // This is restricted to existing owner/demo access pending verified paid entitlements.
-  if(offlinePlaybackMode() && geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
-    const limit=geOfflineSongAllowance();
-    const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)&&
-      (!limit||limit.has(canonicalSongPath(url)))).sort(orderedSort);
+  if(offlinePlaybackMode() && window.GEOffline?.isActive?.()){
+    // Download rights are verified online. Offline playback uses only what is saved.
+    const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)).sort(orderedSort);
     if(personalSongMode){
       const chosen=saved.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
       if(chosen.length)return chosen;
@@ -7885,6 +7888,7 @@ function geOfflineSongAllowance(){
   return null;
 }
 function geRadioUtilityAllowed(feature){
+  if(offlinePlaybackMode()&&window.GEOffline?.isActive?.()&&(feature==='offline'||feature==='sunlab'))return true;
   if(geRadioLocalTestAccess())return true;
   if(publicPlayerProfile.scopes.includes(feature))return true;
   if(feature==='offline'&&geOfflineDeviceGrantValid())return true;
@@ -7898,7 +7902,15 @@ function geRadioUtilityAllowed(feature){
 }
 // The original LOVE grant comes from an authenticated Vault redemption,
 // never from typing the word LOVE or a locally guessed listener identity.
+function geRadioSunLabPrivateAllowed(){
+  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
+  try{
+    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    return !!receipt&&receipt.verifiedFor==='radio'&&Number(receipt.until)>Date.now()&&receipt.sunLab===true;
+  }catch(_){return false}
+}
 function geRadioSunLabAllowed(){
+  if(window.GEOffline?.isActive?.())return true;
   if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
   try{
     const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
@@ -8398,7 +8410,7 @@ if(document.readyState==='loading'){
 async function resumePlayerAfterLive(){
   // An ordinary guest can listen through the existing 33:33 preview.
   // Returning from BLITZ must not send PLAY to commerce.
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
     window.GEMusicV5?.playAll?.();
     return;
   }
@@ -8680,7 +8692,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   // The actual licensed library is not yet hosted privately. This guard
   // closes UI bypasses, including controls used during a live Radio session.
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('all');
     else setStatus('Press PLAY for the shuffled Grand Element song library.');
     return;
@@ -8744,7 +8756,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
 }
 function resumeAudio(){
   if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()&&
-    !(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+    !(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
     // The main and compact PLAY controls share the same 33:33 guest preview.
     // Keep an active personal queue in its existing player; never navigate.
     if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
@@ -8773,7 +8785,7 @@ function selectNaturalNext(){
 }
 async function advanceFromEnded(){
   if(state.live){reconnectLiveStream();return;}
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()))return;
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.()))return;
   if(isStationID(state.currentURL) && state.pendingAfterStation){
     const pending=state.pendingAfterStation;
     state.pendingAfterStation=null;
@@ -8800,7 +8812,7 @@ function nextTrack(userAction=false){
   if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
     startPlayerPlaylist();return;
   }
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('next');
     return; // Lock-screen actions use the same protected music queue.
   }
@@ -8814,7 +8826,7 @@ function previousTrack(userAction=false){
   if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
     startPlayerPlaylist();return;
   }
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('previous');
     return;
   }
@@ -9085,7 +9097,7 @@ playBtn?.addEventListener('click',()=>{
   if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
   // Offline on a verified device plays the EXISTING saved song cache directly.
   // It never dials BLITZ or deletes music when the connection disappears.
-  if(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
+  if(offlinePlaybackMode()&&window.GEOffline?.isActive?.()){
     if(state.live||state.livePreparing)exitLiveMode('');
     window.GEBackgrounds?.startOfflineBackgroundTwo?.();
     const saved=allowedCatalog();
@@ -10022,7 +10034,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261115-control-removal-v111',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261115-offline-ready-v113',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10260,6 +10272,12 @@ async function registerServiceWorker(){
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
   const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
+  const SUN_MODE_PUBLIC_CONTROLS={
+    plasma:['slThickness','slBrightness'],
+    spectrum:['slSpectrumSpeed','slSpectrumGain'],
+    glow:['slInnerGlowStrength','slOuterGlowStrength'],
+    waterfall:['slCascadeSpeed','slBrightness']
+  };
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
     spectrum:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slDistance','slThickness','slContrast','slDynamics','slBass','slMid','slTreble'],
@@ -10292,7 +10310,8 @@ async function registerServiceWorker(){
     grid?.classList.toggle('no-mode',!mode);
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
     if(hint)hint.textContent=mode?modeLabel(mode)+' controls':'Tap an effect to edit it.';
-    const ids=new Set(mode?(SUN_MODE_CONTROLS[mode]||[]):[]);
+    const publicOnly=window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed();
+    const ids=new Set(mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[]);
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
@@ -10329,6 +10348,8 @@ async function registerServiceWorker(){
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
+    sunLabPanel.classList.toggle('ge-sunlab-public',window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed());
+    if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
     sunLabBtn?.setAttribute('aria-pressed',on?'true':'false');
     if(on)void ensureLiveEQ();
     else window.GEStopEQTapIfUnused?.();
@@ -12238,7 +12259,7 @@ Vector ${vector}. ${pair[1]}.`;
     // A previously Vault-verified offline device grant must continue to
     // authorize only local saved music after this tab/session is closed.
     return !developerGatePreview&&
-      (vaultRadioSessionValid()||(offlinePlaybackMode()&&geOfflineDeviceGrantValid()));
+      (vaultRadioSessionValid()||(offlinePlaybackMode()&&(window.GEOffline?.isActive?.()||geOfflineDeviceGrantValid())));
   }
   function save(force=false){
     if(window.GE_RESET_SITE_IN_PROGRESS)return;
@@ -13769,6 +13790,8 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabB
 }
 html.ge-radio-ui body:not(.view-player) #geUtilityRow{display:none!important}
 </style>
-<script defer src="./offline-manager.js?v=20261115-radio40"></script>
+<script defer src="./offline-spectrum.js?v=20261115-v1"></script>
+<script defer src="./offline-manager.js?v=20261115-radio40-v2"></script>
+<script defer src="./offline-control.js?v=20261115-v1"></script>
 </body>
 </html>
