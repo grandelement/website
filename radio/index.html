@@ -8764,7 +8764,10 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
         audio.removeAttribute('src');
         audio.load();
       }
-      audio.src=url;
+      // Force cache-first playback for downloaded audio when iPhone reports connectivity incorrectly.
+      const offlineAudioURL=offlinePlaybackMode()&&window.GEOffline?.isActive?.()?new URL(url,location.href):null;
+      if(offlineAudioURL)offlineAudioURL.searchParams.set('ge_offline','1');
+      audio.src=offlineAudioURL?offlineAudioURL.href:url;
       audio.load();
     }
     if(window.GEGate?.isExpiredLocked?.()){
