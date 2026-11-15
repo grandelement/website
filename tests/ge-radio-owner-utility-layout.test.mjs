@@ -30,15 +30,15 @@ assert.match(worker,/GE_RADIO_UI_BUILD_20261115_OWNER_UTILITIES_V3/,'Service wor
 assert.match(radio,/GE_RADIO_UI_BUILD_20261115_OWNER_UTILITIES_V3/,'New UI must advertise shell marker');
 assert.match(worker,/owner-utility-layout-v111/,'Service worker shell cache must be rotated');
 
-const inlineStyles=[...radio.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/g)].map(m=>m[1]);
+const inlineStyles=[...radio.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(m=>m[1]);
 assert.ok(inlineStyles.length<=88,'Do not add more inline CSS patch blocks; edit the canonical layout');
-const staticCSS=inlineStyles.join('\\n');
+const staticCSS=inlineStyles.join('\n');
 for(const oldId of ['reloadBtn','geDebugOpen','offlineBtn'])
- assert.doesNotMatch(staticCSS,new RegExp('#'+oldId+'\\\\b'),'Dead legacy '+oldId+' CSS must not return');
+ assert.doesNotMatch(staticCSS,new RegExp('#'+oldId+'\\b'),'Dead legacy '+oldId+' CSS must not return');
 assert.match(radio,/PUBLIC RADIO BUTTONS: one owner for geometry/,'Canonical public button geometry missing');
 assert.match(radio,/geReloadBusy/,'RELOAD requests need a concurrency guard');
-const inlineScripts=[...radio.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/g)]
- .filter(m=>!/\\bsrc\\s*=|\\btype\\s*=\\s*["'](?:application\\/json|application\\/ld\\+json)/i.test(m[1]));
+const inlineScripts=[...radio.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
+ .filter(m=>!/\bsrc\s*=|\btype\s*=\s*["'](?:application\/json|application\/ld\+json)/i.test(m[1]));
 for(let i=0;i<inlineScripts.length;i++)
  new Script(inlineScripts[i][2],{filename:'radio/index.html inline script '+(i+1)});
 
