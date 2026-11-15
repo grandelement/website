@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const sw=readFileSync('radio/sw.js','utf8');
 const radio=readFileSync('radio/index.html','utf8');
-const player=readFileSync('radio/offline-player.html','utf8');
+const manager=readFileSync('radio/offline-manager.js','utf8');
 
 test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
@@ -34,12 +34,16 @@ test('radio cold start checks stored identity with no Vault request',()=>{
  assert.match(radio,/Number\(receipt\?\.until\|\|grant\?\.until\|\|0\)/);
  assert.match(radio,/geRadioUtilityAllowed\('offline'\)/);
 });
-test('offline player registers independently and enforces expiry and song scope',()=>{
- assert.match(player,/navigator\.serviceWorker\.register\('\.\/sw\.js/);
- assert.match(player,/const timeout=setTimeout\(\(\)=>controller\.abort\(\),3500\)/);
- assert.match(player,/Number\(receipt\.until\)>now/);
- assert.match(player,/Number\(grant\.until\)>now/);
- assert.match(player,/\.filter\(url=>!allowed\|\|allowed\.has\(normalizedPath\(url\)\)\)/);
+test('new offline manager is scoped to verified Radio grants, not a retired player',()=>{
+ assert.match(sw,/'.\/offline-manager\.js'/);
+ assert.match(radio,/window\.GERadioOfflineBridge=\{/);
+ assert.match(radio,/canDownload:\(\)=>geRadioUtilityAllowed\('offline'\)/);
+ assert.match(radio,/allowedPaths:\(\)=>\{const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(manager,/const CACHE='ge-radio-media-v4'/);
+ assert.match(manager,/bridge\(\)\.canDownload\?\.\(\)/);
+ assert.match(manager,/cache\.put\(url,new Response\(blob,\{status:200,headers\}\)\)/);
+ assert.match(manager,/window\.confirm\('Delete downloaded AUDIO/);
+ assert.doesNotMatch(sw,/offline-player\.html/);
 });
 test('airplane-mode worker serves cached navigation and ranged audio with no network',async()=>{
  const handlers=new Map();
