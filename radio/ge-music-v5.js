@@ -1700,7 +1700,7 @@ async function fetchCatalog(options={}){
  };
  // The committed master manifest is authoritative. Check the published copy
  // too, but never replace a newer GitHub manifest with an older CDN snapshot.
- const sources=[
+ const sources=navigator.onLine===false?['./manifest.json']:[
   'https://raw.githubusercontent.com/grandelement/website/main/radio/manifest.json',
   './manifest.json'
  ];
