@@ -23,18 +23,33 @@ small{display:block;color:#9fbacd;line-height:1.5}
 <body>
 <main>
 <h1>GRAND ELEMENT RADIO</h1>
-<p id="status" role="status">Opening your saved Radio player…</p>
+<p id="status" role="status">Tap OPEN RADIO to enter the saved player.</p>
 <a id="open" href="./index.html?ge_home=1">OPEN RADIO</a>
 <small>Once OFFLINE says READY inside this installed app, you can reopen Radio in Airplane Mode. If this is your first launch, connect online and select OFFLINE to prepare the device.</small>
 </main>
 <script>
 (()=>{
  const status=document.getElementById('status');
- const installed=window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true;
- if(!installed){status.textContent='Open Radio, then use Share and Add to Home Screen to install this player.';return}
- // The locally cached Home Screen entry is independent of Safari tab history.
- // Never require a Vault or network request before opening the saved Radio.
- window.setTimeout(()=>location.replace('./index.html?ge_home=1'),250);
+ const open=document.getElementById('open');
+ const installed=!!(window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true);
+ // The button is always usable; existing iPhone Home Screen icons may still
+ // point here even after manifest.start_url changes.
+ if(!installed){
+  status.textContent='For offline listening, install Radio from Safari’s Add to Home Screen menu.';
+  return;
+ }
+ status.textContent='Opening Radio. If this page stays here, tap OPEN RADIO.';
+ // Avoid trapping the listener in an unhelpful "Opening..." screen. Any
+ // failed automatic navigation leaves a clear manual entry point.
+ const target=open.href;
+ window.setTimeout(()=>{
+  try{location.replace(target)}
+  catch(_){status.textContent='Open the saved player using OPEN RADIO above.'}
+ },800);
+ window.setTimeout(()=>{
+  if(document.visibilityState==='visible')
+   status.textContent='Still on this page? Tap OPEN RADIO. If it cannot open while disconnected, reconnect and use OFFLINE → CHECK & REPAIR; do not delete saved music.';
+ },2500);
 })();
 </script>
 </body>

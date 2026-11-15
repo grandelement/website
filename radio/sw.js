@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.15-offline-ready-v115';
+const VERSION='2026.11.15-offline-recovery-v116';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -220,11 +220,14 @@ async function navigationResponse(request){
   // Installed Home Screen entry stays cache-first. It must never wait for
   // the server when Safari relaunches this app with no connection.
   if(path.endsWith('/radio/offline-home.html')){
-    const shell=await caches.open(SHELL_CACHE);
-    const saved=await shell.match('./offline-home.html',{ignoreSearch:true}) ||
-      await caches.match('./offline-home.html',{ignoreSearch:true});
-    if(saved?.ok)return saved;
-    return secondaryPageNavigationResponse(request);
+    // Existing installed iPhone icons are permanently bound to this older
+    // launch URL. Serve the REAL saved Radio page directly. No redirect,
+    // network check or client-side timer is required to show its controls.
+    const player=await offlineNavigationFallback();
+    if(player?.ok)return player;
+    // The only reason to show the rescue launcher is an incomplete shell.
+    const saved=await cachedResponse(request);
+    return saved?.ok?saved:new Response('Offline startup engine incomplete. Reconnect to repair.',{status:503});
   }
   // The Home Screen entry opens the last known-good player immediately;
   // RELOAD/UPDATE performs its own network refresh afterward.
@@ -366,6 +369,13 @@ self.addEventListener('fetch',event=>{
 
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  // Explicit OFFLINE downloads are stored once by the download manager.
+  // Do not silently duplicate huge MP3s in the service-worker media cache.
+  if(request.headers.get('X-GE-Offline-Download')==='1'){
+    event.respondWith(fetchWithTimeout(request,{cache:'no-store'},60000));
+    return;
+  }
 
   if(request.headers.get('X-GE-Reload-Media')==='1'){
     event.respondWith((async()=>{

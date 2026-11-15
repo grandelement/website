@@ -54,12 +54,17 @@ test('new offline manager is scoped to verified Radio grants, not a retired play
  assert.doesNotMatch(sw,/offline-player\.html/);
 });
 test('Home Screen installs a cached launch entry, and download activation survives expiry',()=>{
- assert.equal(webmanifest.start_url,'./offline-home.html');
+ assert.equal(webmanifest.start_url,'./index.html?ge_home=1','New Home Screen apps must open Radio directly');
  assert.match(launcher,/index\.html\?ge_home=1/);
  assert.match(control,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
  assert.match(control,/onSaved/);
  assert.match(control,/GE Station Identification/,'Station IDs must be saved for true offline Radio');
  assert.match(control,/stations\.saved===stations\.total/,'Ready status requires station clips');
+ assert.match(control,/PARTIAL OFFLINE · REPAIR NEEDED/,'Partial packages must not say ready');
+ assert.match(control,/missingSongs\.length/,'Readiness should identify exact missing recordings');
+ assert.match(manager,/X-GE-Offline-Download/,'Downloads must bypass service-worker duplicate caching');
+ assert.match(sw,/X-GE-Offline-Download/,'Streaming worker must preserve a single cached download');
+ assert.match(manager,/attempt<=3/,'Transient mobile download failures need bounded retries');
  assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
  assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
  assert.match(radio,/geRadioSunLabPrivateAllowed/);
@@ -137,7 +142,7 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  const page=await respond({method:'GET',mode:'navigate',url:origin+'/radio/',headers:new Headers()});
  assert.equal(page.status,200);assert.match(await page.text(),/id="shipStage"/);
  const entry=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
- assert.equal(entry.status,200);assert.match(await entry.text(),/OPEN RADIO/);
+ assert.equal(entry.status,200);assert.match(await entry.text(),/id="shipStage"/,'Existing Home Screen icons must launch Radio directly');
  const media=await respond({method:'GET',mode:'cors',destination:'audio',url:song,headers:new Headers({'Range':'bytes=2-5'})});
  assert.equal(media.status,206);assert.equal(media.headers.get('Content-Range'),'bytes 2-5/8');
  assert.deepEqual([...new Uint8Array(await media.arrayBuffer())],[3,4,5,6]);
@@ -148,5 +153,6 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  assert.equal(tagged.status,200);
  const homeAgain=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
  assert.equal(homeAgain.status,200);
+ assert.match(await homeAgain.text(),/id="shipStage"/);
  assert.equal(networkCalls,0,'Installed offline launch and saved music must not retry the network');
 });

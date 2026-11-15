@@ -106,34 +106,69 @@ async function download(kind){
  if(!target.length){status(kind==='selected'?'No permitted songs selected in MUSIC.':'No songs permitted by this access code.');return}
  try{localStorage.setItem(PLAN,JSON.stringify({type:kind,paths:target,at:Date.now()}))}catch(_){}
  busy(true);cancelled=false;const cache=await caches.open(CACHE);
- let done=0,failed=0;progress(0,target.length);
+ let done=0,failed=[],lastError='';progress(0,target.length);
  try{
   for(const path of target){
    if(cancelled)break;
-   const url=fileURL(path);
+   const url=fileURL(path),filename=path.split('/').pop();
    if(await anySaved(url)){done++;progress(done,target.length);continue}
-   abort=new AbortController();const timer=setTimeout(()=>abort.abort(),45000);
-   try{
-    const response=await fetch(url,{cache:'no-store',signal:abort.signal});
-    if(!isAudio(response))throw Error('Invalid audio response');
-    const blob=await response.blob();
-    if(blob.size<=128)throw Error('Empty audio response');
-    const headers=new Headers(response.headers);headers.set('Content-Length',String(blob.size));
-    await cache.put(url,new Response(blob,{status:200,headers}));
-    if(!await valid(cache,url))throw Error('Storage verification failed');
-    done++;
-   }catch(e){failed++;status('Could not save '+path.split('/').pop()+': '+String(e.message||e))}
-   finally{clearTimeout(timer);abort=null}
+   let error=null;
+   for(let attempt=1;attempt<=3&&!cancelled;attempt++){
+    abort=new AbortController();
+    const timer=setTimeout(()=>abort?.abort(),60000);
+    try{
+     // Deliberate downloads are cached once by this manager, not a second
+     // time by the streaming service worker (important on low-memory iPhones).
+     const response=await fetch(url,{
+       cache:'no-store',signal:abort.signal,
+       headers:{'X-GE-Offline-Download':'1'}
+     });
+     if(!isAudio(response))throw Error('Audio server returned HTTP '+response.status);
+     const blob=await response.blob();
+     if(blob.size<=128)throw Error('Empty audio response');
+     const headers=new Headers(response.headers);
+     headers.set('Content-Length',String(blob.size));
+     await cache.put(url,new Response(blob,{status:200,headers}));
+     if(!(await valid(cache,url)))throw Error('Saved audio could not be verified');
+     error=null;done++;break;
+    }catch(e){
+     error=e;
+     if(cancelled)break;
+     const message=String(e?.message||e);
+     if(/quota|storage|disk|space/i.test(message)){
+       // Repeating quota failures wastes mobile data and may evict good files.
+       lastError='Storage limit reached while saving '+filename;
+       break;
+     }
+     if(attempt<3){
+       status('Retrying '+filename+' ('+attempt+'/3)… Existing songs are safe.');
+       await new Promise(resolve=>setTimeout(resolve,400*attempt));
+     }
+    }finally{clearTimeout(timer);abort=null}
+   }
+   if(error&&!cancelled){
+    const message=String(error?.message||error);
+    failed.push({path,error:message});
+    lastError=/quota|storage|disk|space/i.test(message)?
+      'Storage limit reached while saving '+filename:
+      'Could not save '+filename+': '+message;
+   }
    progress(done,target.length);
-   find('geOfflineMeter').textContent=done+' of '+target.length+' selected songs stored';
-   if(!failed)status('Saving song '+done+' of '+target.length);
+   find('geOfflineMeter').textContent=done+' of '+target.length+' songs stored'+
+     (failed.length?' · '+failed.length+' need retry':'');
+   if(failed.length)status(lastError+' · CHECK & REPAIR retries missing songs; saved songs stay available.');
+   else status('Saving song '+done+' of '+target.length);
   }
  }finally{
   busy(false);
   await Promise.resolve(bridge().rescan?.()).catch(()=>{});
-  status(cancelled?'Stopped. Earlier downloads were kept.':failed?failed+' songs failed. Press SAVE again to retry missing files.':'Audio stored and checked. Verify actual playback in Airplane Mode.');
+  if(cancelled)status('Download stopped; '+done+' of '+target.length+' songs saved. Existing files were kept.');
+  else if(failed.length)status('INCOMPLETE · '+done+' of '+target.length+' saved; '+
+    failed.length+' failed. '+failed.slice(0,3).map(x=>x.path.split('/').pop()).join(', ')+
+    '. CHECK & REPAIR retries the missing songs. DO NOT DELETE downloads.');
+  else status('All '+done+' of '+target.length+' authorized songs saved. Use CHECK READINESS to verify the full offline package.');
  }
- const outcome={saved:done,failed,total:target.length,stopped:cancelled};
+ const outcome={saved:done,failed:failed.length,failures:failed,total:target.length,stopped:cancelled,complete:!cancelled&&failed.length===0&&done===target.length};
  try{await window.GEOfflineSetup?.onSaved?.(outcome)}catch(_){}
  return outcome;
 }
