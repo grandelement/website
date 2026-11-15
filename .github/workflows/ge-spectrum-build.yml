@@ -1,6 +1,13 @@
 name: GE song spectrum timelines for iPhone
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ge-music/music/**'
+      - 'radio/manifest.json'
+      - 'radio/tools/build-spectrum-timeline.py'
+      - '.github/workflows/ge-spectrum-build.yml'
   push:
     branches:
       - main
@@ -19,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           lfs: true
       - name: Verify audio analysis tooling
         run: ffmpeg -version | head -n 1
@@ -32,5 +40,5 @@ jobs:
           git add radio/eq/library-spectrum.json
           if ! git diff --cached --quiet; then
             git commit -m 'Update verified song spectrum timelines'
-            git push origin HEAD:${{ github.ref_name }}
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
           fi
