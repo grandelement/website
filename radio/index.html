@@ -7903,7 +7903,8 @@ function geRadioUtilityAllowed(feature){
 // The original LOVE grant comes from an authenticated Vault redemption,
 // never from typing the word LOVE or a locally guessed listener identity.
 function geRadioSunLabPrivateAllowed(){
-  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
+  // General public SUN LAB scopes must not expose developer reset/testing controls.
+  if(geRadioLocalTestAccess())return true;
   try{
     const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     return !!receipt&&receipt.verifiedFor==='radio'&&Number(receipt.until)>Date.now()&&receipt.sunLab===true;
