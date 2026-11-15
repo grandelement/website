@@ -7880,7 +7880,9 @@ function geOfflineSongAllowance(){
       (radio.scopes.includes('radio')||radio.scopes.includes('website'));
     if(codeOffline){
       const music=JSON.parse(sessionStorage.getItem('GE_MUSIC_CODE_SESSION_V1')||'null');
-      if(!music?.token||Number(music.until)<=Date.now())return new Set();
+      // An OFFLINE membership grants the published Radio master songs without
+      // requiring a second MUSIC code. Private/non-master songs remain excluded.
+      if(!music?.token||Number(music.until)<=Date.now())return new Set(approvedAutoPaths);
       return music.restricted===true?
         new Set((music.allowed||[]).map(canonicalSongPath).filter(Boolean)):null;
     }
