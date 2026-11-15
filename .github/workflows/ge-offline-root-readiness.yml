@@ -1,0 +1,38 @@
+name: GE website OFFLINE readiness contract
+on:
+  pull_request:
+    paths:
+      - 'sw.js'
+      - 'ge-offline-library.js'
+      - 'radio/index.html'
+      - 'tests/ge-offline-root-readiness.test.mjs'
+      - '.github/workflows/ge-offline-root-readiness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'sw.js'
+      - 'ge-offline-library.js'
+      - 'radio/index.html'
+      - 'tests/ge-offline-root-readiness.test.mjs'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            sw.js
+            ge-offline-library.js
+            radio/index.html
+            tests/ge-offline-root-readiness.test.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check offline worker and downloader syntax
+        run: |
+          node --check sw.js
+          node --check ge-offline-library.js
+      - name: Verify offline readiness
+        run: node tests/ge-offline-root-readiness.test.mjs

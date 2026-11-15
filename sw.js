@@ -2,12 +2,33 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109';
+const SITE_SHELL='GE_SITE_SHELL_V8_OFFLINE_COLD_START_20261114';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
 const SHELL=['./','./index.html','./ge-offline-library.js','./radio/offline-player.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
+// Cache the normal website AND Radio startup files before activating a
+// replacement worker. The website must not show READY if its scripts are absent.
+const REQUIRED_OFFLINE_FILES=[
+  './ge-offline-library.js',
+  './ge-dream.js',
+  './radio/website-live.js',
+  './radio/ge-home-gate-stop.js',
+  './radio/ge-gate-settings.js',
+  './config/site-live.json',
+  './ge-vault-client.js',
+  './ge-accessibility.js',
+  './ge-accessibility.css',
+  './manifest.webmanifest',
+  './radio/',
+  './radio/index.html',
+  './radio/offline-player.html',
+  './radio/sw.js',
+  './radio/ge-music-v5.js',
+  './radio/ge-gate-audio.js',
+  './radio/iam-private-studio.js'
+];
 async function validHomepage(response){
   if(!response||!response.ok)return false;
   try{
@@ -40,11 +61,24 @@ async function installShell(){
   }
   await cache.put(HOME.href,response.clone());
   await cache.put(HOME_INDEX.href,response.clone());
-  await Promise.allSettled(SHELL.slice(2).map(async path=>{
+  // Required startup files are transactional at the worker level:
+  // if a request fails, keep the last installed worker rather than showing
+  // a blank screen when the connection is later disabled.
+  for(const path of REQUIRED_OFFLINE_FILES){
     const url=new URL(path,HOME);
     const r=await fetch(url.href,{cache:'reload'});
-    if(r.ok)await cache.put(url.href,r.clone());
-  }));
+    if(!r.ok)throw new Error('Offline website missing required file: '+path);
+    await cache.put(url.href,r);
+  }
+  // Optional assets may be absent, but must never declare app readiness.
+  const optional=SHELL.slice(2).filter(path=>!REQUIRED_OFFLINE_FILES.includes(path));
+  for(let i=0;i<optional.length;i+=4){
+    await Promise.allSettled(optional.slice(i,i+4).map(async path=>{
+      const url=new URL(path,HOME);
+      const r=await fetch(url.href,{cache:'reload'});
+      if(r.ok)await cache.put(url.href,r);
+    }));
+  }
 }
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{await installShell();await self.skipWaiting()})());
@@ -63,15 +97,17 @@ async function partialResponse(request,response){
   if(!range||!response||response.status===206)return response;
   const m=/^bytes=(\d+)-(\d*)$/i.exec(range);
   if(!m)return response;
-  const buffer=await response.arrayBuffer();
-  const start=Number(m[1]),end=m[2]?Math.min(Number(m[2]),buffer.byteLength-1):buffer.byteLength-1;
-  if(start>=buffer.byteLength||end<start){
-    return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+buffer.byteLength}});
+  // Do not duplicate a multi-megabyte MP3 into an ArrayBuffer on iPhone.
+  const blob=await response.blob();
+  const total=blob.size;
+  const start=Number(m[1]),end=m[2]?Math.min(Number(m[2]),total-1):total-1;
+  if(start>=total||end<start){
+    return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+total}});
   }
-  const body=buffer.slice(start,end+1);
+  const body=blob.slice(start,end+1);
   const headers=new Headers(response.headers);
-  headers.set('Content-Range','bytes '+start+'-'+end+'/'+buffer.byteLength);
-  headers.set('Content-Length',String(body.byteLength));
+  headers.set('Content-Range','bytes '+start+'-'+end+'/'+total);
+  headers.set('Content-Length',String(body.size));
   headers.set('Accept-Ranges','bytes');
   return new Response(body,{status:206,headers});
 }
