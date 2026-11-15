@@ -1396,6 +1396,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 /* Radio 41: compact OFFLINE shortcut in MUSIC. This is a read-only mirror of
    the one GEOfflineDownloads progress callback, NOT another downloader. */
+.window > .selectionBar{order:8!important}
 .window > .geOfflineMiniBar{
  order:7!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;
  gap:9px!important;min-width:0!important;min-height:38px!important;
