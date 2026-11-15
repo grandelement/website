@@ -3019,10 +3019,10 @@ musicOfflineDialog.addEventListener('click',event=>{
   if(!state.activePlaylist){say('LOAD A PLAYLIST FIRST.');return;}
   const paths=selectedTracks().map(track=>track.path);
   if(!paths.length){say('CURRENT PLAYLIST HAS NO SONGS.');return;}
-  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
+  if(!window.GEOffline?.requestSelection?.(paths))say('PLAYLIST OFFLINE DOWNLOAD COULD NOT START.');
   return;
  }
- if(action==='update'){window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);return;}
+ if(action==='update'){if(!window.GEOffline?.requestAll?.())say('OFFLINE UPDATE COULD NOT START.');return;}
  if(action==='remove'){
   void (async()=>{
    if(!window.confirm('REMOVE OFFLINE MUSIC from this device? This deletes downloaded song files only. Vault accounts, purchases and playlists will not be deleted.'))return;
