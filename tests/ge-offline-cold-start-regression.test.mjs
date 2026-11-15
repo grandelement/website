@@ -16,17 +16,17 @@ test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/offlineNavigationFallback/);
 });
 test('network recovery is bounded even if Safari reports online incorrectly',()=>{
- assert.match(sw,/async function fetchWithTimeout\\(/);
- assert.match(sw,/tag==='install'\\?20000:3500/);
+ assert.match(sw,/async function fetchWithTimeout\(/);
+ assert.match(sw,/tag==='install'\?20000:3500/);
  for(const path of [
   'secondaryPageNavigationResponse','mediaResponse','staticResponse'
  ]){
   const start=sw.indexOf('async function '+path+'(');
   assert.ok(start>=0);
   const segment=sw.slice(start,start+1500);
-  assert.match(segment,/fetchWithTimeout\\(request/);
+  assert.match(segment,/fetchWithTimeout\(request/);
  }
- assert.match(sw,/return new Response\\('Media not available without a connection',\\{status:503\\}\\)/);
+ assert.match(sw,/return new Response\('Media not available without a connection',\{status:503\}\)/);
 });
 test('radio cold start checks stored identity with no Vault request',()=>{
  assert.match(radio,/window\.GEVault\?\.anonId\|\|localStorage\.getItem\('ge_vault_anon_id'\)/);
