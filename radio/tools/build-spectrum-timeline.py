@@ -83,7 +83,7 @@ def main():
             continue
         try:
             packed, n = measure(path)
-            tracks["/" + quote(filename, safe="/")] = {"frames": packed, "count": n}
+            tracks["/" + quote(filename, safe="/!'()*-._~")] = {"frames": packed, "count": n}
             print(f"{i}/{len(paths)} measured {filename}: {n} frames", flush=True)
         except Exception as error:
             skipped.append(filename)
