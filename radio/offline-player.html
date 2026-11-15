@@ -23,8 +23,8 @@ async function prepareOfflineLaunch(){
   const existing=await navigator.serviceWorker.getRegistration('./');
   if(!navigator.onLine)return !!existing?.active;
   const registration=await navigator.serviceWorker.register('./sw.js?v=20261114-offline-boot-v107',{scope:'./',updateViaCache:'none'});
-  await navigator.serviceWorker.ready;
-  return !!registration.active;
+  // An installation may take time. Never block access to already saved music.
+  return !!registration.active || !!registration.installing || !!registration.waiting;
  }catch(error){
   console.warn('Offline launcher not installed',error);
   return false;
@@ -173,7 +173,7 @@ audio.addEventListener('ended',()=>play(index+1));
 window.addEventListener('offline',()=>{if(songs.length)status.textContent='Offline · playing from this device only.'});
 // Prepare on the first online opening; subsequent starts use cached shell
 // and the locally saved entitlement without requesting a connection.
-await prepareOfflineLaunch();
+void prepareOfflineLaunch();
 await scan();
 })();
 </script></body></html>
