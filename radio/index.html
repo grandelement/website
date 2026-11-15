@@ -10236,6 +10236,7 @@ async function registerServiceWorker(){
       }));
     }catch(_e){}
   }
+  window.GERadioOfflineLaunchURL=absolute('./offline-player.html');
   // Relay real offline-controller progress to the open MUSIC window.
   // Posting a download request alone is not evidence that files were saved.
   const reportMusicOffline=message=>{
@@ -10288,8 +10289,15 @@ async function registerServiceWorker(){
   async function inspectOfflineLaunchAssets(){
     let workerReady=false;
     let workerError='';
-    try{workerReady=!!(await navigator.serviceWorker?.getRegistration?.('./'))?.active}
-    catch(error){workerError=String(error?.message||error)}
+    try{
+      const registration=await navigator.serviceWorker?.getRegistration?.('./');
+      const controller=navigator.serviceWorker?.controller;
+      // Registration exists != the current Safari tab can reload offline.
+      const radioController=!!controller &&
+        new URL(controller.scriptURL,location.href).pathname.endsWith('/radio/sw.js');
+      workerReady=!!registration?.active && radioController;
+      if(!workerReady)workerError='Radio service worker has not taken control of this tab';
+    }catch(error){workerError=String(error?.message||error)}
     const missing=[];
     for(const file of OFFLINE_LAUNCH_FILES){
       try{
