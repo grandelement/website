@@ -1,4 +1,4 @@
-<!-- GE_RADIO_UI_BUILD_20261115_CONTROL_REMOVAL_V1 -->
+<!-- GE_RADIO_UI_BUILD_20261115_OFFLINE_REBUILD_V1 -->
 <!-- GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2 : legacy service-worker transition only -->
 <!--
 GE RADIO REBUILD 07 — PROTECTED THROTTLE + RECOVERED SUN LAB
@@ -5489,8 +5489,9 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="installBtn">Install App</button>
   </div>
   <div id="geUtilityRow" aria-label="Radio utility controls">
-    <button id="sunLabBtn" type="button">SUN LAB</button>
+    <button id="offlineLaunchBtn" type="button" aria-haspopup="dialog" aria-controls="geOfflineTitle">OFFLINE</button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
+    <button id="sunLabBtn" type="button">SUN LAB</button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
@@ -7939,7 +7940,9 @@ function syncRadioOfflineAccessUI(){
   };
   setUtility($('legacyBtn'),permissions.legacy);
   const sunLabUtility=$('sunLabBtn');
-  setUtility(sunLabUtility,permissions.sunLab);
+  // Keep SUN LAB in the same utility slot for guests and all access codes.
+  // Its existing click handler checks Vault access and opens CODE when locked.
+  if(sunLabUtility){sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;sunLabUtility.dataset.locked=permissions.sunLab?'false':'true';}
   if(sunLabUtility){
     sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open Sun Lab':'Sun Lab requires an access code');
     sunLabUtility.title=permissions.sunLab?'Open Sun Lab':'Enter CODE to unlock Sun Lab';
@@ -7962,6 +7965,13 @@ function syncRadioOfflineAccessUI(){
 // bottom utilities rather than adding another player or duplicate button.
 const utilityBar=$('bottomActions'),legacyUtility=$('legacyBtn');
 if(utilityBar&&legacyUtility)utilityBar.insertBefore(legacyUtility,$('shareBtn'));
+// One read-only entitlement bridge for the replacement offline module.
+// Never grant access from CSS, a button click, or a remembered label.
+window.GERadioOfflineBridge={
+  canDownload:()=>geRadioUtilityAllowed('offline')&&navigator.onLine!==false,
+  allowedPaths:()=>{const allowed=geOfflineSongAllowance();return allowed===null?null:[...allowed];},
+  promptCode:()=>$('accessLaunchBtn')?.click()
+};
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
 setInterval(syncRadioOfflineAccessUI,60000); // expire client controls when a code expires
@@ -13732,38 +13742,34 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 }
 </style>
 <style id="ge-radio-utility-canonical">
-/* The ONLY public Radio utility row: SUN LAB then SUPPORT. No developer or download tools. */
+/* One reorderable DOM row. Change the three child elements to change order.
+   Do not add per-button grid placement, fixed pixel widths, or access-based rows. */
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
-  display:flex!important;flex-flow:row nowrap!important;
-  align-items:stretch!important;justify-content:center!important;
-  gap:6px!important;width:min(760px,94vw)!important;max-width:100%!important;
-  min-width:0!important;margin:6px auto 0!important;padding:0!important;
-  box-sizing:border-box!important;position:relative!important;inset:auto!important;
-  transform:none!important;height:auto!important;
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:6px!important;align-items:stretch!important;justify-content:stretch!important;
+ width:100%!important;max-width:760px!important;min-width:0!important;
+ margin:6px auto 0!important;padding:0!important;box-sizing:border-box!important;
+ position:relative!important;inset:auto!important;transform:none!important;height:auto!important;
 }
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > :is(#sunLabBtn,.bc-btn){
-  display:flex!important;flex:1 1 0!important;align-items:center!important;
-  justify-content:center!important;min-width:0!important;width:auto!important;
-  min-height:40px!important;height:auto!important;margin:0!important;
-  padding:6px 8px!important;position:static!important;transform:none!important;
-  grid-area:auto!important;text-align:center!important;white-space:normal!important;
-  font:800 clamp(11px,2.8vw,14px)/1.2 system-ui,sans-serif!important;
-  border-radius:10px!important;color:#fff!important;text-decoration:none!important;
-}
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn{
-  order:1!important;background:rgba(9,34,68,.83)!important;border:1px solid #67b8e5!important;
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > :is(#offlineLaunchBtn,.bc-btn,#sunLabBtn){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ box-sizing:border-box!important;min-width:0!important;width:100%!important;
+ height:auto!important;min-height:40px!important;margin:0!important;padding:6px 4px!important;
+ position:static!important;inset:auto!important;transform:none!important;
+ flex:initial!important;grid-area:auto!important;order:initial!important;
+ font:800 clamp(10px,2.8vw,14px)/1.2 system-ui,sans-serif!important;
+ color:#fff!important;text-align:center!important;text-decoration:none!important;
+ white-space:normal!important;border-radius:10px!important;
+ background:rgba(9,34,68,.84)!important;border:1px solid #67b8e5!important;
 }
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > .bc-btn{
-  order:2!important;background:#cb381f!important;border:1px solid #fa805c!important;
+ background:#cb381f!important;border-color:#fa805c!important;
 }
-html.ge-radio-ui body.view-player #geUtilityRow > #sunLabBtn[hidden]{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn[data-locked="true"]{
+ opacity:.78!important;
+}
 html.ge-radio-ui body:not(.view-player) #geUtilityRow{display:none!important}
-@media (orientation:portrait) and (max-width:700px){
-  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
-    width:100%!important;margin:0!important;display:flex!important;
-    flex-flow:row nowrap!important;gap:6px!important;
-  }
-}
 </style>
+<script defer src="./offline-manager.js?v=20261115-radio40"></script>
 </body>
 </html>
