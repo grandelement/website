@@ -247,8 +247,16 @@ async function repairAll(){
   const result=await readiness({quiet:true});
   if(result.ready){say('Offline startup and all planned songs are verified.');return}
   if(!online()){say('Offline check: '+result.saved+'/'+result.total+' songs, engine '+(result.engine?'ready':'missing')+'. Reconnect to repair.');return}
-  if(!requireInstalled()||!permission())return;
+  if(!requireInstalled())return;
+  // Updating the already installed startup engine is free. Re-downloading
+  // missing licensed audio still requires a verified online download grant.
   const reg=await worker();await reg.update().catch(()=>{});
+  if(!hasPermission()){
+   const after=await readiness({quiet:true});
+   say('Startup engine checked. '+after.saved+'/'+after.total+
+    ' planned songs saved. Enter CODE to restore missing licensed recordings; your existing downloads still play.');
+   return;
+  }
   await manager.download('all');
   await saveStations();
   const after=await readiness({quiet:true});
