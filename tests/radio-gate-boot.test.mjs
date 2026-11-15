@@ -4,6 +4,9 @@ import {existsSync,readFileSync} from 'node:fs';
 
 // The original Radio is the ONLY public player. Never restore a competing Lite site.
 assert.equal(existsSync('lite/index.html'),false,'Legacy Lite radio page must not exist');
+const siteWorker=readFileSync('sw.js','utf8');
+assert.match(siteWorker,/LEGACY_RADIO_PATHS\.some/,'Old Lite links must route to canonical Radio');
+assert.match(siteWorker,/cache\.delete\(url\.href\)/,'Obsolete Lite pages must be purged without removing saved music');
 for(const path of ['index.html','radio/index.html']){
   const html=readFileSync(path,'utf8');
   assert.doesNotMatch(html,/location\.(?:replace|assign)\(['"]\/lite\//,
