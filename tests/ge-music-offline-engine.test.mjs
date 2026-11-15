@@ -49,7 +49,7 @@ function makeHarness(){
    if(data.type==='GE_RADIO_SHELL_STATUS'){
     ports[0].postMessage({
       type:data.type,ready:true,missing:[],
-      version:'2026.11.15-offline-music-v117'
+      version:'2026.11.15-offline-music-v118'
     });
    }
   }
