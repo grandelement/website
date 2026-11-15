@@ -6,6 +6,10 @@ import vm from 'node:vm';
 const sw=readFileSync('radio/sw.js','utf8');
 const radio=readFileSync('radio/index.html','utf8');
 const manager=readFileSync('radio/offline-manager.js','utf8');
+const control=readFileSync('radio/offline-control.js','utf8');
+const spectrum=readFileSync('radio/offline-spectrum.js','utf8');
+const launcher=readFileSync('radio/offline-home.html','utf8');
+const webmanifest=JSON.parse(readFileSync('radio/manifest.webmanifest','utf8'));
 
 test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
@@ -14,6 +18,10 @@ test('offline worker keeps media cache and requires essential app files',()=>{
  assert.match(sw,/await self\.skipWaiting\(\)/);
  assert.ok(sw.indexOf('await Promise.all(REQUIRED_SHELL.map')<sw.indexOf('await self.skipWaiting()'));
  assert.match(sw,/offlineNavigationFallback/);
+ assert.match(sw,/'.\/offline-home\.html'/);
+ assert.match(sw,/'.\/offline-control\.js'/);
+ assert.match(sw,/'.\/offline-spectrum\.js'/);
+ assert.match(sw,/GE_RADIO_SHELL_STATUS/);
 });
 test('network recovery is bounded even if Safari reports online incorrectly',()=>{
  assert.match(sw,/async function fetchWithTimeout\(/);
@@ -45,6 +53,18 @@ test('new offline manager is scoped to verified Radio grants, not a retired play
  assert.match(manager,/window\.confirm\('Delete downloaded AUDIO/);
  assert.doesNotMatch(sw,/offline-player\.html/);
 });
+test('Home Screen installs a cached launch entry, and download activation survives expiry',()=>{
+ assert.equal(webmanifest.start_url,'./offline-home.html');
+ assert.match(launcher,/index\.html\?ge_home=1/);
+ assert.match(control,/GE_RADIO_OFFLINE_ACTIVATED_V1/);
+ assert.match(control,/onSaved/);
+ assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
+ assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
+ assert.match(radio,/geRadioSunLabPrivateAllowed/);
+ assert.match(spectrum,/decodeAudioData/);
+ assert.match(spectrum,/getChannelData/);
+ assert.match(spectrum,/GEOfflineSpectrum/);
+});
 test('airplane-mode worker serves cached navigation and ranged audio with no network',async()=>{
  const handlers=new Map();
  const cacheData=new Map();
@@ -56,7 +76,8 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  const shell='ge-radio-shell-'+workerVersion;
  cacheData.set(shell,new Map([
   [origin+'/radio/index.html',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})],
-  [origin+'/radio/',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})]
+  [origin+'/radio/',new Response(html,{status:200,headers:{'Content-Type':'text/html'}})],
+  [origin+'/radio/offline-home.html',new Response(launcher,{status:200,headers:{'Content-Type':'text/html'}})]
  ]));
  cacheData.set('ge-radio-media-v4',new Map([
   [song,new Response(new Uint8Array([1,2,3,4,5,6,7,8]),{status:200,headers:{'Content-Type':'audio/mpeg'}})]
@@ -89,6 +110,8 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  };
  const page=await respond({method:'GET',mode:'navigate',url:origin+'/radio/',headers:new Headers()});
  assert.equal(page.status,200);assert.match(await page.text(),/id="shipStage"/);
+ const entry=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
+ assert.equal(entry.status,200);assert.match(await entry.text(),/OPEN RADIO/);
  const media=await respond({method:'GET',mode:'cors',destination:'audio',url:song,headers:new Headers({'Range':'bytes=2-5'})});
  assert.equal(media.status,206);assert.equal(media.headers.get('Content-Range'),'bytes 2-5/8');
  assert.deepEqual([...new Uint8Array(await media.arrayBuffer())],[3,4,5,6]);
