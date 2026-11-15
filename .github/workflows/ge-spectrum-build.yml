@@ -28,8 +28,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           lfs: true
-      - name: Verify audio analysis tooling
-        run: ffmpeg -version | head -n 1
+      - name: Install audio decoder for measured EQ
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          command -v ffmpeg
+          ffmpeg -version
       - name: Generate real song bass/mid/treble timelines
         run: python3 radio/tools/build-spectrum-timeline.py
       - name: Commit updated spectra without affecting audio sources
