@@ -50,7 +50,7 @@ surface.querySelector('.geOfflineMeter')?.before(installLine);
 function updateInstallLine(){
  installLine.textContent=(isInstalled()?'HOME SCREEN APP':'SAFARI / BROWSER TAB')+
   ' · '+(online()?'ONLINE':'OFFLINE')+
-  (active()?' · DOWNLOADED LIBRARY ACTIVE':'');
+  (active()?' · SAVED SONG PLAYBACK ENABLED':'');
 }
 function requireInstalled(){
  if(isIOS()&&!isInstalled()){
@@ -122,24 +122,39 @@ async function onSaved(result){
 async function readiness({quiet=false}={}){
  const shell=await shellStatus();
  const planned=plan();
- let saved=0;
+ let saved=0;const missingSongs=[];
  for(const path of planned){
-  try{if(await manager.anySaved(manager.fileURL(path)))saved++}catch(_){}
+  try{
+   if(await manager.anySaved(manager.fileURL(path))){saved++;continue}
+  }catch(_){}
+  missingSongs.push(path.split('/').pop());
  }
  const installed=!isIOS()||isInstalled();
  const stations=await stationStatus();
- const ready=!!shell.ready&&planned.length>0&&saved===planned.length&&stations.total>0&&stations.saved===stations.total&&active()&&installed;
- const result={ready,engine:!!shell.ready,saved,total:planned.length,stations,missing:shell.missing||[],installed};
+ const ready=!!shell.ready&&planned.length>0&&saved===planned.length&&
+   stations.total>0&&stations.saved===stations.total&&active()&&installed;
+ // A failed song does not invalidate already downloaded authorized songs;
+ // it MUST NOT be called READY or allowed to hide a missing-file count.
+ const playable=!ready&&!!shell.ready&&saved>0&&active()&&installed;
+ const result={ready,playable,engine:!!shell.ready,saved,total:planned.length,
+   missingSongs,stations,missing:shell.missing||[],installed};
  updateInstallLine();
- find('geOfflineMeter').textContent=(ready?'READY FOR OFFLINE':'NOT FULLY READY')+
-  ' · ENGINE '+(shell.ready?'OK':'MISSING')+' · MUSIC '+saved+'/'+planned.length+' · STATION IDs '+stations.saved+'/'+stations.total;
- find('geOfflineProgress').max=Math.max(1,planned.length);find('geOfflineProgress').value=saved;
+ find('geOfflineMeter').textContent=(ready?'READY FOR OFFLINE':
+     playable?'PARTIAL OFFLINE · REPAIR NEEDED':'NOT READY FOR OFFLINE')+
+   ' · ENGINE '+(shell.ready?'OK':'MISSING')+
+   ' · MUSIC '+saved+'/'+planned.length+
+   ' · STATION IDs '+stations.saved+'/'+stations.total;
+ find('geOfflineProgress').max=Math.max(1,planned.length);
+ find('geOfflineProgress').value=saved;
  if(!quiet)say(ready?
-  'Engine and planned recordings are saved. Test by closing the app, enabling Airplane Mode, then opening the Home Screen icon and playing music.':
-  'Not ready: '+(installed?'':'Install the Home Screen app. ')+
-  (shell.ready?'':'Engine: '+result.missing.slice(0,3).join(', ')+'. ')+
-  (saved===planned.length&&planned.length?'':'Missing saved recordings. ')+
-  'Your existing files are preserved.');
+   'READY: all '+saved+' planned songs, station IDs, and player files are stored. Now test reopening in Airplane Mode.':
+   (playable?'PARTIAL: saved songs can play offline, but this package is NOT complete. ':
+     'NOT READY: the offline player or music is incomplete. ')+
+   (missingSongs.length?'MISSING '+missingSongs.length+' SONGS: '+missingSongs.slice(0,3).join(', ')+'. ':'')+
+   (!stations.total||stations.saved!==stations.total?'Station IDs need repair. ':'')+
+   (shell.ready?'':'Startup files need repair: '+result.missing.slice(0,3).join(', ')+'. ')+
+   (!installed?'Use the Home Screen app. ':'')+
+   'Connect online and tap CHECK & REPAIR; DO NOT delete saved songs.');
  return result;
 }
 async function publishedStations(){
@@ -239,7 +254,7 @@ async function prepareAll(){
   const bg=await backgrounds();
   const result=await readiness({quiet:true});
   if(result.ready)say('READY FOR OFFLINE. Startup and planned songs verified. '+bg.saved+' backgrounds saved. Test a restart in Airplane Mode.');
-  else say('Setup incomplete: '+result.saved+'/'+result.total+' songs stored. CHECK & REPAIR will retry missing files.');
+  else say('NOT READY: '+result.saved+'/'+result.total+' songs saved; '+result.missingSongs.length+' missing ('+result.missingSongs.slice(0,3).join(', ')+'). CHECK & REPAIR retries them. Do not delete your saved music.');
  });
 }
 async function repairAll(){
