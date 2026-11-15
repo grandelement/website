@@ -47,6 +47,35 @@ try{
   }
   if(errors.length)throw new Error('Radio JavaScript boot failed: '+JSON.stringify(errors.slice(-8)));
   console.log('PASS: fresh browser initializes Sun Lab and real Gate controller with zero JavaScript exceptions');
+  // Press the actual controls, not just their JavaScript functions.
+  const canonicalUrl=new URL(page.url()).pathname;
+  await page.click('#accessLaunchBtn');
+  await page.waitForFunction(()=>document.querySelector('#geGate')?.classList.contains('open'),{timeout:8000});
+  await page.click('#geGateBack');
+  await page.waitForFunction(()=>document.querySelector('#geGate')?.getAttribute('aria-hidden')==='true',{timeout:8000});
+  assert.equal(new URL(page.url()).pathname,canonicalUrl,'CODE Back must not navigate to another website');
+  await page.click('#geMusicV5Button');
+  await page.waitForFunction(()=>window.GEMusicV5?.state?.().open===true,{timeout:8000});
+  await page.evaluate(()=>{
+    // Opening SONGS is a normal UI change within the same Radio, not code routing.
+    const root=document.querySelector('#geMusicV5Host').shadowRoot;
+    root.querySelector('.geStandaloneAlbumUniverse').dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true}));
+  });
+  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot
+    ?.querySelector('[data-tab="songs"]')?.getAttribute('aria-pressed')==='true',{timeout:8000});
+  const codeButton=await page.evaluate(()=>{
+    const el=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.accessToggle');
+    const rect=el.getBoundingClientRect();
+    return {x:(rect.left+rect.right)/2,y:(rect.top+rect.bottom)/2,
+      visible:rect.width>0&&rect.height>0&&getComputedStyle(el).visibility!=='hidden'};
+  });
+  assert.ok(codeButton.visible,'MUSIC ACCESS CODE must be visible and tappable');
+  await page.mouse.click(codeButton.x,codeButton.y);
+  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot
+    ?.querySelector('.musicCodeTools')?.hidden===false,{timeout:8000});
+  assert.equal(new URL(page.url()).pathname,canonicalUrl,'MUSIC ACCESS CODE must stay on the Radio URL');
+  await page.evaluate(()=>window.GEMusicV5.close());
+  console.log('PASS: real CODE, Back, MUSIC and ACCESS CODE clicks stay on one Radio page');
   await page.waitForFunction(()=>document.querySelector('#titleBtn')?.textContent?.trim()==='Select a song',{timeout:20000});
   const idle=await page.evaluate(()=>({
     title:document.querySelector('#titleBtn')?.textContent?.trim(),

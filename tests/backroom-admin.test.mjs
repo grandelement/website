@@ -183,7 +183,7 @@ assert.match(musicV5,/data-tab="songs"/);
 assert.match(musicV5,/data-tab="playlists"/);
 assert.match(musicV5,/class="songFilter"/);
 assert.match(musicV5,/class="playlistFilter"/);
-assert.match(musicV5,/state.view==='access-code'/);
+assert.doesNotMatch(musicV5,/state.view==='access-code'/,'Access codes must preserve the normal Music screen');
 assert.match(musicV5,/const allowed=new Set\(access.allowed\)/);
 const currentWorkerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1]||'';
 const currentRadioVersion=currentWorkerVersion.replace(/^([0-9]{4})[.]([0-9]{2})[.]([0-9]{2})/,'$1$2$3');

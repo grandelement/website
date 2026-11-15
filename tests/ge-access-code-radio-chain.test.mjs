@@ -40,7 +40,7 @@ assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
 assert.match(radio,/ge-music-v5\.js\?v=20261104-v727-guest-play-gate-only/,'Radio uses the updated Music script');
 
 assert.match(v5,/musicAccessActive\(\)/);
-assert.match(v5,/state.view='access-code'/);
+assert.doesNotMatch(v5,/state.view='access-code'/,'Vault codes may not force a different Music interface');
 assert.match(v5,/const codePermitted=!!access&&/,
  'Music V5 limits selected songs to its signed Vault entitlement');
 assert.match(preview,/action:'verify',token:grant.token,track_path:t.path/,
