@@ -10491,7 +10491,8 @@ async function registerServiceWorker(){
       saveSunModeProfiles();saveSunLab();
       applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);
     }else{
-      applySunLabUI();setSunModeVisibility(null);
+      sunLabEditMode=Object.keys(SUN_MODE_WAVE).find(mode=>SUN_MODE_WAVE[mode]===sunLab.waveType)||'waterfall';
+      applySunLabUI();setSunModeVisibility(sunLabEditMode);ensureSunEQ(sunLab.waveType);
     }
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
@@ -13180,7 +13181,7 @@ gateTestBtn?.addEventListener('click',()=>{
   }
   // Recheck a signed, revocable Vault grant from this browser after every
   // reload, including VPN changes. No code or password is stored.
-  void window.GERestoreRadioDevice?.();
+  if(!offlinePlaybackMode())void window.GERestoreRadioDevice?.();
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
