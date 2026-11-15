@@ -1461,6 +1461,9 @@ universeStyle.textContent=`
 
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
+const geMusicOfflineCompactStyle=document.createElement('style');
+geMusicOfflineCompactStyle.textContent="\n/* Mobile MUSIC: compact offline controls; reserve width for progress and ETA. */\n@media(max-width:700px){\n .window > .geMusicOfflineRow{padding:2px 6px!important;gap:4px!important;min-height:30px!important}\n .window > .geMusicOfflineRow .geMusicOfflineTrigger{min-height:28px!important;height:28px!important;padding:2px 7px!important;font-size:10px!important;border-radius:6px!important}\n .window > .geMusicOfflineRow .geMusicOfflineMeter{grid-template-columns:30px minmax(0,1fr) 42px!important;gap:4px!important}\n .window > .geMusicOfflineRow .geMusicOfflineTrack{height:12px!important;min-width:0!important}\n .window > .geMusicOfflineRow .geMusicOfflineNumbers span{font-size:10px!important}\n}\n";
+root.appendChild(geMusicOfflineCompactStyle);
 root.appendChild(universeStyle);
 // Tapping the starfield opens Songs; tapping artwork opens that album.
 universe.addEventListener('click',event=>{
@@ -2475,7 +2478,7 @@ function render(){
  const cat=activeCategory();
  updateOfflineAccessVisibility();
  el('.window').classList.toggle('gePlaylistWorkspace',cat==='playlists');
- const activeNav=cat==='albums'?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
+ const activeNav=(cat==='albums'||albumDetail)?'.albumDetailBack':cat==='playlists'?'.albumDetailPlaylist':'.albumDetailSongs';
  for(const nav of ['.albumDetailBack','.albumDetailSongs','.albumDetailPlaylist']){
   const selected=nav===activeNav;
   el(nav).setAttribute('aria-pressed',String(selected));
@@ -2485,7 +2488,7 @@ function render(){
  el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
- root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===cat)));
+ root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===(albumDetail?'albums':cat))));
  const browserSearch=el('.geBrowseSearch');
  if(document.activeElement!==browserSearch&&browserSearch.value!==state.term)browserSearch.value=state.term;
  browserSearch.placeholder=state.view==='user-playlists'?'Search playlists':'Search songs or playlists';
@@ -2493,8 +2496,8 @@ function render(){
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent='ALBUMS';
  el('.albumDetailPlaylist').textContent='PLAYLIST';
- el('.albumDetailSongs').textContent=albumDetail?state.view.slice(6).toUpperCase():'SONGS';
- el('.albumDetailSongs').setAttribute('aria-label',albumDetail?'Selected album '+state.view.slice(6)+'. Tap to browse all songs.':'Browse all songs');
+ el('.albumDetailSongs').textContent='SONGS';
+ el('.albumDetailSongs').setAttribute('aria-label','Browse all songs');
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
@@ -2798,7 +2801,7 @@ function open(){
  if(state.open)return;
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='browse-songs';state.arranging=false;state.term='';
+ state.view='albums';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
@@ -2996,13 +2999,20 @@ el('.accessToggle').addEventListener('click',()=>{
 const musicOfflineDialog=document.createElement('dialog');
 musicOfflineDialog.setAttribute('aria-label','Offline download choices');
 musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
-musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
+musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="open">OPEN SAVED OFFLINE PLAYER</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
 document.body.append(musicOfflineDialog);
 musicOfflineDialog.addEventListener('click',event=>{
  const action=event.target.closest('button')?.dataset.action;
  if(!action)return;
  musicOfflineDialog.close();
  if(action==='cancel')return;
+ if(action==='open'){
+  if(!musicOfflineAllowed()){requestMusicOfflineCode();return;}
+  // Independent saved launch page: works without reloading the online Radio
+  // UI once the service worker is confirmed active and controlling the tab.
+  const url=window.GERadioOfflineLaunchURL||new URL('./offline-player.html',location.href).href;
+  location.assign(url);return;
+ }
  if(action==='status'){
   void (async()=>{
    try{
@@ -3057,6 +3067,31 @@ geOfflineRow.className='geMusicOfflineRow';
 geOfflineRow.hidden=false;
 geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
 el('.selectionBar').before(geOfflineRow);
+// Owner-only library refresh belongs beside OFFLINE inside MUSIC, never Radio.
+const geMusicReload= document.createElement('button');
+geMusicReload.type='button';geMusicReload.className='geMusicReload';
+geMusicReload.textContent='RELOAD';geMusicReload.hidden=true;
+geMusicReload.setAttribute('aria-label','Reload music library');
+geOfflineRow.querySelector('.geMusicOfflineTrigger').after(geMusicReload);
+function syncMusicReload(){
+ const allowed=typeof window.GERadioReloadAllowed==='function'&&window.GERadioReloadAllowed();
+ geMusicReload.hidden=!allowed;
+ geMusicReload.disabled=!allowed;
+}
+geMusicReload.addEventListener('click',()=>{
+ syncMusicReload();
+ if(geMusicReload.hidden)return;
+ const controller=document.getElementById('reloadBtn');
+ if(!controller){say('LIBRARY RELOAD UNAVAILABLE.');return;}
+ controller.click();
+});
+window.addEventListener('ge-access-experience-updated',syncMusicReload);
+window.addEventListener('focus',syncMusicReload);
+syncMusicReload();
+const geMusicReloadStyle=document.createElement('style');
+geMusicReloadStyle.textContent='.geMusicOfflineRow .geMusicReload{flex:0 0 auto!important;min-height:28px!important;height:30px!important;padding:2px 8px!important;border:1px solid #5b98b8!important;border-radius:7px!important;background:#12344c!important;color:#eaf9ff!important;font-size:11px!important;font-weight:800!important}.geMusicOfflineRow .geMusicReload[hidden]{display:none!important}';
+root.appendChild(geMusicReloadStyle);
+
 // The existing Music code controls are usable on all Music views, including album art.
 geOfflineRow.append(el('.musicCodeTools'));
 function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');say('OFFLINE LOCKED · Enter your GE access code here.');el('.musicCodeInput').focus();}
@@ -3084,8 +3119,10 @@ window.addEventListener('message',event=>{
  const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
  geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
  geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
- const remaining=String(p.remaining||'').trim();
- geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining)?remaining:'00:00';
+ const eta=Number(p.eta);
+ const remaining=String(p.remaining||'').replace(/\\s*left\\s*$/i,'').trim();
+ const valid=/^\\d{1,3}:\\d{2}(?::\\d{2})?$/.test(remaining);
+ geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=valid?remaining:(p.eta!=null&&Number.isFinite(eta)&&eta>=0?Math.floor(eta/60)+':'+String(Math.floor(eta%60)).padStart(2,'0'):'--:--');
 });
 const selectionTools=elem('div','geSelectionTools'),selectionAll=elem('button','','SELECT ALL'),selectionClear=elem('button','','CLEAR');
 selectionAll.type='button';selectionClear.type='button';

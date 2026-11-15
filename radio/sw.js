@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.14-compact-sun-offline-v110';
+const VERSION='2026.11.14-integrated-recovery-v112';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -114,14 +114,10 @@ self.addEventListener('install',event=>{
       await cache.put(url,response.clone());
     }));
 
-    // Decorative assets are optional; never block a valid offline engine.
-    const required=new Set(['./','./index.html',...REQUIRED_SHELL]);
-    const optional=SHELL.filter(url=>!required.has(url));
-    await Promise.allSettled(optional.map(async url=>{
-      const response=await fetch(url,{cache:'reload'});
-      if(response.ok) await cache.put(url,response.clone());
-    }));
-
+    // Do not wait for dozens of optional JPG/GIF/background requests here.
+    // Safari may suspend the worker before install completes, leaving users
+    // with no active offline navigation handler despite saved MP3 files.
+    // Optional artwork is cached on demand or by the page's offline setup.
     await self.skipWaiting();
   })());
 });
@@ -182,6 +178,10 @@ async function offlineNavigationFallback(){
   for(const candidate of candidates){
     if(candidate && await isValidRadioHTML(candidate)) return candidate;
   }
+  // When the full Radio shell is missing but the dedicated offline Music
+  // player was cached, open that local page rather than a dead 503 screen.
+  const savedPlayer=await caches.match(new URL('./offline-player.html',self.location.href).href,{ignoreSearch:true});
+  if(savedPlayer?.ok)return savedPlayer;
   return new Response('Grand Element Radio needs to be opened once online to repair its offline app.',{
     status:503,
     headers:{'Content-Type':'text/plain;charset=utf-8','Cache-Control':'no-store'}
@@ -215,48 +215,24 @@ async function secondaryPageNavigationResponse(request){
 
 async function navigationResponse(request){
   const path=new URL(request.url).pathname;
-  // Only the home page can use the strict Grand Element Radio index validator.
-  // The separate music/preview page is a legitimate HTML document.
-  if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html')){
+  if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html'))
     return secondaryPageNavigationResponse(request);
-  }
-  // Cold start in Airplane Mode: serve the installed app immediately.
+
+  // A reload while offline must consult the saved Radio app immediately.
   if(self.navigator?.onLine===false)return offlineNavigationFallback();
-  // Network first, but never cache or display a poisoned/plain-text index.html.
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),3500);
+
+  // One bounded network attempt only. The former second and third
+  // recovery requests could make Safari appear frozen in Airplane Mode.
   try{
-    const network=await fetch(request,{cache:'no-store',signal:controller.signal});
-    clearTimeout(timeout);
+    const network=await fetchWithTimeout(request,{cache:'no-store'},1800);
     if(await isValidRadioHTML(network,{requireCurrent:true})){
       const cache=await caches.open(SHELL_CACHE);
       await cache.put('./index.html',network.clone()).catch(()=>{});
       await cache.put('./',network.clone()).catch(()=>{});
       return network;
     }
-
-    // The CDN/browser may still have an old poisoned HTML body. Retry index.html
-    // with a unique recovery query before falling back to offline storage.
-    try{
-      const recovery=await fetchValidatedIndex('nav');
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put('./index.html',recovery.clone()).catch(()=>{});
-      await cache.put('./',recovery.clone()).catch(()=>{});
-      return recovery;
-    }catch(_e){}
-
-    return offlineNavigationFallback();
-  }catch(_error){
-    clearTimeout(timeout);
-    try{
-      const recovery=await fetchValidatedIndex('timeout');
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put('./index.html',recovery.clone()).catch(()=>{});
-      await cache.put('./',recovery.clone()).catch(()=>{});
-      return recovery;
-    }catch(_e){}
-    return offlineNavigationFallback();
-  }
+  }catch(_e){}
+  return offlineNavigationFallback();
 }
 
 async function mediaResponse(request){

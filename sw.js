@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V9_NO_LEGACY_LITE_RADIO_20261114';
+const SITE_SHELL='GE_SITE_SHELL_V10_INTEGRATED_RADIO_RECOVERY_20261114';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -124,7 +124,13 @@ async function navigation(request){
   const url=new URL(request.url);
   const isHome=urlIsHome(url.href);
   try{
-    const response=await fetch(request);
+    // iPhone Safari may leave a navigation hanging after Airplane Mode.
+    // Bound network startup; always return a saved page or recovery.
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),2000);
+    let response;
+    try{response=await fetch(request,{signal:controller.signal});}
+    finally{clearTimeout(timeout);}
     if(response.ok){
       // Never promote a partial homepage into the device's offline backup.
       if(isHome){

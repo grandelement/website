@@ -48,7 +48,7 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
   const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
   const touch=Number(navigator.maxTouchPoints||0)>0;
   const shortSide=Math.min(Number(screen.width)||9999,Number(screen.height)||9999);
-  const phoneHardware=shortSide<=600; // Physical phone size wins over spoofed desktop Safari UA.
+  const phoneHardware=shortSide<=600&&(mobileUA||macUA&&touch||typeof navigator.standalone==='boolean');
   const tabletHardware=touch&&macUA&&shortSide<=1100;
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
   let preference='auto';
@@ -62,41 +62,34 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
       if(saved==='mobile'||saved==='desktop')preference=saved;
     }
   }catch(_){}
-  const layout=phoneHardware?'mobile':preference==='auto'?
-    (tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
+  const layout=preference==='auto'?
+    (phoneHardware||tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
   const html=document.documentElement;
   html.dataset.geDeviceLayout=layout;
   html.dataset.geDevicePreference=preference;
   html.classList.toggle('ge-mobile-device',layout==='mobile');
   html.classList.toggle('ge-desktop-device',layout==='desktop');
   // Virtual desktop rendering is an OPT-IN, never a Safari user-agent guess.
-  const requestedDesktop=preference==='desktop'&&!phoneHardware&&tabletHardware;
+  const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
   const viewport=document.querySelector('meta[name="viewport"]');
   function applyViewport(){
     if(!viewport)return;
-    if(requestedDesktop&&!phoneHardware){
+    if(requestedDesktop){
       viewport.content='width=1160,initial-scale=1,viewport-fit=cover';
     }else if(layout==='mobile'&&phoneHardware){
       // Safari's "Request Desktop Website" can use a Macintosh user-agent
       // and desktop CSS width even on an iPhone. Use its real screen width.
-      // Follow Safari's current visual viewport on rotation. Physical screen
-      // dimensions can be stale or swapped during iOS orientation changes.
-      viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
+      const w=Number(screen.width)||390,h=Number(screen.height)||844;
+      const landscape=window.matchMedia?.('(orientation: landscape)').matches===true;
+      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
+      viewport.content='width='+width+',initial-scale=1,viewport-fit=cover';
     }else{
       viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }
   }
   applyViewport();
-  window.addEventListener?.('orientationchange',()=>{
-    applyViewport();
-    // Rotation can preserve the old landscape horizontal scroll offset.
-    // Recenter the radio UI after Safari settles its new viewport.
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      if(layout==='mobile'&&window.scrollX!==0)window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
-    }));
-  },{passive:true});
-  window.addEventListener?.('resize',applyViewport,{passive:true});
+  window.addEventListener?.('orientationchange',applyViewport,{passive:true});
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},
@@ -110,6 +103,14 @@ button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
     }
   };
 })();
+</script>
+<script id="ge-radio-mobile-rotation-recenter">
+window.addEventListener('orientationchange',()=>{
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(document.documentElement.dataset.geDeviceLayout==='mobile'&&window.scrollX!==0)
+      window.scrollTo({left:0,top:window.scrollY,behavior:'auto'});
+  }));
+},{passive:true});
 </script>
 <!-- iPhone Radio: suppress accidental pinch/double-tap zoom while retaining one-finger MUSIC scrolling. -->
 <style id="ge-radio-iphone-zoom-guard">
@@ -5603,7 +5604,6 @@ document.addEventListener('DOMContentLoaded',function(){
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="offlineBtn" type="button" aria-hidden="false">OFFLINE</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <button id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE</button>
@@ -5611,9 +5611,10 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="installBtn">Install App</button>
   </div>
   <div id="geUtilityRow" aria-label="Radio utility controls">
-    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
-    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="sunLabBtn" type="button">SUN LAB</button>
+    <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
+    <button id="offlineBtn" type="button" aria-hidden="false">OFFLINE</button>
+    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">RELOAD</button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <div id="offlinePanel">
@@ -7142,7 +7143,7 @@ function updateRadioStartupCue(){
   document.body.classList.toggle('ge-radio-verified',connected);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
-    button.classList.toggle('radio-start-cue',signalReady&&!connected);
+    button.classList.toggle('radio-start-cue',!connected);
     button.textContent=(state.live||state.livePreparing)?'STOP':'RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
@@ -8074,7 +8075,7 @@ function syncRadioOfflineAccessUI(){
     element.setAttribute('aria-hidden',allowed?'false':'true');
     element.tabIndex=allowed?0:-1;
   };
-  // Keep OFFLINE visible even when locked; click opens existing code notice.
+  // OFFLINE opens MUSIC, where the real download manager lives.\n  // Keep OFFLINE visible even when locked; click opens existing code notice.
   const offlineButton=$('offlineBtn');
   if(offlineButton){
     offlineButton.hidden=false;
@@ -8088,7 +8089,7 @@ function syncRadioOfflineAccessUI(){
     if(!offlineButton.classList.contains('downloading'))offlineButton.textContent='OFFLINE';
   }
   // Restore Reload Library for access codes with reload permission.
-  setUtility($('reloadBtn'),geRadioUtilityAllowed('reload')); // Verified Reload scope.
+  setUtility($('reloadBtn'),false); // Hidden controller: owner-facing RELOAD lives only in MUSIC.
   setUtility($('legacyBtn'),permissions.legacy);
   // SUN LAB is a scoped utility, not a public button shown to everyone.
   const sunLabUtility=$('sunLabBtn');
@@ -8115,7 +8116,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent='OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),geRadioUtilityAllowed('reload'));
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false); // No duplicate Reload in Ship.
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
@@ -8130,6 +8131,7 @@ function syncRadioOfflineAccessUI(){
 // bottom utilities rather than adding another player or duplicate button.
 const utilityBar=$('bottomActions'),legacyUtility=$('legacyBtn');
 if(utilityBar&&legacyUtility)utilityBar.insertBefore(legacyUtility,$('shareBtn'));
+window.GERadioReloadAllowed=()=>geRadioUtilityAllowed('reload');
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
 setInterval(syncRadioOfflineAccessUI,60000); // expire client controls when a code expires
@@ -10181,7 +10183,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261114-offline-network-recovery-v109',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261114-integrated-recovery-v112',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10235,6 +10237,7 @@ async function registerServiceWorker(){
       }));
     }catch(_e){}
   }
+  window.GERadioOfflineLaunchURL=absolute('./offline-player.html');
   // Relay real offline-controller progress to the open MUSIC window.
   // Posting a download request alone is not evidence that files were saved.
   const reportMusicOffline=message=>{
@@ -10246,14 +10249,14 @@ async function registerServiceWorker(){
     const message=String(text?.textContent||'').trim();
     if(message&&selectedOfflinePaths)reportMusicOffline(message);
   }).observe(text,{childList:true,characterData:true,subtree:true});
-  // MUSIC and Radio share this one offline cache/download controller.
+  // Internal MUSIC requests must bypass the Radio shortcut and reach the single downloader.\n  let geMusicOfflineInternalRequest=false;\n  const dispatchMusicOfflineDownload=()=>{\n    geMusicOfflineInternalRequest=true;\n    try{button.click();}finally{geMusicOfflineInternalRequest=false;}\n  };\n  // MUSIC and Radio share this one offline cache/download controller.
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_ALL')return;
     if(button.classList.contains('downloading')||button.disabled){
       reportMusicOffline('An offline operation is already running.');return;
     }
     selectedOfflinePaths=null;
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   // The Music library can request a smaller checked-song download.
   window.addEventListener('message',event=>{
@@ -10269,7 +10272,7 @@ async function registerServiceWorker(){
     if(!wanted.size)return;
     selectedOfflinePaths=wanted;
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
-    button.click();
+    dispatchMusicOfflineDownload();
   });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
@@ -10287,8 +10290,15 @@ async function registerServiceWorker(){
   async function inspectOfflineLaunchAssets(){
     let workerReady=false;
     let workerError='';
-    try{workerReady=!!(await navigator.serviceWorker?.getRegistration?.('./'))?.active}
-    catch(error){workerError=String(error?.message||error)}
+    try{
+      const registration=await navigator.serviceWorker?.getRegistration?.('./');
+      const controller=navigator.serviceWorker?.controller;
+      // Registration exists != the current Safari tab can reload offline.
+      const radioController=!!controller &&
+        new URL(controller.scriptURL,location.href).pathname.endsWith('/radio/sw.js');
+      workerReady=!!registration?.active && radioController;
+      if(!workerReady)workerError='Radio service worker has not taken control of this tab';
+    }catch(error){workerError=String(error?.message||error)}
     const missing=[];
     for(const file of OFFLINE_LAUNCH_FILES){
       try{
@@ -10385,6 +10395,20 @@ async function registerServiceWorker(){
       }
       complete++;
       progress('Checked '+complete+' of '+OFFLINE_LAUNCH_FILES.length+' offline webpage files.',complete);
+    }
+    // The iPhone EQ uses genuine per-song amplitude measurements. Cache
+    // this small optional data file alongside the offline music, without
+    // making the music launcher fail when an EQ build is unavailable.
+    if(!signal?.aborted){
+      try{
+        const eqURL=absolute('./eq/library-spectrum.json');
+        const eqResponse=await bounded(fetch(eqURL,{cache:'no-store',headers:{'X-GE-Offline':'1'}}),6000,'Song EQ analysis');
+        if(eqResponse?.ok){
+          const eqSnapshot=await eqResponse.clone().json();
+          if(eqSnapshot?.format==='ge-song-3band-timeline-v1'&&Object.keys(eqSnapshot.tracks||{}).length)
+            await cache.put(eqURL,eqResponse);
+        }
+      }catch(error){console.warn('Optional song EQ timeline not cached:',error);}
     }
     const checked=await inspectOfflineLaunchAssets();
     // Save this browser's Fan Vault playlist names and song order as part
@@ -11381,6 +11405,17 @@ async function registerServiceWorker(){
     text.textContent='Offline music removed. The small app shell remains installed.';
   }
 
+  // The Radio OFFLINE shortcut only navigates to the Music download manager.
+  // Capture before the legacy downloader handler so it never starts a second job.
+  button.addEventListener('click',event=>{
+    if(geMusicOfflineInternalRequest)return;
+    if(button.classList.contains('downloading'))return;
+    event.stopImmediatePropagation();
+    const musicButton=$('geMusicV5Button');
+    if(musicButton){musicButton.click();return;}
+    if(!geRadioUtilityAllowed('offline'))void showOfflineAccessNotice();
+  },true);
+
   button.addEventListener('click',async()=>{
     // A user can always stop an ongoing download, even if access changes.
     if(button.classList.contains('downloading')){
@@ -11523,7 +11558,7 @@ async function registerServiceWorker(){
     try{
       // A failed plan write must not abort the actual song download or
       // falsely mark the stored songs as lost (iOS may be near quota).
-      try{await saveOfflinePlan(prepared.assets,{autoResume:false});}
+      try{await saveOfflinePlan(prepared.assets,{autoResume:true});}
       catch(error){console.warn('Offline plan metadata not saved:',error);}
       const result=await cacheMissingAssets({
         quiet:false,
@@ -11585,17 +11620,46 @@ async function registerServiceWorker(){
     rebuildQueue(state.currentURL);
   });
 
+  // An approved download is a persistent commitment, not a one-page request.
+  // iOS may suspend Safari; resume the missing complete songs on foreground/reopen.
+  let geResumeRunning=false;
+  let geResumeRetryAt=0;
+  async function resumeCommittedOfflineDownload(){
+    if(geResumeRunning||button.classList.contains('downloading')||navigator.onLine===false||document.hidden)return;
+    if(Date.now()<geResumeRetryAt)return;
+    if(!geRadioUtilityAllowed('offline'))return;
+    geResumeRunning=true;
+    try{
+      const planned=await scanApprovedPlan();
+      if(!planned?.plan?.autoResume)return;
+      if(planned.audit.musicComplete){await setOfflinePlanAutoResume(false);return;}
+      if(!planned.audit.missingSongs)return;
+      panel.style.display='block';
+      text.textContent='Resuming committed offline download: '+planned.audit.missingSongs+' songs remaining.';
+      const result=await cacheMissingAssets({quiet:false,reason:'auto-resume',prepared:planned});
+      if(!result.musicComplete)geResumeRetryAt=Date.now()+30000;
+    }catch(error){
+      geResumeRetryAt=Date.now()+30000;
+      console.warn('Offline auto-resume will retry after reconnect/foreground',error);
+    }finally{geResumeRunning=false;}
+  }
+  window.addEventListener('pageshow',()=>{void resumeCommittedOfflineDownload();});
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden)void resumeCommittedOfflineDownload();
+  });
+  window.addEventListener('online',()=>{void resumeCommittedOfflineDownload();});
+
   (async()=>{
     try{
       // Online startup must audit the LATEST inventory, not a months-old
       // saved download plan that keeps showing "Resume 10 Songs".
       if(navigator.onLine!==false){
-        try{await scanExistingAssets();return;}
+        try{await scanExistingAssets();void resumeCommittedOfflineDownload();return;}
         catch(error){console.warn('Fresh offline audit unavailable',error);}
       }
       // Offline or unavailable GitHub: show saved plan status only.
       const planned=await scanApprovedPlan();
-      if(planned?.plan?.autoResume)await setOfflinePlanAutoResume(false);
+      if(planned?.plan?.autoResume)void resumeCommittedOfflineDownload();
     }catch(error){console.warn('Offline status scan failed',error);}
   })();
 
@@ -12627,12 +12691,116 @@ Vector ${vector}. ${pair[1]}.`;
     for(let i=0;i<count;i++){const dot=document.createElement('span'),angle=Math.PI*2*(i/count)+rand(-.5,.5),radius=rand(20,39),x=50+Math.cos(angle)*radius,y=50+Math.sin(angle)*radius;dot.style.left=`${x}%`;dot.style.top=`${y}%`;dot.style.opacity=String(rand(.35,.9));dot.style.transform='translate(-50%,-50%)';radarBlips.appendChild(dot);}
   }
   let eqAudioCtx=null,eqAnalyser=null,eqData=null,eqSource=null,eqGain=null,eqTapAudio=null,eqOverlayOpen=false;
+  let eqCaptureReady=false,eqCaptureSource=null,eqCaptureStream=null;
+  // Safari iPhone cannot capture HTMLMediaElement audio. Use small genuine
+  // song-analysis timelines instead of a second audio player or fake pulses.
+  let geSongSpectra=null,geSongSpectraPromise=null,geSongSpectraRetryAt=0;
+  const geDecodedSongSpectra=new Map();
+  let geSongSpectrumSampleAt=0;
+  async function loadSongSpectra(){
+    if(geSongSpectra)return true;
+    if(geSongSpectraPromise)return geSongSpectraPromise;
+    if(Date.now()<geSongSpectraRetryAt)return false;
+    geSongSpectraPromise=fetch('./eq/library-spectrum.json',{cache:'force-cache'})
+      .then(async response=>{
+        if(!response.ok)throw Error('Song spectrum unavailable');
+        const packet=await response.json();
+        if(packet?.format!=='ge-song-3band-timeline-v1'||!packet.tracks)throw Error('Invalid song spectrum');
+        geSongSpectra=packet;return true;
+      })
+      .catch(_e=>{geSongSpectraRetryAt=Date.now()+60000;return false})
+      .finally(()=>{geSongSpectraPromise=null});
+    return geSongSpectraPromise;
+  }
+  function readMeasuredSongSpectrum(){
+    if(!geSongSpectra||audio.paused||audio.ended)return false;
+    let path='';
+    try{path=new URL(audio.currentSrc||audio.src,location.href).pathname}catch(_e){return false}
+    const track=geSongSpectra.tracks[path];
+    if(!track||!Number.isFinite(audio.currentTime)||audio.currentTime<0)return false;
+    let samples=geDecodedSongSpectra.get(path);
+    if(!samples){
+      try{
+        const binary=atob(track.frames);
+        samples=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+        if(samples.length<3||samples.length%3!==0)return false;
+        // Keep at most three decoded songs; never retain the whole library.
+        if(geDecodedSongSpectra.size>=3)geDecodedSongSpectra.delete(geDecodedSongSpectra.keys().next().value);
+        geDecodedSongSpectra.set(path,samples);
+      }catch(_e){return false}
+    }
+    const count=Math.floor(samples.length/3);
+    const frame=Math.min(count-1,Math.floor(audio.currentTime*1000/geSongSpectra.frame_ms));
+    const next=Math.min(count-1,frame+1);
+    if(frame<0||frame>=count)return false;
+    const fraction=Math.max(0,Math.min(1,audio.currentTime*1000/geSongSpectra.frame_ms-frame));
+    const level=band=>samples[frame*3+band]*(1-fraction)+samples[next*3+band]*fraction;
+    const low=level(0),mid=level(1),high=level(2);
+    if(!eqData||eqData.length!==256)eqData=new Uint8Array(256);
+    // Three measured frequency ranges, interpolated at their boundaries.
+    // Each displayed value comes from actual samples in the currently
+    // playing track at its present time; no invented oscillations.
+    for(let i=0;i<eqData.length;i++){
+      const hz=(i+.5)*4000/eqData.length;
+      let v;
+      if(hz<150)v=low;
+      else if(hz<210)v=low+(mid-low)*(hz-150)/60;
+      else if(hz<2200)v=mid;
+      else if(hz<2600)v=mid+(high-mid)*(hz-2200)/400;
+      else v=high;
+      eqData[i]=Math.min(255,Math.max(0,Math.round(v)));
+    }
+    geSongSpectrumSampleAt=performance.now();
+    return true;
+  }
+
+  // Capture available audio without ever redirecting or replacing the audible
+  // native iPhone media element. Unsupported browsers keep native playback.
+  async function ensureSafePlayerEQCapture(){
+    if(document.hidden||audio.paused||!audio.currentSrc||!eqTapIsNeeded())return false;
+    const capture=audio.captureStream||audio.mozCaptureStream;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(typeof capture!=='function'||!AC)return false;
+    try{
+      if(!eqCaptureReady){
+        const stream=capture.call(audio);
+        if(!stream?.getAudioTracks?.().length)return false;
+        if(!eqAudioCtx)eqAudioCtx=new AC();
+        eqAnalyser=eqAudioCtx.createAnalyser();
+        eqAnalyser.fftSize=512;
+        eqAnalyser.smoothingTimeConstant=.5;
+        eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
+        eqCaptureSource=eqAudioCtx.createMediaStreamSource(stream);
+        eqCaptureSource.connect(eqAnalyser);
+        // Do NOT connect this analysis-only graph to destination.
+        eqCaptureStream=stream;eqCaptureReady=true;
+      }
+      if(eqAudioCtx.state==='suspended')await eqAudioCtx.resume();
+      return eqCaptureReady&&eqAudioCtx.state==='running';
+    }catch(_e){
+      eqCaptureReady=false;
+      try{eqCaptureSource?.disconnect()}catch(__e){}
+      eqCaptureSource=null;
+      return false;
+    }
+  }
+
+  // A new track is a new captured MediaStream; release the old tap before
+  // reading the newly playing song, without modifying the audible player.
+  audio.addEventListener('emptied',()=>{
+    if(!eqCaptureReady)return;
+    eqCaptureReady=false;
+    try{eqCaptureSource?.disconnect()}catch(_e){}
+    try{eqCaptureStream?.getTracks?.().forEach(track=>track.stop())}catch(_e){}
+    eqCaptureSource=null;eqCaptureStream=null;
+  });
   // iPhone Safari can play the Icecast stream while returning silent WebAudio FFTs.
   // The analyser below consumes the frequency snapshot of the SAME BLITZ Radio 1
   // master feed. It never creates a second HTMLAudioElement on iOS, and failure
   // never interrupts the native <audio> player or its Gate/volume.
   let geBlitzSpectrumAt=0,geBlitzSpectrumRequestAt=0,geBlitzSpectrumPending=false;
   async function pollBlitzSpectrum(){
+    // The backend FFT is BLITZ Radio 1, NOT the same-origin static BANGERS clock.
     if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
     const now=performance.now();
     if(now-geBlitzSpectrumRequestAt<225)return;
@@ -12773,11 +12941,27 @@ Vector ${vector}. ${pair[1]}.`;
     // isolated analyser and Gate FX when permitted.
     if(GE_IOS_AUDIO){
       try{eqTapAudio?.pause()}catch(_e){}
-      // Radio 1 frequencies arrive over the independent BLITZ spectrum endpoint.
-      // No iOS media graph, no competing audio session.
-      void pollBlitzSpectrum();
-      eqMessage('MUSIC EQ · iPhone native Radio + live BLITZ spectrum');
-      return geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500;
+      // A precomputed real-song timeline works even on iPhone Safari where
+      // HTMLMediaElement.captureStream() is not implemented.
+      if((geRadioSunLabAllowed()||eqTapIsNeeded())&&await loadSongSpectra()&&readMeasuredSongSpectrum()){
+        eqMessage('MUSIC EQ · MEASURED SONG BASS / MID / TREBLE');
+        return true;
+      }
+      // Capture the original player only on browsers that support it.
+      if(await ensureSafePlayerEQCapture()){
+        eqMessage('MUSIC EQ · original player frequency capture');
+        return true;
+      }
+      // Use BLITZ FFT only when BLITZ itself is the audible source. The
+      // scheduled BANGERS/player songs need their own analysis, not another
+      // station's unrelated frequencies.
+      if(state.live&&!GE_STATIC_RADIO_PRIMARY){
+        void pollBlitzSpectrum();
+        eqMessage('MUSIC EQ · checking live BLITZ frequencies');
+        return geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500;
+      }
+      eqMessage('MUSIC EQ · native audio works · this iPhone has no safe frequency capture');
+      return false;
     }
     if(!eqTapIsNeeded() || document.hidden || audio.paused || !audio.currentSrc)return false;
     const source=audio.currentSrc||audio.src||'';
@@ -12854,7 +13038,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
-    if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
+    if(GE_IOS_AUDIO)return (geSongSpectrumSampleAt&&performance.now()-geSongSpectrumSampleAt<750)|| (eqCaptureReady&&eqAudioCtx?.state==='running')|| (state.live&&!GE_STATIC_RADIO_PRIMARY&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500)?eqData:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
   };
@@ -13418,13 +13602,23 @@ Vector ${vector}. ${pair[1]}.`;
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
     if(GE_IOS_AUDIO){
-      // Poll only while the real Radio 1 <audio> is playing. Never infer a
-      // valid signal from a button tap, playlist metadata, or mock animation.
-      void pollBlitzSpectrum();
-      if(state.live&&!audio.paused&&eqData&&geBlitzSpectrumAt>0
-          &&performance.now()-geBlitzSpectrumAt<2500){
-        live=eqData.some(bin=>bin>1);
+      if(readMeasuredSongSpectrum()){
+        live=eqData?.some(bin=>bin>1)||false;
         if(live)eqLastSignalAt=performance.now();
+      }else if(eqCaptureReady&&eqAnalyser&&eqAudioCtx?.state==='running'&&!audio.paused){
+        try{
+          eqAnalyser.getByteFrequencyData(eqData);
+          live=eqData.some(bin=>bin>1);
+          if(live)eqLastSignalAt=performance.now();
+        }catch(_e){}
+      }else if(state.live&&!GE_STATIC_RADIO_PRIMARY){
+        // Only actual BLITZ playback may use the independent BLITZ FFT.
+        void pollBlitzSpectrum();
+        if(!audio.paused&&eqData&&geBlitzSpectrumAt>0
+            &&performance.now()-geBlitzSpectrumAt<2500){
+          live=eqData.some(bin=>bin>1);
+          if(live)eqLastSignalAt=performance.now();
+        }
       }
     }else if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'&&!eqTapAudio?.paused){
       try{
@@ -15975,6 +16169,158 @@ html body:not(.view-player) #geUtilityRow{display:none!important}
  /* OFFLINE remains accessible from MUSIC; avoid the extra player button. */
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #offlineBtn{
   display:none!important;
+ }
+}
+</style>
+
+<style id="ge-radio-access-stable-footer-20261114">
+/* Access grants never add a row or reflow the public radio footer. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:48px!important;gap:7px!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #offlineBtn{
+  grid-area:2/1/3/2!important;min-height:0!important;height:42px!important;
+  font-size:12px!important;align-self:center!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:48px!important;gap:7px!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #sunLabBtn{
+  grid-area:1/1/2/2!important;min-height:0!important;height:46px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow .bc-btn{
+  grid-area:1/2/2/3!important;min-height:0!important;height:46px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #reloadBtn:not([hidden]){
+  grid-area:1/3/2/4!important;min-height:0!important;height:42px!important;
+  font-size:12px!important;align-self:center!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #reloadBtn[hidden],
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow #sunLabBtn[hidden]{display:none!important}
+}
+</style>
+<style id="ge-reload-music-only-20261114">
+/* The reload action remains a single radio controller; its visible control lives in MUSIC. */
+html.ge-radio-ui #geUtilityRow #reloadBtn,
+html.ge-radio-ui #shipStage [data-proxy="reloadBtn"]{display:none!important}
+</style>
+<style id="ge-radio-mobile-access-layout-guard-20261114">
+/* Access rights must never resize the Blue Sun or move it outside the viewport.
+   Only the portrait Player is affected; Ship Mode and desktop remain untouched. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
+   box-sizing:border-box!important;
+   padding-top:max(18px,env(safe-area-inset-top))!important;
+   overflow-x:clip!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
+   position:relative!important;inset:auto!important;transform:none!important;
+   flex:0 0 auto!important;height:auto!important;min-height:0!important;
+   margin:0 auto 10px!important;padding:0!important;overflow:visible!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header .logo-wrap{
+   position:relative!important;inset:auto!important;transform:none!important;
+   display:block!important;flex:0 0 auto!important;
+   width:clamp(126px,36vw,180px)!important;height:clamp(126px,36vw,180px)!important;
+   min-height:126px!important;max-height:180px!important;
+   margin:0 auto 8px!important;overflow:visible!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header h1,
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header .tag{
+   position:static!important;inset:auto!important;transform:none!important;
+   flex:0 0 auto!important;margin:0 auto!important;max-width:96vw!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
+   position:relative!important;inset:auto!important;transform:none!important;
+   max-width:100%!important;min-width:0!important;
+ }
+}
+</style>
+<style id="ge-radio-mobile-canonical-footer-20261114">
+/* Single footer blueprint. Access scopes hide/show features, never add layout rows.
+   Radio OFFLINE is an entry to Music; music alone owns the download manager. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
+   grid-template-rows:clamp(42px,6dvh,53px) clamp(39px,5.4dvh,46px)!important;
+   grid-auto-rows:clamp(39px,5.4dvh,46px)!important;gap:5px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button{
+   min-height:0!important;height:auto!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row{
+   grid-auto-rows:minmax(35px,auto)!important;gap:5px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row > button{
+   min-height:35px!important;height:clamp(35px,5dvh,45px)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   grid-template-rows:clamp(38px,5dvh,44px)!important;grid-auto-rows:0!important;
+   gap:6px!important;margin:0!important;min-height:0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > :is(#accessLaunchBtn,#contactLaunchBtn,#shareBtn){
+   min-height:0!important;height:100%!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn:not([hidden]){
+   display:flex!important;align-items:center!important;justify-content:center!important;
+   grid-area:1/1!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn{grid-area:1/2!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{grid-area:1/3!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow{
+   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   grid-template-rows:clamp(38px,5dvh,44px) 30px!important;grid-auto-rows:0!important;
+   gap:5px!important;align-items:center!important;justify-items:stretch!important;
+   height:auto!important;min-height:0!important;margin:2px auto 0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn:not([hidden]){
+   display:flex!important;grid-area:1/1!important;align-items:center!important;justify-content:center!important;
+   height:100%!important;min-height:0!important;margin:0!important;font-size:clamp(11px,3vw,14px)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > .bc-btn{
+   display:flex!important;grid-area:1/2!important;align-items:center!important;justify-content:center!important;
+   height:100%!important;min-height:0!important;margin:0!important;font-size:clamp(11px,3vw,14px)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #offlineBtn{
+   display:flex!important;grid-area:1/3!important;align-items:center!important;justify-content:center!important;
+   height:100%!important;min-height:0!important;margin:0!important;font-size:clamp(11px,3vw,14px)!important;
+   border:1px solid #50c0ac!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #offlineBtn.ge-offline-locked{
+   opacity:.55!important;background:rgba(42,51,65,.75)!important;border-color:#7d90a0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #offlineBtn:not(.ge-offline-locked){
+   opacity:1!important;background:rgba(15,105,88,.94)!important;border-color:#71f0c0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #geDebugOpen:not([hidden]){
+   display:flex!important;grid-area:2/2!important;justify-self:center!important;align-self:center!important;
+   width:64px!important;min-width:0!important;max-width:64px!important;height:23px!important;min-height:23px!important;
+   padding:2px 4px!important;margin:0!important;font-size:10px!important;border-radius:7px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #geDebugOpen[hidden],
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > #sunLabBtn[hidden]{
+   display:none!important;
+ }
+}
+@keyframes geRadioCalmDoubleBeat{
+  0%,48%,100%{opacity:.06;transform:scale(.985)}
+  10%{opacity:.52;transform:scale(1.015)}
+  17%{opacity:.12;transform:scale(1)}
+  25%{opacity:.36;transform:scale(1.01)}
+  33%{opacity:.08;transform:scale(.99)}
+}
+/* A calm two-beat invitation, never a claim that the stream is connected. */
+#liveBtn.radio-start-cue::after,
+#shipStage [data-proxy="liveBtn"].radio-start-cue::after{
+  inset:-2px!important;animation:geRadioCalmDoubleBeat 2.6s ease-in-out infinite!important;
+  box-shadow:0 0 9px 2px rgba(235,112,148,.32),0 0 21px 5px rgba(255,85,112,.12)!important;
+}
+@media(prefers-reduced-motion:reduce){
+ #liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after{
+  animation:none!important;opacity:.28!important;transform:none!important;
  }
 }
 </style>
