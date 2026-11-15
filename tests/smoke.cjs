@@ -41,6 +41,16 @@ assert(siteSW.includes('GE_SITE_SHELL_V8_CANONICAL_20261114'),'New website cache
 assert(radioSW.includes('2026.11.14-canonical-recovery-v107'),'New Radio cache version missing');
 assert(!home.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in home');
 assert(!radio.includes("c.effectiveType==='2g'"),'Unexpected automatic lite redirect in Radio');
+function deviceDetector(html){
+  const tag='<script id="ge-safari-request-website-mode">';
+  const begin=html.indexOf(tag);
+  if(begin<0)return '';
+  const end=html.indexOf('</script>',begin+tag.length);
+  return end<0?'':html.slice(begin+tag.length,end);
+}
+assert(deviceDetector(home) && deviceDetector(home)===deviceDetector(radio),
+  'Home and Radio must use the same device-view contract');
+
 assert(!radioSW.includes("await caches.match('./index.html',{ignoreSearch:true})"),'Legacy Radio HTML cache fallback must not return');
 assert(radioSW.includes('isValidRadioHTML(candidate,{requireCurrent:true})'),'Radio offline backup must validate the current build');
 assert(!siteSW.includes('During migration, recover a known-good older cached shell'),'Old home recovery must not resurrect obsolete pages');
