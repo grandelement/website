@@ -2,7 +2,7 @@
 'use strict';
 
 const VERSION='2026.11.15-offline-music-v117';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_READY_V2';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261115_OFFLINE_MUSIC_V3';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
