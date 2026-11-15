@@ -1836,12 +1836,14 @@ async function loadFanPlaylists(){
  if(cached!==null){
   state.fanLists=cached;
   if(state.open)render();
+  if(state.open&&el('.window').classList.contains('geOfflineOpen'))fillOfflinePlaylists();
  }
  try{
   const data=await fanVaultRequest();
   state.fanLists=normalizeFanPlaylistRows(data.items);
   cacheFanPlaylistRows(state.fanLists);
   if(state.open)render();
+  if(state.open&&el('.window').classList.contains('geOfflineOpen'))fillOfflinePlaylists();
  }catch(_){
   if(state.open)say(cached!==null
    ?'OFFLINE · SHOWING YOUR LAST SAVED FAN VAULT PLAYLISTS. SONG AUDIO MUST BE DOWNLOADED SEPARATELY.'
@@ -2051,7 +2053,8 @@ async function loadPublished(){
   if(githubOk&&!vaultOnline)parts.push('VAULT CONNECTION ERROR');
   if(vaultOnline&&vaultCount===0)parts.push('NO PUBLISHED VAULT PLAYLISTS');
   state.playlistMessage=parts.join(' · ');
- }finally{state.playlistsLoading=false;if(state.open)render()}
+ }finally{state.playlistsLoading=false;if(state.open)render();
+  if(state.open&&el('.window').classList.contains('geOfflineOpen'))fillOfflinePlaylists()}
 }
 
 function visibleSharedLists(){
@@ -2838,7 +2841,8 @@ function offlinePlaylistPaths(){
  return entry?.songs||[];
 }
 function fillOfflinePlaylists(){
- const all=[...state.publicLists,...state.fanLists,...state.assignedLists,...readMine()];
+ // Respect the same published/assigned playlist visibility used elsewhere in MUSIC.
+ const all=[...visibleSharedLists(),...state.assignedLists,...state.fanLists,...readMine()];
  const taken=new Set();
  offlinePlaylistChoices=all.filter(p=>p?.name&&Array.isArray(p.songs)).map(p=>({
   key:String(p.source||'music')+':'+p.id,
