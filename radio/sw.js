@@ -329,11 +329,6 @@ self.addEventListener('fetch',event=>{
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
 
-  if(request.headers.get('X-GE-Offline')==='1'){
-    event.respondWith(fetchFresh(request));
-    return;
-  }
-
   if(request.headers.get('X-GE-Reload-Media')==='1'){
     event.respondWith((async()=>{
       const network=await fetchFresh(request);
