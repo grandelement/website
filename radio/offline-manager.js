@@ -19,7 +19,7 @@ css.textContent=[
 '.geOfflineBusy{background:linear-gradient(90deg,#06374d,#2a9fd2,#06374d);background-size:200% 100%;animation:geOfflineComet 3.33s linear infinite}',
 '@keyframes geOfflineComet{to{background-position:-200% 0}}@media(prefers-reduced-motion:reduce){.geOfflineBusy{animation:none}}'
 ].join('\n');document.head.append(css);
-const surface=document.createElement('div');surface.className='geOfflineSurface';surface.hidden=true;
+const surface=document.createElement('div');surface.id='geOfflineSurface';surface.className='geOfflineSurface';surface.hidden=true;
 surface.innerHTML=
 '<section class="geOfflineDialog" role="dialog" aria-modal="true" aria-labelledby="geOfflineTitle">'+
 '<div class="geOfflineHead"><h2 id="geOfflineTitle">OFFLINE MUSIC</h2><button type="button" data-offline="close">CLOSE</button></div>'+
@@ -40,7 +40,7 @@ const status=message=>{find('geOfflineStatus').textContent=message};
 const progress=(done,total)=>{find('geOfflineProgress').max=Math.max(1,total);find('geOfflineProgress').value=done};
 const bridge=()=>window.GERadioOfflineBridge||{};
 const fileURL=path=>new URL('../'+String(path).split('/').map(encodeURIComponent).join('/'),location.href).href;
-const isAudio=response=>!!response&&response.ok&&response.status===200&&!/text\/html|application\/json|text\/plain/i.test(response.headers.get('content-type')||'');
+const isAudio=response=>!!response&&response.ok&&response.status===200&&!/text\/html|application\/json|text\/plain|image\/|video\//i.test(response.headers.get('content-type')||'');
 async function valid(cache,url){
  const item=await cache.match(url,{ignoreSearch:true});
  if(!isAudio(item))return false;
@@ -81,9 +81,9 @@ function busy(value){
 async function inspect(){
  if(!('caches'in window)){status('Browser storage is unavailable.');return}
  try{
-  const all=await manifest(),cache=await caches.open(CACHE),keys=await cache.keys();
-  const names=new Set(all.map(fileURL));let count=0;
-  for(const key of keys)if(names.has(key.url)&&await valid(cache,key.url))count++;
+  const all=await manifest(),cache=await caches.open(CACHE);
+  let count=0;
+  for(const path of all)if(await valid(cache,fileURL(path)))count++;
   find('geOfflineMeter').textContent=count+' of '+all.length+' published songs stored on this device';
   progress(count,all.length);
   if(!running)status('Choose songs in MUSIC, then SAVE SELECTED, or select SAVE ALL ALLOWED. Cached files do not guarantee Airplane Mode playback.');
@@ -130,7 +130,7 @@ async function saveArt(){
  if(running)return;
  if(!bridge().canDownload?.()){status('Enter CODE to save album art.');bridge().promptCode?.();return}
  if(navigator.onLine===false){status('Reconnect to save artwork.');return}
- busy(true);cancelled=false;let done=0,failed=0;const cache=await caches.open(ART);
+ busy(true);cancelled=false;let done=0,failed=0;progress(0,ALBUMS.length);const cache=await caches.open(ART);
  try{
   for(const name of ALBUMS){
    if(cancelled)break;
