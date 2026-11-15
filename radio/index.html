@@ -7994,7 +7994,7 @@ const GE_OFFLINE_LOCAL_ENTITLEMENT='GE_RADIO_OFFLINE_ENTITLEMENT_V2';
 function geOfflineDeviceGrantValid(){
   if(!offlinePlaybackMode())return false;
   try{
-    const id=String(window.GEVault?.anonId||'');
+    const id=String(window.GEVault?.anonId||localStorage.getItem('ge_vault_anon_id')||'');
     if(!id)return false;
     const receipt=JSON.parse(localStorage.getItem(GE_OFFLINE_LOCAL_ENTITLEMENT)||'null');
     const grant=JSON.parse(localStorage.getItem(GE_OFFLINE_DEVICE_GRANT_KEY)||'null');
@@ -10195,7 +10195,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261110-unified-access-player-v106',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261114-offline-cold-start-v107',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
