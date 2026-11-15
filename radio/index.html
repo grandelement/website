@@ -10240,7 +10240,7 @@ async function registerServiceWorker(){
       if(!audit){
         const assets=await buildAssetList();
         const scoped=wanted?assets.filter(item=>item.type!=='song'||wanted.has(canonicalSongPath(item.url))):assets;
-        audit=await auditAssets(scoped,{copyExisting:true});
+        audit=await auditAssets(scoped,{copyExisting:true,readOnly:true});
       }
       if(!audit?.totalSongs)return;
       const cached=Math.max(0,Math.min(audit.totalSongs,Number(audit.cachedSongs)||0));
@@ -11070,7 +11070,7 @@ async function registerServiceWorker(){
     return removed;
   }
 
-  async function auditAssets(assets,{copyExisting=true}={}){
+  async function auditAssets(assets,{copyExisting=true,readOnly=false}={}){
     const active=await caches.open(CONFIG.OFFLINE_CACHE);
     const missing=[];
     const songs=new Set();
@@ -11112,9 +11112,13 @@ async function registerServiceWorker(){
       }
     }
 
-    offlineAvailability.songs=songs;
-    offlineAvailability.stations=stations;
-    saveOfflineAvailability();
+    // A status-only check must not replace Radio's full offline availability
+    // with just the checked-song subset.
+    if(!readOnly){
+      offlineAvailability.songs=songs;
+      offlineAvailability.stations=stations;
+      saveOfflineAvailability();
+    }
 
     const missingSongs=missing.filter(item=>item.type==='song').length;
     const missingOptional=missing.filter(item=>item.type==='background').length;
@@ -11125,12 +11129,12 @@ async function registerServiceWorker(){
     const requiredReady=shellReady && musicComplete && missingStations===0;
     const complete=missing.length===0;
 
-    currentAudit={
+    const audit={
       missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,missingStations,missingShell,shellReady,
       musicComplete,requiredReady,complete,existingBytes,totalBytes
     };
-    reflectButton(currentAudit);
-    return currentAudit;
+    if(!readOnly){currentAudit=audit;reflectButton(currentAudit)}
+    return audit;
   }
 
   async function cacheResponseStreaming(item,cache,signal,onChunk){
