@@ -71,6 +71,10 @@ async function worker(){
  let reg=await navigator.serviceWorker.getRegistration('./');
  if(!reg&&online())reg=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
  if(!reg)throw Error('Start Radio online once to install the offline engine');
+ if(!reg.active&&online()){
+  try{await Promise.race([navigator.serviceWorker.ready,new Promise(resolve=>setTimeout(resolve,5000))])}catch(_){}
+  reg=await navigator.serviceWorker.getRegistration('./')||reg;
+ }
  return reg;
 }
 async function shellStatus(){
