@@ -1354,6 +1354,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window > .geMusicOfflineRow{display:flex!important;flex-wrap:wrap!important;gap:5px!important;padding:4px 9px!important}
 .window > .geMusicOfflineRow .geMusicOfflineMeter[hidden]{display:none!important}
 .window > .geMusicOfflineRow .geMusicOfflineTrigger{min-height:38px!important;padding:5px 11px!important;font-size:12px!important}
+.window > .geMusicOfflineRow .geMusicOwnerTool{flex:0 0 auto!important;min-height:34px!important;padding:5px 9px!important;font-size:11px!important;background:#12344c!important;border:1px solid #5b98b8!important;border-radius:7px!important}
+.window > .geMusicOfflineRow .geMusicOwnerTool[hidden]{display:none!important}
 .window > .geMusicOfflineRow.locked .geMusicOfflineTrigger{background:#10354d!important;border-color:#8bb6d7!important}
 .window > .geMusicOfflineRow .musicCodeTools{order:3!important;flex:1 1 100%!important;width:100%!important;min-width:0!important}
 .window > .geMusicOfflineRow .musicCodeTools[hidden]{display:none!important}
@@ -3057,6 +3059,31 @@ geOfflineRow.className='geMusicOfflineRow';
 geOfflineRow.hidden=false;
 geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFLINE</button><div class="geMusicOfflineMeter" role="status" aria-live="off"><div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineTime">00:00</span></div></div>';
 el('.selectionBar').before(geOfflineRow);
+// RELOAD and DEBUG are owner utilities. They live beside MUSIC's OFFLINE tool,
+// never in the public Radio footer. Their original Radio handlers do the work.
+const geOwnerButton=(label,scope)=>{
+ const control=document.createElement('button');
+ control.type='button';control.textContent=label;control.className='geMusicOwnerTool';
+ control.hidden=true;control.setAttribute('aria-label',label==='RELOAD'?'Reload music library':'Open Radio diagnostic report');
+ geOfflineRow.querySelector('.geMusicOfflineMeter').before(control);
+ control.addEventListener('click',()=>{
+  if(!(scope==='reload'?window.GERadioReloadAllowed?.():window.GERadioDebugAllowed?.())){
+   syncMusicOwnerTools();say(label+' REQUIRES VERIFIED OWNER ACCESS.');return;
+  }
+  const source=document.getElementById(scope==='reload'?'reloadBtn':'geDebugOpen');
+  if(source)source.click();else say(label+' CONTROL NOT READY.');
+ });
+ return control;
+};
+const geOwnerReload=geOwnerButton('RELOAD','reload');
+const geOwnerDebug=geOwnerButton('DEBUG','debug');
+function syncMusicOwnerTools(){
+ geOwnerReload.hidden=!Boolean(window.GERadioReloadAllowed?.());
+ geOwnerDebug.hidden=!Boolean(window.GERadioDebugAllowed?.());
+}
+window.addEventListener('ge-access-experience-updated',syncMusicOwnerTools);
+window.addEventListener('focus',syncMusicOwnerTools);
+syncMusicOwnerTools();
 // The existing Music code controls are usable on all Music views, including album art.
 geOfflineRow.append(el('.musicCodeTools'));
 function requestMusicOfflineCode(){const panel=el('.musicCodeTools');panel.hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');say('OFFLINE LOCKED · Enter your GE access code here.');el('.musicCodeInput').focus();}
@@ -3073,6 +3100,7 @@ function musicOfflineAllowed(){
  }catch(_){return false}
 }
 function updateOfflineAccessVisibility(){
+ syncMusicOwnerTools();
  const enabled=musicOfflineAllowed();geOfflineRow.hidden=false;geOfflineRow.classList.toggle('locked',!enabled);
  const trigger=geOfflineRow.querySelector('.geMusicOfflineTrigger');trigger.textContent=enabled?'OFFLINE':'OFFLINE · LOCKED';
  trigger.setAttribute('aria-label',enabled?'Open offline downloads':'Enter an access code to unlock offline downloads');geOfflineMeter.hidden=!enabled;
