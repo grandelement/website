@@ -35,6 +35,10 @@ try{
    assert(state.support.right<=state.sun.left+2,'SUPPORT must be left of SUN LAB: '+JSON.stringify(state));
    assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,'Footer buttons must use equal columns: '+JSON.stringify(state));
    assert(Math.abs(state.sun.top-state.support.top)<5&&Math.abs(state.offline.top-state.support.top)<5,'All footer controls must stay on one line');
+   await page.click('#offlineLaunchBtn');
+   await page.waitForFunction(()=>!document.getElementById('geOfflineSurface')?.hidden,{timeout:5000});
+   await page.click('[data-offline="close"]');
+   await page.waitForFunction(()=>document.getElementById('geOfflineSurface')?.hidden===true,{timeout:5000});
    await page.evaluate(()=>window.GEMusicV5.open());
    await page.waitForFunction(()=>window.GEMusicV5?.state?.().open===true,{timeout:8000});
    const music=await page.evaluate(()=>{
