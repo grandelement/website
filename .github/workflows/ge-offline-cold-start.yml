@@ -1,0 +1,28 @@
+name: GE OFFLINE Cold Start
+on:
+  pull_request:
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-player.html'
+      - 'tests/ge-offline-cold-start-regression.test.mjs'
+      - '.github/workflows/ge-offline-cold-start.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-player.html'
+      - 'tests/ge-offline-cold-start-regression.test.mjs'
+      - '.github/workflows/ge-offline-cold-start.yml'
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check radio/sw.js
+      - run: node --check tests/ge-offline-cold-start-regression.test.mjs
+      - run: node --test tests/ge-offline-cold-start-regression.test.mjs
