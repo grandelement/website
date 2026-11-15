@@ -2,7 +2,7 @@
 
 ## Owner radio button placement revision — 2026-11-14 (current)
 - The public Radio player must NOT render RELOAD, DEBUG, or OFFLINE buttons in its footer. No Ship proxy buttons for RELOAD or OFFLINE.
-- RELOAD and DEBUG are verified owner-only controls inside MUSIC beside its existing OFFLINE control; they invoke the existing permission-guarded Radio handlers and do not create new refresh or debug implementations.
+- RELOAD and DEBUG are verified owner-only controls inside MUSIC beside its existing OFFLINE control. They call `window.GERadioReloadLibrary(button)` and `window.GERadioOpenDiagnostics()` directly. Do not recreate hidden-button click proxies.
 - The public Radio utility row displays SUN LAB to the LEFT of SUPPORT. SUN LAB remains independently access-controlled through Vault. Public CODE, CONTACT, SHARE and standard player controls are retained.
 - OFFLINE download and progress management are accessible in MUSIC. Keep existing downloaded music, Gate, and permission checks intact.
 - Existing rules and tests requiring an always-visible public OFFLINE button were superseded by this revision; update those tests, do not force OFFLINE to reappear with CSS.
