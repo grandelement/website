@@ -100,7 +100,7 @@ test('legacy pinned iPhone launcher restores saved Radio shell in Airplane Mode 
   match:async()=>undefined,
   delete:async()=>{deletions++;throw Error('Never erase saved songs')}
  };
- const window={matchMedia:()=>({matches:true})};
+ const window={matchMedia:()=>({matches:true}),caches};
  const location={href:'https://example.test/radio/offline-home.html',replace(){network++;throw Error('No navigation in Airplane Mode')}};
  vm.runInNewContext(script,{document,window,navigator:{standalone:true},location,caches,URL,console,Promise});
  // The inline recovery is async; let CacheStorage and response.text microtasks drain.
@@ -120,7 +120,7 @@ test('legacy pinned launcher gives a non-destructive recovery message if no shel
   open(){wrote=true},write(){wrote=true},close(){}
  };
  const caches={keys:async()=>[],match:async()=>undefined};
- const window={matchMedia:()=>({matches:true})};
+ const window={matchMedia:()=>({matches:true}),caches};
  const location={href:'https://example.test/radio/offline-home.html',replace(){network++}};
  vm.runInNewContext(script,{document,window,navigator:{standalone:true},location,caches,URL,console,Promise});
  for(let i=0;i<20&&!status.textContent.includes('not found');i++)await new Promise(resolve=>setImmediate(resolve));
