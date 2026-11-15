@@ -80,8 +80,26 @@ async function worker(){
 async function shellStatus(){
  try{
   const reg=await worker();
-  const sw=reg.active||navigator.serviceWorker.controller||reg.waiting;
-  if(!sw)return {ready:false,missing:['No active startup worker']};
+  // A first-time install or update may still be installing its atomic shell.
+  // Wait for that attempt before asking an obsolete worker for readiness.
+  if(reg.installing){
+   const candidate=reg.installing;
+   await Promise.race([
+    new Promise(resolve=>{
+     const changed=()=>{
+      if(['installed','activated','redundant'].includes(candidate.state)){
+       candidate.removeEventListener('statechange',changed);resolve();
+      }
+     };
+     candidate.addEventListener('statechange',changed);
+     changed();
+    }),
+    new Promise(resolve=>setTimeout(resolve,15000))
+   ]);
+  }
+  const current=await navigator.serviceWorker.getRegistration('./')||reg;
+  const sw=current.waiting||current.active||navigator.serviceWorker.controller;
+  if(!sw)return {ready:false,missing:['Startup worker is still installing']};
   return await new Promise(resolve=>{
    const channel=new MessageChannel();
    let handled=false;
