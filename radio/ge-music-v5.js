@@ -3070,8 +3070,15 @@ const geOwnerButton=(label,scope)=>{
   if(!(scope==='reload'?window.GERadioReloadAllowed?.():window.GERadioDebugAllowed?.())){
    syncMusicOwnerTools();say(label+' REQUIRES VERIFIED OWNER ACCESS.');return;
   }
-  const source=document.getElementById(scope==='reload'?'reloadBtn':'geDebugOpen');
-  if(source)source.click();else say(label+' CONTROL NOT READY.');
+  if(scope==='reload'){
+   if(typeof window.GERadioReloadLibrary!=='function'){say('LIBRARY RELOAD NOT READY.');return;}
+   void Promise.resolve(window.GERadioReloadLibrary(control)).then(ok=>{
+    say(ok===true?'LIBRARY REFRESHED.': 'LIBRARY UPDATE NOT COMPLETED.');
+   }).catch(error=>say('RELOAD FAILED: '+String(error?.message||error)));
+  }else{
+   if(typeof window.GERadioOpenDiagnostics!=='function'||!window.GERadioOpenDiagnostics())
+    say('DIAGNOSTICS UNAVAILABLE OR NOT AUTHORIZED.');
+  }
  });
  return control;
 };
