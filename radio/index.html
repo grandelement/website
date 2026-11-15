@@ -10220,6 +10220,40 @@ async function registerServiceWorker(){
   let activePlan=null;
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
+  const MUSIC_OFFLINE_TARGET_KEY='GE_MUSIC_OFFLINE_TARGET_V1';
+  function savedMusicOfflineTargets(){
+    try{
+      const paths=JSON.parse(localStorage.getItem(MUSIC_OFFLINE_TARGET_KEY)||'null');
+      if(Array.isArray(paths)){
+        const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
+        return wanted.size?wanted:null;
+      }
+    }catch(_e){}
+    return null;
+  }
+  // Report completion only after checking each actual cached song.
+  // This is distinct from byte-transfer progress; 10 of 12 songs means 83%.
+  async function publishVerifiedMusicOfflineStatus(knownAudit=null){
+    try{
+      const wanted=savedMusicOfflineTargets();
+      let audit=knownAudit;
+      if(!audit){
+        const assets=await buildAssetList();
+        const scoped=wanted?assets.filter(item=>item.type!=='song'||wanted.has(canonicalSongPath(item.url))):assets;
+        audit=await auditAssets(scoped,{copyExisting:true});
+      }
+      if(!audit?.totalSongs)return;
+      const cached=Math.max(0,Math.min(audit.totalSongs,Number(audit.cachedSongs)||0));
+      const verifiedPercent=Math.round(100*cached/audit.totalSongs);
+      window.postMessage({type:'GE_MUSIC_OFFLINE_PROGRESS',verified:true,
+        percent:verifiedPercent,cachedSongs:cached,totalSongs:audit.totalSongs,
+        rate:'',remaining:''},location.origin);
+    }catch(error){console.warn('Offline progress verification unavailable',error)}
+  }
+  window.addEventListener('message',event=>{
+    if(event.origin===location.origin&&event.data?.type==='GE_MUSIC_OFFLINE_STATUS_REQUEST')
+      void publishVerifiedMusicOfflineStatus();
+  });
   // Store the offline playback receipt only after an authorized online
   // public setting or a verified, unexpired Vault access scope is confirmed.
   // This receipt unlocks already-saved audio locally, never Vault or purchases.
@@ -10267,6 +10301,7 @@ async function registerServiceWorker(){
       reportMusicOffline('An offline operation is already running.');return;
     }
     selectedOfflinePaths=null;
+    try{localStorage.removeItem(MUSIC_OFFLINE_TARGET_KEY)}catch(_e){}
     button.click();
   });
   // The Music library can request a smaller checked-song download.
@@ -10282,6 +10317,7 @@ async function registerServiceWorker(){
     const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
     if(!wanted.size)return;
     selectedOfflinePaths=wanted;
+    try{localStorage.setItem(MUSIC_OFFLINE_TARGET_KEY,JSON.stringify([...wanted]))}catch(_e){}
     reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
     button.click();
   });
@@ -11347,6 +11383,7 @@ async function registerServiceWorker(){
       }
     }
 
+    await publishVerifiedMusicOfflineStatus(audit);
     return {
       added:completedFiles,failed,failedFiles,storageFull,total:missingSongFiles.length,
       complete:audit.musicComplete&&offlineLaunchReady,musicComplete:audit.musicComplete,
