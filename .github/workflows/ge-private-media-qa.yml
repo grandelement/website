@@ -1,0 +1,34 @@
+name: GE Private Music Gateway QA
+on:
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'vault-worker/src/private-media.mjs'
+      - 'tests/ge-private-media.test.mjs'
+      - '.github/workflows/ge-private-media-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'vault-worker/src/private-media.mjs'
+      - 'tests/ge-private-media.test.mjs'
+      - '.github/workflows/ge-private-media-qa.yml'
+jobs:
+  test-gateway:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            vault-worker/src/index.js
+            vault-worker/src/private-media.mjs
+            tests/ge-private-media.test.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check vault-worker/src/index.js
+      - run: node --check vault-worker/src/private-media.mjs
+      - run: node --test tests/ge-private-media.test.mjs
