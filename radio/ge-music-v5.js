@@ -2836,6 +2836,15 @@ const offlineStart=el('.geOfflineStart');
 const offlineStop=el('.geOfflineStop');
 const offlineProgress=el('.geOfflineProgress');
 function setOfflineMessage(message){offlineStatus.textContent=String(message)}
+function offlineMissingSummary(result){
+ const parts=[];
+ if(result.missing?.length)parts.push(result.missing.length+' songs');
+ const clips=(result.stationTotal||0)-(result.stations||0);
+ if(clips>0)parts.push(clips+' station IDs');
+ if(result.artworkMissing?.length)parts.push(result.artworkMissing.length+' graphics');
+ if(result.engineMissing?.length)parts.push(result.engineMissing.length+' startup files');
+ return parts.join(' · ')||'startup check pending';
+}
 function offlinePlaylistPaths(){
  const key=el('.geOfflinePlaylist').value,entry=offlinePlaylistChoices.find(p=>p.key===key);
  return entry?.songs||[];
@@ -2892,12 +2901,13 @@ async function offlineCheck(){
   const result=await engine.inspect();
   if(offlineBusy)return;
   if(result.ready)
-   setOfflineMessage('READY · '+result.saved+'/'+result.total+' saved songs · installed engine and station IDs checked.');
+   setOfflineMessage('READY · '+result.saved+'/'+result.total+' songs · '+result.stations+' station IDs · '+
+    result.artwork+' graphics · Radio startup files verified. Test Airplane Mode.');
   else if(result.partial)
-   setOfflineMessage('PARTIAL · '+result.saved+'/'+result.total+' saved. '+result.missing.length+
-    ' missing. UPDATE MISSING will retry; saved music stays intact.');
-  else setOfflineMessage('NOT READY · '+result.saved+'/'+result.total+
-     ' saved songs. Connect online, choose ALL MUSIC and press DOWNLOAD.');
+   setOfflineMessage('PARTIAL · '+result.saved+'/'+result.total+' songs saved · Missing: '+
+    offlineMissingSummary(result)+'. UPDATE MISSING repairs them without deleting songs.');
+  else setOfflineMessage('NOT READY · '+result.saved+'/'+result.total+' songs saved · Missing: '+
+    offlineMissingSummary(result)+'. Connect online, choose ALL MUSIC and press DOWNLOAD.');
  }catch(error){setOfflineMessage('Offline check failed: '+String(error?.message||error))}
 }
 function offlineProgressUpdate(event){
@@ -2951,9 +2961,10 @@ async function offlineDownload(){
   }else{
    offlineProgress.max=Math.max(1,result.total);
    offlineProgress.value=result.saved;
-   setOfflineMessage(result.ready?'READY · '+result.saved+'/'+result.total+' songs saved and startup verified. Test Airplane Mode.':
-     'PARTIAL · '+result.saved+'/'+result.total+' songs saved; '+
-     result.missing.length+' need retry. '+(result.failures?.slice(0,2).map(x=>x.path.split('/').pop()).join(', ')||'')+
+   setOfflineMessage(result.ready?'READY · '+result.saved+'/'+result.total+' songs · '+result.stations+
+     ' station IDs · '+result.artwork+' graphics · startup verified. Test Airplane Mode.':
+     'PARTIAL · '+result.saved+'/'+result.total+' songs saved · Missing: '+
+     offlineMissingSummary(result)+'. '+(result.failures?.slice(0,2).map(x=>x.path.split('/').pop()).join(', ')||'')+
      ' · Tap UPDATE MISSING. Your saved music stays intact.');
   }
  }catch(error){setOfflineMessage('Download interrupted: '+String(error?.message||error))}
