@@ -277,8 +277,9 @@ async function navigationResponse(request){
 }
 
 async function mediaResponse(request){
-  // An offline audio request, including byte ranges, must be 100% local.
-  if(self.navigator?.onLine===false){
+  const url=new URL(request.url);
+  // Saved audio explicitly requests local-first, even if Safari reports online.
+  if(self.navigator?.onLine===false||url.searchParams.has('ge_offline')){
     const local=await cachedResponse(request);
     return local?rangeFromCache(request,local):
       new Response('This audio file was not saved',{status:503});
@@ -286,7 +287,6 @@ async function mediaResponse(request){
   // Same-path song replacements must win while ONLINE. The earlier
   // cache-first path kept playing obsolete recordings after an upload.
   // Offline still falls back to the listener's existing saved music.
-  const url=new URL(request.url);
   try{
     const fresh=await fetchWithTimeout(request,{cache:'no-store'});
     if(fresh.ok){
