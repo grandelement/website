@@ -207,7 +207,11 @@ async function save({mode='all',paths=[],onProgress}={}){
   for(const path of downloads){
    if(stopRequested)break;
    try{await downloadOne(path,cache)}catch(error){
-    failures.push({path,error:String(error.message||error)});
+    const message=String(error?.message||error);
+    failures.push({path,error:message});
+    // On a constrained iPhone, a quota failure is a hard stop. Continuing
+    // through the entire library or saving GIFs may evict working recordings.
+    if(/quota|storage full|out of space|disk full/i.test(message))stopRequested=true;
    }
    completed++;
    notify(onProgress,{phase:'audio',completed,total:downloads.length,
@@ -221,7 +225,9 @@ async function save({mode='all',paths=[],onProgress}={}){
    try{await bridge().rescan?.()}catch(_){}
   }
   let images={saved:0,total:0,failed:0};
-  if(!stopRequested)images=await saveImages(onProgress);
+  // Music always takes priority. Decorative images are deferred if any
+  // recording failed or STOP was pressed; preserve the audio that succeeded.
+  if(!stopRequested&&failures.length===0)images=await saveImages(onProgress);
   const audited=await inspect();
   const result={...audited,mode,failures,images,stopped:stopRequested,
     completed,attempted:downloads.length};
