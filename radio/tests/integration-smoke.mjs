@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const radio=read('index.html');
 const home=read('../index.html');
@@ -44,6 +44,22 @@ has(radio,"autoResume:true",'Saved offline queue');
 has(radio,'resumeCommittedOfflineDownload()','Auto resume');
 assert.ok(!radio.includes("if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO"),'iPhone EQ must not be disabled by constant guard');
 has(radio,'ensureSafePlayerEQCapture()','Safe EQ source');
+has(radio,'readMeasuredSongSpectrum()','Safari measured song EQ reader');
+has(radio,"'./eq/library-spectrum.json'",'Safari measured song EQ file URL');
+const analysisFile=new URL('../eq/library-spectrum.json',import.meta.url);
+assert.ok(existsSync(analysisFile),
+  'Measured per-song spectrum data must be generated before deploying iPhone EQ');
+const analysis=JSON.parse(readFileSync(analysisFile,'utf8'));
+assert.equal(analysis.format,'ge-song-3band-timeline-v1');
+assert.equal(analysis.frame_ms,100);
+assert.ok(Object.keys(analysis.tracks||{}).length>=25,
+  'At least 25 genuine song timelines must be generated');
+for(const [url,entry] of Object.entries(analysis.tracks)){
+  assert.ok(url.startsWith('/ge-music/music/'),'Timeline song path invalid');
+  assert.ok(entry.frames?.length>=4 && Number.isInteger(entry.count)&&entry.count>0,
+    'Missing or empty measured song timeline for '+url);
+}
+
 has(radio,"button.classList.toggle('radio-start-cue',!connected)",'Heartbeat guard');
 has(worker,'integrated-recovery-v112','New Radio service worker');
 has(worker,'return offlineNavigationFallback();','Offline navigation fallback');
