@@ -9,12 +9,17 @@ assert.match(siteWorker,/LEGACY_RADIO_PATHS\.some/,'Old Lite links must route to
 assert.match(siteWorker,/cache\.delete\(url\.href\)/,'Obsolete Lite pages must be purged without removing saved music');
 const musicSource=readFileSync('radio/ge-music-v5.js','utf8');
 const offlineHTML=readFileSync('radio/index.html','utf8');
-assert.match(offlineHTML, /<button id="offlineBtn" type="button" aria-hidden="false">OFFLINE<\/button>/,
- 'Radio OFFLINE must be visible rather than marked hidden');
-assert.doesNotMatch(offlineHTML,/offlineButton\.hidden=true/,'Permission synchronization must not hide offline');
+// November 14 owner revision: public Radio is for listening; offline actions
+// and owner utilities live in MUSIC without clickable hidden-button proxies.
+assert.match(offlineHTML,/<div id="geRadioInternalControls" hidden/,'Legacy offline engine must remain internal');
+assert.match(offlineHTML,/id="offlineBtn" type="button" hidden/,'Internal download state must remain available');
+assert.doesNotMatch(offlineHTML,/<div id="bottomActions">\s*<button id="offlineBtn"/,
+ 'OFFLINE must not reappear in the public Radio footer');
 assert.match(musicSource,/function musicOfflineAllowed\(\)/,'Music Offline uses verified access');
-assert.match(musicSource,/document\.getElementById\('offlineBtn'\)\?\.click\(\)/,
- 'Music offline fallback reuses the real Radio controller');
+assert.match(musicSource,/class="geMusicOfflineTrigger"/,'Music owns the visible Offline action');
+assert.match(musicSource,/window\.GERadioReloadLibrary\(control\)/,'MUSIC must call the reload controller directly');
+assert.match(musicSource,/window\.GERadioOpenDiagnostics\(\)/,'MUSIC must call DEBUG directly');
+assert.match(offlineHTML,/request:requestOffline/,'Offline requests must call the downloader controller');
 
 const radioSource=readFileSync('radio/index.html','utf8');
 assert.doesNotMatch(musicSource, /state\.view\s*=\s*['"]access-code['"]|setView\(['"]access-code['"]\)/,
