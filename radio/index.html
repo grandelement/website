@@ -11635,13 +11635,15 @@ async function refreshTemplateAssetsForOffline(){
 // Manual music library updater.
 // RELOAD updates the catalog, master approvals, and available artwork.
 // It MUST NOT start audio, change the user's mode or reset the active queue.
+let geReloadBusy=false;
 async function geReloadLibrary(button=null){
   if(!geRadioUtilityAllowed('reload')){
     syncRadioOfflineAccessUI();
     setStatus('RELOAD LIBRARY requires a verified developer access code.');
     return false;
   }
-  if(button?.disabled)return false;
+  if(geReloadBusy||button?.disabled)return false;
+  geReloadBusy=true;
   const original=button?.textContent||'RELOAD';
   if(button){button.disabled=true;button.textContent='Updating...';}
 
@@ -11754,6 +11756,7 @@ async function geReloadLibrary(button=null){
     if(button){button.textContent='Try Again';setTimeout(()=>{if(button.isConnected)button.textContent=original;},2200);}
     return false;
   }finally{
+    geReloadBusy=false;
     if(button)button.disabled=false;
   }
 }
