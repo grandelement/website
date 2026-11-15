@@ -2016,7 +2016,8 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(allowed)}
+     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set()}
+     else{const allowedPaths=new Set(allowed);state.selected=new Set([...state.selected].filter(path=>allowedPaths.has(path)))}
      saveSelected();void loadPublished();setView('access-code');
      say('Music code verified · ALL SONGS shown in the normal catalog order.');
    }else{
@@ -2024,7 +2025,8 @@ async function redeemMusicCode(){
      setView('albums');say('Music code verified for the full library.');
    }
  }catch(error){
-   clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
+   // An invalid replacement code must not revoke an already valid Vault session.
+   say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
 function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
@@ -2113,7 +2115,7 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
- const simpleBrowser=state.view==='browse-songs'||state.view.startsWith('album:')||state.view==='playlist-display';
+ const simpleBrowser=state.view==='browse-songs'||state.view==='access-code'||state.view.startsWith('album:')||state.view==='playlist-display';
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -2368,7 +2370,7 @@ function render(){
  if(!state.open)return;
  const albumUniverseActive=state.view==='albums';
  const albumDetail=state.view.startsWith('album:');
- const songBrowsing=albumDetail||state.view==='browse-songs'||state.view==='user-playlists'||state.view==='playlist-display';
+ const songBrowsing=albumDetail||state.view==='browse-songs'||state.view==='access-code'||state.view==='user-playlists'||state.view==='playlist-display';
  const musicWindow=el('.window');
  musicWindow.style.display=albumUniverseActive?'none':'';
  musicWindow.classList.toggle('geAlbumFullArt',songBrowsing);
@@ -2673,7 +2675,7 @@ function render(){
   if(state.view==='playlist-order'&&gePlaylistEditMode){
    scroller.append(elem('p','section','EDIT PLAYLIST · CHECK SONGS TO ADD OR REMOVE · DONE TO RETURN TO ARRANGE'));
   }
-  const shown=chosen.filter(t=>state.view==='browse-songs'||t.album!=='Singles').filter(filterTrack);
+  const shown=chosen.filter(t=>state.view==='browse-songs'||state.view==='access-code'||t.album!=='Singles').filter(filterTrack);
   if(state.view==='test-purchases'){
     scroller.append(elem('div','section','TEST PURCHASES · NOT PAID · THIS DEVICE ONLY'));
     if(!shown.length)scroller.append(elem('p','empty','No simulated purchases yet. Use SIMULATE PURCHASE in owner Sun Lab.'));
@@ -2682,7 +2684,7 @@ function render(){
   if(state.view==='playlist-display'){
    scroller.append(elem('strong','gePlaylistListTitle',state.activePlaylist?.name||'WORKING PLAYLIST'));
   }
-  if(state.view==='browse-songs'){
+  if(state.view==='browse-songs'||state.view==='access-code'){
     let section=null,previousAlbum='';
     for(const track of shown){
       if(track.album!==previousAlbum){
@@ -2710,7 +2712,7 @@ function render(){
    const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
    breadcrumb(p?.name||'Playlist',isVault?'ge-playlists':'user-playlists');
   }
-  if(state.view!=='browse-songs')for(const t of shown)appendSong(scroller,t);
+  if(state.view!=='browse-songs'&&state.view!=='access-code')for(const t of shown)appendSong(scroller,t);
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
  }
  scroller.scrollTop=previous;
