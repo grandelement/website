@@ -216,16 +216,24 @@ requireText(music,/el\('\.selectAllSongs'\)\.addEventListener\('change'/,'Global
 requireText(radio,/id="ge-radio-ios-visible-viewport"/,'iPhone Safari toolbar height detection removed');
 requireText(radio,/ge-safari-browser-compact/,'Dynamic Safari compact layout removed');
 requireText(radio,/id="radioCopyright"/,'Copyright footer removed');
-requireText(radio,/id="reloadBtn" hidden/,'Reload button removed');
-requireText(radio,/id="offlineBtn" type="button"/,'Permanent OFFLINE button missing');
-requireNot(radio,/id="offlineBtn" hidden/,'OFFLINE must not start hidden');
-requireText(radio,/offlineButton\.hidden=false/,'OFFLINE must remain visible when the Gate is locked');
-requireText(radio,/offlineButton\.setAttribute\('aria-disabled',String\(!permissions.offline\)\)/,'OFFLINE locked state must follow verified Vault permission');
-requireText(radio,/if\(!geRadioUtilityAllowed\('offline'\)\)\{/,'OFFLINE actions must require verified Vault permission');
-requireText(radio,/window.GEGate\.openCodeEntry\(\)/,'Locked OFFLINE button must offer CODE entry');
-requireText(radio,/ge-radio-offline-always-visible-20261031/,'Always-visible OFFLINE layout missing');
-requireText(radio,/shipOffline\.hidden=false/,'Ship OFFLINE control must remain visible');
-requireText(radio,/setUtility\(\$\('reloadBtn'\),false\)/,'Reload control must remain hidden until re-enabled by owner');
+// Owner revision 2026-11-14: RELOAD, DEBUG and OFFLINE remain functional,
+// but their visible controls belong in MUSIC, not the public Radio or Ship.
+const publicBottom=(radio.match(/<div id="bottomActions">([\s\S]*?)<\/div>/)||[])[1]||'';
+const publicUtility=(radio.match(/<div id="geUtilityRow"[^>]*>([\s\S]*?)<\/div>/)||[])[1]||'';
+assert.ok(publicBottom&&publicUtility,'Radio footer containers missing');
+requireNot(publicBottom,/id="offlineBtn"/,'OFFLINE returned to public Radio controls');
+requireNot(publicUtility,/id="reloadBtn"|id="geDebugOpen"|id="offlineBtn"/,'Owner-only tools returned to front utility row');
+requireText(publicUtility,/id="sunLabBtn"[\s\S]*?SUPPORT/,'SUN LAB must come before SUPPORT in front utility row');
+requireText(radio,/<div id="geRadioInternalControls" hidden aria-hidden="true"[^>]*>[\s\S]*?id="offlineBtn" type="button" hidden[\s\S]*?id="reloadBtn" type="button" hidden/,'Internal offline and reload controllers missing');
+requireText(radio,/offlineButton\.hidden=true/,'Internal OFFLINE must stay hidden');
+requireText(radio,/setUtility\(\$\('reloadBtn'\),false\)/,'RELOAD should be visible only in MUSIC');
+requireText(radio,/setUtility\(\$\('geDebugOpen'\),false\)/,'DEBUG should be visible only in MUSIC');
+requireNot(radio,/<button data-proxy="offlineBtn"/,'Ship OFFLINE front button returned');
+requireNot(radio,/<button data-proxy="reloadBtn"/,'Ship RELOAD front button returned');
+requireText(radio,/if\(!geRadioUtilityAllowed\('offline'\)\)\{/,'OFFLINE actions must require verified access');
+requireText(music,/const geOwnerReload=geOwnerButton\('RELOAD','reload'\)/,'Owner RELOAD missing from MUSIC');
+requireText(music,/const geOwnerDebug=geOwnerButton\('DEBUG','debug'\)/,'Owner DEBUG missing from MUSIC');
+requireText(music,/source\.click\(\)/,'Owner MUSIC controls must reuse guarded Radio handlers');
 requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
 assert.ok(radio.includes("return verified&&r.scopes.includes(feature);"),'Offline and Reload must use their own verified scopes');
 assert.ok(!radio.includes("r.sunLab===true"),'Sun Lab must not grant Offline or Reload');
@@ -234,11 +242,11 @@ assert.ok(homeRadio.includes('return STREAM;'),'Homepage must request the canoni
 assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must not have proxy-breaking cache-busting query');
 requireText(radio,/id="ge-radio-no-extra-row-20261031"/,'Whole visible buffering bar and empty grid row must be gone');
 requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
-requireText(radio,/grid-area:2\/1\/3\/2!important/,'Sun Lab must replace the retired RELOAD position');
+requireText(radio,/#geUtilityRow > #sunLabBtn\{[\s\S]*?grid-area:1 \/ 1 \/ 2 \/ 2!important/,'SUN LAB must occupy the first front utility slot');
 requireText(radio,/ge-radio-no-extra-row-20261031/,'Removed Radio status bar returned');
 requireText(radio,/id="ge-radio-music-same-height-20261031"/,'MUSIC equal-size portrait override removed');
 requireText(radio,/sw\.js\?v=20261105-listener-safe-batch-v88/,'Current iPhone offline-ready UI shell not refreshed');
-requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
+requireText(radio,/#geRadioInternalControls/,'Protected internal utility controller missing');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
 requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
 requireText(radio,/ge-radio-iphone-locked/,'Safari visual viewport lock removed');
