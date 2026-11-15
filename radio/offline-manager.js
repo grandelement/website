@@ -98,7 +98,7 @@ async function inspect(){
 }
 async function download(kind){
  if(running)return;
- if(!bridge().canDownload?.()){status('OFFLINE download access is not verified. Enter CODE first.');bridge().promptCode?.();return}
+ if(!bridge().canDownload?.()){status('OFFLINE download access is not verified. Enter CODE first.');surface.hidden=true;bridge().promptCode?.();return}
  if(navigator.onLine===false){status('Reconnect to download. Stored songs remain available locally.');return}
  let target;
  try{const all=allowed(await manifest());target=kind==='selected'?selected(all):all}
@@ -139,7 +139,7 @@ async function download(kind){
 }
 async function saveArt(){
  if(running)return;
- if(!bridge().canDownload?.()){status('Enter CODE to save album art.');bridge().promptCode?.();return}
+ if(!bridge().canDownload?.()){status('Enter CODE to save album art.');surface.hidden=true;bridge().promptCode?.();return}
  if(navigator.onLine===false){status('Reconnect to save artwork.');return}
  busy(true);cancelled=false;let done=0,failed=0;progress(0,ALBUMS.length);const cache=await caches.open(ART);
  try{
