@@ -220,7 +220,7 @@ surface.addEventListener('click',event=>{
  if(act==='install')installGuide();
  if(act==='verify')void readiness();
  if(act==='stop')stopping=true;
- if(act==='delete')try{localStorage.removeItem(STATUS)}catch(_){}
+
 });
 document.getElementById('offlineLaunchBtn')?.addEventListener('click',updateInstallLine);
 window.GEOfflineSetup={onSaved,readiness,shellStatus,isInstalled,prepareAll};
