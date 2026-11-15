@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.61-20261115-OFFLINE-ONE-MUSIC-SOURCE';
+const BUILD='GE-MUSIC-V7.62-20261115-SHARED-OFFLINE-MINI-METER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1393,6 +1393,32 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .header .musicOfflineLaunch{min-width:74px;padding:6px 8px;font-size:12px;background:#084e7b;border-color:#7bcfff}
 @media(max-width:420px){.header .musicOfflineLaunch{min-width:65px;font-size:11px;padding:5px}
  .geOfflineWorkspace{padding-inline:12px!important}.geOfflineChoices{gap:7px}}
+
+/* Radio 41: compact OFFLINE shortcut in MUSIC. This is a read-only mirror of
+   the one GEOfflineDownloads progress callback, NOT another downloader. */
+.window > .geOfflineMiniBar{
+ order:7!important;display:flex!important;flex:0 0 auto!important;align-items:center!important;
+ gap:9px!important;min-width:0!important;min-height:38px!important;
+ padding:4px 12px!important;background:#061525!important;
+ border-top:1px solid #38546b!important;
+}
+.window.geOfflineOpen > .geOfflineMiniBar{display:none!important}
+.window > .geOfflineMiniBar .geOfflineMiniButton{
+ flex:0 0 74px!important;min-width:74px!important;max-width:74px!important;
+ height:30px!important;min-height:30px!important;padding:3px 6px!important;
+ font-size:11px!important;line-height:1!important;background:#093d60!important;
+ border:1px solid #8dd6f5!important;border-radius:7px!important;
+}
+.geOfflineMiniMeter{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.geOfflineMiniTrack{height:5px;overflow:hidden;border-radius:5px;background:#25455c}
+.geOfflineMiniFill{height:100%;width:0%;background:#41c9ef;border-radius:5px;transition:width .15s linear}
+.geOfflineMiniNumbers{display:flex;align-items:center;justify-content:space-between;gap:8px;
+ font:700 11px/1.1 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;color:#d6eefa}
+.geOfflineMiniNumbers span{white-space:nowrap}
+@media(max-width:355px){
+ .window > .geOfflineMiniBar{padding-inline:7px!important;gap:6px!important}
+ .window > .geOfflineMiniBar .geOfflineMiniButton{flex-basis:68px!important;min-width:68px!important;max-width:68px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1412,7 +1438,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <section class="geOfflineWorkspace" aria-label="Offline music download choices">
+ <section id="geMusicOfflineWorkspace" class="geOfflineWorkspace" aria-label="Offline music download choices">
   <h2>OFFLINE MUSIC</h2>
   <p>Choose what to save. One tap downloads missing songs, station IDs, and artwork. Already saved music stays on this device.</p>
   <div class="geOfflineChoices" role="group" aria-label="Choose offline download">
@@ -1431,6 +1457,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
   </div>
   <p class="geOfflineSmall">Downloads require an authorized CODE and should be done inside this installed Home Screen app. Saved songs play offline even after the code session ends. Nothing is deleted by UPDATE.</p>
  </section>
+ <div class="geOfflineMiniBar" aria-label="Offline music status">
+   <button type="button" class="geOfflineMiniButton" aria-controls="geMusicOfflineWorkspace" aria-label="Open the same offline music downloads">OFFLINE</button>
+   <div class="geOfflineMiniMeter">
+    <div class="geOfflineMiniTrack" role="progressbar" aria-label="Music saved offline" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="geOfflineMiniFill"></div></div>
+    <div class="geOfflineMiniNumbers"><span class="geOfflineMiniPercent">0%</span><span class="geOfflineMiniETA" aria-label="Estimated time remaining">--:--</span></div>
+   </div>
+ </div>
  <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-hidden="true"></strong><button class="gePlayerSunReturn" type="button" aria-label="Return to the Radio player" title="Return to player"><img src="../ge-images/images/ge-logo-2.jpg" alt=""></button><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
@@ -2835,6 +2868,27 @@ const offlineStatus=el('.geOfflineStatus');
 const offlineStart=el('.geOfflineStart');
 const offlineStop=el('.geOfflineStop');
 const offlineProgress=el('.geOfflineProgress');
+const offlineMiniTrack=el('.geOfflineMiniTrack');
+const offlineMiniFill=el('.geOfflineMiniFill');
+const offlineMiniPercent=el('.geOfflineMiniPercent');
+const offlineMiniETA=el('.geOfflineMiniETA');
+let offlineDownloadStartedAt=0;
+function offlineTime(seconds){
+ if(!Number.isFinite(seconds)||seconds<0)return '--:--';
+ const total=Math.ceil(seconds),hours=Math.floor(total/3600),
+  minutes=Math.floor((total%3600)/60),secs=total%60;
+ return (hours?String(hours)+':'+String(minutes).padStart(2,'0'):String(minutes).padStart(2,'0'))
+  +':'+String(secs).padStart(2,'0');
+}
+function setOfflineMiniMeter(completed,total,etaSeconds=null){
+ const n=Number(total),done=Number(completed);
+ const percent=Number.isFinite(n)&&n>0&&Number.isFinite(done)
+  ?Math.min(100,Math.max(0,Math.round(done*100/n))):0;
+ offlineMiniFill.style.width=percent+'%';
+ offlineMiniPercent.textContent=percent+'%';
+ offlineMiniTrack.setAttribute('aria-valuenow',String(percent));
+ offlineMiniETA.textContent=offlineTime(etaSeconds);
+}
 function setOfflineMessage(message){offlineStatus.textContent=String(message)}
 function offlinePlaylistPaths(){
  const key=el('.geOfflinePlaylist').value,entry=offlinePlaylistChoices.find(p=>p.key===key);
@@ -2891,6 +2945,10 @@ async function offlineCheck(){
  try{
   const result=await engine.inspect();
   if(offlineBusy)return;
+  // Both views display the same engine audit, including resumed partial sets.
+  offlineProgress.max=Math.max(1,result.total);
+  offlineProgress.value=result.saved;
+  setOfflineMiniMeter(result.saved,result.total,result.ready?0:null);
   if(result.ready)
    setOfflineMessage('READY · '+result.saved+'/'+result.total+' saved songs · installed engine and station IDs checked.');
   else if(result.partial)
@@ -2901,6 +2959,20 @@ async function offlineCheck(){
  }catch(error){setOfflineMessage('Offline check failed: '+String(error?.message||error))}
 }
 function offlineProgressUpdate(event){
+ // Both displays consume this one callback from the one download engine.
+ if(event.phase==='starting-download'){
+  offlineDownloadStartedAt=Date.now();
+  setOfflineMiniMeter(0,event.total,null);
+ }
+ if(event.phase==='audio'){
+  const remaining=Math.max(0,Number(event.remaining)||0);
+  const elapsed=(Date.now()-offlineDownloadStartedAt)/1000;
+  const eta=remaining===0?0:
+   event.completed>0&&offlineDownloadStartedAt>0?elapsed/event.completed*remaining:null;
+  setOfflineMiniMeter(event.completed,event.total,eta);
+ }else if(event.phase==='finished'){
+  setOfflineMiniMeter(event.saved,event.total,event.ready?0:null);
+ }
  if(!state.open||!el('.window').classList.contains('geOfflineOpen'))return;
  if(event.phase==='audio'){
   offlineProgress.max=Math.max(1,event.total);
@@ -2960,6 +3032,7 @@ async function offlineDownload(){
  finally{offlineBusy=false;offlineStart.disabled=false;offlineStop.hidden=true}
 }
 el('.musicOfflineLaunch').addEventListener('click',openOffline);
+el('.geOfflineMiniButton').addEventListener('click',openOffline);
 root.querySelectorAll('[data-ge-offline]').forEach(b=>b.addEventListener('click',()=>chooseOffline(b.dataset.geOffline)));
 offlineStart.addEventListener('click',()=>void offlineDownload());
 offlineStop.addEventListener('click',()=>{window.GEOfflineDownloads?.stop?.();setOfflineMessage('Stopping… Saved files will be kept.')});
@@ -3000,6 +3073,8 @@ function open(){
   void fetchCatalog().finally(()=>{state.loading=false;});
  }
  void loadPublished();void loadFanPlaylists();render();scroller.scrollTop=0;root.querySelector('[data-tab="'+activeCategory()+'"]').focus();
+ // Read only the existing offline plan/cache; no new download is started.
+ void offlineCheck();
 }
 function close(){
  if(!state.open)return;
