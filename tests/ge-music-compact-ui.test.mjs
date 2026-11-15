@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import puppeteer from 'puppeteer-core';
 const manifest=JSON.parse(readFileSync('radio/manifest.json','utf8'));
-const tracks=manifest.files.filter(p=>p.startsWith('ge-music/music/')&&/\\.(mp3|m4a|wav|ogg)$/i.test(p));
+const tracks=manifest.files.filter(p=>p.startsWith('ge-music/music/')&&/[.](mp3|m4a|wav|ogg)$/i.test(p));
 assert(tracks.some(p=>p.includes(' - Fire/')),'Fire album should exist');
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 try{
