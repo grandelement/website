@@ -10221,9 +10221,10 @@ async function registerServiceWorker(){
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
   const MUSIC_OFFLINE_TARGET_KEY='GE_MUSIC_OFFLINE_TARGET_V1';
-  function savedMusicOfflineTargets(){
+  const MUSIC_OFFLINE_FULL_TARGET_KEY='GE_MUSIC_OFFLINE_FULL_TARGET_V1';
+  function savedMusicOfflineTargets(key=MUSIC_OFFLINE_TARGET_KEY){
     try{
-      const paths=JSON.parse(localStorage.getItem(MUSIC_OFFLINE_TARGET_KEY)||'null');
+      const paths=JSON.parse(localStorage.getItem(key)||'null');
       if(Array.isArray(paths)){
         const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
         return wanted.size?wanted:null;
@@ -10236,9 +10237,14 @@ async function registerServiceWorker(){
   async function publishVerifiedMusicOfflineStatus(knownAudit=null){
     try{
       const wanted=savedMusicOfflineTargets();
+      const fallback=wanted||savedMusicOfflineTargets(MUSIC_OFFLINE_FULL_TARGET_KEY);
       let audit=knownAudit;
       if(!audit){
-        const assets=await buildAssetList();
+        // Once downloaded, the saved target lets an iPhone verify progress
+        // without contacting GitHub, even after Wi-Fi has been disconnected.
+        const assets=navigator.onLine===false&&fallback?.size
+          ?[...fallback].map(path=>({url:absolute('../'+path),type:'song',size:0}))
+          :await buildAssetList();
         const scoped=wanted?assets.filter(item=>item.type!=='song'||wanted.has(canonicalSongPath(item.url))):assets;
         audit=await auditAssets(scoped,{copyExisting:true,readOnly:true});
       }
@@ -10587,6 +10593,10 @@ async function registerServiceWorker(){
 
   async function scanExistingAssets(){
     const assets=await buildAssetList();
+    const fullPaths=[...new Set(assets.filter(item=>item.type==='song').map(item=>canonicalSongPath(item.url)).filter(Boolean))];
+    if(fullPaths.length){
+      try{localStorage.setItem(MUSIC_OFFLINE_FULL_TARGET_KEY,JSON.stringify(fullPaths))}catch(_e){}
+    }
     const audit=await auditAssets(assets,{copyExisting:true});
     await verifyOfflineLaunchAssets();
     // Preserve the stored Offline ON/OFF preference while checking cached files.
