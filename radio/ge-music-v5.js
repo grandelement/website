@@ -1248,6 +1248,21 @@ button:disabled{opacity:.5;cursor:not-allowed}
  align-items:center!important;gap:0!important;
  background:#071524!important;border:0!important;outline:0!important;box-shadow:none!important;
 }
+/* Blend adjoining album artwork instead of exposing a hard image boundary.
+   Each following section overlaps only the previous artwork, while its heading
+   and songs stay below the transition and retain their own touch targets. */
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
+ background:transparent!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare{
+ margin-top:-72px!important;
+ padding-top:92px!important;
+}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare > .geAlbumSectionArt,
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare::before{
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
+ mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
+}
 /* Real image elements avoid CSS-background failures and a painted section seam. */
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > .geAlbumSectionArt{
  position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;
