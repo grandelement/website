@@ -19,6 +19,9 @@ on:
       - '.github/workflows/ge-spectrum-build.yml'
 permissions:
   contents: write
+concurrency:
+  group: ge-spectrum-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -44,5 +47,8 @@ jobs:
           git add radio/eq/library-spectrum.json
           if ! git diff --cached --quiet; then
             git commit -m 'Update verified song spectrum timelines'
-            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+            target="${{ github.event.pull_request.head.ref || github.ref_name }}"
+            git fetch origin "$target"
+            git rebase "origin/$target"
+            git push origin HEAD:"$target"
           fi
