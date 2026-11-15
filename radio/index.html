@@ -12676,6 +12676,38 @@ Vector ${vector}. ${pair[1]}.`;
     for(let i=0;i<count;i++){const dot=document.createElement('span'),angle=Math.PI*2*(i/count)+rand(-.5,.5),radius=rand(20,39),x=50+Math.cos(angle)*radius,y=50+Math.sin(angle)*radius;dot.style.left=`${x}%`;dot.style.top=`${y}%`;dot.style.opacity=String(rand(.35,.9));dot.style.transform='translate(-50%,-50%)';radarBlips.appendChild(dot);}
   }
   let eqAudioCtx=null,eqAnalyser=null,eqData=null,eqSource=null,eqGain=null,eqTapAudio=null,eqOverlayOpen=false;
+  let eqCaptureReady=false,eqCaptureSource=null,eqCaptureStream=null;
+  // Capture available audio without ever redirecting or replacing the audible
+  // native iPhone media element. Unsupported browsers keep native playback.
+  async function ensureSafePlayerEQCapture(){
+    if(state.live||document.hidden||audio.paused||!audio.currentSrc||!eqTapIsNeeded())return false;
+    const capture=audio.captureStream||audio.mozCaptureStream;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(typeof capture!=='function'||!AC)return false;
+    try{
+      if(!eqCaptureReady){
+        const stream=capture.call(audio);
+        if(!stream?.getAudioTracks?.().length)return false;
+        if(!eqAudioCtx)eqAudioCtx=new AC();
+        eqAnalyser=eqAudioCtx.createAnalyser();
+        eqAnalyser.fftSize=512;
+        eqAnalyser.smoothingTimeConstant=.5;
+        eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
+        eqCaptureSource=eqAudioCtx.createMediaStreamSource(stream);
+        eqCaptureSource.connect(eqAnalyser);
+        // Do NOT connect this analysis-only graph to destination.
+        eqCaptureStream=stream;eqCaptureReady=true;
+      }
+      if(eqAudioCtx.state==='suspended')await eqAudioCtx.resume();
+      return eqCaptureReady&&eqAudioCtx.state==='running';
+    }catch(_e){
+      eqCaptureReady=false;
+      try{eqCaptureSource?.disconnect()}catch(__e){}
+      eqCaptureSource=null;
+      return false;
+    }
+  }
+
   // iPhone Safari can play the Icecast stream while returning silent WebAudio FFTs.
   // The analyser below consumes the frequency snapshot of the SAME BLITZ Radio 1
   // master feed. It never creates a second HTMLAudioElement on iOS, and failure
@@ -12822,11 +12854,17 @@ Vector ${vector}. ${pair[1]}.`;
     // isolated analyser and Gate FX when permitted.
     if(GE_IOS_AUDIO){
       try{eqTapAudio?.pause()}catch(_e){}
-      // Radio 1 frequencies arrive over the independent BLITZ spectrum endpoint.
-      // No iOS media graph, no competing audio session.
+      // A supported captureStream() reads the ORIGINAL playing song without
+      // creating a second audio session or rerouting the speaker output.
+      if(await ensureSafePlayerEQCapture()){
+        eqMessage('MUSIC EQ · original player frequency capture');
+        return true;
+      }
+      // Radio stream: fall back to server-provided FFT bins if available.
+      // This cannot be substituted with a synthetic sine-wave animation.
       void pollBlitzSpectrum();
-      eqMessage('MUSIC EQ · iPhone native Radio + live BLITZ spectrum');
-      return geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500;
+      eqMessage(state.live?'MUSIC EQ · checking live radio spectrum':'MUSIC EQ · frequency capture not supported on this iPhone');
+      return state.live&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500;
     }
     if(!eqTapIsNeeded() || document.hidden || audio.paused || !audio.currentSrc)return false;
     const source=audio.currentSrc||audio.src||'';
@@ -12903,7 +12941,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
-    if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
+    if(GE_IOS_AUDIO)return (eqCaptureReady&&!state.live&&eqAudioCtx?.state==='running')|| (state.live&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500)?eqData:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
   };
@@ -13467,13 +13505,20 @@ Vector ${vector}. ${pair[1]}.`;
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
     if(GE_IOS_AUDIO){
-      // Poll only while the real Radio 1 <audio> is playing. Never infer a
-      // valid signal from a button tap, playlist metadata, or mock animation.
-      void pollBlitzSpectrum();
-      if(state.live&&!audio.paused&&eqData&&geBlitzSpectrumAt>0
-          &&performance.now()-geBlitzSpectrumAt<2500){
-        live=eqData.some(bin=>bin>1);
-        if(live)eqLastSignalAt=performance.now();
+      if(!state.live&&eqCaptureReady&&eqAnalyser&&eqAudioCtx?.state==='running'&&!audio.paused){
+        try{
+          eqAnalyser.getByteFrequencyData(eqData);
+          live=eqData.some(bin=>bin>1);
+          if(live)eqLastSignalAt=performance.now();
+        }catch(_e){}
+      }else if(state.live){
+        // Radio uses a different server-side live spectrum source when present.
+        void pollBlitzSpectrum();
+        if(!audio.paused&&eqData&&geBlitzSpectrumAt>0
+            &&performance.now()-geBlitzSpectrumAt<2500){
+          live=eqData.some(bin=>bin>1);
+          if(live)eqLastSignalAt=performance.now();
+        }
       }
     }else if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'&&!eqTapAudio?.paused){
       try{
