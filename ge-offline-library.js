@@ -70,15 +70,21 @@ async function save(url,cache){
  const req=new Request(url,{credentials:'same-origin'});
  const path=new URL(url).pathname;
  const audio=/\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(path);
- const valid=response=>{
+ const valid=async response=>{
   if(!response||!response.ok||response.status!==200)return false;
   const mime=String(response.headers.get('content-type')||'').toLowerCase();
   if(audio && (mime.includes('text/html')||mime.includes('application/json')))return false;
-  const size=Number(response.headers.get('content-length'))||0;
-  return !audio||size!==0||!!response.body;
+  if(!audio)return true;
+  if(Number(response.headers.get('content-length'))>0)return true;
+  // Missing size header: check real readable cached bytes, not just body existence.
+  const reader=response.clone().body?.getReader();
+  if(!reader)return false;
+  try{const chunk=await reader.read();return !chunk.done&&!!chunk.value?.byteLength}
+  catch(_){return false}
+  finally{try{await reader.cancel()}catch(_){}}
  };
  // Never count a partial HTTP 206 or a cached HTML error as a saved song.
- if(valid(await cache.match(req,{ignoreSearch:true})))return 'cached';
+ if(await valid(await cache.match(req,{ignoreSearch:true})))return 'cached';
  const r=await fetch(req,{cache:'no-store'});
  if(!r.ok||r.status!==200||r.type==='opaque')throw new Error('HTTP '+r.status);
  const mime=String(r.headers.get('content-type')||'').toLowerCase();
@@ -88,7 +94,7 @@ async function save(url,cache){
  }
  // Cache Storage streams recordings without building an extra JS Blob.
  await cache.put(req,r);
- if(!valid(await cache.match(req,{ignoreSearch:true})))
+ if(!await valid(await cache.match(req,{ignoreSearch:true})))
   throw new Error('Cached file failed local verification');
  return 'saved';
 }
