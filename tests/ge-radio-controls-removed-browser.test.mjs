@@ -12,6 +12,10 @@ try{
      document.getElementById('playBtn')&&window.GEMusicV5?.open,{timeout:16000});
    const state=await page.evaluate(()=>{
     // Use a test-only unexpired scoped receipt to verify SUN LAB placement.
+    // Compare player controls in player mode; desktop may default to Ship.
+    document.body.classList.remove('view-ship');
+    document.body.classList.add('view-player');
+    if(innerWidth<700)document.body.classList.add('portrait-player');
     sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
       verifiedFor:'radio',until:Date.now()+60000,scopes:['radio','sunlab'],sunLab:true
     }));
