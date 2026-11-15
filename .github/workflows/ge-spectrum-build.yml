@@ -1,0 +1,36 @@
+name: GE song spectrum timelines for iPhone
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - fix/radio-offline-eq-layout-integrated-20261114
+    paths:
+      - 'ge-music/music/**'
+      - 'radio/manifest.json'
+      - 'radio/tools/build-spectrum-timeline.py'
+      - '.github/workflows/ge-spectrum-build.yml'
+permissions:
+  contents: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Verify audio analysis tooling
+        run: ffmpeg -version | head -n 1
+      - name: Generate real song bass/mid/treble timelines
+        run: python3 radio/tools/build-spectrum-timeline.py
+      - name: Commit updated spectra without affecting audio sources
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add radio/eq/library-spectrum.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update verified song spectrum timelines'
+            git push origin HEAD:${{ github.ref_name }}
+          fi
