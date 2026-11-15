@@ -245,7 +245,7 @@ requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assi
 requireText(radio,/#geUtilityRow > #sunLabBtn\{[\s\S]*?grid-area:1 \/ 1 \/ 2 \/ 2!important/,'SUN LAB must occupy the first front utility slot');
 requireText(radio,/ge-radio-no-extra-row-20261031/,'Removed Radio status bar returned');
 requireText(radio,/id="ge-radio-music-same-height-20261031"/,'MUSIC equal-size portrait override removed');
-requireText(radio,/sw\.js\?v=20261105-listener-safe-batch-v88/,'Current iPhone offline-ready UI shell not refreshed');
+requireText(radio,/sw\.js\?v=20261115-owner-utility-layout-v111/,'Current Radio UI shell registration not refreshed');
 requireText(radio,/#geRadioInternalControls/,'Protected internal utility controller missing');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
 requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
