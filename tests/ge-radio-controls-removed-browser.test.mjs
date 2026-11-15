@@ -78,8 +78,8 @@ try{
    assert(mini.visible,'Compact MUSIC offline strip must appear above the selection footer');
    assert.equal(mini.button,'OFFLINE');
    assert(mini.height<40,'Compact shortcut must not enlarge the selection footer');
-   assert.match(mini.percent,/^\\d+%$/);
-   assert.match(mini.eta,/^(?:--|\\d\\d):\\d\\d$/);
+   assert.match(mini.percent,/^\d+%$/);
+   assert.match(mini.eta,/^(?:--:--|\d\d:\d\d|\d+:\d\d:\d\d)$/);
    await page.evaluate(()=>{
      document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineMiniButton').click();
    });
