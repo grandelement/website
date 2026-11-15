@@ -8,6 +8,14 @@ const siteWorker=readFileSync('sw.js','utf8');
 assert.match(siteWorker,/LEGACY_RADIO_PATHS\.some/,'Old Lite links must route to canonical Radio');
 assert.match(siteWorker,/cache\.delete\(url\.href\)/,'Obsolete Lite pages must be purged without removing saved music');
 const musicSource=readFileSync('radio/ge-music-v5.js','utf8');
+const offlineHTML=readFileSync('radio/index.html','utf8');
+assert.match(offlineHTML, /<button id="offlineBtn" type="button" aria-hidden="false">OFFLINE<\/button>/,
+ 'Radio OFFLINE must be visible rather than marked hidden');
+assert.doesNotMatch(offlineHTML,/offlineButton\.hidden=true/,'Permission synchronization must not hide offline');
+assert.match(musicSource,/function musicOfflineAllowed\(\)/,'Music Offline uses verified access');
+assert.match(musicSource,/document\.getElementById\('offlineBtn'\)\?\.click\(\)/,
+ 'Music offline fallback reuses the real Radio controller');
+
 const radioSource=readFileSync('radio/index.html','utf8');
 assert.doesNotMatch(musicSource, /state\.view\s*=\s*['"]access-code['"]|setView\(['"]access-code['"]\)/,
   'An access code may not force a separate Music UI');

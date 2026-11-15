@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.56-20261114-NO-SECOND-GATE-SCREEN';
+const BUILD='GE-MUSIC-V7.57-20261114-OFFLINE-RESTORED';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1338,6 +1338,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 /* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
 .window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
+/* Restore the existing offline action in normal SONGS and PLAYLISTS.
+   It reuses the Radio download controller; no second offline library. */
+.window:not(.arranging) > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected),
+.window.geAlbumDetailClean > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected),
+.window.gePlaylistWorkspace > .selectionBar .selectionActions > button.offlineSelected:not(.buySelected):not(.playSelected){
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ visibility:visible!important;pointer-events:auto!important;min-width:48px!important;min-height:44px!important;
+ flex:1 1 0!important;
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -3001,13 +3010,22 @@ geOfflineRow.innerHTML='<button type="button" class="geMusicOfflineTrigger">OFFL
 el('.selectionBar').before(geOfflineRow);
 geOfflineRow.querySelector('.geMusicOfflineTrigger').addEventListener('click',()=>el('.offlineSelected').click());
 const geOfflineMeter=geOfflineRow.querySelector('.geMusicOfflineMeter');
+function musicOfflineAllowed(){
+ const access=musicAccessActive();
+ if(access?.offlineEnabled===true)return true;
+ try{
+  const grant=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+  return !!grant&&grant.verifiedFor==='radio'&&Number(grant.until)>Date.now()&&
+   Array.isArray(grant.scopes)&&grant.scopes.includes('offline')&&
+   (grant.scopes.includes('radio')||grant.scopes.includes('website'));
+ }catch(_){return false}
+}
 function updateOfflineAccessVisibility(){
- const enabled=!!musicAccessActive()?.offlineEnabled;
- geOfflineRow.hidden=!enabled;
+ geOfflineRow.hidden=!musicOfflineAllowed();
 }
 window.addEventListener('message',event=>{
  if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_PROGRESS')return;
- if(!musicAccessActive()?.offlineEnabled)return;
+ if(!musicOfflineAllowed())return;
  const p=event.data;
  const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
  geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
@@ -3038,7 +3056,11 @@ shareSelectedButton.addEventListener('click',()=>{
  void window.GEShareMusicSelection?.(selected);
 });
 el('.offlineSelected').addEventListener('click',()=>{
- if(!musicAccessActive()?.offlineEnabled)return;
+ if(!musicOfflineAllowed()){
+  close();
+  document.getElementById('offlineBtn')?.click();
+  return;
+ }
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent='Choose what to save on this device.';
  musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
