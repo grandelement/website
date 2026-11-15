@@ -23,3 +23,9 @@ jobs:
         with:
           node-version: '22'
       - run: node tests/ge-radio-owner-utility-layout.test.mjs
+      - name: Install browser test client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Verify actual phone and desktop button placement and clicks
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-radio-owner-ui.log 2>&1 &
+          node tests/ge-radio-owner-controls-browser.test.mjs
