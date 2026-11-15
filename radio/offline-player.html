@@ -15,6 +15,22 @@ const status=document.getElementById('status'),audio=document.getElementById('pl
 const entitlement='GE_RADIO_OFFLINE_ENTITLEMENT_V2',grantKey='GE_VAULT_OFFLINE_DEVICE_GRANT_V1';
 let songs=[],allSongs=[],index=-1,objectURL='',savedPlaylists=[];
 const playlistSelect=document.getElementById('playlist');
+// Offline app must install its own worker while online. Do not depend on
+// the listener opening a different Safari tab or the main Radio first.
+async function prepareOfflineLaunch(){
+ if(!('serviceWorker' in navigator))return false;
+ try{
+  const existing=await navigator.serviceWorker.getRegistration('./');
+  if(!navigator.onLine)return !!existing?.active;
+  const registration=await navigator.serviceWorker.register('./sw.js?v=2026.11.14-offline-boot-v107',{scope:'./',updateViaCache:'none'});
+  // An installation may take time. Never block access to already saved music.
+  return !!registration.active || !!registration.installing || !!registration.waiting;
+ }catch(error){
+  console.warn('Offline launcher not installed',error);
+  return false;
+ }
+}
+
 function normalizedPath(value){
  try{return decodeURIComponent(new URL(value,location.origin+'/').pathname).replace(/^[/]+/, '');}catch(_){return String(value||'').replace(/^[/]+/, '');}
 }
@@ -92,9 +108,15 @@ function verified(){
   const grant=JSON.parse(localStorage.getItem(grantKey)||'null');
   const device=JSON.parse(localStorage.getItem('GE_VAULT_RADIO_DEVICE_SESSION_V1')||'null');
   const id=String(localStorage.getItem('ge_vault_anon_id')||'');
-  // An offline player may use a prior locally verified entitlement. No Vault request.
-  if(receipt?.verified===true&&receipt.device_id)return true;
-  return grant?.offline===true&&grant.device_id&&device?.device_id===grant.device_id&&typeof device.token==='string';
+  if(!id)return false;
+  // Authorization is checked solely against already stored device grants.
+  // An offline launch must NEVER make a network request to Vault.
+  if(receipt?.verified===true&&receipt.device_id===id&&
+     Number(receipt.until)>Date.now())return true;
+  return grant?.offline===true&&grant.device_id===id&&
+    Number(grant.until)>Date.now()&&device?.device_id===id&&
+    Number(device.until)>Date.now()&&
+    typeof device.token==='string'&&device.token.length>20;
  }catch(_){return false}
 }
 function name(url){try{return decodeURIComponent(new URL(url).pathname.split('/').pop()).replace(/\.(mp3|m4a|ogg|wav)$/i,'').replace(/^Aether_11_Countdown to the Droid Army$/,'Aether_11_PEACE!')}catch(_){return url}}
@@ -149,6 +171,9 @@ document.getElementById('prev').onclick=()=>play(index<=0?songs.length-1:index-1
 document.getElementById('next').onclick=()=>play(index+1);
 audio.addEventListener('ended',()=>play(index+1));
 window.addEventListener('offline',()=>{if(songs.length)status.textContent='Offline · playing from this device only.'});
+// Prepare on the first online opening; subsequent starts use cached shell
+// and the locally saved entitlement without requesting a connection.
+void prepareOfflineLaunch();
 await scan();
 })();
 </script></body></html>

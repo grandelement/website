@@ -1,0 +1,29 @@
+name: GE OFFLINE cold-start contract
+on:
+  pull_request:
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-player.html'
+      - 'tests/ge-offline-cold-start-contract.test.mjs'
+      - '.github/workflows/ge-offline-cold-start.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-player.html'
+      - 'tests/ge-offline-cold-start-contract.test.mjs'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check radio service worker syntax
+        run: node --check radio/sw.js
+      - name: Check OFFLINE cold-start contract
+        run: node tests/ge-offline-cold-start-contract.test.mjs

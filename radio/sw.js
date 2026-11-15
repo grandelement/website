@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.10-offline-fixes-v106';
+const VERSION='2026.11.14-offline-boot-v107';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
@@ -44,6 +44,25 @@ const SHELL=[
   // be ready when MUSIC is opened offline after a full download.
   ...['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles']
     .map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
+];
+
+// These files are required for an offline cold start. Do not activate a new
+// worker if any one of them is missing. Older complete caches stay untouched.
+const OFFLINE_CORE=[
+  './offline-player.html',
+  './offline.webmanifest',
+  './manifest.webmanifest',
+  './ge-music-v5.js',
+  './manifest.json',
+  './ge-gate-audio.js',
+  './ge-gate-settings.js',
+  './iam-private-studio.js',
+  './ge-purchase-demo.js',
+  '../ge-vault-client.js',
+  '../ge-accessibility.js',
+  '../ge-accessibility.css',
+  '../playlists/registry.json',
+  '../config/site-live.json'
 ];
 
 async function fetchFresh(requestOrURL){
@@ -89,13 +108,24 @@ self.addEventListener('install',event=>{
     await cache.put('./index.html',indexResponse.clone());
     await cache.put('./',indexResponse.clone());
 
-    // The remaining shell files are useful but one missing icon must not block
-    // the radio from becoming usable offline.
-    const optional=SHELL.filter(url=>url!=='./' && url!=='./index.html');
-    await Promise.allSettled(optional.map(async url=>{
+    // Core code must exist in this installation before it becomes active.
+    // Keep the previous worker in place if the connection fails mid-install.
+    for(const url of OFFLINE_CORE){
       const response=await fetch(url,{cache:'reload'});
-      if(response.ok) await cache.put(url,response.clone());
-    }));
+      if(!response.ok) throw new Error('Missing required offline asset: '+url);
+      await cache.put(url,response);
+    }
+
+    // Decorative and secondary files are optional. Avoid a large parallel
+    // download burst that can exceed iPhone service-worker install limits.
+    const optional=[...new Set(SHELL)].filter(url=>
+      url!=='./' && url!=='./index.html' && !OFFLINE_CORE.includes(url));
+    for(let i=0;i<optional.length;i+=4){
+      await Promise.allSettled(optional.slice(i,i+4).map(async url=>{
+        const response=await fetch(url,{cache:'reload'});
+        if(response.ok) await cache.put(url,response);
+      }));
+    }
 
     await self.skipWaiting();
   })());
