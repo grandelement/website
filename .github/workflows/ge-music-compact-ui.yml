@@ -1,0 +1,27 @@
+name: GE MUSIC compact phone controls
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'radio/ge-music-v5.js'
+      - 'radio/index.html'
+      - 'tests/ge-music-compact-ui.test.mjs'
+      - '.github/workflows/ge-music-compact-ui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  phone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Verify single row, Sun, OFFLINE and album title
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-music-compact.log 2>&1 &
+          node tests/ge-music-compact-ui.test.mjs
