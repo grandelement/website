@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const radio=read('index.html');
 const home=read('../index.html');
-const sharedViewDetector=/<script id="ge-safari-request-website-mode">([\\s\\S]*?)<\\/script>/;
+const sharedViewDetector=/<script id="ge-safari-request-website-mode">([\s\S]*?)<\/script>/;
 assert.equal(radio.match(sharedViewDetector)?.[1],home.match(sharedViewDetector)?.[1],
   'Home and Radio must classify iPhone/tablet/desktop identically');
 
