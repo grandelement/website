@@ -36,6 +36,7 @@ test('radio cold start checks stored identity with no Vault request',()=>{
 });
 test('offline player registers independently and enforces expiry and song scope',()=>{
  assert.match(player,/navigator\.serviceWorker\.register\('\.\/sw\.js/);
+ assert.match(player,/const timeout=setTimeout\(\(\)=>controller\.abort\(\),3500\)/);
  assert.match(player,/Number\(receipt\.until\)>now/);
  assert.match(player,/Number\(grant\.until\)>now/);
  assert.match(player,/\.filter\(url=>!allowed\|\|allowed\.has\(normalizedPath\(url\)\)\)/);
