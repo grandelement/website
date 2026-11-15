@@ -202,6 +202,6 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(html,/\.\/offline-manager\.js\?v=20261115-music-albums-offline-v2/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=20261115-music-albums-offline-v2/);
  assert.match(html,/sw\.js\?v=20261115-music-albums-offline-v2/);
- assert.match(sw,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
- assert.match(source,/const VERSION='2026\.11\.15-offline-rebuild-v1'/);
+ assert.match(sw,/const VERSION='2026\.11\.15-music-albums-offline-v2'/);
+ assert.match(source,/const VERSION='2026\.11\.15-music-albums-offline-v2'/);
 });
