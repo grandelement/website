@@ -133,6 +133,9 @@ async function download(kind){
   await Promise.resolve(bridge().rescan?.()).catch(()=>{});
   status(cancelled?'Stopped. Earlier downloads were kept.':failed?failed+' songs failed. Press SAVE again to retry missing files.':'Audio stored and checked. Verify actual playback in Airplane Mode.');
  }
+ const outcome={saved:done,failed,total:target.length,stopped:cancelled};
+ try{await window.GEOfflineSetup?.onSaved?.(outcome)}catch(_){}
+ return outcome;
 }
 async function saveArt(){
  if(running)return;
@@ -155,6 +158,7 @@ async function saveArt(){
    progress(done,ALBUMS.length);
   }
  }finally{busy(false);status(failed?failed+' album covers not saved. Retry while online.':'Album artwork saved.')}
+ return {saved:done,failed,total:ALBUMS.length,stopped:cancelled};
 }
 async function erase(){
  if(running)return;
@@ -170,7 +174,7 @@ async function erase(){
     if(await cache.delete(req))n++;
    }
   }
-  for(const key of ['GE_OFFLINE_PLAYABLE_V6','GE_OFFLINE_STATIONS_V6',PLAN])try{localStorage.removeItem(key)}catch(_){}
+  for(const key of ['GE_OFFLINE_PLAYABLE_V6','GE_OFFLINE_STATIONS_V6',PLAN,'GE_RADIO_OFFLINE_ACTIVATED_V1'])try{localStorage.removeItem(key)}catch(_){}
   await Promise.resolve(bridge().rescan?.()).catch(()=>{});
   message='Removed '+n+' cached audio copies across all browser caches. Playlists and permissions preserved.';
  }catch(e){message='Delete failed: '+String(e.message||e)}
@@ -190,5 +194,5 @@ surface.addEventListener('click',event=>{
  if(action==='stop'){cancelled=true;abort?.abort()}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!surface.hidden)close()});
-window.GERadioOfflineManager={open,inspect};
+window.GERadioOfflineManager={open,inspect,download,saveArt,manifest,allowed,selected,anySaved,fileURL};
 })();
