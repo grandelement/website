@@ -1,4 +1,15 @@
 import puppeteer from 'puppeteer-core';
+import assert from 'node:assert/strict';
+import {existsSync,readFileSync} from 'node:fs';
+
+// The original Radio is the ONLY public player. Never restore a competing Lite site.
+assert.equal(existsSync('lite/index.html'),false,'Legacy Lite radio page must not exist');
+for(const path of ['index.html','radio/index.html']){
+  const html=readFileSync(path,'utf8');
+  assert.doesNotMatch(html,/location\.(?:replace|assign)\(['"]\/lite\//,
+    path+' must not redirect listeners to Lite');
+}
+
 const browser=await puppeteer.launch({
   executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
   headless:true,args:['--no-sandbox','--disable-setuid-sandbox']
