@@ -243,7 +243,8 @@ assert.ok(homeRadio.includes('return STREAM;'),'Homepage must request the canoni
 assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must not have proxy-breaking cache-busting query');
 requireText(radio,/id="ge-radio-no-extra-row-20261031"/,'Whole visible buffering bar and empty grid row must be gone');
 requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
-requireText(radio,/#geUtilityRow > #sunLabBtn\{[\s\S]*?grid-area:1 \/ 1 \/ 2 \/ 2!important/,'SUN LAB must occupy the first front utility slot');
+requireText(radio,/PUBLIC RADIO BUTTONS: one owner for geometry/,'Public controls need one canonical layout');
+requireText(radio,/#geUtilityRow > #sunLabBtn\{[\s\S]*?order:1!important/,'SUN LAB must remain left of SUPPORT');
 requireText(radio,/ge-radio-no-extra-row-20261031/,'Removed Radio status bar returned');
 requireText(radio,/id="ge-radio-music-same-height-20261031"/,'MUSIC equal-size portrait override removed');
 requireText(radio,/sw\.js\?v=20261115-owner-utility-layout-v111/,'Current Radio UI shell registration not refreshed');
