@@ -10,8 +10,6 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
-  './offline-player.html',
-  './offline.webmanifest',
   '../playlists/registry.json',
   './ge-music-v5.js',
   './ge-purchase-demo.js',
@@ -49,7 +47,7 @@ const SHELL=[
 // A new offline worker must never replace the existing worker unless all
 // essential pages, scripts, styles, and local catalogs are stored.
 const REQUIRED_SHELL=[
-  './ge-music-v5.js','./offline-player.html','./offline.webmanifest',
+  './ge-music-v5.js',
   './manifest.json','./iam-private-studio.js','./ge-gate-audio.js',
   './ge-gate-settings.js','./ge-purchase-demo.js',
   '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
