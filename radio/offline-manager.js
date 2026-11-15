@@ -214,7 +214,9 @@ async function save({mode='all',paths=[],onProgress}={}){
      remaining:Math.max(0,downloads.length-completed),
      current:path.split('/').pop(),failed:failures.length});
   }
-  if(completed>0 && !stopRequested){
+  // A partial authorized download is still playable if its saved songs verify.
+  // STOP never revokes or erases songs the listener already downloaded.
+  if(completed>0){
    try{localStorage.setItem(ACTIVATED,'yes')}catch(_){}
    try{await bridge().rescan?.()}catch(_){}
   }
