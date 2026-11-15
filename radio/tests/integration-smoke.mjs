@@ -42,7 +42,7 @@ has(music,"data-action=\"open\"",'Saved offline player link');
 has(radio,"geMusicOfflineInternalRequest",'Music downloads bypass Radio shortcut');
 has(radio,"autoResume:true",'Saved offline queue');
 has(radio,'resumeCommittedOfflineDownload()','Auto resume');
-assert.ok(!radio.includes("if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO"),'iPhone EQ must not be disabled by constant guard');
+assert.ok(radio.includes("if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO"),'Never read BLITZ spectrum when static BANGERS plays');
 has(radio,'ensureSafePlayerEQCapture()','Safe EQ source');
 has(radio,'readMeasuredSongSpectrum()','Safari measured song EQ reader');
 has(radio,"'./eq/library-spectrum.json'",'Safari measured song EQ file URL');
