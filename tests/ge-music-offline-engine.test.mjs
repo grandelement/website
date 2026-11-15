@@ -49,7 +49,7 @@ function makeHarness(){
    if(data.type==='GE_RADIO_SHELL_STATUS'){
     ports[0].postMessage({
       type:data.type,ready:true,missing:[],
-      version:'2026.11.15-offline-music-v117'
+      version:'2026.11.15-radio42-offline-package-v1'
     });
    }
   }
@@ -70,6 +70,8 @@ function makeHarness(){
    return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
   if(path.startsWith('/ge-images/images/'))
    return new Response(new Uint8Array(260),{status:200,headers:{'Content-Type':'image/jpeg'}});
+  if(path==='/ge-images/img/31.gif')
+   return new Response(new Uint8Array(260),{status:200,headers:{'Content-Type':'image/gif'}});
   if(path.includes('Aether_04-Prana')&&failPrana)throw Error('Load failed');
   if(path.endsWith('.mp3')||path.endsWith('.m4a')){
    const bytes=new Uint8Array(256);bytes.set([73,68,51]);
@@ -120,6 +122,11 @@ test('all music saves once, reports partial on failed Prana, repairs only missin
  h.succeedPrana();
  const second=await h.engine.repair();
  assert.equal(second.ready,true);
+ assert.equal(second.artworkTotal,14);
+ assert.equal(second.artwork,14);
+ assert.equal(second.artworkMissing.length,0);
+ assert.equal(h.count('ge-images/img/31.gif'),1);
+ assert.equal(h.count('ge-images/img/42.gif'),0,'Do not bulk-download enormous background GIFs');
  assert.equal(second.saved,3);
  assert.equal(second.total,3);
  assert.equal(second.missing.length,0);
