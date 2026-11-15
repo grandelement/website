@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- GE_SITE_HOME_BUILD_20261114_CANONICAL_V1 -->
 <!--
 GE CONSOLIDATED MASTER — 2026-09-16
 Revision scope begins with: New Game must preserve the selected game / players / controls.
@@ -163,21 +164,17 @@ Preserve together:
 })();
 </script>
 <script>try{window.GE_A11Y_ZOOM=localStorage.getItem('GE_ACCESS_ZOOM_V1')==='1'}catch(_e){window.GE_A11Y_ZOOM=false}</script>
-<script>
+<script id="ge-lite-mode-explicit-only">
+/* Avoid unexpected alternate Radio UI on slow links, low-memory phones, or stale user agents.
+   Keep the accessible lite page available ONLY by explicit ?lite=1 request. */
 (function(){
   try{
-    var q=(window.location.search||'').toLowerCase();
-    if(q.indexOf('full=1')!==-1)return;
-    var lite=q.indexOf('lite=1')!==-1;
-    if(!lite){
-      try{new Function('var a={b:1};return a?.b;');}catch(e){lite=true;}
+    var url=new URL(window.location.href);
+    if(url.searchParams.get('lite')==='1'&&url.searchParams.get('full')!=='1'&&
+       window.location.pathname.indexOf('/lite/')===-1){
+      window.location.replace('/lite/?mode=manual');
     }
-    if(!lite&&window.screen&&screen.width&&screen.width<=280)lite=true;
-    var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-    if(!lite&&c&&(c.saveData||c.effectiveType==='slow-2g'||c.effectiveType==='2g'))lite=true;
-    if(!lite&&typeof navigator.deviceMemory==='number'&&navigator.deviceMemory<=1)lite=true;
-    if(lite&&window.location.pathname.indexOf('/lite/')===-1)window.location.replace('/lite/');
-  }catch(e){}
+  }catch(_e){}
 })();
 </script>
 <title>Grand Element (Official Site) - Welcome!</title>
