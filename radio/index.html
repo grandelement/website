@@ -8009,7 +8009,7 @@ function syncRadioOfflineAccessUI(){
     element.setAttribute('aria-hidden',allowed?'false':'true');
     element.tabIndex=allowed?0:-1;
   };
-  // Keep OFFLINE visible even when locked; click opens existing code notice.
+  // Legacy offline download controller is internal; MUSIC owns its visible interface.
   const offlineButton=$('offlineBtn');
   if(offlineButton){
     offlineButton.hidden=true;
@@ -11639,7 +11639,7 @@ async function geReloadLibrary(button=null){
   if(!geRadioUtilityAllowed('reload')){
     syncRadioOfflineAccessUI();
     setStatus('RELOAD LIBRARY requires a verified developer access code.');
-    return;
+    return false;
   }
   if(button?.disabled)return false;
   const original=button?.textContent||'RELOAD';
@@ -11747,10 +11747,12 @@ async function geReloadLibrary(button=null){
     );
 
     if(button)setTimeout(()=>{if(!button.isConnected)return;button.textContent=original;},2400);
+    return true;
   }catch(error){
     console.error('GE reload/reset failed',error);
     setStatus('Library update could not finish. Check the Internet connection and try again.');
     if(button){button.textContent='Try Again';setTimeout(()=>{if(button.isConnected)button.textContent=original;},2200);}
+    return false;
   }finally{
     if(button)button.disabled=false;
   }
