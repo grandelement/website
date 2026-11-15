@@ -8744,6 +8744,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
+    if(!isStationID(url))void window.GEOfflineSpectrum?.prepare?.(url);
     if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     window.GELoudness?.applyURL?.(url,350);
     fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
@@ -10880,6 +10881,8 @@ Vector ${vector}. ${pair[1]}.`;
   initSunLab();
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
+  // Local saved recordings are analyzed without connecting a second iPhone audio element.
+  const localSpectrumSource=()=>!state.live&&/\/ge-music\/music\//i.test(String(audio.currentSrc||audio.src||''));
   // Non-invasive live analyser + Gate wet-effects bus.
   // The listener's Radio <audio> handles Gate fade and reverb in one graph.
   // The separate EQ analyser is never started by Gate entrance on iPhone.
@@ -10969,6 +10972,14 @@ Vector ${vector}. ${pair[1]}.`;
     try{eqTapAudio?.pause()}catch(_e){}
   }
   async function ensureLiveEQ(){
+    if(localSpectrumSource()){
+      const url=state.currentURL||audio.currentSrc;
+      void window.GEOfflineSpectrum?.prepare?.(url);
+      const bins=window.GEOfflineSpectrum?.read?.(url,audio.currentTime);
+      if(bins){eqData=bins;eqLastSignalAt=performance.now();eqMessage('MUSIC EQ · LOCAL SONG FREQUENCIES');return true}
+      eqMessage('MUSIC EQ · PREPARING LOCAL SONG ANALYSIS');
+      return false;
+    }
     // iPhone Safari/PWA has a single reliable native music session. A SECOND
     // (even silent) HTMLAudioElement can steal the audible output, producing
     // "playing live" while the phone makes no sound. Never start EQ tap on iOS.
@@ -11057,6 +11068,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
+    if(localSpectrumSource())return window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime)||null;
     if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
@@ -11620,7 +11632,14 @@ Vector ${vector}. ${pair[1]}.`;
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
-    if(GE_IOS_AUDIO){
+    if(localSpectrumSource()){
+      const bins=window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime);
+      if(bins){
+        eqData=bins;
+        live=!audio.paused&&bins.some(bin=>bin>1);
+        if(live)eqLastSignalAt=performance.now();
+      }
+    }else if(GE_IOS_AUDIO){
       // Poll only while the real Radio 1 <audio> is playing. Never infer a
       // valid signal from a button tap, playlist metadata, or mock animation.
       void pollBlitzSpectrum();
