@@ -3,15 +3,15 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-offline-dock-viewport-v8';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
+const VERSION='2026.11.16-share-snapshot-v9';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_SHARE_SNAPSHOT_V11';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
  'Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
 const REQUIRED=[
  './offline-home.html',
- './ge-music-v5.js','./offline-manager.js','./offline-spectrum.js',
+ './ge-music-v5.js','./ge-share-snapshot.js','./offline-manager.js','./offline-spectrum.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
  './ge-gate-audio.js','./ge-gate-settings.js',
  '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',

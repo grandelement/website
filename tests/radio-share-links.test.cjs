@@ -10,6 +10,10 @@ const a=html.indexOf('// GE music shares: portable');
 const b=html.indexOf('function shareURL(){',a);
 assert(a>0&&b>a,'Portable share helper must be present');
 const source=html.slice(a,b);
+const shareCore=fs.readFileSync('radio/ge-share-snapshot.js','utf8');
+const shareContext={window:{},URL,URLSearchParams,Set,Map,Math,Date};
+vm.runInNewContext(shareCore,shareContext);
+assert(shareContext.window.GEShareSnapshot,'Unified share engine must initialize');
 const musicPaths=[
  'ge-music/music/Grand Element - 2026 - Aether/Aether_01_Gravity.mp3',
  'ge-music/music/Grand Element - 2026 - Aether/Aether_02_Drift.mp3',
@@ -19,7 +23,7 @@ const sandbox={
  URL,URLSearchParams,Math,Date,Set,Map,
  location:{href:'https://grandelement.com/radio/'},
  state:{catalog:musicPaths.slice()},
- window:{},
+ window:{GEShareSnapshot:shareContext.window.GEShareSnapshot},
  navigator:{clipboard:{writeText:async()=>{}}},
  prompt:()=>{},setStatus:()=>{},
  canonicalSongPath:(v)=>String(v||'').replace(/^https?:\/\/[^/]+\//,'').replace(/^\//,''),
@@ -50,6 +54,21 @@ for(const selection of [
 }
 sandbox.location.href='https://grandelement.com/radio/?mix=not-valid';
 assert.match(api.read().error,/Invalid shared playlist/);
+// The current song is identified by both its playlist index and stable hash.
+// A recipient must never silently fall back to track one or a duplicate filename.
+const five=[musicPaths[0],musicPaths[1],musicPaths[2],musicPaths[0]+'?version=2',musicPaths[2]+'?version=2'];
+const safeFive=[musicPaths[0],musicPaths[1],musicPaths[2]];
+const snapshot=shareContext.window.GEShareSnapshot;
+const trackThree=snapshot.write(new URL('https://grandelement.com/radio/?bg=31.gif&bgper=1'),
+ {kind:'playlist',name:'Active queue',paths:safeFive,startPath:safeFive[2]});
+const parsedThree=new URL(trackThree);
+assert.equal(parsedThree.searchParams.get('start'),'2');
+assert.equal(parsedThree.searchParams.get('start_id'),snapshot.hash(safeFive[2]));
+assert.equal(snapshot.read(parsedThree.searchParams,safeFive).startPath,safeFive[2]);
+parsedThree.searchParams.set('start','0');
+assert.match(snapshot.read(parsedThree.searchParams,safeFive).error,/starting song/i);
+assert.equal(parsedThree.searchParams.get('bg'),'31.gif');
+assert.equal(parsedThree.searchParams.get('bgper'),'1');
 sandbox.location.href='https://grandelement.com/radio/?song=Aether_02_Drift.mp3';
 assert.deepEqual(Array.from(api.read().paths),[musicPaths[1]]);
 assert.match(html,/const selected=currentQueue\|\|window\.GEMusicV5\?\.shareSelection\?\.\(\)/);

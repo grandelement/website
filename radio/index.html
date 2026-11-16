@@ -1,4 +1,4 @@
-<!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10 -->
+<!-- GE_RADIO_UI_BUILD_20261116_SHARE_SNAPSHOT_V11 -->
 <!-- GE_RADIO_UI_BUILD_20261116_BACKGROUND_PINCH_V8 -->
 <!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7 -->
 <!-- GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6 -->
@@ -5595,6 +5595,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
 <script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
+<script src="./ge-share-snapshot.js?v=20261116-share-contract-v1"></script>
 <script>
 'use strict';
 
@@ -8967,72 +8968,30 @@ function appendShareState(target){
 // Seven-character hashes identify catalog paths, NOT playback or download rights.
 // Shared links contain no access codes, owner sessions or private Fan Vault keys.
 let geIncomingShare=null;
-function geShareSongHash(input){
- const path=canonicalSongPath(input);if(!path)return '';
- let h=2166136261;
- for(let i=0;i<path.length;i++){h^=path.charCodeAt(i);h=Math.imul(h,16777619)}
- return (h>>>0).toString(36).padStart(7,'0');
-}
+// All outbound and inbound playlist links use one verified snapshot contract.
+function geShareSongHash(input){return window.GEShareSnapshot.hash(canonicalSongPath(input));}
 function geShareURLForSelection(selection){
- const paths=[...new Set((selection?.paths||[]).map(canonicalSongPath).filter(Boolean))];
- if(!paths.length)throw Error('Choose at least one song or album to share.');
- if(paths.length>250)throw Error('This playlist exceeds the 250-song share limit. Choose a smaller playlist.');
- const tokens=paths.map(geShareSongHash);
- if(new Set(tokens).size!==tokens.length)throw Error('Song identity collision. Cannot safely share this playlist.');
+ const paths=(selection?.paths||[]).map(canonicalSongPath).filter(Boolean);
+ const startPath=canonicalSongPath(selection?.startPath);
  const url=appendShareState(new URL('./',location.href));
- const kind=['album','playlist','user','selection'].includes(selection.kind)?selection.kind:'playlist';
- url.searchParams.set('mix',tokens.join('.'));
- url.searchParams.set('name',String(selection.name||'My music').trim().slice(0,80)||'My music');
- url.searchParams.set('kind',kind);
- if(kind==='album')url.searchParams.set('album',String(selection.name||'').trim().slice(0,80));
- if(kind==='playlist'&&/^[a-zA-Z0-9_-]{1,100}$/.test(selection.id||''))
-  url.searchParams.set('playlist_id',selection.id);
- // Preserve the currently selected song as the start of the queue.
- const starting=canonicalSongPath(selection.startPath);
- if(starting&&paths.includes(starting))url.searchParams.set('song',fileName(starting));
- else url.searchParams.set('song',fileName(paths[0]));
- if(url.href.length>5000)throw Error('Share URL too long. Choose fewer songs.');
- return url.href;
+ return window.GEShareSnapshot.write(url,{...selection,paths,startPath});
 }
 function geReadSharedSelection(){
  const params=new URLSearchParams(location.search);
- const raw=params.get('mix');
+ const shared=window.GEShareSnapshot.read(params,state.catalog.map(canonicalSongPath).filter(Boolean));
+ if(shared)return shared;
  const albumName=String(params.get('album')||'').trim().slice(0,80);
- if(!raw&&!albumName){
-  const single=matchingStartSong();
-  return single?{kind:'song',name:'Shared song',paths:[canonicalSongPath(single)],startPath:canonicalSongPath(single)}:null;
- }
- let paths=[];
- if(raw){
-  const tokens=raw.split('.');
-  if(tokens.length<1||tokens.length>250||tokens.some(token=>!/^[a-z0-9]{7}$/.test(token)))
-   return {error:'Invalid shared playlist link. No music was changed.'};
-  const found=new Map();
-  const collision=new Set();
-  for(const url of state.catalog){
-   const path=canonicalSongPath(url),key=geShareSongHash(path);
-   if(!key)continue;
-   if(found.has(key)&&found.get(key)!==path)collision.add(key);
-   found.set(key,path);
-  }
-  if(tokens.some(token=>collision.has(token)))
-   return {error:'Shared playlist identity conflict. Cannot select the wrong song.'};
-  paths=tokens.map(token=>found.get(token)||'');
-  if(paths.some(path=>!path))
-   return {error:'Some shared songs are missing from this music catalog. Nothing was replaced.'};
-  if(new Set(paths).size!==paths.length)
-   return {error:'Duplicate shared song identifiers. Playlist was not loaded.'};
- }else{
-  paths=state.catalog.map(canonicalSongPath).filter(path=>{
+ if(albumName){
+  const paths=state.catalog.map(canonicalSongPath).filter(path=>{
    const folder=path.split('/')[2]||'';
-   return folder.replace(/^Grand Element - \d{4} - /,'').toLowerCase()===albumName.toLowerCase();
+   return folder.replace(/^Grand Element - \\d{4} - /,'').toLowerCase()===albumName.toLowerCase();
   });
   if(!paths.length)return {error:'Shared album not found in this catalog.'};
+  const requested=canonicalSongPath(matchingStartSong());
+  return {kind:'album',name:albumName,paths,startPath:paths.includes(requested)?requested:paths[0]};
  }
- const start=matchingStartSong(),startPath=canonicalSongPath(start);
- const name=String(params.get('name')||albumName||'Shared playlist').trim().slice(0,80);
- return {kind:String(params.get('kind')||'playlist').slice(0,24),
-  name:name||'Shared playlist',paths,startPath:paths.includes(startPath)?startPath:paths[0]};
+ const single=matchingStartSong();
+ return single?{kind:'song',name:'Shared song',paths:[canonicalSongPath(single)],startPath:canonicalSongPath(single)}:null;
 }
 async function geSendShare(url,title){
  try{
@@ -10135,7 +10094,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-offline-dock-viewport-v8',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-share-snapshot-v9',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -13383,7 +13342,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261116-offline-dock-viewport-v8"></script>
+<script defer src="./ge-music-v5.js?v=20261116-share-snapshot-v9"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
@@ -13955,7 +13914,7 @@ html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"]{
 })();
 </script>
 <script defer src="./offline-spectrum.js?v=20261115-v1"></script>
-<script defer src="./offline-manager.js?v=20261116-offline-dock-viewport-v8"></script>
+<script defer src="./offline-manager.js?v=20261116-share-snapshot-v9"></script>
 
 </body>
 </html>
