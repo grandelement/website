@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.63-20261115-ALBUMS-OFFLINE-ENTRY';
+const BUILD='GE-MUSIC-V7.64-20261116-LARGE-ALBUM-UNIVERSE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1478,7 +1478,7 @@ const universe=document.createElement('section');
 universe.className='geStandaloneAlbumUniverse';
 universe.setAttribute('role','dialog');
 universe.setAttribute('aria-label','Grand Element album universe');
-universe.innerHTML='<div class="geUniverseStarfield" aria-hidden="true"></div><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseToolbar"><strong>ALBUMS</strong><div><button type="button" class="geUniverseOfflineLaunch">OFFLINE</button><button type="button" class="geUniverseClose">BACK</button></div></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
+universe.innerHTML='<div class="geUniverseStarfield" aria-hidden="true"></div><div class="geUniverseLight" aria-hidden="true"></div><div class="geUniverseAlbums" aria-label="Albums"></div>';
 el('.window').after(universe);
 const universeStyle=document.createElement('style');
 universeStyle.textContent=`
@@ -1492,30 +1492,22 @@ universeStyle.textContent=`
  background-size:113px 139px,173px 191px,67px 97px,cover;
  background-position:0 0,21px 39px,13px 7px,center center;background-repeat:repeat,repeat,repeat,no-repeat}
 .geStandaloneAlbumUniverse.isActive{display:block}
-.geUniverseToolbar{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:10px;right:10px;z-index:35;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;pointer-events:auto}
-.geUniverseToolbar strong{font:900 17px system-ui,sans-serif;letter-spacing:.07em;text-shadow:0 1px 5px #000}
-.geUniverseToolbar>div{display:flex;gap:8px}
-.geUniverseToolbar button{appearance:none;min-width:75px;min-height:44px;padding:9px 11px;border:1px solid #a1dfff;border-radius:10px;background:rgba(2,28,55,.93);color:#fff;font:850 13px system-ui,sans-serif;touch-action:manipulation}
-.geUniverseToolbar .geUniverseOfflineLaunch{background:#087cbb;border:2px solid #d3f3ff}
-.geUniverseToolbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
-.geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(var(--ge-album-count,1),minmax(0,1fr));justify-items:center;align-items:center;gap:0;width:100%;height:100%;min-height:0;overflow:hidden;padding:calc(env(safe-area-inset-top) + 66px) 0 calc(env(safe-area-inset-bottom) + 21px);box-sizing:border-box}
-.geUniverseAlbum{position:relative;display:block;justify-self:center;align-self:center;width:auto;height:100%;max-width:94vw;max-height:100%;aspect-ratio:1;min-height:0;min-width:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer}
+.geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:clamp(13px,4vw,22px);width:100%;height:100%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;padding:calc(env(safe-area-inset-top) + 20px) 12px calc(env(safe-area-inset-bottom) + 30px);box-sizing:border-box}
+.geUniverseAlbums::-webkit-scrollbar{display:none}
+.geUniverseAlbum{position:relative;display:block;flex:0 0 auto;align-self:center;width:min(68vw,290px);height:auto;aspect-ratio:1;min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer;touch-action:manipulation}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 /* Aether: soften the bright white core so the first cover transitions
    into Fire without changing the original album art file. */
 .geUniverseAlbum[data-album="Aether"] img{filter:brightness(.82) contrast(.78) saturate(.74)}
 .geUniverseAlbum[data-album="Aether"]::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,transparent 18%,rgba(137,165,195,.13) 68%,rgba(9,19,35,.18) 100%);border-radius:inherit}
 .geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
-.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:auto;height:100%;max-width:94vw;max-height:100%;border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
+.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:min(68vw,290px);height:auto;border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
 .geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:6px}
 
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
 root.appendChild(universeStyle);
-universe.querySelector('.geUniverseToolbar').addEventListener('click',event=>event.stopPropagation());
-universe.querySelector('.geUniverseOfflineLaunch').addEventListener('click',()=>openOffline());
-universe.querySelector('.geUniverseClose').addEventListener('click',()=>close());
 // Tapping the starfield opens Songs; tapping artwork opens that album.
 universe.addEventListener('click',event=>{
  if(universe.dataset.pinching==='true')return;
@@ -1597,7 +1589,8 @@ function renderStandaloneAlbums(){
  const access=musicAccessActive();
  const allowed=access?.restricted?new Set(access.allowed):null;
  const names=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
-  .filter(name=>name!=='Singles')
+  // Hide only the marked last cover from this visual album stack. Its songs stay in MUSIC.
+  .filter(name=>name!=='Singles'&&name!=='Fundamental Groove')
   .sort((a,b)=>rank(a)-rank(b));
  board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
@@ -2917,7 +2910,7 @@ function hideOffline(){
  if(offlineBusy){setOfflineMessage('Download in progress. Use STOP before returning to MUSIC.');return}
  el('.window').classList.remove('geOfflineOpen');
  render();
- if(state.view==='albums')universe.querySelector('.geUniverseOfflineLaunch').focus();
+ if(state.view==='albums')universe.querySelector('.geUniverseAlbum')?.focus();
  else el('.musicOfflineLaunch').focus();
 }
 function setOfflineProgress(percent,etaSeconds=null){
