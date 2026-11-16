@@ -9864,8 +9864,8 @@ window.addEventListener('online',()=>{
           if(!name.startsWith('ge-radio-shell-')&&!name.startsWith('ge-radio-media-'))continue;
           for(const request of await (await caches.open(name)).keys()){
             const pathname=new URL(request.url).pathname;
-            const match=/\\/ge-images\\/img\\/([^/]+)$/.exec(decodeURIComponent(pathname));
-            if(match)stored.add(match[1]);
+            const filename=decodeURIComponent(pathname).split('/ge-images/img/')[1];
+            if(filename&&!filename.includes('/'))stored.add(filename);
           }
         }
       }catch(_){}
