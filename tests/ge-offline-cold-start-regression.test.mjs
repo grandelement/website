@@ -162,6 +162,10 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  self.navigator.onLine=true;
  const tagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song+'?ge_offline=1',headers:new Headers()});
  assert.equal(tagged.status,200);
+ const untagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song,
+  headers:new Headers({'Range':'bytes=0-2'})});
+ assert.equal(untagged.status,206,'Saved audio must stay cache-first when Safari falsely says online');
+ assert.deepEqual([...new Uint8Array(await untagged.arrayBuffer())],[1,2,3]);
  const homeAgain=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
  assert.equal(homeAgain.status,200);
  assert.match(await homeAgain.text(),/id="shipStage"/);
