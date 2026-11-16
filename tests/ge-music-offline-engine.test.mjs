@@ -52,7 +52,7 @@ function makeHarness({safari=false}={}){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.16-backgrounds-pinch-v6'
+    type:data.type,ready:true,missing:[],version:'2026.11.16-offline-catalog-v7'
    });
   }
  };
@@ -100,7 +100,7 @@ function makeHarness({safari=false}={}){
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-backgrounds-pinch-v6');
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-offline-catalog-v7');
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
