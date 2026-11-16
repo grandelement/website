@@ -25,27 +25,33 @@ try{
  const albumEntry=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   const universe=root.querySelector('.geStandaloneAlbumUniverse');
-  const offline=universe.querySelector('.geUniverseOfflineLaunch');
-  const rect=offline.getBoundingClientRect();
-  return {visible:getComputedStyle(universe).display!=='none'&&rect.width>40&&rect.height>=40,
-   button:offline.textContent.trim(),view:universe.classList.contains('isActive')?'albums':'other'};
+  const board=universe.querySelector('.geUniverseAlbums');
+  const covers=[...board.querySelectorAll('.geUniverseAlbum')];
+  const first=covers[0]?.getBoundingClientRect();
+  return {visible:getComputedStyle(universe).display!=='none',
+   hasToolbar:!!universe.querySelector('.geUniverseToolbar'),
+   albums:covers.map(b=>b.dataset.album),
+   large:!!first&&first.width>=200&&first.height>=200,
+   scrolls:board.scrollHeight>board.clientHeight};
  });
- assert.equal(albumEntry.visible,true,'ALBUMS must expose an OFFLINE button on phone');
- assert.equal(albumEntry.button,'OFFLINE');
- assert.equal(albumEntry.view,'albums','MUSIC must open on ALBUMS by default');
+ assert.equal(albumEntry.visible,true,'MUSIC must open on ALBUMS');
+ assert.equal(albumEntry.hasToolbar,false,'No ALBUMS, OFFLINE, or BACK toolbar on artwork');
+ assert.equal(albumEntry.large,true,'Album covers must be large and tappable');
+ assert.equal(albumEntry.scrolls,true,'Album artwork stack must scroll rather than shrink to fit');
+ assert.ok(albumEntry.albums.includes('Fire'));
+ assert.ok(!albumEntry.albums.includes('Fundamental Groove'),'Marked final cover must be hidden only in the universe');
+ // Radio keeps its original OFFLINE shortcut; this screen must not duplicate it.
  await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('.geUniverseOfflineLaunch').click();
+  root.querySelector('.geUniverseAlbum[data-album="Fire"]').click();
  });
  await page.waitForFunction(()=>{
-  const root=document.getElementById('geMusicV5Host').shadowRoot;
-  const panel=root.querySelector('.window.geOfflineOpen .geOfflineWorkspace');
-  return panel&&getComputedStyle(panel).display!=='none'&&
-   getComputedStyle(root.querySelector('.window')).display!=='none';
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  return root?.querySelector('.albumDetailTitle')?.textContent==='Fire';
  });
  await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('.geOfflineBack').click();
+  root.querySelector('.albumDetailBack').click();
  });
  await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geStandaloneAlbumUniverse.isActive'));
  // From SONGS, the shared MUSIC header must expose OFFLINE.
