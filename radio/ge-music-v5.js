@@ -1520,7 +1520,7 @@ universeStyle.textContent=`
 .geUniverseAlbums{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;height:100%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none;padding:0;box-sizing:border-box}
 .geUniverseAlbums::-webkit-scrollbar{display:none}
 .geUniverseAlbum{position:relative;display:block;flex:0 0 auto;align-self:center;
- width:min(calc(var(--ge-fit-cover-size,70px) * var(--ge-universe-zoom,1)),72vw);
+ width:calc(var(--ge-fit-cover-size,70px) * var(--ge-universe-zoom,1));max-width:100%;
  height:auto;aspect-ratio:1;min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;
  background:rgba(4,14,29,.6);color:#fff;cursor:pointer;touch-action:manipulation}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
@@ -1558,7 +1558,7 @@ function fitUniverseAlbums(){
  if(!count)return;
  const height=universeBoard.clientHeight||window.innerHeight||800;
  const width=universeBoard.clientWidth||window.innerWidth||390;
- const fitted=Math.max(1,Math.min(width,Math.floor(height/count)-1));
+ const fitted=Math.max(1,Math.min(width,height/count));
  universeBoard.style.setProperty('--ge-fit-cover-size',fitted+'px');
  setUniverseZoom(universeZoom);
 }
