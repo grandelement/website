@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.66-20261116-INLINE-OFFLINE-DOCK';
+const BUILD='GE-MUSIC-V7.67-20261116-FIT-AND-PINCH-ALBUMS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1513,17 +1513,21 @@ universeStyle.textContent=`
  background-position:0 0,21px 39px,13px 7px,center center;background-repeat:repeat,repeat,repeat,no-repeat}
 .geStandaloneAlbumUniverse.isActive{display:block}
 .geUniverseLight{position:fixed;pointer-events:none;top:50%;left:50%;width:min(66vw,350px);height:min(66vw,350px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.92) 0%,rgba(237,246,255,.75) 2%,rgba(174,212,248,.32) 8%,rgba(145,197,241,.1) 26%,transparent 70%);filter:blur(5px);opacity:.75}
-.geUniverseAlbums{position:absolute;inset:0;z-index:2;transform:scale(var(--ge-universe-zoom,1));transform-origin:50% 50%;will-change:transform;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:clamp(13px,4vw,22px);width:100%;height:100%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;padding:calc(env(safe-area-inset-top) + 20px) 12px calc(env(safe-area-inset-bottom) + 30px);box-sizing:border-box}
+.geUniverseAlbums{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;height:100%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none;padding:0;box-sizing:border-box}
 .geUniverseAlbums::-webkit-scrollbar{display:none}
-.geUniverseAlbum{position:relative;display:block;flex:0 0 auto;align-self:center;width:min(68vw,290px);height:auto;aspect-ratio:1;min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:rgba(4,14,29,.6);color:#fff;cursor:pointer;touch-action:manipulation}
+.geUniverseAlbum{position:relative;display:block;flex:0 0 auto;align-self:center;
+ width:min(calc(var(--ge-fit-cover-size,70px) * var(--ge-universe-zoom,1)),72vw);
+ height:auto;aspect-ratio:1;min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;
+ background:rgba(4,14,29,.6);color:#fff;cursor:pointer;touch-action:manipulation}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 /* Aether: soften the bright white core so the first cover transitions
    into Fire without changing the original album art file. */
 .geUniverseAlbum[data-album="Aether"] img{filter:brightness(.82) contrast(.78) saturate(.74)}
 .geUniverseAlbum[data-album="Aether"]::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,transparent 18%,rgba(137,165,195,.13) 68%,rgba(9,19,35,.18) 100%);border-radius:inherit}
 .geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
-.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{width:min(68vw,290px);height:auto;border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
-.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:6px}
+.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
+/* Album art always connects edge to edge in the default public stack. */
+.geStandaloneAlbumUniverse .geUniverseAlbums{gap:0!important}
 
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
@@ -1534,15 +1538,34 @@ universe.addEventListener('click',event=>{
  if(event.target.closest('.geUniverseAlbum'))return;
  setView('browse-songs');
 });
-// Two-finger pinch changes scale only; the stack never pans away from center.
+// All covers fit, edge-to-edge, on opening. A two-finger pinch enlarges the
+// actual cover sizes (not a transformed scroll viewport) so Safari can scroll
+// the entire zoomed stack normally, and pinch inward restores the full view.
 const universeBoard=universe.querySelector('.geUniverseAlbums');
 let universeZoom=1,pinchStartDistance=0,pinchStartZoom=1,pinchInProgress=false,pinchReleaseUntil=0;
-const zoomClamp=n=>Math.min(3.5,Math.max(1,Number(n)||1));
+const zoomClamp=n=>Math.min(5,Math.max(1,Number(n)||1));
 function setUniverseZoom(next){
  universeZoom=zoomClamp(next);
  universeBoard.style.setProperty('--ge-universe-zoom',String(universeZoom));
- // The starfield is stationary. Only the album stack scales.
+ universeBoard.style.justifyContent=universeZoom<1.01?'center':'flex-start';
 }
+function fitUniverseAlbums(){
+ const count=universeBoard.querySelectorAll('.geUniverseAlbum').length;
+ if(!count)return;
+ const height=universeBoard.clientHeight||window.innerHeight||800;
+ const width=universeBoard.clientWidth||window.innerWidth||390;
+ const fitted=Math.max(1,Math.min(width,Math.floor(height/count)-1));
+ universeBoard.style.setProperty('--ge-fit-cover-size',fitted+'px');
+ setUniverseZoom(universeZoom);
+}
+window.addEventListener('resize',()=>{
+ if(universe.classList.contains('isActive'))fitUniverseAlbums();
+});
+universeBoard.addEventListener('wheel',event=>{
+ if(!event.ctrlKey)return;
+ event.preventDefault();
+ setUniverseZoom(universeZoom*Math.exp(-event.deltaY/250));
+},{passive:false});
 function fingerDistance(touches){
  const a=touches[0],b=touches[1];
  return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
@@ -1577,6 +1600,24 @@ universe.addEventListener('touchend',event=>{
  }
 },{passive:true});
 universe.addEventListener('touchcancel',()=>{pinchStartDistance=0;pinchInProgress=false;},{passive:true});
+// Mobile Safari also emits native GestureEvents during two-finger pinch.
+// Intercept them on the album universe so only the covers zoom, never the
+// whole Radio web page. TouchEvents above provide the cross-browser fallback.
+universe.addEventListener('gesturestart',event=>{
+ event.preventDefault();
+ pinchStartZoom=universeZoom;
+ pinchInProgress=true;
+},{passive:false});
+universe.addEventListener('gesturechange',event=>{
+ event.preventDefault();
+ setUniverseZoom(pinchStartZoom*(Number(event.scale)||1));
+ pinchInProgress=true;
+},{passive:false});
+universe.addEventListener('gestureend',event=>{
+ event.preventDefault();
+ pinchReleaseUntil=Date.now()+280;
+ pinchInProgress=false;
+},{passive:false});
 universe.addEventListener('click',event=>{
  if(Date.now()<pinchReleaseUntil){event.stopImmediatePropagation();event.preventDefault();}
 },true);
@@ -1602,7 +1643,9 @@ albumViewChooser.append(albumViewSelect);
 // Album layout is configured privately in Back Room > Radio, not in public MUSIC.
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
- universe.dataset.mode=albumUniverseMode;
+ // The public MUSIC universe is always the connected square cover stack.
+ // Private Back Room layout preferences cannot create gaps for listeners.
+ universe.dataset.mode='squares';
  board.replaceChildren();
  setUniverseZoom(1);
  if(!state.loaded){const loading=document.createElement('p');loading.textContent='Loading albums…';board.append(loading);return;}
@@ -1625,6 +1668,7 @@ function renderStandaloneAlbums(){
   board.append(item);
  }
  if(!names.length){const empty=document.createElement('p');empty.textContent='No albums available';board.append(empty);}
+ fitUniverseAlbums();
 }
 
 const playlistBar=document.createElement('div');playlistBar.className='gePlaylistBar';

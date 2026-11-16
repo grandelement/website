@@ -34,13 +34,30 @@ try{
   return {visible:getComputedStyle(universe).display!=='none',
    hasToolbar:!!universe.querySelector('.geUniverseToolbar'),
    albums:covers.map(b=>b.dataset.album),
-   large:!!first&&first.width>=200&&first.height>=200,
-   scrolls:board.scrollHeight>board.clientHeight};
+   fitted:!!first&&first.width>=35&&board.scrollHeight<=board.clientHeight+4,
+   attached:covers.every((cover,i)=>i===0||
+    Math.abs(cover.getBoundingClientRect().top-covers[i-1].getBoundingClientRect().bottom)<2),
+   singleAbsent:!covers.some(b=>b.dataset.album==='Singles'),
+   zoom:board.style.getPropertyValue('--ge-universe-zoom')};
  });
  assert.equal(albumEntry.visible,true,'MUSIC must open on ALBUMS');
  assert.equal(albumEntry.hasToolbar,false,'No ALBUMS, OFFLINE, or BACK toolbar on artwork');
- assert.equal(albumEntry.large,true,'Album covers must be large and tappable');
- assert.equal(albumEntry.scrolls,true,'Album artwork stack must scroll rather than shrink to fit');
+ assert.equal(albumEntry.fitted,true,'All albums must fit on one screen by default');
+ assert.equal(albumEntry.attached,true,'Album artwork edges must touch, with no gaps');
+ assert.equal(albumEntry.singleAbsent,true,'Singles must not appear in album artwork');
+ assert.equal(albumEntry.zoom,'1','The default album view must start zoomed out');
+ const pinch=await page.evaluate(()=>{
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  const board=root.querySelector('.geUniverseAlbums'),first=board.querySelector('.geUniverseAlbum');
+  const before=first.getBoundingClientRect().width;
+  board.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,ctrlKey:true,deltaY:-400}));
+  const after=first.getBoundingClientRect().width,scrolls=board.scrollHeight>board.clientHeight;
+  board.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,ctrlKey:true,deltaY:2000}));
+  return {before,after,scrolls,restored:first.getBoundingClientRect().width};
+ });
+ assert.ok(pinch.after>pinch.before*2&&pinch.scrolls,
+  'Pinch zoom must enlarge and scroll all the real album covers: '+JSON.stringify(pinch));
+ assert.ok(Math.abs(pinch.restored-pinch.before)<3,'Pinching inward restores the complete connected album view');
  assert.ok(albumEntry.albums.includes('Fire'));
  assert.ok(!albumEntry.albums.includes('Fundamental Groove'),'Marked final cover must be hidden only in the universe');
  // Radio keeps its original OFFLINE shortcut; this screen must not duplicate it.
@@ -202,6 +219,16 @@ try{
  assert.equal(prepared.ready,true,'Safari button must save real audio, station IDs, app files and art: '+JSON.stringify(prepared));
  assert.ok(prepared.stations>0&&prepared.stationTotal===prepared.stations);
  assert.equal(prepared.saved,1);
+ await page.waitForFunction(()=>document.getElementById('offlineLaunchBtn')?.dataset.geState==='ready',{timeout:20000});
+ const onlineBadge=await page.evaluate(()=>{
+  const btn=document.getElementById('offlineLaunchBtn');
+  return {state:btn.dataset.geState,color:getComputedStyle(btn).backgroundColor,
+   text:btn.textContent};
+ });
+ assert.equal(onlineBadge.state,'ready');
+ assert.match(onlineBadge.text,/OFFLINE/);
+ assert.ok(/18, 108, 71|18, 108, 71/.test(onlineBadge.color),
+  'The READY button must visibly turn GREEN, not be overridden by utility CSS: '+JSON.stringify(onlineBadge));
  // Simulate physical disconnection and cold browser navigation after caching.
  await page.setOfflineMode(true);
  await page.reload({waitUntil:'domcontentloaded',timeout:25000});
@@ -220,16 +247,30 @@ try{
   });
   const image=await fetch('../ge-images/images/Grand%20Element%20-%20Aether.jpg');
   const spectrum=await fetch('./offline-spectrum.js');
-  return {
-   ready:check.ready,mediaStatus:media.status,mediaLength:(await media.arrayBuffer()).byteLength,
-   imageStatus:image.status,spectrumStatus:spectrum.status,decoded
-  };
+  const assets=await (await fetch('./offline-assets.json')).json();
+  const backgrounds=[];
+  for(const filename of assets.backgrounds){
+   const res=await fetch('../ge-images/img/'+filename);
+   backgrounds.push({name:filename,status:res.status,size:(await res.blob()).size});
+  }
+  window.GEBackgrounds.startOfflineBackgroundTwo();
+  await new Promise(done=>setTimeout(done,350));
+  const visual=document.getElementById('bgImage');
+  return {ready:check.ready,mediaStatus:media.status,
+   mediaLength:(await media.arrayBuffer()).byteLength,
+   imageStatus:image.status,spectrumStatus:spectrum.status,decoded,backgrounds,
+   visualSrc:visual.src,visualLoaded:visual.complete&&visual.naturalWidth>0};
  },song);
  assert.equal(result.ready,true,'Airplane Mode reload must remain READY');
  assert.equal(result.mediaStatus,206,'Saved audio range requests must work offline');
  assert.equal(result.mediaLength,128);
  assert.equal(result.imageStatus,200);
  assert.equal(result.spectrumStatus,200);
+ assert.ok(result.backgrounds.length>=6&&result.backgrounds.every(b=>b.status===200&&b.size>1000),
+  'Every background in the offline package must really be fetchable in Airplane Mode: '+JSON.stringify(result.backgrounds));
+ assert.ok(result.visualLoaded,'OFFLINE player background must be a loaded real image, not a broken icon: '+JSON.stringify(result));
+ assert.ok(result.visualSrc.endsWith('/47.gif')||result.visualSrc.endsWith('/31.gif'),
+  'Offline player must show a guaranteed cached background: '+result.visualSrc);
  assert.ok(Number(result.decoded.duration)>0,
   'Offline cached audio must decode and have a positive duration: '+JSON.stringify(result.decoded));
 

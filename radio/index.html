@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261116_BACKGROUND_PINCH_V8 -->
 <!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7 -->
 <!-- GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6 -->
 <!-- GE_RADIO_UI_BUILD_20261116_LARGE_ALBUMS_V5 -->
@@ -9771,12 +9772,25 @@ window.addEventListener('online',()=>{
     bg.position=(index%bg.files.length+bg.files.length)%bg.files.length;
     const filename=bg.files[bg.position];
     applyFocal(filename);
+    image.style.opacity=bg.off?'0':'1';
     image.src=absolute(CONFIG.IMAGE_BASE+filename);
     if(fitBackdrop)fitBackdrop.src=image.src;
     image.style.opacity=bg.off?'0':'1';
     document.body.classList.toggle('ge-bg-hidden',bg.off);
     persist();
   }
+  // If an older image selection cannot be loaded, show the verified cached
+  // fallback instead of a broken-image icon on a black Radio screen.
+  image.addEventListener('error',()=>{
+    const fallback=absolute(CONFIG.IMAGE_BASE+'31.gif');
+    if(image.src!==fallback){
+      image.src=fallback;
+      if(fitBackdrop)fitBackdrop.src=fallback;
+    }else{
+      image.style.opacity='0';
+      document.body.style.background='radial-gradient(circle at 50% 45%,#12558b 0%,#071e42 42%,#020a1c 100%)';
+    }
+  });
   function randomOrNext(){
     if(!bg.files.length) return 0;
     if(!bg.shuffle) return bg.position+1;
@@ -9840,17 +9854,33 @@ window.addEventListener('online',()=>{
   }
   async function loadFiles(forceFresh=false,suppliedFiles=null){
     let files=Array.isArray(suppliedFiles)?suppliedFiles.slice():[];
-    try{
-      if(!files.length){
-      const manifestURL=new URL(absolute(CONFIG.IMAGE_MANIFEST));
-      if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
-      const response=await fetch(manifestURL.href,{
-        cache:'no-store',
-        headers:forceFresh?{'X-GE-Reload':'1'}:{}
-      });
-      if(response.ok){ const data=await response.json(); if(Array.isArray(data)) files=data.filter(name=>/\.(gif|png|jpe?g|webp)$/i.test(name)); }
-      }
-    }catch(_e){}
+    if(offlinePlaybackMode()){
+      // The service worker verifies every name in this small background list.
+      // Do not select one of the 55 online-only GIFs after Airplane Mode.
+      try{
+        const response=await fetch(new URL('./offline-assets.json',location.href).href,{cache:'force-cache'});
+        if(response.ok){
+          const doc=await response.json();
+          if(Array.isArray(doc?.backgrounds))files=doc.backgrounds.filter(name=>
+            /^[a-z0-9][a-z0-9_-]*\.(?:gif|png|jpe?g|webp)$/i.test(name));
+        }
+      }catch(_e){}
+      if(!files.length)files=['31.gif','47.gif'];
+    }else{
+      try{
+        if(!files.length){
+          const manifestURL=new URL(absolute(CONFIG.IMAGE_MANIFEST));
+          if(forceFresh)manifestURL.searchParams.set('_ge_reload',String(Date.now()));
+          const response=await fetch(manifestURL.href,{
+            cache:'no-store',headers:forceFresh?{'X-GE-Reload':'1'}:{}
+          });
+          if(response.ok){
+            const data=await response.json();
+            if(Array.isArray(data))files=data.filter(name=>/\.(gif|png|jpe?g|webp)$/i.test(name));
+          }
+        }
+      }catch(_e){}
+    }
     if(!files.length) files=['1.gif','47.gif','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'];
     if(!files.some(name=>String(name).toLowerCase()==='47.gif')) files.splice(Math.min(1,files.length),0,'47.gif');
     bg.files=files;
@@ -9880,6 +9910,8 @@ window.addEventListener('online',()=>{
     resetDefaults
   };
   loadFiles(false);
+  window.addEventListener('offline',()=>{void loadFiles(false)});
+  window.addEventListener('online',()=>{void loadFiles(false)});
 })();
 
 // HUD controller. One combined Hide Text control: clicking the text/body hides now; checkbox controls automatic hiding.
@@ -10102,7 +10134,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-offline-dock-v5',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-backgrounds-pinch-v6',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -13350,7 +13382,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261116-offline-dock-v5"></script>
+<script defer src="./ge-music-v5.js?v=20261116-backgrounds-pinch-v6"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
@@ -13877,6 +13909,25 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabB
 }
 html.ge-radio-ui body:not(.view-player) #geUtilityRow{display:none!important}
 </style>
+<style id="ge-radio-offline-verified-colors">
+/* Higher specificity than the generic Radio utility buttons; readiness
+   must actually become visible after verification, not stay blue. */
+html.ge-radio-ui body.view-player #geUtilityRow > #offlineLaunchBtn[data-ge-state="ready"],
+html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="ready"]{
+ background:#126c47!important;background-image:none!important;
+ border:2px solid #a4ffd1!important;color:#fff!important;
+ box-shadow:0 0 0 2px rgba(27,190,114,.45),0 0 14px rgba(25,223,126,.65)!important;
+ opacity:1!important
+}
+html.ge-radio-ui body.view-player #geUtilityRow > #offlineLaunchBtn[data-ge-state="downloading"],
+html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="downloading"]{
+ background:#9b5c10!important;border:2px solid #ffe2a1!important;color:#fff!important
+}
+html.ge-radio-ui body.view-player #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"],
+html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"]{
+ background:#825611!important;border:2px solid #d8b369!important;color:#fff!important
+}
+</style>
 <script id="ge-radio-offline-live-status">
 (()=>{
  const button=document.getElementById('offlineLaunchBtn');
@@ -13903,7 +13954,7 @@ html.ge-radio-ui body:not(.view-player) #geUtilityRow{display:none!important}
 })();
 </script>
 <script defer src="./offline-spectrum.js?v=20261115-v1"></script>
-<script defer src="./offline-manager.js?v=20261116-offline-dock-v5"></script>
+<script defer src="./offline-manager.js?v=20261116-backgrounds-pinch-v6"></script>
 
 </body>
 </html>
