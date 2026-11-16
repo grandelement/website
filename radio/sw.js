@@ -167,6 +167,13 @@ async function navigation(request){
 }
 async function media(request){
  const url=new URL(request.url);
+ // Saved recordings are always local-first, even if iPhone Safari falsely
+ // reports online after Airplane Mode. Explicit RELOAD-MEDIA bypasses this
+ // via the fetch handler above; never delete listener downloads.
+ if(AUDIO.test(url.pathname)){
+  const saved=await cached(request,{media:true});
+  if(saved?.ok)return rangeResponse(request,saved);
+ }
  if(self.navigator?.onLine===false||url.searchParams.has('ge_offline')){
   const saved=await cached(request,{media:true});
   return saved?rangeResponse(request,saved):new Response('This file has not been downloaded',{status:503});
