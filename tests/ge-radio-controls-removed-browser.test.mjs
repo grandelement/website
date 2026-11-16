@@ -42,32 +42,38 @@ try{
    await page.click('#offlineLaunchBtn');
    await page.waitForFunction(()=>{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
-     return !!root?.querySelector('.window.geOfflineOpen .geOfflineWorkspace');
-   },{timeout:8000});
+     return !!root?.querySelector('.geOfflineWorkspace')&&!root.querySelector('.geOfflineChoices').hidden;
+   },{timeout:12000});
    const offlineUI=await page.evaluate(()=>{
      const root=document.getElementById('geMusicV5Host').shadowRoot;
-     const view=root.querySelector('.geOfflineWorkspace');
-     const labels=[...view.querySelectorAll('[data-ge-offline]')].map(b=>b.textContent.trim());
+     const view=root.querySelector('.geOfflineWorkspace'),choices=root.querySelector('.geOfflineChoices');
+     const labels=[...choices.querySelectorAll('[data-ge-offline]')].map(b=>b.textContent.trim());
+     const footer=root.querySelector('.selectionBar'),dock=view.getBoundingClientRect();
      return {labels,downloads:view.querySelectorAll('.geOfflineStart').length,
-       selected:view.querySelector('[data-ge-offline="all"]').getAttribute('aria-pressed'),
-       actualHeight:view.getBoundingClientRect().height,otherDialog:!!document.getElementById('geOfflineSurface')};
+       dockButtons:view.querySelectorAll('.geOfflineDockToggle').length,
+       actualHeight:dock.height,footerVisible:footer.getBoundingClientRect().height>0,
+       aboveFooter:dock.bottom<=footer.getBoundingClientRect().top+3,
+       otherDialog:!!document.getElementById('geOfflineSurface'),
+       musicOpen:window.GEMusicV5.state().open};
    });
    assert.deepEqual(offlineUI.labels,['ALL MUSIC','CHECKED SONGS','PLAYLIST','UPDATE MISSING']);
-   assert.equal(offlineUI.downloads,1,'There must be only one DOWNLOAD button');
-   assert.equal(offlineUI.selected,'true','ALL MUSIC must be the one-click default');
-   assert(offlineUI.actualHeight>100,'MUSIC owns a visible offline screen');
+   assert.equal(offlineUI.downloads,0,'No duplicated full-screen DOWNLOAD button');
+   assert.equal(offlineUI.dockButtons,1,'Only one MUSIC OFFLINE dock button');
+   assert(offlineUI.actualHeight<100,'OFFLINE must be a compact footer strip');
+   assert(offlineUI.footerVisible&&offlineUI.aboveFooter,'Music playback controls remain usable below OFFLINE');
+   assert(offlineUI.musicOpen,'OFFLINE must not replace MUSIC');
    assert.equal(offlineUI.otherDialog,false,'No duplicate global offline dialog');
    await page.evaluate(()=>{
-     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineBack').click();
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineDockToggle').click();
    });
    await page.waitForFunction(()=>{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
-     return window.GEMusicV5?.state?.().open===true&&!root?.querySelector('.window.geOfflineOpen');
-   },{timeout:8000});
+     return window.GEMusicV5.state().open&&root.querySelector('.geOfflineChoices').hidden;
+   },{timeout:5000});
    await page.evaluate(()=>{
-     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').click();
+     document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineDockToggle').click();
    });
-   await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host')?.shadowRoot.querySelector('.window.geOfflineOpen'),{timeout:8000});
+   await page.waitForFunction(()=>!document.getElementById('geMusicV5Host')?.shadowRoot?.querySelector('.geOfflineChoices')?.hidden,{timeout:5000});
    const music=await page.evaluate(()=>{
      const root=document.querySelector('#geMusicV5Host').shadowRoot;
      return {offline:root.querySelectorAll('.offlineSelected,.geMusicOfflineRow,.geMusicOfflineTrigger').length,
@@ -79,7 +85,7 @@ try{
    assert.equal(music.reload,0,'MUSIC reload button returned');
    assert(music.code&&music.play,'MUSIC code and PLAY preserved');
    if(errors.length)throw Error('Radio JS errors after removal: '+JSON.stringify(errors.slice(0,8)));
-   console.log('PASS '+width+'x'+height+': front OFFLINE opens MUSIC download chooser; one engine, four options; footer aligned');
+   console.log('PASS '+width+'x'+height+': front OFFLINE shows nonblocking four-option dock above Music PLAY/B﻿UY; footer aligned');
   }finally{await page.close();}
  }
 }finally{await browser.close();}
