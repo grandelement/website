@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const sw=read('sw.js'), library=read('ge-offline-library.js'), radio=read('radio/index.html');
+const sw=read('sw.js'), library=read('ge-offline-library.js'), radio=read('radio/index.html'), home=read('index.html');
 new vm.Script(sw,{filename:'sw.js'});
 new vm.Script(library,{filename:'ge-offline-library.js'});
 assert.match(sw,/const REQUIRED_OFFLINE_FILES=/,'Full website must cache required files');
@@ -17,4 +17,9 @@ assert.match(library,/response.status!==200/,'Reject HTTP 206 or other partial s
 assert.match(library,/Cached file failed local verification/,'Verify after saving audio');
 assert.match(library,/await valid\(await cache.match/,'Verify actual cached audio instead of trusting any cached entry');
 assert.doesNotMatch(radio,/if\(isSingles\(request\.url\) \|\| isStationID\(request\.url\)\)/,'Saved Singles cannot be excluded');
+assert.match(sw,/OPEN SAVED RADIO/,'Root recovery must offer the separately saved Radio app');
+assert.match(sw,/radio\/index\.html\?ge_home=1/,'Root recovery must launch canonical cached Radio');
+assert.doesNotMatch(sw,/DELETE OFFLINE FILES/,'Offline root recovery must never suggest deleting music');
+assert.match(home,/id="ge-rescue-radio"/,'Homepage recovery has a one-tap saved Radio entry');
+assert.doesNotMatch(home,/id="ge-rescue-clear"/,'No destructive delete button in homepage boot rescue');
 console.log('Root website offline readiness and music-cache checks passed');
