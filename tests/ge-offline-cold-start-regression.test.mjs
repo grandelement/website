@@ -75,7 +75,9 @@ test('MUSIC owns offline actions and local playback activation survives access e
  assert.match(music,/data-ge-offline="checked"/,'MUSIC has checked songs');
  assert.match(music,/data-ge-offline="playlist"/,'MUSIC has playlists');
  assert.match(music,/data-ge-offline="update"/,'MUSIC has missing song update');
- assert.match(music,/class="geOfflineStart"/,'One download action in MUSIC');
+ assert.match(music,/class="geOfflineDockToggle"/,'One inline OFFLINE button in MUSIC');
+ assert.match(music,/class="geOfflineChoices"/,'Four OFFLINE choices are in the dock');
+ assert.doesNotMatch(music,/class="geOfflineStart"/,'No second giant DOWNLOAD button');
  assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
  assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
  assert.match(radio,/geRadioSunLabPrivateAllowed/);
