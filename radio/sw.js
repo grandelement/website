@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-safari-offline-v4';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6';
+const VERSION='2026.11.16-offline-dock-v5';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -193,6 +193,15 @@ async function media(request){
  return saved?rangeResponse(request,saved):new Response('Media unavailable',{status:503});
 }
 async function staticFile(request){
+ // Cold boot must not depend on online probes for the installed app scripts:
+ // iOS sometimes reports online after Airplane Mode, and a stalled network
+ // request would otherwise block the Music player from loading at all.
+ const pathname=new URL(request.url).pathname;
+ const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
+ if(startup){
+  const saved=await cached(request);
+  if(saved?.ok)return saved;
+ }
  if(self.navigator?.onLine===false)return await cached(request)||
   new Response('Offline app file missing. Reconnect and repair.',{status:503});
  try{
