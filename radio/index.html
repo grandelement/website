@@ -7986,11 +7986,41 @@ const utilityBar=$('bottomActions'),legacyUtility=$('legacyBtn');
 if(utilityBar&&legacyUtility)utilityBar.insertBefore(legacyUtility,$('shareBtn'));
 // One read-only entitlement bridge for the replacement offline module.
 // Never grant access from CSS, a button click, or a remembered label.
+// A MUSIC code may include the existing OFFLINE scope. The Vault returns this
+// permission only after verifying the code; AUDIO download still rechecks the
+// signed session with Vault. A MUSIC-only code cannot unlock OFFLINE.
+function geMusicOfflineCode(){
+ try{
+  const saved=JSON.parse(sessionStorage.getItem('GE_MUSIC_CODE_SESSION_V1')||'null');
+  return saved?.offlineEnabled===true&&typeof saved.token==='string'&&
+   Number(saved.until)>Date.now()&&Array.isArray(saved.allowed)?saved:null;
+ }catch(_){return null}
+}
 window.GERadioOfflineBridge={
-  canDownload:()=>geRadioUtilityAllowed('offline')&&navigator.onLine!==false,
-  allowedPaths:()=>{const allowed=geOfflineSongAllowance();return allowed===null?null:[...allowed];},
+  canDownload:()=>navigator.onLine!==false&&
+   (geRadioUtilityAllowed('offline')||!!geMusicOfflineCode()),
+  allowedPaths:()=>{
+   const music=geMusicOfflineCode();
+   const allowed=geOfflineSongAllowance();
+   if(music?.restricted===true)return (music.allowed||[]).filter(path=>typeof path==='string');
+   return allowed===null?null:[...allowed];
+  },
+  verify:async path=>{
+   // Existing Radio OFFLINE grants are already verified through GE Vault.
+   if(geRadioUtilityAllowed('offline'))return true;
+   const saved=geMusicOfflineCode();
+   if(!saved)throw Error('This CODE has MUSIC access but not OFFLINE downloads.');
+   const response=await fetch('https://vault.grandelement.com/v1/public/access/music-session',{
+    method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'verify',token:saved.token,track_path:path,require_offline:true})
+   });
+   const body=await response.json().catch(()=>({}));
+   if(!response.ok||body?.authorized!==true||body?.offline_enabled!==true)
+    throw Error(String(body?.error||'OFFLINE permission not confirmed by GE Vault.'));
+   return true;
+  },
   rescan:()=>discoverOfflineMediaFromCaches(),
-  promptCode:()=>$('accessLaunchBtn')?.click()
+  promptCode:()=>window.GEMusicV5?.openCodeEntry?.()
 };
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
