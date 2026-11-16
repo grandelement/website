@@ -2769,7 +2769,7 @@ function render(){
   legacyButton.type='button';
   legacyButton.setAttribute('aria-expanded',String(state.showLegacyAlbums));
   legacyButton.addEventListener('click',()=>{state.showLegacyAlbums=!state.showLegacyAlbums;render()});
-  const shownNames=(state.showLegacyAlbums?[...current.filter(name=>name!=='Singles'),...earlier,'Singles'].filter(name=>names.includes(name)):[...current.filter(name=>name!=='Singles'),...current.filter(name=>name==='Singles')]).filter(name=>!term||name.toLowerCase().includes(term)||state.tracks.some(t=>t.album===name&&filterTrack(t)));
+  const shownNames=(state.showLegacyAlbums?[...current,...earlier]:current).filter(name=>name!=='Singles'&&(!term||name.toLowerCase().includes(term)||state.tracks.some(t=>t.album===name&&filterTrack(t))));
   for(const name of shownNames){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
