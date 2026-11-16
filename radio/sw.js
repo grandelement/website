@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.15-music-albums-offline-v2';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261115_MUSIC_ALBUMS_OFFLINE_V4';
+const VERSION='2026.11.16-large-albums-v3';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_LARGE_ALBUMS_V5';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
