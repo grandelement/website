@@ -296,11 +296,37 @@ try{
  assert.equal(restored.bytes,64);
  assert.equal(restored.player,true,'Cold navigation restores the actual Radio player');
  await cold.waitForFunction(()=>document.getElementById('offlineLaunchBtn')?.dataset.geState==='ready',{timeout:20000});
+ // Regression for the actual iPhone screenshot: after the entire browser
+ // process closes in Airplane Mode, tapping MUSIC must show saved albums,
+ // not "Loading albums…" forever.
+ await cold.evaluate(()=>document.getElementById('geMusicV5Button').click());
+ await cold.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  return window.GEMusicV5?.state()?.loaded===true&&
+    root?.querySelectorAll('.geStandaloneAlbumUniverse.isActive .geUniverseAlbum').length>=7;
+ },{timeout:15000});
+ const coldMusic=await cold.evaluate(()=>{
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  const board=root.querySelector('.geUniverseAlbums');
+  const covers=[...board.querySelectorAll('.geUniverseAlbum')];
+  const img=covers[0]?.querySelector('img');
+  return {loaded:window.GEMusicV5.state().loaded,
+   names:covers.map(x=>x.dataset.album),
+   message:board.textContent,
+   coverLoaded:!!img&&img.complete&&img.naturalWidth>0};
+ });
+ assert.equal(coldMusic.loaded,true,'MUSIC must load its saved catalog directly from Cache Storage');
+ assert.equal(coldMusic.coverLoaded,true,'Offline album artwork must be readable without network');
+ assert.ok(coldMusic.names.includes('Aether')&&coldMusic.names.includes('Fire'),
+  'Offline MUSIC should restore actual saved albums: '+JSON.stringify(coldMusic));
+ assert.ok(!/loading albums/i.test(coldMusic.message),'Offline MUSIC cannot hang on Loading albums');
+ assert.ok(!coldMusic.names.some(name=>/^singles?$/i.test(name)),'Singles is not an album');
+ await cold.evaluate(()=>window.GEMusicV5.close());
  // Old Home Screen shortcuts must open the same cached Radio player.
  await cold.goto(base+'offline-home.html',{waitUntil:'domcontentloaded',timeout:25000});
  await cold.waitForFunction(()=>!!window.GEOfflineDownloads&&!!document.getElementById('player'),{timeout:20000});
  await cold.close();
- console.log('PASS nonblocking OFFLINE dock, verified code, complete downloads, badge and full cold-browser Airplane Mode reopen');
+ console.log('PASS nonblocking OFFLINE dock, verified code, complete downloads, badge and full cold-browser Airplane Mode reopen with MUSIC catalog and artwork');
 
 }finally{
  await browser.close();
