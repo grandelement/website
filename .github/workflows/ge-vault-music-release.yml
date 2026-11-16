@@ -1,6 +1,13 @@
 name: GE Music Access — verify and deploy Vault
 
 on:
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'tests/access-music-session.test.mjs'
+      - 'tests/ge-vault-event-batch.test.mjs'
+      - 'tests/access-code-playlist-save.test.mjs'
+      - '.github/workflows/ge-vault-music-release.yml'
   push:
     branches: [main]
     paths:
@@ -31,11 +38,15 @@ jobs:
         run: node tests/access-music-session.test.mjs
       - name: Verify batched analytics leave access-code and payment paths untouched
         run: node tests/ge-vault-event-batch.test.mjs
-      - name: Verify shared publisher versus private fan playlist contracts
-        run: node tests/ge-unified-playlist-library.test.mjs
+      # The old cross-UI "unified playlist" static test hard-codes a retired
+      # MUSIC version and checks broad browser rendering unrelated to this Worker.
+      # Gate this deployment on live access-code playlist assignment behavior.
+      - name: Verify existing access-code playlist assignment security
+        run: node tests/access-code-playlist-save.test.mjs
   release:
     name: Deploy tested Vault Worker
     needs: verify
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
