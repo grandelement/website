@@ -1625,7 +1625,9 @@ albumViewChooser.append(albumViewSelect);
 // Album layout is configured privately in Back Room > Radio, not in public MUSIC.
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
- universe.dataset.mode=albumUniverseMode;
+ // The public MUSIC universe is always the connected square cover stack.
+ // Private Back Room layout preferences cannot create gaps for listeners.
+ universe.dataset.mode='squares';
  board.replaceChildren();
  setUniverseZoom(1);
  if(!state.loaded){const loading=document.createElement('p');loading.textContent='Loading albums…';board.append(loading);return;}
