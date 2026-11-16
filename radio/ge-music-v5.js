@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.67-20261116-FIT-AND-PINCH-ALBUMS';
+const BUILD='GE-MUSIC-V7.68-20261116-OFFLINE-CATALOG-RESTORE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1813,7 +1813,7 @@ async function fetchCatalog(options={}){
   const filter=el('.songFilter'),prior=filter.value;
   // One album selector. Never recreate the retired ALL SONGS / CHECKED SONGS interface.
   filter.replaceChildren(new Option('ALBUMS','albums'));
-  for(const album of [...new Set(unique.map(track=>track.album))].sort((a,b)=>rank(a)-rank(b)))
+  for(const album of [...new Set(unique.map(track=>track.album))].filter(name=>!/^singles?$/i.test(name)).sort((a,b)=>rank(a)-rank(b)))
    filter.add(new Option('ALBUM · '+album,'album:'+album));
   // Owner test purchases are still available only to the dedicated demo route.
 
@@ -1825,18 +1825,66 @@ async function fetchCatalog(options={}){
  };
  // The committed master manifest is authoritative. Check the published copy
  // too, but never replace a newer GitHub manifest with an older CDN snapshot.
- const sources=navigator.onLine===false?['./manifest.json']:[
+ // Offline always starts from the catalog that was saved with the music,
+ // before touching GitHub. Safari may incorrectly report online in Airplane
+ // Mode; external network requests must never block the album display.
+ const manifestURL=new URL('./manifest.json',location.href).href;
+ let cachedPaths=[];
+ try{
+  const names=(await caches.keys()).filter(name=>name.startsWith('ge-radio-shell-')).reverse();
+  for(const name of names){
+   const response=await (await caches.open(name)).match(manifestURL,{ignoreSearch:true});
+   if(!response?.ok)continue;
+   const data=await response.json();
+   const rows=Array.isArray(data)?data:Array.isArray(data?.files)?data.files:[];
+   cachedPaths=[...new Set(rows.map(canonical).filter(Boolean))];
+   if(cachedPaths.length)break;
+  }
+  if(!cachedPaths.length){
+   const response=await caches.match(manifestURL,{ignoreSearch:true});
+   if(response?.ok){
+    const data=await response.json();
+    const rows=Array.isArray(data)?data:Array.isArray(data?.files)?data.files:[];
+    cachedPaths=[...new Set(rows.map(canonical).filter(Boolean))];
+   }
+  }
+ }catch(error){console.warn('MUSIC local catalog read failed',error)}
+ if(!cachedPaths.length){
+  // Older installs may retain the actual MP3 files after Safari discards
+  // the manifest. A locally present recording is enough to recover its album.
+  try{
+   const cache=await caches.open('ge-radio-media-v4');
+   cachedPaths=[...new Set((await cache.keys()).map(request=>canonical(request.url)).filter(Boolean))];
+  }catch(_){}
+ }
+ if(cachedPaths.length){
+  publishCatalog(cachedPaths,true);
+  state.loading=true; // In-flight refresh must not start a second fetch.
+ }
+ if(navigator.onLine===false){
+  if(!state.loaded){
+   publishCatalog([],true);
+   say('No saved album catalog found. Reconnect once and use OFFLINE to repair.');
+  }
+  return {ok:state.loaded,count:state.tracks.length,source:'saved-offline'};
+ }
+ const sources=[
   'https://raw.githubusercontent.com/grandelement/website/main/radio/manifest.json',
   './manifest.json'
  ];
  const results=await Promise.allSettled(sources.map(async url=>{
-  const response=await fetch(url+(url.includes('?')?'&':'?')+'ge_master='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error(url+' HTTP '+response.status);
-  const data=await response.json();
-  const rows=Array.isArray(data)?data:Array.isArray(data.files)?data.files:[];
-  const paths=[...new Set(rows.map(canonical).filter(Boolean))];
-  if(!paths.length)throw Error(url+' has no playable songs');
-  return {url,paths};
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),5000);
+  try{
+   const response=await fetch(url+(url.includes('?')?'&':'?')+'ge_master='+Date.now(),
+    {cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw Error(url+' HTTP '+response.status);
+   const data=await response.json();
+   const rows=Array.isArray(data)?data:Array.isArray(data?.files)?data.files:[];
+   const paths=[...new Set(rows.map(canonical).filter(Boolean))];
+   if(!paths.length)throw Error(url+' has no playable songs');
+   return {url,paths};
+  }finally{clearTimeout(timer)}
  }));
  const valid=results.filter(item=>item.status==='fulfilled').map(item=>item.value);
  if(valid.length){
@@ -1854,7 +1902,7 @@ async function fetchCatalog(options={}){
  const failure=results.map(item=>item.status==='rejected'?String(item.reason):'').filter(Boolean).join('; ');
  if(strict)throw Error(failure||'Master manifest unavailable');
  if(!state.loaded)publishCatalog([],true);
- showCatalogSource('MASTER UNAVAILABLE / PREVIOUS LIST',state.tracks.length);
+ showCatalogSource('MASTER UNAVAILABLE / SAVED LIBRARY',state.tracks.length);
  console.warn('Master music manifest unavailable; preserving loaded songs',failure);
  return {ok:state.loaded,count:state.tracks.length,source:'previous-library'};
 }
