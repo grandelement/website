@@ -115,6 +115,18 @@ try{
    eta:root.querySelector('.geOfflineEta')?.textContent,
    progress:!!root.querySelector('progress.geOfflineProgress'),
    choices:[...root.querySelectorAll('[data-ge-offline]')].map(x=>x.dataset.geOffline),
+   optionsVisible:(()=>{
+    const dock=root.querySelector('.geOfflineWorkspace').getBoundingClientRect();
+    const buttons=root.querySelector('.geOfflineChoices').getBoundingClientRect();
+    const footer=root.querySelector('.selectionBar').getBoundingClientRect();
+    return buttons.top>=0&&buttons.bottom<=innerHeight&&
+      buttons.top>dock.top&&buttons.bottom<=dock.bottom+2&&dock.bottom<=footer.top+3;
+   })(),
+   actionsTappable:[...root.querySelectorAll('[data-ge-offline]')].every(element=>{
+    const r=element.getBoundingClientRect();
+    const at=root.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return r.top>=0&&r.bottom<=innerHeight&&(at===element||element.contains(at));
+   }),
    message:root.querySelector('.geOfflineStatus')?.textContent,
    player:!!root.querySelector('.selectionBar .playSelected')
   };
@@ -123,6 +135,8 @@ try{
  assert.match(display.percent,/^\d+%$/);
  assert.match(display.eta,/^ETA:/);
  assert.deepEqual(display.choices,['all','checked','playlist','update']);
+ assert(display.optionsVisible&&display.actionsTappable,
+   'Homepage OFFLINE must show four reachable choices inside phone viewport: '+JSON.stringify(display));
  assert.equal(display.player,true,'PLAY remains present while OFFLINE choices are shown');
  assert.doesNotMatch(display.message||'',/\d+\s*\/\s*\d+|songs saved|files saved/i);
  // The verified worker must control the page and have a complete startup package.
