@@ -52,7 +52,7 @@ function makeHarness({safari=false}={}){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.16-offline-catalog-v7'
+    type:data.type,ready:true,missing:[],version:'2026.11.16-offline-dock-viewport-v8'
    });
   }
  };
@@ -100,7 +100,7 @@ function makeHarness({safari=false}={}){
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-offline-catalog-v7');
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-offline-dock-viewport-v8');
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
@@ -252,9 +252,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(html,/ge-radio-offline-verified-colors/,'Live READY color has higher specificity');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-catalog-v7/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-catalog-v7/);
- assert.match(html,/sw\.js\?v=20261116-offline-catalog-v7/);
- assert.match(sw,/const VERSION='2026\.11\.16-offline-catalog-v7'/);
- assert.match(source,/const VERSION='2026\.11\.16-offline-catalog-v7'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-viewport-v8/);
+ assert.match(html,/sw\.js\?v=20261116-offline-dock-viewport-v8/);
+ assert.match(sw,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
+ assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
 });

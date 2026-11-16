@@ -86,12 +86,27 @@ try{
     const workspace=root.querySelector('.geOfflineWorkspace');
     const choices=root.querySelector('.geOfflineChoices');
     const footer=root.querySelector('.selectionBar');
+    const dock=workspace.getBoundingClientRect(),bar=workspace.querySelector('.geOfflineDockLine').getBoundingClientRect();
+    const options=choices.getBoundingClientRect(),end=footer.getBoundingClientRect();
+    const controls=[...choices.querySelectorAll('button[data-ge-offline]')];
+    const tappable=controls.every(control=>{
+     const box=control.getBoundingClientRect();
+     if(box.top<0||box.bottom>innerHeight||box.left<0||box.right>innerWidth)return false;
+     const at=root.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
+     return at===control||control.contains(at);
+    });
     return {offline:!!workspace&&getComputedStyle(workspace).display!=='none',
-     choices:!!choices&&!choices.hidden,footer:footer.getBoundingClientRect().height>0,
+     choices:!!choices&&!choices.hidden,footer:end.height>0,
+     dockBeforeFooter:dock.top>=0&&dock.bottom<=end.top+3,
+     optionsInFlow:options.top>=bar.bottom-2&&options.bottom<=dock.bottom+2,
+     optionsInViewport:options.top>=0&&options.bottom<=innerHeight,
+     actionsCount:controls.length,tappable,
      open:window.GEMusicV5.state().open,url:location.href};
    });
    assert(after.offline&&after.open&&after.choices&&after.footer,
      'OFFLINE expands four choices without hiding MUSIC/PLAY controls');
+   assert(after.dockBeforeFooter&&after.optionsInFlow&&after.optionsInViewport&&after.actionsCount===4&&after.tappable,
+     'All four OFFLINE actions must be below dock, above PLAY and touchable inside phone viewport: '+JSON.stringify(after));
    assert.equal(after.url,before,'OFFLINE must not redirect');
    console.log('PASS '+width+'px: connected fit albums, pinch closeup, no Singles, mini OFFLINE dock and playable footer');
   }finally{await page.close()}

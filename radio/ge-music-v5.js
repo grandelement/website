@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.68-20261116-OFFLINE-CATALOG-RESTORE';
+const BUILD='GE-MUSIC-V7.69-20261116-OFFLINE-DOCK-VIEWPORT';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1391,7 +1391,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
    It never replaces browsing, playlists or the player, and stays live during downloads. */
 .header .musicOfflineLaunch{display:none!important}
 .window .geOfflineWorkspace{
- display:flex!important;position:relative;z-index:12;flex:0 0 auto;
+ display:flex!important;position:relative;z-index:12;flex:0 0 auto;order:7!important;
  flex-direction:column;gap:0;min-width:0;width:100%;min-height:47px;
  padding:4px 9px 3px;background:rgba(2,21,40,.97);
  border-top:1px solid #428bb7;border-bottom:1px solid #589fc2;
@@ -1409,13 +1409,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geOfflineStop{flex:0 0 auto;min-height:36px;min-width:50px;background:#592d38;border-color:#ecacb3;font-size:11px;padding:4px 6px}
 .geOfflineStop[hidden]{display:none!important}
 .geOfflineChoices{
- position:absolute;bottom:100%;left:5px;right:5px;z-index:80;
- display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
- padding:11px;background:#08263e;border:2px solid #8cd9fd;border-radius:12px;
- box-shadow:0 -9px 28px rgba(0,0,0,.65);max-height:60dvh;overflow:auto;
+ /* Keep download choices in the MUSIC viewport, immediately below their
+    own dock. Never float options upward past the phone's top edge. */
+ position:relative;inset:auto;width:100%;min-width:0;z-index:auto;
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;
+ padding:8px;background:#08263e;border:2px solid #8cd9fd;border-radius:10px;
+ box-shadow:0 4px 14px rgba(0,0,0,.45);
+ max-height:min(38dvh,246px);overflow-y:auto;overflow-x:hidden;
+ overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
 }
 .geOfflineChoices[hidden]{display:none!important}
-.geOfflineChoices > button{min-width:0;min-height:53px;font-size:clamp(11px,3vw,14px);
+.geOfflineChoices > button{min-width:0;min-height:47px;font-size:clamp(11px,3vw,14px);
  background:#103c5d;border:1px solid #8dc9ec}
 .geOfflineChoices > button[aria-pressed="true"]{background:#126eaa;border-color:#e4f9ff}
 .geOfflinePlaylistRow{grid-column:1/-1;display:flex;gap:8px;flex-direction:column;font-size:12px;color:#d8ecf9}
