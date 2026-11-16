@@ -252,7 +252,7 @@ requireText(radioCSS,/#musicGroup > #liveStatus\.show/,'Status is available to a
 requireText(radio,/grid-area:2\/1\/3\/2!important/,'Sun Lab must replace the retired RELOAD position');
 requireText(radioCSS,/#musicGroup > #liveStatus\.show/,'Removed Radio status bar returned');
 requireText(radioCSS,/#musicGroup > #geMusicV5Button/,'MUSIC equal-size portrait override removed');
-requireText(radio,/sw\.js\?v=20261116-css-consolidated-v1/,'Current iPhone offline-ready UI shell not refreshed');
+requireText(radio,/sw\.js\?v=20261116-css-core-v2/,'Current iPhone offline-ready UI shell not refreshed');
 requireText(radioCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Unauthorized Offline button must remain hidden');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
 requireText(radioCSS,/ge-radio-iphone-locked/,'iPhone border-lock stylesheet removed');
