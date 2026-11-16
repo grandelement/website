@@ -1059,6 +1059,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* Clean album detail is a distinct screen, not the legacy MUSIC workspace. */
 .albumDetailNav{display:none}
 .window.geAlbumDetailClean > .tools,.window.geAlbumDetailClean > .notice{display:none!important}
+/* The normal SONGS screen hides the old toolbar, but the real CODE form
+   must become visible when someone enters a code from MUSIC OFFLINE. */
+.window.geAlbumDetailClean:has(.musicCodeTools:not([hidden])) > .tools{
+ display:block!important;position:relative!important;z-index:20!important;
+ flex:0 0 auto!important;max-height:min(34dvh,280px)!important;
+ overflow-y:auto!important;padding:10px 12px!important;
+ background:rgba(3,18,38,.98)!important;
+}
+.window.geAlbumDetailClean:has(.musicCodeTools:not([hidden])) > .tools > :not(.musicCodeTools):not(.musicCodeState){display:none!important}
+
 .window.geAlbumDetailClean > .header{
  display:flex!important;flex:0 0 auto!important;
  min-height:calc(env(safe-area-inset-top) + 49px)!important;
