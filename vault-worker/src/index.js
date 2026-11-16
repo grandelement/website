@@ -2674,6 +2674,10 @@ async function accessMusicSession(request,env){
   if(expires&&Number(expires)<=t)
     return json({ok:false,error:"Music code expired."},403);
   if(action==="verify"){
+    // The MUSIC screen can verify OFFLINE rights without redeeming or
+    // consuming a code again. A Music-only session must not grant downloads.
+    if(body.require_offline===true&&!scopes.includes("offline"))
+      return json({ok:false,error:"This access code does not include OFFLINE downloads."},403);
     if(expires&&sessionExpires>Number(expires))
       return json({ok:false,error:"Music session expired."},403);
     const track=String(body.track_path||"");
@@ -2681,7 +2685,8 @@ async function accessMusicSession(request,env){
       return json({ok:false,error:"Invalid song path."},400);
     if(allowedPaths.length&&!allowedPaths.includes(track))
       return json({ok:false,error:"This code does not include that song."},403);
-    return json({ok:true,authorized:true,track_path:track,session_expires_at:sessionExpires});
+    return json({ok:true,authorized:true,track_path:track,session_expires_at:sessionExpires,
+      offline_enabled:scopes.includes("offline")});
   }
   if(row.max_uses>0&&row.use_count>=row.max_uses)
     return json({ok:false,error:"Code usage limit reached."},403);
@@ -2704,7 +2709,7 @@ async function accessMusicSession(request,env){
   const displayName=await codeListenerDisplayName(env,row.id);
   return json({ok:true,token:unsigned+"."+sig,session_expires_at:sessionExpires,
     restricted:allowedPaths.length>0,allowed_tracks:allowedPaths,playlist_ids:playlistIds,
-    display_name:displayName});
+    offline_enabled:scopes.includes("offline"),display_name:displayName});
 }
 
 // A device is one browser's random, opt-in visitor ID, not an IP address,

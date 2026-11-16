@@ -15,9 +15,9 @@ const songs=[
 ];
 const station='ge-music/clips/GE Station Identification - 1.m4a';
 const files=[...songs,station];
-function makeHarness(){
+function makeHarness({safari=false}={}){
  const values=new Map(),maps=new Map(),hits=new Map();
- let failPrana=true,authorized=true,allowed=null;
+ let failPrana=true,authorized=true,allowed=null,verifyGranted=true;
  const k=value=>new URL(typeof value==='string'?value:value.url,BASE).href;
  const cacheAPI={
   keys:async()=>[...maps.keys()],
@@ -52,7 +52,7 @@ function makeHarness(){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.16-large-albums-v3'
+    type:data.type,ready:true,missing:[],version:'2026.11.16-safari-offline-v4'
    });
   }
  };
@@ -78,11 +78,12 @@ function makeHarness(){
  const window={GERadioOfflineBridge:{
    canDownload:()=>authorized,
    allowedPaths:()=>allowed,
+   verify:async()=>verifyGranted,
    rescan:()=>{},
    promptCode:()=>{}
-  },matchMedia:()=>({matches:true})};
+  },matchMedia:()=>({matches:!safari})};
  const navigator={
-  onLine:true,userAgent:'Desktop Chrome',platform:'Linux',maxTouchPoints:0,
+  onLine:true,userAgent:safari?'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Mobile':'Desktop Chrome',platform:safari?'iPhone':'Linux',maxTouchPoints:safari?5:0,
   serviceWorker:{getRegistration:async()=>registration,register:async()=>registration}
  };
  const context={window,navigator,localStorage,caches:cacheAPI,fetch,MessageChannel,
@@ -92,13 +93,14 @@ function makeHarness(){
   engine:window.GEOfflineDownloads,
   succeedPrana:()=>{failPrana=false},
   revoke:()=>{authorized=false},
+  setVerify:value=>{verifyGranted=value},
   setAllowed:paths=>{allowed=paths},
   setOnline:value=>{navigator.onLine=value},
   has:async path=>!!(await cacheAPI.match(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).href,{ignoreSearch:true})),
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-large-albums-v3');
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-safari-offline-v4');
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
@@ -175,6 +177,28 @@ test('new downloads require connectivity; cached downloads are never erased',asy
  assert.equal((await h.engine.save({mode:'all'})).error,'offline');
  assert.equal(await h.has(songs[0]),true);
 });
+test('iPhone Safari can download from its own browser tab and play offline',async()=>{
+ const h=makeHarness({safari:true});
+ h.succeedPrana();
+ assert.equal(h.engine.installed(),false,'Safari tab is not a Home Screen application');
+ const saved=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(saved.error,undefined,'Safari is not blocked by installation status');
+ assert.equal(saved.ready,true,'Verified Safari download is ready');
+ assert.equal(await h.has(songs[0]),true);
+ await h.primeCatalog();h.setOnline(false);
+ assert.equal((await h.engine.inspect()).ready,true,'Safari cached recording remains ready while offline');
+});
+test('unverified OFFLINE code never starts a download or changes saved selection',async()=>{
+ const h=makeHarness({safari:true});
+ h.succeedPrana();h.setVerify(false);
+ const denied=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(denied.error,'access');
+ assert.equal(await h.has(songs[0]),false);
+ assert.deepEqual([...h.engine.plan()],[]);
+ h.setVerify(true);
+ const accepted=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(accepted.ready,true,'server-authorized code allows Safari download');
+});
 test('MUSIC OFFLINE shows only percent, ETA, progress bar, not counts or filenames',()=>{
  const start=music.indexOf('async function offlineCheck(){');
  const end=music.indexOf("el('.musicOfflineLaunch').addEventListener('click',openOffline)",start);
@@ -199,9 +223,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/ge-images\/img\/31\.gif/);
  assert.match(sw,/const ARTWORK=/);
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-large-albums-v3/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-large-albums-v3/);
- assert.match(html,/sw\.js\?v=20261116-large-albums-v3/);
- assert.match(sw,/const VERSION='2026\.11\.16-large-albums-v3'/);
- assert.match(source,/const VERSION='2026\.11\.16-large-albums-v3'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261116-safari-offline-v4/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-safari-offline-v4/);
+ assert.match(html,/sw\.js\?v=20261116-safari-offline-v4/);
+ assert.match(sw,/const VERSION='2026\.11\.16-safari-offline-v4'/);
+ assert.match(source,/const VERSION='2026\.11\.16-safari-offline-v4'/);
 });

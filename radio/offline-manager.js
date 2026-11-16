@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.16-large-albums-v3';
+const VERSION='2026.11.16-safari-offline-v4';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
@@ -116,7 +116,9 @@ async function inspect({onProgress}={}){
  }catch(_){}
  const all=savedPlan.length>0&&saved===savedPlan.length&&
   stations.length>0&&stationSaved===stations.length;
- const ready=all&&engine.ready&&(!ios()||installed())&&active();
+ // Safari and installed Home Screen Radio each own their own Cache Storage.
+ // Downloading and playback are allowed in either; never refuse Safari by platform.
+ const ready=all&&engine.ready&&active();
  const result={ready,partial:!ready&&(saved>0||stationSaved>0),
   engine:engine.ready,engineMissing:engine.missing,
   saved,total:savedPlan.length,missing,stations:stationSaved,stationTotal:stations.length,
@@ -158,14 +160,15 @@ async function save({mode='all',paths=[],onProgress}={}){
  if(busy)return {error:'busy',message:'Download already running'};
  if(navigator.onLine===false)return {error:'offline',message:'Connect online to download new music'};
  if(!canDownload())return {error:'access',message:'Enter your OFFLINE access code before downloading. Saved music stays available.'};
- if(ios()&&!installed())return {error:'installation',message:'Open the Radio Home Screen app to download on iPhone.'};
  busy=true;stopped=false;
  let failures=[],completed=0;
  const start=Date.now();
  try{
   report(onProgress,{phase:'preparing',percent:0,etaSeconds:null});
   const engine=await shell({refresh:true});
-  if(!engine.ready)return {error:'engine',message:'Offline startup files are incomplete. Reconnect and update Radio.'};
+  if(!engine.ready)return {error:'engine',
+   message:'Radio startup did not verify: '+String(engine.missing?.[0]||'Unknown file')+
+    '. Reconnect, reopen Radio, and retry. Existing music is safe.'};
   const list=await catalog();
   if(!list.stations.length)return {error:'catalog',message:'Station identification files are missing from the catalog.'};
   const allowed=authorized(list.songs),allow=new Set(allowed),previous=plan();
@@ -173,6 +176,16 @@ async function save({mode='all',paths=[],onProgress}={}){
   const chosen=mode==='all'?allowed:
    mode==='update'?allowed:unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
   if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
+  // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
+  // existing server to verify a signed OFFLINE-enabled session before saving.
+  if(typeof bridge().verify==='function'){
+   try{
+    const verified=await bridge().verify(chosen[0]);
+    if(verified!==true)return {error:'access',message:'OFFLINE permission was not verified for this code.'};
+   }catch(error){
+    return {error:'access',message:String(error?.message||'OFFLINE permission could not be verified.')};
+   }
+  }
   // Preserve all earlier planned songs, even if today's access scope is narrower.
   const desired=unique([...previous,...chosen]);setPlan(desired);
   const permittedDownloads=desired.filter(p=>allow.has(p));
@@ -199,14 +212,21 @@ async function save({mode='all',paths=[],onProgress}={}){
   }
   report(onProgress,{phase:'verifying',percent:99,etaSeconds:null});
   const checked=await inspect();
-  const result={...checked,mode,failures,stopped,completed,attempted:total};
+  const quota=failures.some(f=>/quota|storage|space|disk/i.test(f.error));
+  const result={...checked,mode,failures,stopped,completed,attempted:total,
+   message:quota?'Device storage limit reached. Saved songs are safe. Free some space and use UPDATE MISSING.':
+    failures.length?'Some recordings could not be saved. Use UPDATE MISSING.':''
+  };
   report(onProgress,{phase:'finished',percent:checked.ready?100:checked.percent,
    ready:checked.ready,partial:checked.partial,stopped});
   return result;
  }catch(error){
   const message=String(error?.message||error);
-  report(onProgress,{phase:'error',message:'Download interrupted. Use UPDATE MISSING to retry.'});
-  return {error:'download',message:'Download interrupted. Use UPDATE MISSING to retry.',failures};
+  const detail=/quota|storage|space|disk/i.test(message)?
+   'Device storage is full. Previously saved music remains available.':
+   'Download stopped: '+message.slice(0,140);
+  report(onProgress,{phase:'error',message:detail});
+  return {error:'download',message:detail,failures};
  }finally{busy=false;currentAbort=null}
 }
 async function repair(args={}){return save({...args,mode:'update'})}

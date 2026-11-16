@@ -47,8 +47,11 @@ test('radio cold start checks stored identity with no Vault request',()=>{
 test('single MUSIC offline engine is scoped to verified Radio grants',()=>{
  assert.match(sw,/'.\/offline-manager\.js'/);
  assert.match(radio,/window\.GERadioOfflineBridge=\{/);
- assert.match(radio,/canDownload:\(\)=>geRadioUtilityAllowed\('offline'\)/);
- assert.match(radio,/allowedPaths:\(\)=>\{const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(radio,/canDownload:\(\)=>navigator\.onLine!==false&&/);
+ assert.match(radio,/geRadioUtilityAllowed\('offline'\)\|\|!!geMusicOfflineCode\(\)/);
+ assert.match(radio,/allowedPaths:\(\)=>\{/);
+ assert.match(radio,/const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(radio,/require_offline:true/,'Music code OFFLINE scope must be confirmed by Vault');
  assert.match(manager,/const AUDIO='ge-radio-media-v4'/);
  assert.match(manager,/bridge\(\)\.canDownload\?\.\(\)/);
  assert.match(manager,/cache\.put\(url,new Response\(blob,\{status:200,headers\}\)\)/);
@@ -159,6 +162,10 @@ test('airplane-mode worker serves cached navigation and ranged audio with no net
  self.navigator.onLine=true;
  const tagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song+'?ge_offline=1',headers:new Headers()});
  assert.equal(tagged.status,200);
+ const untagged=await respond({method:'GET',mode:'cors',destination:'audio',url:song,
+  headers:new Headers({'Range':'bytes=0-2'})});
+ assert.equal(untagged.status,206,'Saved audio must stay cache-first when Safari falsely says online');
+ assert.deepEqual([...new Uint8Array(await untagged.arrayBuffer())],[1,2,3]);
  const homeAgain=await respond({method:'GET',mode:'navigate',url:origin+'/radio/offline-home.html',headers:new Headers()});
  assert.equal(homeAgain.status,200);
  assert.match(await homeAgain.text(),/id="shipStage"/);

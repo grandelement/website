@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-large-albums-v3';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_LARGE_ALBUMS_V5';
+const VERSION='2026.11.16-safari-offline-v4';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -167,6 +167,13 @@ async function navigation(request){
 }
 async function media(request){
  const url=new URL(request.url);
+ // Saved recordings are always local-first, even if iPhone Safari falsely
+ // reports online after Airplane Mode. Explicit RELOAD-MEDIA bypasses this
+ // via the fetch handler above; never delete listener downloads.
+ if(AUDIO.test(url.pathname)){
+  const saved=await cached(request,{media:true});
+  if(saved?.ok)return rangeResponse(request,saved);
+ }
  if(self.navigator?.onLine===false||url.searchParams.has('ge_offline')){
   const saved=await cached(request,{media:true});
   return saved?rangeResponse(request,saved):new Response('This file has not been downloaded',{status:503});
