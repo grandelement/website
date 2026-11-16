@@ -255,6 +255,6 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(html,/\.\/offline-manager\.js\?v=20261116-backgrounds-pinch-v6/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-backgrounds-pinch-v6/);
  assert.match(html,/sw\.js\?v=20261116-backgrounds-pinch-v6/);
- assert.match(sw,/const VERSION='2026\.11\.16-offline-dock-v5'/);
- assert.match(source,/const VERSION='2026\.11\.16-offline-dock-v5'/);
+ assert.match(sw,/const VERSION='2026\.11\.16-backgrounds-pinch-v6'/);
+ assert.match(source,/const VERSION='2026\.11\.16-backgrounds-pinch-v6'/);
 });
