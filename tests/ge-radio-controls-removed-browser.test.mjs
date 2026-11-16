@@ -39,6 +39,37 @@ try{
    assert(state.support.right<=state.sun.left+2,'SUPPORT must be left of SUN LAB: '+JSON.stringify(state));
    assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,'Footer buttons must use equal columns: '+JSON.stringify(state));
    assert(Math.abs(state.sun.top-state.support.top)<5&&Math.abs(state.offline.top-state.support.top)<5,'All footer controls must stay on one line');
+   // Rendered CSS, not source-string checks: catch invisible button text and
+   // stale dark transport controls on both iPhone and desktop.
+   const buttonColors=await page.evaluate(()=>{
+     const sample=id=>{
+       const el=document.getElementById(id),style=getComputedStyle(el);
+       return {id,background:style.backgroundColor,image:style.backgroundImage,
+         text:style.color,visible:el.getBoundingClientRect().width>0};
+     };
+     const loaded=[...document.styleSheets].map(sheet=>sheet.href||'');
+     return {loaded,transport:['prevBtn','playBtn','nextBtn'].map(sample),
+       share:sample('shareBtn'),code:sample('accessLaunchBtn'),
+       contact:sample('contactLaunchBtn')};
+   });
+   for(const file of ['radio-base.css','radio-components.css','radio-layout.css'])
+     assert(buttonColors.loaded.some(url=>url.includes('/radio/'+file)),
+       'Missing consolidated CSS file '+file+' '+JSON.stringify(buttonColors.loaded));
+   const rgba=value=>(value.match(/[\\d.]+/g)||[]).map(Number);
+   for(const item of buttonColors.transport){
+     const [red,green,blue,opacity]=rgba(item.background);
+     assert(item.visible&&red>=190&&green>=195&&blue>=200&&opacity>=.65,
+       'Transport must be silver on all devices: '+JSON.stringify(item));
+     assert(item.image==='none','Old gradient overrides silver transport: '+JSON.stringify(item));
+   }
+   const [shareRed,shareGreen,shareBlue]=rgba(buttonColors.share.background);
+   assert(Math.abs(shareRed-185)<25&&Math.abs(shareGreen-165)<25&&Math.abs(shareBlue-232)<25,
+     'SHARE must remain violet: '+JSON.stringify(buttonColors.share));
+   for(const item of [buttonColors.code,buttonColors.contact]){
+     const [red,green,blue]=rgba(item.text);
+     assert(item.visible&&red>=210&&green>=210&&blue>=210,
+       'Footer text must be visible on dark controls: '+JSON.stringify(item));
+   }
    await page.click('#offlineLaunchBtn');
    await page.waitForFunction(()=>{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
