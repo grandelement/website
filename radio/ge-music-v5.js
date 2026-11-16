@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.65-20261116-SAFARI-OFFLINE-VERIFIED';
+const BUILD='GE-MUSIC-V7.66-20261116-INLINE-OFFLINE-DOCK';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1387,34 +1387,48 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* ARRANGE is obsolete: playlist changes are made within PLAYLIST itself. */
 .window .geBrowseTools .gePlaylistArrangeTop{display:none!important}
 
-/* OFFLINE is a real MUSIC workspace. Radio's footer button routes here;
-   there is no second overlay or copy of the download controls. */
-.window .geOfflineWorkspace{display:none}
-.window.geOfflineOpen > :not(.header):not(.geOfflineWorkspace){display:none!important}
-.window.geOfflineOpen > .header{display:flex!important;position:relative!important;z-index:5!important}
-.window.geOfflineOpen .musicOfflineLaunch{display:inline-flex!important}
-.window.geOfflineOpen .geOfflineWorkspace{display:flex!important;flex-direction:column;min-height:0;flex:1 1 auto;gap:12px;overflow:auto;padding:17px 14px;background:#071a2b}
-.geOfflineWorkspace h2{margin:0;font-size:clamp(19px,5.2vw,25px);line-height:1.2}
-.geOfflineWorkspace p{margin:0;line-height:1.45;color:#c9deee}
-.geOfflineChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.geOfflineChoices button{min-height:56px;font-size:clamp(12px,3.15vw,15px);padding:8px;min-width:0}
-.geOfflineChoices button[aria-pressed="true"]{background:#1575ae;border:2px solid #a2e9ff;box-shadow:inset 0 0 0 1px #082941}
-.geOfflinePlaylistRow{display:flex;flex-direction:column;gap:5px}
-.geOfflinePlaylistRow[hidden]{display:none!important}
-.geOfflinePlaylistRow select{width:100%;min-height:46px;border:1px solid #83c7e9;background:#0b324f;color:white;border-radius:9px;padding:8px;font:inherit}
-.geOfflineStart{width:100%;min-height:58px!important;font-size:18px!important;background:#126392!important;border:2px solid #b0e8ff!important}
-.geOfflineStatus{min-height:65px;color:#dbf0fa!important;overflow-wrap:anywhere;white-space:pre-line}
-.geOfflineWorkspace progress{width:100%;height:18px;accent-color:#2fcd99}
-.geOfflineReadout{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#e5f5ff}
-.geOfflinePercent{font-size:clamp(22px,6vw,30px);font-variant-numeric:tabular-nums}
-.geOfflineEta{font-size:14px;color:#badbee;font-variant-numeric:tabular-nums}
-.geOfflineFooter{display:flex;gap:9px;flex-wrap:wrap}
-.geOfflineFooter button{flex:1;min-height:46px}
+/* One small OFFLINE strip directly ABOVE the checked-song toolbar.
+   It never replaces browsing, playlists or the player, and stays live during downloads. */
+.header .musicOfflineLaunch{display:none!important}
+.window .geOfflineWorkspace{
+ display:flex!important;position:relative;z-index:12;flex:0 0 auto;
+ flex-direction:column;gap:0;min-width:0;width:100%;min-height:47px;
+ padding:4px 9px 3px;background:rgba(2,21,40,.97);
+ border-top:1px solid #428bb7;border-bottom:1px solid #589fc2;
+}
+.geOfflineDockLine{display:flex;align-items:center;gap:7px;min-height:38px;width:100%;min-width:0}
+.geOfflineDockToggle{flex:0 0 auto;min-width:87px;min-height:38px;padding:5px 10px;
+ font-size:13px;font-weight:900;background:#075181;color:#fff;border:1px solid #8ad9ff}
+.geOfflineDockToggle[aria-expanded="true"]{background:#187bb6;border:2px solid #d1efff}
+.geOfflineDockReadout{display:flex;flex:1 1 auto;min-width:0;align-items:center;gap:6px}
+.geOfflineStatus{flex:1 1 auto;min-width:0;color:#cee5ef;font:700 11px/1.2 system-ui,sans-serif;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.geOfflinePercent{flex:0 0 auto;color:#e8fbff;font:800 12px/1.2 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.geOfflineEta{flex:0 0 auto;color:#b9dbed;font:600 10px/1.2 system-ui,sans-serif}
+.geOfflineProgress{display:block;width:100%;height:5px;min-height:5px;accent-color:#2ccc94;margin:1px 0 0}
+.geOfflineStop{flex:0 0 auto;min-height:36px;min-width:50px;background:#592d38;border-color:#ecacb3;font-size:11px;padding:4px 6px}
 .geOfflineStop[hidden]{display:none!important}
-.geOfflineWorkspace .geOfflineSmall{font-size:12px;color:#a7c2d6}
-.header .musicOfflineLaunch{min-width:74px;padding:6px 8px;font-size:12px;background:#084e7b;border-color:#7bcfff}
-@media(max-width:420px){.header .musicOfflineLaunch{min-width:65px;font-size:11px;padding:5px}
- .geOfflineWorkspace{padding-inline:12px!important}.geOfflineChoices{gap:7px}}
+.geOfflineChoices{
+ position:absolute;bottom:100%;left:5px;right:5px;z-index:80;
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+ padding:11px;background:#08263e;border:2px solid #8cd9fd;border-radius:12px;
+ box-shadow:0 -9px 28px rgba(0,0,0,.65);max-height:60dvh;overflow:auto;
+}
+.geOfflineChoices[hidden]{display:none!important}
+.geOfflineChoices > button{min-width:0;min-height:53px;font-size:clamp(11px,3vw,14px);
+ background:#103c5d;border:1px solid #8dc9ec}
+.geOfflineChoices > button[aria-pressed="true"]{background:#126eaa;border-color:#e4f9ff}
+.geOfflinePlaylistRow{grid-column:1/-1;display:flex;gap:8px;flex-direction:column;font-size:12px;color:#d8ecf9}
+.geOfflinePlaylistRow[hidden]{display:none!important}
+.geOfflinePlaylist{width:100%;min-height:44px;padding:7px;border-radius:8px;background:#113550;
+ color:#fff;border:1px solid #84c9fa}
+@media(max-width:390px){
+ .window .geOfflineWorkspace{padding:4px 5px 3px}
+ .geOfflineDockLine{gap:5px}
+ .geOfflineDockToggle{min-width:76px;font-size:11px;padding:4px 6px}
+ .geOfflineEta{font-size:9px}
+ .geOfflineStatus{font-size:10px}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1434,28 +1448,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <section class="geOfflineWorkspace" aria-label="Offline music download choices">
-  <h2>OFFLINE MUSIC</h2>
-  <p>Choose what to save. One tap downloads missing songs, station IDs, and artwork. Already saved music stays on this device.</p>
-  <div class="geOfflineChoices" role="group" aria-label="Choose offline download">
-   <button type="button" data-ge-offline="all" aria-pressed="true">ALL MUSIC</button>
-   <button type="button" data-ge-offline="checked" aria-pressed="false">CHECKED SONGS</button>
-   <button type="button" data-ge-offline="playlist" aria-pressed="false">PLAYLIST</button>
-   <button type="button" data-ge-offline="update" aria-pressed="false">UPDATE MISSING</button>
-  </div>
-  <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
-  <button class="geOfflineStart" type="button">DOWNLOAD</button>
-  <div class="geOfflineReadout" aria-label="Offline download progress and estimated time">
-   <strong class="geOfflinePercent">0%</strong>
-   <span class="geOfflineEta">ETA: —</span>
-  </div>
-  <progress class="geOfflineProgress" value="0" max="100" aria-label="Offline download progress"></progress>
-  <p class="geOfflineStatus" role="status" aria-live="polite">Checking saved music…</p>
-  <div class="geOfflineFooter">
-   <button type="button" class="geOfflineBack">BACK TO MUSIC</button>
+ <section class="geOfflineWorkspace" aria-label="Music offline progress and download choices">
+  <div class="geOfflineDockLine">
+   <button class="geOfflineDockToggle" type="button" aria-expanded="false" aria-controls="geOfflineChoices">OFFLINE</button>
+   <div class="geOfflineDockReadout" aria-label="Download progress">
+    <span class="geOfflineStatus" role="status" aria-live="polite">NOT READY</span>
+    <strong class="geOfflinePercent">0%</strong>
+    <span class="geOfflineEta">ETA: —</span>
+   </div>
    <button type="button" class="geOfflineStop" hidden>STOP</button>
   </div>
-  <p class="geOfflineSmall">Downloads require an authorized CODE and should be done inside this installed Home Screen app. Saved songs play offline even after the code session ends. Nothing is deleted by UPDATE.</p>
+  <progress class="geOfflineProgress" value="0" max="100" aria-label="Offline download progress"></progress>
+  <div class="geOfflineChoices" id="geOfflineChoices" role="group" aria-label="Start an offline download" hidden>
+   <button type="button" data-ge-offline="all">ALL MUSIC</button>
+   <button type="button" data-ge-offline="checked">CHECKED SONGS</button>
+   <button type="button" data-ge-offline="playlist">PLAYLIST</button>
+   <button type="button" data-ge-offline="update">UPDATE MISSING</button>
+   <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
+  </div>
  </section>
  <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-hidden="true"></strong><button class="gePlayerSunReturn" type="button" aria-label="Return to the Radio player" title="Return to player"><img src="../ge-images/images/ge-logo-2.jpg" alt=""></button><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
@@ -2520,11 +2530,6 @@ function render(){
  const albumDetail=state.view.startsWith('album:');
  const songBrowsing=albumDetail||state.view==='browse-songs'||state.view==='user-playlists'||state.view==='playlist-display';
  const musicWindow=el('.window');
- if(musicWindow.classList.contains('geOfflineOpen')){
-  musicWindow.style.display='';
-  universe.classList.remove('isActive');
-  return;
- }
  musicWindow.style.display=albumUniverseActive?'none':'';
  musicWindow.classList.toggle('geAlbumFullArt',songBrowsing);
  musicWindow.classList.toggle('geAlbumDetailClean',songBrowsing);
@@ -2868,28 +2873,30 @@ function render(){
  scroller.scrollTop=previous;
 }
 
-// Single OFFLINE workspace belongs to MUSIC, not Radio's footer.
+// The single OFFLINE downloader is controlled from a thin MUSIC dock.
+// Playback, selections, playlists and Radio transport stay available while it runs.
 let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[];
 const offlinePanel=el('.geOfflineWorkspace');
 const offlineStatus=el('.geOfflineStatus');
-const offlineStart=el('.geOfflineStart');
 const offlineStop=el('.geOfflineStop');
 const offlineProgress=el('.geOfflineProgress');
-function setOfflineMessage(message){offlineStatus.textContent=String(message)}
+const offlineToggle=el('.geOfflineDockToggle');
+const offlineChoices=el('.geOfflineChoices');
+function setOfflineMessage(message){
+ offlineStatus.textContent=String(message);
+ offlineStatus.title=String(message);
+}
 function offlinePlaylistPaths(){
  const key=el('.geOfflinePlaylist').value,entry=offlinePlaylistChoices.find(p=>p.key===key);
  return entry?.songs||[];
 }
 function fillOfflinePlaylists(){
- // Respect the same published/assigned playlist visibility used elsewhere in MUSIC.
  const all=[...visibleSharedLists(),...state.assignedLists,...state.fanLists,...readMine()];
  const taken=new Set();
  offlinePlaylistChoices=all.filter(p=>p?.name&&Array.isArray(p.songs)).map(p=>({
-  key:String(p.source||'music')+':'+p.id,
-  name:p.name,songs:p.songs
+  key:String(p.source||'music')+':'+p.id,name:p.name,songs:p.songs
  })).filter(p=>{if(taken.has(p.key))return false;taken.add(p.key);return true});
- const select=el('.geOfflinePlaylist');
- const previous=select.value;
+ const select=el('.geOfflinePlaylist'),previous=select.value;
  select.replaceChildren(new Option('CHOOSE PLAYLIST…',''));
  for(const entry of offlinePlaylistChoices)select.add(new Option(entry.name,entry.key));
  if(offlinePlaylistChoices.some(p=>p.key===previous))select.value=previous;
@@ -2897,39 +2904,22 @@ function fillOfflinePlaylists(){
   const active=offlinePlaylistChoices.find(p=>p.key.endsWith(':'+state.activePlaylist.id));
   if(active)select.value=active.key;
  }
- if(!select.value&&offlinePlaylistChoices.length)select.value=offlinePlaylistChoices[0].key;
 }
-function chooseOffline(mode){
- offlineChoice=mode;
- for(const b of root.querySelectorAll('[data-ge-offline]'))
-  b.setAttribute('aria-pressed',String(b.dataset.geOffline===mode));
- const playlist=el('.geOfflinePlaylistRow');
- playlist.hidden=mode!=='playlist';
- if(mode==='playlist')fillOfflinePlaylists();
- offlineStart.textContent=mode==='update'?'UPDATE MISSING':'DOWNLOAD';
-}
-function showOfflinePanel(){
- universe.classList.remove('isActive');
- const window=el('.window');
- window.style.display='';
- window.classList.remove('geAlbumFullArt','geAlbumDetailClean','geSimpleSongBrowser');
- window.classList.add('geOfflineOpen');
- fillOfflinePlaylists();
- chooseOffline(offlineChoice);
- offlineStart.focus();
- void offlineCheck();
+function showOfflineChoices(open){
+ const visible=Boolean(open);
+ offlineChoices.hidden=!visible;
+ offlineToggle.setAttribute('aria-expanded',String(visible));
+ if(visible)fillOfflinePlaylists();
 }
 function openOffline(){
  if(!state.open)open();
- showOfflinePanel();
+ // The ALBUMS universe has no bottom controls by design: jump to songs to
+ // show the existing MUSIC footer and its inline OFFLINE strip.
+ if(state.view==='albums')setView('browse-songs');
+ showOfflineChoices(!offlineBusy);
+ void offlineCheck();
 }
-function hideOffline(){
- if(offlineBusy){setOfflineMessage('Download in progress. Use STOP before returning to MUSIC.');return}
- el('.window').classList.remove('geOfflineOpen');
- render();
- if(state.view==='albums')universe.querySelector('.geUniverseAlbum')?.focus();
- else el('.musicOfflineLaunch').focus();
-}
+function hideOffline(){showOfflineChoices(false)}
 function setOfflineProgress(percent,etaSeconds=null){
  const value=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
  offlineProgress.max=100;offlineProgress.value=value;
@@ -2938,88 +2928,114 @@ function setOfflineProgress(percent,etaSeconds=null){
  if(Number.isFinite(etaSeconds)&&etaSeconds>0){
   const seconds=Math.ceil(etaSeconds);
   eta='ETA: ~'+(seconds>=3600?Math.floor(seconds/3600)+'h ':'')+
-   (seconds>=60?Math.floor(seconds%3600/60)+'m ':'')+
-   (seconds%60)+'s';
+   (seconds>=60?Math.floor(seconds%3600/60)+'m ':'')+(seconds%60)+'s';
  }else if(value>0&&value<100&&offlineBusy)eta='ETA: calculating…';
  el('.geOfflineEta').textContent=eta;
 }
 async function offlineCheck(){
  const engine=window.GEOfflineDownloads;
- if(!engine){setOfflineMessage('NOT READY · Offline engine unavailable. Reconnect to update.');return}
+ if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE');return}
  try{
   const result=await engine.inspect();
-  if(offlineBusy)return;
+  if(offlineBusy||engine.isBusy())return;
   setOfflineProgress(result.ready?100:result.percent);
-  setOfflineMessage(result.ready?
-   'READY · Saved in this '+(engine.installed()?'Home Screen app':'Safari browser')+'. Test Airplane Mode in the same app.':
-   result.partial?
-    'PARTIAL · Some saved files are missing. Use UPDATE MISSING.':
-    'NOT READY · Tap DOWNLOAD. This Safari tab can save music; installed Home Screen apps use separate storage.');
- }catch(_){setOfflineMessage('NOT READY · Could not verify saved files. Reconnect and repair.')}
+  setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
+   result.partial?'PARTIAL · UPDATE MISSING':'NOT READY · TAP OFFLINE');
+ }catch(_){setOfflineMessage('NOT READY · RECONNECT TO REPAIR')}
 }
 function offlineProgressUpdate(event){
- if(!state.open||!el('.window').classList.contains('geOfflineOpen'))return;
  if(Number.isFinite(event.percent))setOfflineProgress(event.percent,event.etaSeconds);
- if(event.phase==='preparing')setOfflineMessage('Preparing offline music…');
- else if(event.phase==='audio')setOfflineMessage('Saving offline music…');
- else if(event.phase==='checking'||event.phase==='verifying')
-  setOfflineMessage('Verifying offline files…');
- else if(event.phase==='error')setOfflineMessage('Download interrupted. UPDATE MISSING will repair saved music.');
+ if(event.phase==='preparing')setOfflineMessage('PREPARING…');
+ else if(event.phase==='audio')setOfflineMessage('SAVING MUSIC…');
+ else if(event.phase==='verifying'||event.phase==='checking')setOfflineMessage('VERIFYING…');
+ else if(event.phase==='error')setOfflineMessage(event.message||'DOWNLOAD INTERRUPTED');
 }
-async function offlineDownload(){
- if(offlineBusy)return;
+async function offlineDownload(mode=offlineChoice){
+ if(offlineBusy||window.GEOfflineDownloads?.isBusy?.())return;
  const engine=window.GEOfflineDownloads;
- if(!engine){setOfflineMessage('NOT READY · Connect online to update Radio.');return}
- const mode=offlineChoice;
+ if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE · RECONNECT');return}
+ offlineChoice=mode;
  let paths=[];
  if(mode==='checked')paths=[...state.selected];
  if(mode==='playlist')paths=offlinePlaylistPaths();
  if((mode==='checked'||mode==='playlist')&&!paths.length){
-  setOfflineMessage(mode==='checked'?'Choose songs in MUSIC first.':'Choose a playlist in MUSIC first.');
+  setOfflineMessage(mode==='checked'?'CHECK SONGS FIRST':'CHOOSE A PLAYLIST FIRST');
   return;
  }
- if(navigator.onLine===false){
-  setOfflineMessage('Offline now. Your previously saved music remains available.');
-  return;
- }
+ if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
-  setOfflineMessage(musicAccessActive()?
-   'This MUSIC code is active, but it does not include OFFLINE downloads. Tap ACCESS CODE to enter an OFFLINE-enabled code.':
-   'OFFLINE downloads need an access code with OFFLINE permission. Tap ACCESS CODE above.');
   offlineResumeAfterAccess=true;
-  return;
+  setOfflineMessage('CODE NEEDS OFFLINE PERMISSION');
+  openCodeEntry();return;
  }
- // The same downloader works in Safari and in an installed Home Screen app.
- // Each context has its own saved music; never block the Safari download button.
- offlineBusy=true;offlineStart.disabled=true;offlineStop.hidden=false;
- setOfflineProgress(0);setOfflineMessage('Preparing your offline music…');
+ showOfflineChoices(false);
+ offlineBusy=true;
+ offlineStop.hidden=false;
+ setOfflineProgress(0);setOfflineMessage('PREPARING…');
  try{
   const result=await engine.save({mode,paths,onProgress:offlineProgressUpdate});
-  if(result.error){
-   setOfflineMessage('NOT READY · '+(result.message||'Reconnect and use UPDATE MISSING.'));
-  }else{
+  if(result.error)setOfflineMessage(result.message||'DOWNLOAD NOT READY');
+  else{
    setOfflineProgress(result.ready?100:result.percent);
-   setOfflineMessage(result.ready?
-    'READY · Download complete in this '+(engine.installed()?'Home Screen app':'Safari browser')+'. Test Airplane Mode.':
-    'PARTIAL · '+(result.message||'Some files need repair. Press UPDATE MISSING. Existing music is safe.'));
+   setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
+    'PARTIAL · '+(result.message||'TAP OFFLINE → UPDATE MISSING'));
   }
- }catch(_){setOfflineMessage('PARTIAL · Download interrupted. Use UPDATE MISSING.')}
- finally{offlineBusy=false;offlineStart.disabled=false;offlineStop.hidden=true}
+ }catch(error){setOfflineMessage('DOWNLOAD INTERRUPTED · '+String(error?.message||error).slice(0,85))}
+ finally{offlineBusy=false;offlineStop.hidden=true}
 }
-el('.musicOfflineLaunch').addEventListener('click',openOffline);
-root.querySelectorAll('[data-ge-offline]').forEach(b=>b.addEventListener('click',()=>chooseOffline(b.dataset.geOffline)));
-offlineStart.addEventListener('click',()=>void offlineDownload());
-offlineStop.addEventListener('click',()=>{window.GEOfflineDownloads?.stop?.();setOfflineMessage('Stopping… Saved files will be kept.')});
-el('.geOfflineBack').addEventListener('click',hideOffline);
+offlineToggle.addEventListener('click',()=>showOfflineChoices(offlineChoices.hidden));
+root.querySelectorAll('[data-ge-offline]').forEach(button=>button.addEventListener('click',()=>{
+ offlineChoice=button.dataset.geOffline;
+ if(offlineChoice==='playlist'){
+  fillOfflinePlaylists();
+  el('.geOfflinePlaylistRow').hidden=false;
+  el('.geOfflinePlaylist').focus();
+ }else{
+  el('.geOfflinePlaylistRow').hidden=true;
+  void offlineDownload(offlineChoice);
+ }
+}));
+el('.geOfflinePlaylist').addEventListener('change',()=>{
+ if(el('.geOfflinePlaylist').value)void offlineDownload('playlist');
+});
+offlineStop.addEventListener('click',()=>{
+ window.GEOfflineDownloads?.stop?.();
+ setOfflineMessage('STOPPING · SAVED MUSIC IS SAFE');
+});
 document.getElementById('offlineLaunchBtn')?.addEventListener('click',openOffline);
+el('.musicOfflineLaunch').addEventListener('click',openOffline); // legacy hidden control
+window.addEventListener('ge-radio-offline-status',event=>{
+ const info=event.detail||{};
+ if(info.state==='downloading'){
+  offlineBusy=window.GEOfflineDownloads?.isBusy?.()||false;
+  offlineStop.hidden=false;
+  offlineProgressUpdate({phase:info.percent>0?'audio':'preparing',
+   percent:info.percent,etaSeconds:info.etaSeconds});
+ }else if(info.state==='ready'){
+  offlineBusy=false;offlineStop.hidden=true;
+  setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
+ }else if(info.state==='partial'||info.state==='missing'){
+  if(!window.GEOfflineDownloads?.isBusy?.()){
+   offlineBusy=false;offlineStop.hidden=true;
+   if(Number.isFinite(info.percent))setOfflineProgress(info.percent);
+   setOfflineMessage(info.message|| (info.state==='partial'?'PARTIAL · UPDATE MISSING':'NOT READY'));
+  }
+ }
+});
 window.addEventListener('ge-access-experience-updated',()=>{
  if(!offlineResumeAfterAccess)return;
  if(window.GEOfflineDownloads?.canDownload?.()){
   offlineResumeAfterAccess=false;
-  openOffline();
+  void offlineDownload(offlineChoice);
  }
 });
-
+const persistedOfflineState=window.GEOfflineDownloads?.status?.();
+if(persistedOfflineState?.state==='ready'){
+ setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
+}else if(persistedOfflineState?.state==='downloading'){
+ setOfflineProgress(persistedOfflineState.percent,persistedOfflineState.etaSeconds);
+ setOfflineMessage('SAVING MUSIC…');
+}
 let previousFocus=null,oldBodyOverflow='';
 function open(){
  if(state.open)return;
@@ -3049,8 +3065,6 @@ function open(){
 }
 function close(){
  if(!state.open)return;
- if(offlineBusy){setOfflineMessage('Use STOP to finish before closing MUSIC.');return}
- el('.window').classList.remove('geOfflineOpen');
  state.open=false;host.style.display='none';universe.classList.remove('isActive');document.body.classList.remove('ge-music-v5-open');
  document.body.style.overflow=oldBodyOverflow;
  button.setAttribute('aria-expanded','false');previousFocus?.focus?.();
@@ -3059,11 +3073,7 @@ function close(){
 // Music preview. The transport remains embedded and server-gated behind Radio.
 function openCodeEntry(){
  if(!state.open)open();
- if(el('.window').classList.contains('geOfflineOpen')){
-  if(offlineBusy){setOfflineMessage('Stop the download before entering a different code.');return}
-  offlineResumeAfterAccess=true;
-  hideOffline();
- }
+ if(!offlineChoices.hidden)showOfflineChoices(false);
  if(state.view==='albums')setView('browse-songs');
  const panel=el('.musicCodeTools');
  panel.hidden=false;
@@ -3220,10 +3230,6 @@ el('.gePlaylistPicker').addEventListener('click',event=>{
 
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
 el('.accessToggle').addEventListener('click',()=>{
- if(el('.window').classList.contains('geOfflineOpen')){
-  openCodeEntry();
-  return;
- }
  const panel=el('.musicCodeTools'),opened=panel.hidden;
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
  if(opened)el('.musicCodeInput').focus();

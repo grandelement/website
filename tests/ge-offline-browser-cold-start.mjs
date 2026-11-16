@@ -5,11 +5,13 @@ import puppeteer from 'puppeteer-core';
 
 const base='http://127.0.0.1:8765/radio/';
 const song='ge-music/music/Grand Element - 2008 - Sessions I/Sessions I_08_Resurection.mp3';
-const browser=await puppeteer.launch({
+const profile='/tmp/ge-radio-offline-profile-'+process.pid;
+const launch=()=>puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
- headless:true,
+ headless:true,userDataDir:profile,
  args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']
 });
+let browser=await launch();
 const page=await browser.newPage();
 page.setDefaultTimeout(75000);
 try{
@@ -55,7 +57,8 @@ try{
   root.querySelector('.albumDetailBack').click();
  });
  await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geStandaloneAlbumUniverse.isActive'));
- // From SONGS, the shared MUSIC header must expose OFFLINE.
+ // SONGS keeps the mini OFFLINE dock immediately above the existing
+ // bottom Play / Buy controls. The album universe must stay artwork-only.
  await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   root.querySelector('.geStandaloneAlbumUniverse').dispatchEvent(new MouseEvent('click',{bubbles:true}));
@@ -66,29 +69,27 @@ try{
  });
  const songEntry=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
-  const head=root.querySelector('.window.geAlbumDetailClean > .header');
-  const button=head?.querySelector('.musicOfflineLaunch');
-  const rect=button?.getBoundingClientRect();
-  return {header:!!head&&getComputedStyle(head).display!=='none',
-   offline:!!button&&getComputedStyle(button).display!=='none'&&rect.width>40};
+  const dock=root.querySelector('.geOfflineWorkspace'),toggle=root.querySelector('.geOfflineDockToggle');
+  const footer=root.querySelector('.selectionBar'),headerButton=root.querySelector('.musicOfflineLaunch');
+  const b=toggle.getBoundingClientRect(),f=footer.getBoundingClientRect(),d=dock.getBoundingClientRect();
+  return {dock:!!dock&&getComputedStyle(dock).display!=='none',
+   button:b.width>=60&&b.height>=35,aboveFooter:d.bottom<=f.top+3,
+   headerHidden:getComputedStyle(headerButton).display==='none',
+   footerVisible:f.height>0,choicesHidden:root.querySelector('.geOfflineChoices').hidden};
  });
- assert.equal(songEntry.header,true,'SONGS must not hide the MUSIC header');
- assert.equal(songEntry.offline,true,'SONGS header must expose OFFLINE');
- await page.evaluate(()=>{
-  document.getElementById('geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').click();
- });
- await page.waitForFunction(()=>!!document.getElementById('geMusicV5Host').shadowRoot.querySelector('.window.geOfflineOpen'));
- await page.evaluate(()=>{
-  const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('.geOfflineBack').click();
-  root.querySelector('.close').click();
- });
+ assert.equal(songEntry.dock,true,'Mini OFFLINE dock must be visible in SONGS');
+ assert.equal(songEntry.button,true,'Single bottom OFFLINE button must be tappable');
+ assert.equal(songEntry.aboveFooter,true,'OFFLINE dock sits directly above MUSIC bottom controls');
+ assert.equal(songEntry.headerHidden,true,'There must not be another OFFLINE button in header');
+ assert.equal(songEntry.footerVisible,true,'The PLAY/B﻿UY bottom row must remain visible');
+ assert.equal(songEntry.choicesHidden,true,'Four choices stay collapsed when not needed');
+ await page.evaluate(()=>document.getElementById('geMusicV5Host').shadowRoot.querySelector('.close').click());
  await page.waitForFunction(()=>!window.GEMusicV5.state().open);
- // Both entry buttons must reuse the one MUSIC shadow-root workspace.
+ // The existing front-page OFFLINE shortcut uses the same inline MUSIC dock.
  await page.evaluate(()=>document.getElementById('offlineLaunchBtn')?.click());
  await page.waitForFunction(()=>{
   const root=document.getElementById('geMusicV5Host')?.shadowRoot;
-  return !!root?.querySelector('.window.geOfflineOpen .geOfflineWorkspace');
+  return !!root?.querySelector('.geOfflineWorkspace')&&!root.querySelector('.geOfflineChoices').hidden;
  });
  const display=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
@@ -97,13 +98,15 @@ try{
    eta:root.querySelector('.geOfflineEta')?.textContent,
    progress:!!root.querySelector('progress.geOfflineProgress'),
    choices:[...root.querySelectorAll('[data-ge-offline]')].map(x=>x.dataset.geOffline),
-   message:root.querySelector('.geOfflineStatus')?.textContent
+   message:root.querySelector('.geOfflineStatus')?.textContent,
+   player:!!root.querySelector('.selectionBar .playSelected')
   };
  });
  assert.equal(display.progress,true);
  assert.match(display.percent,/^\d+%$/);
  assert.match(display.eta,/^ETA:/);
  assert.deepEqual(display.choices,['all','checked','playlist','update']);
+ assert.equal(display.player,true,'PLAY remains present while OFFLINE choices are shown');
  assert.doesNotMatch(display.message||'',/\d+\s*\/\s*\d+|songs saved|files saved/i);
  // The verified worker must control the page and have a complete startup package.
  await page.waitForFunction(()=>!!navigator.serviceWorker?.controller,{timeout:65000});
@@ -123,14 +126,17 @@ try{
  // solely because the page was not installed as a Home Screen icon.
  const safariTab=await page.evaluate(()=>!window.GEOfflineDownloads.installed());
  assert.equal(safariTab,true,'Test must execute in an ordinary Safari-like tab');
- // No valid code must be denied with a concrete message, without closing MUSIC.
+ // A locked listener taps ALL MUSIC. The same MUSIC code form must
+ // appear without hiding the player or replacing the entire interface.
  const denied=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('.geOfflineStart').click();
+  root.querySelector('[data-ge-offline="all"]').click();
   return {status:root.querySelector('.geOfflineStatus').textContent,
-   visible:root.querySelector('.window').classList.contains('geOfflineOpen')};
+   visible:root.querySelector('.geOfflineWorkspace').getBoundingClientRect().height>0,
+   fullScreen:root.querySelector('.window').classList.contains('geOfflineOpen')};
  });
- assert.equal(denied.visible,true,'Denied OFFLINE attempt keeps the same download screen open');
+ assert.equal(denied.visible,true,'Denied access leaves the small dock visible');
+ assert.equal(denied.fullScreen,false,'Download must NEVER replace the MUSIC player');
  assert.match(denied.status,/OFFLINE permission/i);
  // Simulate only the existing Vault endpoint's signed response. Leave the
  // actual Radio access bridge, MUSIC code form and OFFLINE click handlers live.
@@ -154,10 +160,6 @@ try{
    return nativeFetch(input,options);
   };
  },song);
- await page.evaluate(()=>{
-  const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('.accessToggle').click();
- });
  await page.waitForFunction(()=>{
   const root=document.getElementById('geMusicV5Host')?.shadowRoot;
   const form=root?.querySelector('.musicCodeTools');
@@ -169,20 +171,25 @@ try{
   root.querySelector('.musicCodeInput').value='QA-MOCK-VERIFIED-OFFLINE-CODE';
   root.querySelector('.musicCodeUnlock').click();
  });
- await page.waitForFunction(()=>{
-  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
-  return root?.querySelector('.window.geOfflineOpen .geOfflineWorkspace')&&
-   window.GEOfflineDownloads?.canDownload()===true;
- },{timeout:15000});
- await page.evaluate(()=>{
+ await page.waitForFunction(()=>window.GEOfflineDownloads?.isBusy()===true||
+   window.GEOfflineDownloads?.status()?.state==='ready',{timeout:20000});
+ // The actual code-entry event starts the previously chosen download.
+ // Closing MUSIC must not cancel it or trap the Radio player.
+ const nonblocking=await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
-  root.querySelector('[data-ge-offline="all"]').click();
-  root.querySelector('.geOfflineStart').click();
+  const footer=root.querySelector('.selectionBar'),dock=root.querySelector('.geOfflineWorkspace');
+  const running=window.GEOfflineDownloads.isBusy();
+  root.querySelector('.close').click();
+  return {running,open:window.GEMusicV5.state().open,
+   dock:!!dock,footerVisible:footer.getBoundingClientRect().height>0};
  });
+ assert.equal(nonblocking.open,false,'MUSIC must close while the download continues');
+ assert.equal(nonblocking.dock,true,'OFFLINE dock remains installed for returning to MUSIC');
+
  await page.waitForFunction(()=>{
   const root=document.getElementById('geMusicV5Host')?.shadowRoot;
   const status=root?.querySelector('.geOfflineStatus')?.textContent||'';
-  return /^READY/.test(status)||/^PARTIAL/.test(status)||/^NOT READY/.test(status)&&/stopped|failed|error/i.test(status);
+  return !window.GEOfflineDownloads?.isBusy()&&window.GEOfflineDownloads?.status()?.state==='ready';
  },{timeout:120000});
  const prepared=await page.evaluate(async()=>{
   const result=await window.GEOfflineDownloads.inspect();
@@ -225,7 +232,35 @@ try{
  assert.equal(result.spectrumStatus,200);
  assert.ok(Number(result.decoded.duration)>0,
   'Offline cached audio must decode and have a positive duration: '+JSON.stringify(result.decoded));
- console.log('PASS iPhone Safari-tab OFFLINE DOWNLOAD button, real audio, station IDs, art and cold offline playback');
+
+ // Close the entire browser, then reopen its persisted profile completely
+ // disconnected. This tests a true cold boot, not merely a page reload.
+ await page.close();
+ await browser.close();
+ browser=await launch();
+ const cold=await browser.newPage();
+ await cold.setOfflineMode(true);
+ await cold.goto(base+'index.html?ge_home=1',{waitUntil:'domcontentloaded',timeout:30000});
+ await cold.waitForFunction(()=>!!window.GEOfflineDownloads&&!!window.GEMusicV5?.open,{timeout:20000});
+ const restored=await cold.evaluate(async path=>{
+  const status=await window.GEOfflineDownloads.inspect();
+  const response=await fetch(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),location.href),{
+   headers:{Range:'bytes=0-63'}});
+  const button=document.getElementById('offlineLaunchBtn');
+  return {ready:status.ready,media:response.status,bytes:(await response.arrayBuffer()).byteLength,
+   state:button?.dataset.geState,player:!!document.getElementById('player')};
+ },song);
+ assert.equal(restored.ready,true,'Full browser restart must preserve offline library');
+ assert.equal(restored.media,206,'Cold player must seek saved audio offline');
+ assert.equal(restored.bytes,64);
+ assert.equal(restored.player,true,'Cold navigation restores the actual Radio player');
+ await cold.waitForFunction(()=>document.getElementById('offlineLaunchBtn')?.dataset.geState==='ready',{timeout:20000});
+ // Old Home Screen shortcuts must open the same cached Radio player.
+ await cold.goto(base+'offline-home.html',{waitUntil:'domcontentloaded',timeout:25000});
+ await cold.waitForFunction(()=>!!window.GEOfflineDownloads&&!!document.getElementById('player'),{timeout:20000});
+ await cold.close();
+ console.log('PASS nonblocking OFFLINE dock, verified code, complete downloads, badge and full cold-browser Airplane Mode reopen');
+
 }finally{
  await browser.close();
 }

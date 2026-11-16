@@ -40,7 +40,7 @@ Preserve together:
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button id="ge-rescue-load" type="button">LOAD SAVED SITE</button>'+
       '<button id="ge-rescue-files" type="button">OFFLINE FILES</button>'+
-      '<button id="ge-rescue-clear" type="button">DELETE OFFLINE FILES</button>'+
+      '<button id="ge-rescue-radio" type="button">OPEN SAVED RADIO</button>'+
       '<button id="ge-rescue-hide" type="button">HIDE</button></div>';
     document.body.appendChild(host);
     Array.prototype.forEach.call(host.querySelectorAll('button'),function(b){
@@ -71,16 +71,11 @@ Preserve together:
     host.querySelector('#ge-rescue-files').onclick=function(){
       var panel=document.getElementById('offlinePanel');
       if(panel){panel.classList.add('show');panel.setAttribute('aria-hidden','false');host.style.display='none';}
-      else show('Offline settings did not load. Use DELETE OFFLINE FILES here, or reconnect to repair the app.');
+      else show('Offline settings did not load. Use OPEN SAVED RADIO or reconnect to repair the website.');
     };
-    host.querySelector('#ge-rescue-clear').onclick=async function(){
-      if(!confirm('Delete downloaded GE offline files? Your music purchases, high scores and settings are not deleted.'))return;
-      try{
-        var names=await caches.keys(),targets=names.filter(function(n){return n==='GE_SHARED_OFFLINE_V2'||n.indexOf('GE_SITE_SHELL_')===0;});
-        await Promise.all(targets.map(function(n){return caches.delete(n);}));
-        try{localStorage.removeItem('GE_OFFLINE_READY');}catch(_){}
-        show('GE website and optional offline cache deleted. Reconnect to download a new offline copy. Radio music cache was preserved.');
-      }catch(e){show('Unable to delete offline cache: '+String(e.message||e));}
+    host.querySelector('#ge-rescue-radio').onclick=function(){
+      // Radio's separately installed worker restores the verified saved player.
+      location.assign(new URL('radio/index.html?ge_home=1',root).href);
     };
     host.querySelector('#ge-rescue-hide').onclick=function(){host.style.display='none';};
     window.addEventListener('online',check);

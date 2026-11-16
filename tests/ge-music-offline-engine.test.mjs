@@ -52,7 +52,7 @@ function makeHarness({safari=false}={}){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.16-safari-offline-v4'
+    type:data.type,ready:true,missing:[],version:'2026.11.16-offline-dock-v5'
    });
   }
  };
@@ -100,7 +100,7 @@ function makeHarness({safari=false}={}){
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-safari-offline-v4');
+   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-offline-dock-v5');
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
@@ -199,9 +199,34 @@ test('unverified OFFLINE code never starts a download or changes saved selection
  const accepted=await h.engine.save({mode:'checked',paths:[songs[0]]});
  assert.equal(accepted.ready,true,'server-authorized code allows Safari download');
 });
+test('OFFLINE is a nonblocking MUSIC dock and main Radio has verified readiness colors',()=>{
+ assert.match(music,/class="geOfflineDockToggle"/);
+ assert.match(music,/class="geOfflineWorkspace"/);
+ assert.match(music,/class="geOfflineProgress"/);
+ assert.match(music,/class="geOfflineChoices"[^>]*hidden/);
+ assert.doesNotMatch(music,/class="geOfflineStart"/);
+ assert.doesNotMatch(music,/class="geOfflineBack"/);
+ assert.doesNotMatch(music,/classList\.add\('geOfflineOpen'\)/);
+ assert.match(html,/ge-radio-offline-live-status/);
+ assert.match(html,/OFFLINE ✓/);
+ assert.match(html,/data-ge-state="ready"/);
+ assert.match(source,/GE_RADIO_OFFLINE_PENDING_V2/);
+ assert.match(source,/GE_RADIO_OFFLINE_STATUS_V2/);
+ assert.match(source,/ge-radio-offline-status/);
+ assert.match(source,/async function resume\(\)/);
+});
+test('UPDATE MISSING reuses the previous plan rather than downloading everything',async()=>{
+ const h=makeHarness({safari:true});h.succeedPrana();
+ const first=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(first.ready,true);
+ const later=await h.engine.repair();
+ assert.equal(later.ready,true);
+ assert.equal(later.saved,1,'UPDATE MISSING keeps the chosen plan');
+ assert.equal(h.engine.plan().length,1);
+});
 test('MUSIC OFFLINE shows only percent, ETA, progress bar, not counts or filenames',()=>{
  const start=music.indexOf('async function offlineCheck(){');
- const end=music.indexOf("el('.musicOfflineLaunch').addEventListener('click',openOffline)",start);
+ const end=music.indexOf("offlineToggle.addEventListener('click'",start);
  const ui=music.slice(start,end);
  assert.ok(start>=0&&end>start);
  assert.ok(music.includes('class="geOfflinePercent"'));
@@ -223,9 +248,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/ge-images\/img\/31\.gif/);
  assert.match(sw,/const ARTWORK=/);
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-safari-offline-v4/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-safari-offline-v4/);
- assert.match(html,/sw\.js\?v=20261116-safari-offline-v4/);
- assert.match(sw,/const VERSION='2026\.11\.16-safari-offline-v4'/);
- assert.match(source,/const VERSION='2026\.11\.16-safari-offline-v4'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-v5/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-v5/);
+ assert.match(html,/sw\.js\?v=20261116-offline-dock-v5/);
+ assert.match(sw,/const VERSION='2026\.11\.16-offline-dock-v5'/);
+ assert.match(source,/const VERSION='2026\.11\.16-offline-dock-v5'/);
 });

@@ -22,7 +22,7 @@ try{
     const toolbar=[one('.geBrowseSearch'),...root.querySelectorAll('.geBrowseTools button')];
     const box=el=>{const r=el.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,w:r.width,l:r.left,r:r.right}};
     const b=toolbar.map(box),hit=el=>{const p=box(el);const at=root.elementFromPoint(p.x,p.y);return at===el||el.contains(at)};
-    const sun=one('.gePlayerSunReturn'),offline=one('.musicOfflineLaunch');
+    const sun=one('.gePlayerSunReturn'),offline=one('.geOfflineDockToggle');
     return {title:one('.albumDetailTitle').textContent,tab:one('.albumDetailSongs').textContent,
       delta:Math.max(...b.map(v=>v.y))-Math.min(...b.map(v=>v.y)),
       inside:b.every(v=>v.l>=-1&&v.r<=innerWidth+1),toolbarHits:toolbar.map(hit),
@@ -37,7 +37,7 @@ try{
    await page.touchscreen.tap(ui.sun.x,ui.sun.y);
    await page.waitForFunction(()=>window.GEMusicV5?.state()?.open===false,{timeout:3000});
    await page.evaluate(()=>window.GEMusicV5.open());
-   // ALBUMS is artwork-only. Choose a cover, then use the existing SONGS/OFFLINE header.
+   // ALBUMS is artwork-only. The small OFFLINE dock lives above the song controls.
    const albums=await page.evaluate(()=>{
     const root=document.querySelector('#geMusicV5Host').shadowRoot;
     const universe=root.querySelector('.geStandaloneAlbumUniverse');
@@ -57,20 +57,24 @@ try{
    await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geUniverseAlbum[data-album="Fire"]').click());
    await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Fire');
    const pos=await page.evaluate(()=>{
-    const r=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').getBoundingClientRect();
+    const r=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geOfflineDockToggle').getBoundingClientRect();
     return {x:r.x+r.width/2,y:r.y+r.height/2};
    });
    const before=await page.url();
    await page.touchscreen.tap(pos.x,pos.y);
    const after=await page.evaluate(()=>{
     const root=document.querySelector('#geMusicV5Host').shadowRoot;
-    const workspace=root.querySelector('.window.geOfflineOpen .geOfflineWorkspace');
+    const workspace=root.querySelector('.geOfflineWorkspace');
+    const choices=root.querySelector('.geOfflineChoices');
+    const footer=root.querySelector('.selectionBar');
     return {offline:!!workspace&&getComputedStyle(workspace).display!=='none',
+     choices:!!choices&&!choices.hidden,footer:footer.getBoundingClientRect().height>0,
      open:window.GEMusicV5.state().open,url:location.href};
    });
-   assert(after.offline&&after.open,'OFFLINE opens the one MUSIC download workspace');
+   assert(after.offline&&after.open&&after.choices&&after.footer,
+     'OFFLINE expands four choices without hiding MUSIC/PLAY controls');
    assert.equal(after.url,before,'OFFLINE must not redirect');
-   console.log('PASS '+width+'px: large scrolling albums without toolbar; song header OFFLINE stays available');
+   console.log('PASS '+width+'px: album covers, mini OFFLINE dock, choices and playable MUSIC bottom row');
   }finally{await page.close()}
  }
 }finally{await browser.close()}

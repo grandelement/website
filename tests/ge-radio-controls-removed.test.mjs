@@ -22,8 +22,8 @@ assert.match(radio,/id="playBtn"/,'Main PLAY preserved');
 assert.match(radio,/id="liveBtn"/,'Radio stream preserved');
 assert.match(music,/class="musicCodeTools"/,'MUSIC access code preserved');
 assert.match(worker,/const MEDIA_CACHE='ge-radio-media-v4'/,'Existing saved-song cache must not be deleted');
-assert.match(radio,/GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6/);
-assert.match(worker,/GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6/);
+assert.match(radio,/GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7/);
+assert.match(worker,/GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7/);
 assert.match(worker,/\.\/offline-manager\.js/,'Offline manager cached in required Radio shell');
 assert.match(offline,/canDownload/,'Offline requires existing scoped permission');
 assert.match(offline,/ge-radio-media-v4/,'Existing audio storage remains canonical');
@@ -34,7 +34,8 @@ assert.match(music,/data-ge-offline="all"/,'One-tap full library download is the
 assert.match(music,/data-ge-offline="checked"/,'Checked song option retained');
 assert.match(music,/data-ge-offline="playlist"/,'Playlist option retained');
 assert.match(music,/data-ge-offline="update"/,'Missing song update option retained');
-assert.match(music,/class="geOfflineStart"/,'Exactly one DOWNLOAD action');
+assert.match(music,/class="geOfflineDockToggle"/,'Exactly one small OFFLINE control in MUSIC');
+assert.doesNotMatch(music,/class="geOfflineStart"/,'No duplicate DOWNLOAD button');
 assert.match(music,/const all=\[\.\.\.visibleSharedLists\(\)/,'Offline playlist choices must obey published/assigned visibility');
 assert.match(music,/document\.getElementById\('offlineLaunchBtn'\)\?\.addEventListener\('click',openOffline\)/,
   'Front OFFLINE must open the one MUSIC offline workspace');
