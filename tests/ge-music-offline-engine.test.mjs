@@ -248,9 +248,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/ge-images\/img\/31\.gif/);
  assert.match(sw,/const ARTWORK=/);
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-v5/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-v5/);
- assert.match(html,/sw\.js\?v=20261116-offline-dock-v5/);
- assert.match(sw,/const VERSION='2026\.11\.16-offline-dock-v5'/);
- assert.match(source,/const VERSION='2026\.11\.16-offline-dock-v5'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261116-cold-catalog-v6/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-cold-catalog-v6/);
+ assert.match(html,/sw\.js\?v=20261116-cold-catalog-v6/);
+ assert.match(sw,/const VERSION='2026\.11\.16-cold-catalog-v6'/);
+ assert.match(source,/const VERSION='2026\.11\.16-cold-catalog-v6'/);
 });
