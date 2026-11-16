@@ -4,10 +4,12 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.16-safari-offline-v4';
+const VERSION='2026.11.16-offline-dock-v5';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
+const PENDING='GE_RADIO_OFFLINE_PENDING_V2';
+const STATUS='GE_RADIO_OFFLINE_STATUS_V2';
 const SONG=/^ge-music\/music\/.+\.(?:mp3|wav|m4a|ogg)$/i;
 const STATION=/^ge-music\/clips\/GE Station Identification - \d+\.(?:mp3|wav|m4a|ogg)$/i;
 const safe=(value,pattern)=>typeof value==='string'&&value.length<1024&&
@@ -20,8 +22,38 @@ const ios=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const canDownload=()=>navigator.onLine!==false&&bridge().canDownload?.()===true;
 const address=path=>new URL('../'+path.split('/').map(encodeURIComponent).join('/'),location.href).href;
-const report=(fn,event)=>{try{fn?.(event)}catch(error){console.warn('Offline progress callback failed',error)}};
-let busy=false,stopped=false,currentAbort=null;
+let lastStatus={state:'missing',percent:0,etaSeconds:null,message:''};
+try{
+ const saved=JSON.parse(localStorage.getItem(STATUS)||'null');
+ if(saved&&['ready','partial','downloading','missing'].includes(saved.state)){
+  lastStatus={state:saved.state==='downloading'?'partial':saved.state,
+   percent:Math.max(0,Math.min(100,Number(saved.percent)||0)),
+   etaSeconds:null,message:''};
+ }
+}catch(_){}
+function report(fn,event){
+ try{fn?.(event)}catch(error){console.warn('Offline progress callback failed',error)}
+ if(!event||!['preparing','audio','verifying','finished','error','status','stopped'].includes(event.phase))return;
+ const state=event.phase==='audio'||event.phase==='preparing'||event.phase==='verifying'?'downloading':
+  event.phase==='finished'||event.phase==='status'?(event.ready?'ready':event.partial?'partial':'missing'):
+  event.phase==='error'||event.phase==='stopped'?'partial':lastStatus.state;
+ const percent=Number.isFinite(event.percent)?Math.max(0,Math.min(100,Math.round(event.percent))):
+  (state==='ready'?100:lastStatus.percent);
+ lastStatus={state,percent,etaSeconds:event.etaSeconds??null,
+  message:String(event.message||'').slice(0,150)};
+ try{localStorage.setItem(STATUS,JSON.stringify({...lastStatus,updatedAt:Date.now()}))}catch(_){}
+ try{window.dispatchEvent?.(new CustomEvent('ge-radio-offline-status',{detail:lastStatus}))}catch(_){}
+}
+let busy=false,stopped=false,currentAbort=null,resumeAttempted=false;
+function pending(){
+ try{const v=JSON.parse(localStorage.getItem(PENDING)||'null');
+  return v&&['all','checked','playlist','update'].includes(v.mode)&&
+   Array.isArray(v.paths)?v:null;
+ }catch(_){return null}
+}
+function savePending(value){try{localStorage.setItem(PENDING,JSON.stringify(value))}catch(_){}}
+function clearPending(){try{localStorage.removeItem(PENDING)}catch(_){}}
+
 function plan(){
  try{return unique(JSON.parse(localStorage.getItem(PLAN)||'null')?.paths).filter(x=>safe(x,SONG))}catch(_){return []}
 }
@@ -123,11 +155,13 @@ async function inspect({onProgress}={}){
   engine:engine.ready,engineMissing:engine.missing,
   saved,total:savedPlan.length,missing,stations:stationSaved,stationTotal:stations.length,
   installed:installed(),percent:ready?100:(savedPlan.length?Math.floor(saved/savedPlan.length*95):0)};
- report(onProgress,{phase:'status',ready,partial:result.partial,percent:result.percent});
+ if(!busy)report(onProgress,{phase:'status',ready,partial:result.partial,percent:result.percent});
  return result;
 }
 function stop(){
  stopped=true;
+ clearPending();
+ report(null,{phase:'stopped',message:'Stopped. Previously saved recordings remain available.'});
  try{currentAbort?.abort()}catch(_){}
 }
 async function downloadAudio(path,cache){
@@ -174,7 +208,8 @@ async function save({mode='all',paths=[],onProgress}={}){
   const allowed=authorized(list.songs),allow=new Set(allowed),previous=plan();
   if(!allowed.length)return {error:'access',message:'Your access code does not include published songs.'};
   const chosen=mode==='all'?allowed:
-   mode==='update'?allowed:unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
+   mode==='update'?(previous.length?previous.filter(p=>allow.has(p)):allowed):
+   unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
   if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
   // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
   // existing server to verify a signed OFFLINE-enabled session before saving.
@@ -188,6 +223,9 @@ async function save({mode='all',paths=[],onProgress}={}){
   }
   // Preserve all earlier planned songs, even if today's access scope is narrower.
   const desired=unique([...previous,...chosen]);setPlan(desired);
+  const previousPending=pending();
+  savePending({mode,paths:mode==='all'||mode==='update'?[]:chosen,
+   tries:Math.min(5,Number(previousPending?.tries||0)+1),updatedAt:Date.now()});
   const permittedDownloads=desired.filter(p=>allow.has(p));
   const downloads=unique([...permittedDownloads,...list.stations]);
   const cache=await caches.open(AUDIO);
@@ -217,8 +255,9 @@ async function save({mode='all',paths=[],onProgress}={}){
    message:quota?'Device storage limit reached. Saved songs are safe. Free some space and use UPDATE MISSING.':
     failures.length?'Some recordings could not be saved. Use UPDATE MISSING.':''
   };
+  if(checked.ready||stopped||quota)clearPending();
   report(onProgress,{phase:'finished',percent:checked.ready?100:checked.percent,
-   ready:checked.ready,partial:checked.partial,stopped});
+   ready:checked.ready,partial:checked.partial,stopped,message:result.message});
   return result;
  }catch(error){
   const message=String(error?.message||error);
@@ -230,7 +269,33 @@ async function save({mode='all',paths=[],onProgress}={}){
  }finally{busy=false;currentAbort=null}
 }
 async function repair(args={}){return save({...args,mode:'update'})}
+async function syncStatus(){
+ if(busy)return;
+ try{await inspect()}catch(_){}
+}
+async function resume(){
+ if(busy||resumeAttempted||navigator.onLine===false)return false;
+ const saved=pending();
+ if(!saved||!canDownload())return false;
+ resumeAttempted=true;
+ const choice=saved.mode==='all'||saved.mode==='update'?'update':saved.mode;
+ await save({mode:choice,paths:saved.paths});
+ return true;
+}
+function onReturn(){
+ // iOS can suspend JS when switching apps. Reopening resumes missing files,
+ // but never bypasses a new or expired code authorization.
+ void syncStatus().then(()=>resume());
+}
+try{
+ window.addEventListener?.('pageshow',onReturn);
+ window.addEventListener?.('focus',onReturn);
+ window.addEventListener?.('online',onReturn);
+ document?.addEventListener?.('visibilitychange',()=>{if(!document.hidden)onReturn()});
+ if(document?.readyState==='complete')setTimeout(onReturn,0);
+}catch(_){}
 window.GEOffline={isActive:active};
 window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,
- isBusy:()=>busy,promptCode:()=>bridge().promptCode?.()};
+ isBusy:()=>busy,resume,syncStatus,status:()=>({...lastStatus}),pending,
+ promptCode:()=>bridge().promptCode?.()};
 })();
