@@ -34,15 +34,16 @@ try{
   return {visible:getComputedStyle(universe).display!=='none',
    hasToolbar:!!universe.querySelector('.geUniverseToolbar'),
    albums:covers.map(b=>b.dataset.album),
-   large:!!first&&first.width>=200&&first.height>=200,
-   scrolls:board.scrollHeight>board.clientHeight};
+   fits:!!first&&first.width>35&&first.width<150&&board.scrollHeight<=board.clientHeight+4,
+   connected:covers.every((x,i)=>!i||Math.abs(x.getBoundingClientRect().top-covers[i-1].getBoundingClientRect().bottom)<=2)};
  });
  assert.equal(albumEntry.visible,true,'MUSIC must open on ALBUMS');
  assert.equal(albumEntry.hasToolbar,false,'No ALBUMS, OFFLINE, or BACK toolbar on artwork');
- assert.equal(albumEntry.large,true,'Album covers must be large and tappable');
- assert.equal(albumEntry.scrolls,true,'Album artwork stack must scroll rather than shrink to fit');
+ assert.equal(albumEntry.fits,true,'At rest every album must fit on the screen');
+ assert.equal(albumEntry.connected,true,'Album covers must touch with no vertical gaps');
  assert.ok(albumEntry.albums.includes('Fire'));
  assert.ok(!albumEntry.albums.includes('Fundamental Groove'),'Marked final cover must be hidden only in the universe');
+ assert.ok(!albumEntry.albums.some(name=>/^singles?$/i.test(name)),'Singles must not appear as an album');
  // Radio keeps its original OFFLINE shortcut; this screen must not duplicate it.
  await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
@@ -255,6 +256,34 @@ try{
  assert.equal(restored.bytes,64);
  assert.equal(restored.player,true,'Cold navigation restores the actual Radio player');
  await cold.waitForFunction(()=>document.getElementById('offlineLaunchBtn')?.dataset.geState==='ready',{timeout:20000});
+ // This reproduces the screenshot: click MUSIC after a complete cold restart
+ // with Wi-Fi off. An indefinite "Loading albums…" is a release blocker.
+ await cold.evaluate(()=>document.getElementById('geMusicV5Button').click());
+ await cold.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  const board=root?.querySelector('.geUniverseAlbums');
+  return window.GEMusicV5?.state()?.loaded===true&&
+   board?.querySelectorAll('.geUniverseAlbum').length>3;
+ },{timeout:15000});
+ const offlineAlbums=await cold.evaluate(()=>{
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  const board=root.querySelector('.geUniverseAlbums');
+  const names=[...board.querySelectorAll('.geUniverseAlbum')].map(x=>x.dataset.album);
+  return {loaded:window.GEMusicV5.state().loaded,
+    loading:board.textContent.includes('Loading albums'),
+    albums:names,singles:names.some(name=>/^singles?$/i.test(name))};
+ });
+ assert.equal(offlineAlbums.loaded,true,'Offline catalog is available without requesting GitHub');
+ assert.equal(offlineAlbums.loading,false,'MUSIC cannot remain trapped on Loading albums');
+ assert.equal(offlineAlbums.singles,false);
+ assert.ok(offlineAlbums.albums.includes('Aether')&&offlineAlbums.albums.includes('Fire'));
+ await cold.evaluate(()=>window.GEMusicV5.close());
+ const offlineBackground=await cold.evaluate(async()=>{
+  const res=await fetch('../ge-images/img/1.gif');
+  return {status:res.status,bytes:(await res.arrayBuffer()).byteLength};
+ });
+ assert.equal(offlineBackground.status,200,'At least the real intro background must be cached');
+ assert.ok(offlineBackground.bytes>50000,'Offline background must have its real image bytes');
  // Old Home Screen shortcuts must open the same cached Radio player.
  await cold.goto(base+'offline-home.html',{waitUntil:'domcontentloaded',timeout:25000});
  await cold.waitForFunction(()=>!!window.GEOfflineDownloads&&!!document.getElementById('player'),{timeout:20000});
