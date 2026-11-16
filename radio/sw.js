@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-offline-dock-v5';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7';
+const VERSION='2026.11.16-backgrounds-pinch-v6';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_BACKGROUND_PINCH_V8';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -15,7 +15,7 @@ const REQUIRED=[
  './ge-purchase-demo.js','./iam-private-studio.js',
  './ge-gate-audio.js','./ge-gate-settings.js',
  '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
- './manifest.json','./track-durations.json','./loudness.json',
+ './manifest.json','./track-durations.json','./loudness.json','./offline-assets.json',
  '../playlists/registry.json','../config/site-live.json',
  './manifest.webmanifest',
  '../ge-images/images/ge-logo-2.jpg','../ge-images/img/31.gif',
@@ -59,6 +59,19 @@ async function validAsset(path,response){
   return (await response.clone().blob()).size>0;
  }catch(_){return false}
 }
+async function offlineArtwork(cache){
+ // One maintained source of truth for the deliberately compact set of
+ // pictures guaranteed to be playable without Wi-Fi.
+ const response=await cache.match('./offline-assets.json',{ignoreSearch:true});
+ if(!response?.ok)throw Error('Offline background inventory is missing');
+ const doc=await response.json();
+ const names=Array.isArray(doc?.backgrounds)?doc.backgrounds:[];
+ if(names.length<2||names.length>16)throw Error('Invalid offline background inventory');
+ if(!names.includes('31.gif')||!names.includes('47.gif'))throw Error('Required Radio background missing from inventory');
+ for(const name of names)
+  if(!/^[a-z0-9][a-z0-9_-]*\.(?:gif|png|jpe?g|webp)$/i.test(name))throw Error('Invalid background path');
+ return [...new Set(names)].map(name=>'../ge-images/img/'+name);
+}
 async function installShell(){
  const cache=await caches.open(SHELL_CACHE);
  const home=requestURL('./index.html');
@@ -74,6 +87,12 @@ async function installShell(){
  await Promise.all(REQUIRED.map(async path=>{
   const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
   if(!(await validAsset(path,response)))throw Error('Required offline file not verified: '+path);
+  await cache.put(path,response.clone());
+ }));
+ const offlinePictures=await offlineArtwork(cache);
+ await Promise.all(offlinePictures.map(async path=>{
+  const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
+  if(!(await validAsset(path,response)))throw Error('Required offline background failed: '+path);
   await cache.put(path,response.clone());
  }));
  await Promise.allSettled(OPTIONAL.map(async path=>{
@@ -170,7 +189,9 @@ async function media(request){
  // Saved recordings are always local-first, even if iPhone Safari falsely
  // reports online after Airplane Mode. Explicit RELOAD-MEDIA bypasses this
  // via the fetch handler above; never delete listener downloads.
- if(AUDIO.test(url.pathname)){
+ if(AUDIO.test(url.pathname)||url.pathname.includes('/ge-images/img/')){
+  // Offline pictures, like recordings, should never depend on a fresh network
+  // probe to appear after Radio is relaunched in Airplane Mode.
   const saved=await cached(request,{media:true});
   if(saved?.ok)return rangeResponse(request,saved);
  }
@@ -228,6 +249,12 @@ async function shellStatus(){
    const saved=await shell.match(file,{ignoreSearch:true});
    if(!(await validAsset(file,saved)))result.missing.push(file);
   }
+  try{
+   for(const path of await offlineArtwork(shell)){
+    const saved=await shell.match(path,{ignoreSearch:true});
+    if(!(await validAsset(path,saved)))result.missing.push(path);
+   }
+  }catch(_){result.missing.push('Offline background inventory incomplete')}
   result.ready=result.missing.length===0;
  }catch(_){result.missing.push('Offline startup cache unavailable')}
  return result;
