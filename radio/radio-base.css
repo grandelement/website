@@ -1,0 +1,2598 @@
+/* Grand Element Radio — base UI and studio.
+   Consolidated from embedded styles. Source order is preserved to avoid
+   changing existing player, mobile, accessibility or offline behavior.
+   Edit this stylesheet directly; do not append CSS to radio/index.html. */
+
+/* Prevent accidental double-tap zoom on the interactive Radio controls. */
+button,a,input,select,textarea,[role="button"]{touch-action:manipulation}
+
+
+@media (pointer:coarse) {html.ge-radio-ui,html.ge-radio-ui body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}}
+
+/* Mode switch is neutral in both states; its label alone communicates the choice. */
+#shuffleBtn[aria-pressed="true"],#shuffleBtn[aria-pressed="false"],
+#shipStage [data-proxy="shuffleBtn"][aria-pressed="true"],
+#shipStage [data-proxy="shuffleBtn"][aria-pressed="false"]{
+  outline:none!important;box-shadow:none!important;
+  background:transparent!important;background-image:none!important;
+  border-color:rgba(140,200,225,.5)!important;
+}
+
+
+:root{
+  --fg:#e8f6ff;
+  --muted:#a6bdd0;
+  --accent:#00ffa8;
+  --btn-bg:rgba(13,27,38,.72);
+  --btn-br:#27455e;
+  --bg-x:50%;
+  --bg-y:50%;
+  --bg-shift-y:0vh;
+  --bg-scale:1.08;
+  --ship-bg-approach-zoom:1;
+  --ship-planet-zoom:1;
+  --ship-bg-heading-x:0px;
+  --ship-bg-heading-y:0px;
+  --ship-planet-heading-x:0px;
+  --ship-planet-heading-y:0px;
+}
+
+
+*{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none}
+html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
+/* Keep the player and Ship controls unpainted until their saved layout, labels and sizing have settled. */
+body.ge-radio-initializing > .wrap,body.ge-radio-initializing #shipStage,body.ge-radio-initializing #viewToggle{visibility:hidden!important}
+html{min-height:100svh}
+body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
+#bgImage{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  object-fit:cover;
+  object-position:var(--bg-x) var(--bg-y);
+  transform:translate3d(0,var(--bg-shift-y),0) scale(var(--bg-scale));
+  transform-origin:center center;
+  z-index:0;
+  pointer-events:none;
+  background:#000;
+  transition:opacity .2s ease;
+}
+#liveCameraLayer{display:none;position:fixed;inset:0;z-index:0;background:#000;overflow:hidden;touch-action:pan-y}
+body.ge-live-video #liveCameraLayer{display:block}
+body.ge-live-video #bgImage{opacity:0!important}
+#liveCameraSingle,#liveCameraGrid{position:absolute;inset:0}
+#liveCameraSingle img{width:100%;height:100%;object-fit:cover;display:block}
+#liveCameraGrid{display:none;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:50%;gap:2px;background:#000}
+#liveCameraGrid.show{display:grid}
+#liveCameraGrid .liveCameraCell{position:relative;overflow:hidden;background:#03070a;min-width:0;min-height:0}
+#liveCameraGrid img{width:100%;height:100%;object-fit:cover;display:block}
+#liveCameraLabel,#liveCameraHint,.liveCameraCell span{position:absolute;z-index:2;color:#fff;background:rgba(0,0,0,.42);border:1px solid rgba(170,225,255,.20);backdrop-filter:blur(7px);text-shadow:0 1px 5px #000}
+#liveCameraLabel{left:max(10px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));padding:5px 9px;border-radius:999px;font-size:11px;font-weight:850;letter-spacing:.08em}
+#liveCameraHint{right:max(10px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));padding:5px 8px;border-radius:999px;font-size:9px;letter-spacing:.08em;opacity:.72}
+.liveCameraCell span{left:6px;bottom:6px;padding:3px 6px;border-radius:999px;font-size:9px;font-weight:800}
+#liveCameraOffline{position:absolute;inset:0;display:grid;place-items:center;color:#b9c8d4;font-size:12px;font-weight:800;letter-spacing:.08em}
+body:not(.ge-live-video) #liveCameraLayer{pointer-events:none}
+#shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
+#hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
+body.hud-hidden #hudTap{display:block}
+.wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.25svh,13px);padding:clamp(10px,2svh,24px) 18px clamp(18px,3svh,32px);text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
+body.hud-hidden .wrap{opacity:0;pointer-events:none}
+header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:clamp(12px,2.6svh,28px) 0 0;padding:0}
+.logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:visible;display:block;margin:0 auto 22px;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6);position:relative;isolation:isolate}
+.logo{width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;position:relative;z-index:4;display:block}
+/* Main Player blue-sun heartbeat — PLASMA WAVE AURA.
+   Concentric audio-reactive wavefronts radiate outward while misty blue plasma
+   lingers around the sun. The effect is intentionally more gaseous than rigid. */
+#sunEQFog{position:absolute;inset:-22%;z-index:1;border-radius:50%;pointer-events:none;display:block;overflow:visible;opacity:1;mix-blend-mode:screen;filter:blur(5.5px) saturate(1.25)}
+#sunEQAura{position:absolute;inset:-8%;z-index:2;border-radius:50%;pointer-events:none;overflow:visible}
+.sun-eq-ring{
+  position:absolute;left:50%;top:50%;width:100%;height:100%;border-radius:50%;
+  transform:translate(-50%,-50%) scale(var(--ring-scale,1.01));
+  opacity:var(--ring-opacity,.08);
+  border:var(--ring-width,4.6px) solid var(--ring-color,rgba(24,146,255,.72));
+  box-shadow:none;
+  filter:blur(var(--ring-blur,1.6px));
+  will-change:transform,opacity,border-width,filter;
+  mix-blend-mode:screen;
+}
+.sun-eq-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.sun-eq-ray{fill:none;stroke:rgba(32,146,255,.88);stroke-linecap:round;stroke-width:2.8;opacity:.9;filter:blur(var(--ray-blur,0px));mix-blend-mode:screen}
+.sun-fog-blob{position:absolute;left:50%;top:50%;width:34%;height:14%;border-radius:999px;pointer-events:none;opacity:var(--blob-opacity,.16);transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(var(--blob-scale,1));background:radial-gradient(ellipse at center,rgba(12,116,255,.82) 0%,rgba(18,132,255,.54) 28%,rgba(48,186,255,.24) 56%,rgba(108,224,255,.12) 72%,rgba(0,0,0,0) 86%);will-change:transform,opacity,width,height,filter;mix-blend-mode:screen;filter:blur(var(--blob-blur,7px));}
+@media(prefers-reduced-motion:reduce){.sun-eq-ring{transition:none!important}}
+
+h1{margin:0;font-size:clamp(20px,4.2vw,32px);line-height:1.08}
+.tag{margin:0;opacity:.9;font-size:clamp(14px,3.6vw,18px);line-height:1.08}
+.row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;width:100%}
+.group{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;padding:10px 12px;border-radius:14px;background:rgba(24,28,34,.60);border:1px solid rgba(80,110,140,.45);width:min(760px,96vw);backdrop-filter:blur(3px)}
+button,.button-link{appearance:none;border:1px solid var(--btn-br);background:var(--btn-bg);color:var(--fg);padding:10px 13px;border-radius:11px;font-weight:750;letter-spacing:.2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:42px;-webkit-tap-highlight-color:transparent}
+button:active,.button-link:active{transform:scale(.97)}
+button.tgl[aria-pressed="true"],#autoPilotBtn[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 18px rgba(0,255,168,.20) inset;background:rgba(15,74,88,.32)}
+button.flash-green{outline:2px solid var(--accent)!important;box-shadow:0 0 18px rgba(0,255,168,.28) inset!important;background:rgba(15,74,88,.38)!important}
+button,.button-link{backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+#musicGroup{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;width:min(760px,96vw);margin-bottom:8px}
+#musicGroup button{min-width:0;padding-inline:8px;font-size:clamp(14px,3.4vw,17px);background:rgba(13,27,38,.58)}
+#liveBtn[aria-pressed="true"]{background:rgba(133,18,36,.86)!important;border-color:rgba(255,86,114,.9)!important;color:#fff;box-shadow:0 0 18px rgba(255,50,86,.26)}
+#liveStatus{display:none;width:min(760px,96vw);margin:-1px auto 8px;padding:5px 9px;border-radius:9px;border:1px solid rgba(88,198,255,.25);background:rgba(3,13,22,.72);font-size:11px;line-height:1.25;color:#bfeaff;text-align:center;font-variant-numeric:tabular-nums}
+#liveStatus.show{display:block}
+body.view-player #liveStatus{width:min(900px,94vw)}
+#prevBtn,#nextBtn{grid-column:span 3;min-height:50px;font-size:clamp(16px,4vw,20px)!important}
+#shuffleBtn,#legacyBtn,#shareBtn{grid-column:span 2}
+#player{width:min(760px,96vw);background:rgba(0,0,0,.35);margin-bottom:6px}
+#titleBtn{;border-radius:999px;overflow:hidden;text-overflow:ellipsis;font-size:clamp(17px,4.3vw,22px)}
+#bgGroup{display:flex;flex-direction:column;gap:10px;margin-top:clamp(24px,5.2svh,54px)}
+#bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%}
+#bgGroup button{min-width:0;padding-inline:6px;font-size:clamp(13px,3vw,16px);background:rgba(13,27,38,.56)}
+.section-label{font-weight:800}
+.settings-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:transparent;padding:0;border-radius:12px}
+#installBtn{display:none}
+.sunlab-panel{display:none;position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:20050;width:min(380px,94vw);max-height:min(78svh,760px);overflow:auto;padding:12px 12px 14px;border-radius:16px;background:rgba(7,14,22,.94);border:1px solid rgba(92,183,255,.45);box-shadow:0 18px 42px rgba(0,0,0,.48),0 0 0 1px rgba(180,230,255,.06) inset;backdrop-filter:blur(8px)}
+.sunlab-panel.show{display:block}
+.sunlab-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sunlab-title h3{margin:0;font-size:16px;letter-spacing:.04em}
+.sunlab-sub{font-size:11px;opacity:.72;margin:0 0 10px}
+.sunlab-modebar{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px}
+.sunlab-modebtn{flex:1 1 29%;min-width:88px;min-height:36px;padding:7px 8px;border-radius:10px;border:1px solid rgba(98,173,229,.38);background:rgba(18,28,40,.9);color:#eef8ff;font-size:11px;font-weight:850;line-height:1.1}
+.sunlab-modebtn.active{border-color:rgba(92,214,255,.95);box-shadow:0 0 0 1px rgba(92,214,255,.28) inset,0 0 12px rgba(37,185,255,.16);background:rgba(17,53,76,.96)}
+.sunlab-modehint{font-size:11px;opacity:.7;margin:-2px 0 10px;text-align:center}
+.sunlab-grid.no-mode .sunlab-row,.sunlab-grid.no-mode .sunlab-checks{display:none!important}
+.sunlab-grid{display:grid;grid-template-columns:1fr;gap:9px}
+.sunlab-row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;font-size:12px}
+.sunlab-row label{font-weight:700;opacity:.94}
+.sunlab-row output{font-variant-numeric:tabular-nums;opacity:.8}
+.sunlab-row input[type="range"]{grid-column:1/-1;width:100%}
+.sunlab-row select{grid-column:1/-1;width:100%;min-height:38px;border-radius:10px;border:1px solid rgba(98,173,229,.42);background:rgba(22,30,40,.9);color:#eef7ff;padding:8px 10px}
+.sunlab-row small{grid-column:1/-1;opacity:.62;line-height:1.25}
+.sunlab-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 2px}
+.sunlab-checks label{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid rgba(98,173,229,.28);border-radius:12px;background:rgba(16,24,34,.6);font-size:12px;font-weight:700;opacity:.94;line-height:1.2}
+.sunlab-checks input{accent-color:#4ec4ff;margin-top:2px}.sunlab-checktext{display:flex;flex-direction:column;gap:2px}.sunlab-checktext small{font-weight:500;opacity:.66;line-height:1.2}
+.sunlab-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.sunlab-mini{min-height:34px!important;padding:7px 10px!important;font-size:12px!important}
+@media(max-width:520px){.sunlab-panel{width:min(96vw,420px);padding:11px 10px 12px}}
+#status{display:none!important}
+footer{padding-top:4px}
+@media(max-width:520px){
+  .wrap{padding-inline:10px;gap:clamp(7px,1.05svh,11px);padding-top:max(14px,env(safe-area-inset-top))}
+  header{margin-top:clamp(18px,4svh,34px)}
+  #musicGroup{gap:6px}
+  #musicGroup button{font-size:14px;padding:8px 4px;min-height:40px}
+  #prevBtn,#nextBtn{min-height:52px;font-size:17px!important}
+  #bgGroup{gap:7px;padding:8px 10px}
+  #bgGroup .bg-row{gap:4px}
+  #bgGroup button{font-size:13px;padding:8px 3px;min-height:38px}
+  .logo-wrap{width:clamp(154px,38vw,198px);height:clamp(154px,38vw,198px);margin:0 auto 26px}
+  #titleBtn{font-size:clamp(18px,4.8vw,23px)}
+  #player{margin-bottom:10px}
+  #musicGroup{margin-bottom:4px}
+}
+@media(orientation:landscape) and (max-height:620px){
+  body.view-player{overflow-y:auto}
+  body.view-player .wrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;min-height:100dvh;padding:6px max(12px,env(safe-area-inset-right)) 18px max(12px,env(safe-area-inset-left));max-width:1100px;width:100%;overflow:visible}
+  body.view-player header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;margin:0}
+  body.view-player .logo-wrap{width:clamp(300px,76vh,480px);height:clamp(300px,76vh,480px);margin:0 auto 14px}
+  body.view-player h1{font-size:clamp(16px,2.5vw,21px);line-height:1.02;margin:0}
+  body.view-player .tag{font-size:clamp(11px,1.8vw,14px);line-height:1.02;margin:0}
+  body.view-player #titleBtn{;font-size:clamp(16px,2.35vw,20px)}
+  body.view-player #player{width:min(900px,94vw);margin:1px 0 4px;min-height:42px}
+  body.view-player #musicGroup{width:min(900px,94vw);gap:5px;margin:5px 0 0}
+  body.view-player #musicGroup button{min-height:36px!important;padding:5px 6px;font-size:clamp(13px,1.9vw,16px)!important}
+  body.view-player #prevBtn,body.view-player #nextBtn{font-size:clamp(15px,2vw,18px)!important}
+  body.view-player #bgGroup{width:min(900px,94vw);margin:12px 0 0;padding:6px 8px;gap:5px}
+  body.view-player #bgGroup .section-label{font-size:13px}
+  body.view-player #bgGroup .bg-row{gap:4px}
+  body.view-player #bgGroup button{min-height:32px;padding:5px 4px;font-size:clamp(11px,1.6vw,14px)}
+  body.view-player #supportText{display:none}
+  body.view-player #bottomActions{width:min(900px,94vw);margin-top:3px}
+  body.view-player #bottomActions>button{min-height:32px;padding:4px 7px;font-size:clamp(10px,1.45vw,13px)}
+  body.view-player #hudCombined{min-height:32px;font-size:11px;padding:4px 6px}
+  body.view-player #arrangeBtn{min-height:30px!important;font-size:10px!important}
+  body.view-player footer{display:block;font-size:11px;opacity:.7}
+}
+
+/* LIVE-WINDOW SHIP VIEW */
+:root{--ship-ratio:1.7768331562;}
+#shipStage,#viewToggle{display:none}
+#bottomActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(760px,96vw);align-items:center;margin-top:2px}
+#bottomActions>button{min-width:0;width:100%;min-height:40px;padding:7px 7px;font-size:clamp(12px,2.7vw,14px)}
+#hudCombined{grid-column:3}
+.hud-combined{display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:7px 8px;border:1px solid var(--btn-br);border-radius:11px;background:var(--btn-bg);color:var(--fg);font-size:clamp(12px,2.7vw,14px);font-weight:800;cursor:pointer;white-space:nowrap;user-select:none;-webkit-user-select:none}
+.hud-combined input{width:23px;height:23px;margin:0;accent-color:#16dba5;flex:0 0 23px;cursor:pointer}
+#arrangeBtn{grid-column:3;grid-row:2;min-height:32px!important;font-size:11px!important;padding:4px 7px!important}
+#titleBtn{font-size:clamp(17px,4.2vw,22px)}
+#musicGroup button,#bgGroup button{font-size:clamp(13px,3vw,16px)}
+#musicGroup,#bgGroup .bg-row{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:8px}
+#musicGroup button,#bgGroup .bg-row button{flex:1 1 28%;min-width:84px;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#prevBtn,#nextBtn{flex-basis:40%}
+@media(orientation:landscape){body.view-player #musicGroup button,body.view-player #bgGroup .bg-row button{flex:1 1 15%;min-width:68px}}
+body.arrange-mode #musicGroup,body.arrange-mode #bgGroup .bg-row{outline:2px dashed rgba(83,221,255,.82);outline-offset:5px;border-radius:13px;padding:6px}
+body.arrange-mode #musicGroup button,body.arrange-mode #bgGroup .bg-row button{animation:buttonWiggle .48s ease-in-out infinite alternate;cursor:grab;touch-action:none!important;user-select:none!important;-webkit-user-select:none!important;-webkit-touch-callout:none!important}
+body.arrange-mode #musicGroup button:nth-child(even),body.arrange-mode #bgGroup .bg-row button:nth-child(even){animation-direction:alternate-reverse}
+body.arrange-mode #musicGroup button.dragging,body.arrange-mode #bgGroup .bg-row button.dragging,.floating-drag-button{opacity:.94;transform:scale(1.06);animation:none!important;box-shadow:0 0 0 3px rgba(57,227,255,.7),0 16px 34px rgba(0,0,0,.5);z-index:50000;cursor:grabbing!important;touch-action:none!important;user-select:none!important;-webkit-user-select:none!important}
+.button-drop-placeholder{display:block;flex:1 1 28%;min-width:84px;border:2px dashed rgba(76,221,255,.72);border-radius:13px;background:rgba(54,202,255,.08);box-sizing:border-box}
+body.arrange-mode *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+@keyframes buttonWiggle{from{transform:rotate(-.45deg)}to{transform:rotate(.45deg)}}
+@media(orientation:portrait){
+ #shipStage,#viewToggle{display:none!important}
+ .wrap{opacity:1;pointer-events:auto}
+ #bottomActions{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #supportText{display:none}
+ #bgGroup{margin-top:clamp(30px,6.2svh,62px)}
+}
+@media(orientation:landscape){
+ #viewToggle{display:flex;position:fixed;z-index:25000;right:max(10px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));min-height:46px;padding:9px 16px;border-radius:999px;background:rgba(3,19,36,.94);border:1px solid rgba(36,181,255,.72);color:#edfaff;font-size:15px;font-weight:850;box-shadow:0 0 14px rgba(0,157,255,.18)}
+ body.view-ship .wrap{opacity:0!important;pointer-events:none!important}
+ body.view-ship #shade{display:none}
+ body.view-ship #bgImage{opacity:0!important}
+ body.view-ship #shipStage{display:block;position:fixed;z-index:5000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,calc(100dvh*var(--ship-ratio)));height:min(100dvh,calc(100vw/var(--ship-ratio)));aspect-ratio:1672/941;overflow:hidden;background:#010711;opacity:1;transition:opacity .45s ease}
+ #shipWindowViewport{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%)}
+ #shipScene{position:absolute;inset:0;z-index:1;pointer-events:none;transform:none!important;transform-origin:center center}
+ #shipWindowBg{position:absolute;inset:-12%;width:124%;height:124%;object-fit:cover;object-position:var(--bg-x) var(--bg-y);transform:translate3d(var(--ship-bg-heading-x),calc(var(--bg-shift-y) + var(--ship-bg-heading-y)),0) scale(calc(var(--bg-scale) * var(--ship-bg-approach-zoom)));transform-origin:center center;z-index:1;pointer-events:none;background:#000}
+ #shipArrivalBg{position:absolute;inset:-12%;width:124%;height:124%;object-fit:cover;object-position:center;z-index:2;pointer-events:none;opacity:0;transition:opacity 1.8s ease;transform:translate3d(var(--ship-bg-heading-x),var(--ship-bg-heading-y),0) scale(1.10);transform-origin:center center}
+ #shipPlanetLayer{position:absolute;inset:0;z-index:4;overflow:visible;pointer-events:none;opacity:1;transition:opacity 1.8s ease;transform:translate3d(var(--ship-planet-heading-x),var(--ship-planet-heading-y),0);will-change:transform}
+#shipAlbumPlanetLayer{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:visible;transform:translate3d(var(--ship-planet-heading-x),var(--ship-planet-heading-y),0);will-change:transform}
+.ship-album-planet{position:absolute;left:50%;top:29%;width:clamp(74px,10%,150px);aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid rgba(151,227,255,.46);box-shadow:0 0 22px rgba(29,139,221,.24);opacity:0;transform:translate3d(-50%,-50%,0) scale(.01);transform-origin:50% 50%;will-change:transform,opacity;contain:layout style paint}
+.ship-album-planet img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover}
+.ship-album-planet .ship-album-label{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,7,18,.94));color:#effaff;text-align:center;font-size:clamp(8px,.9vw,12px);line-height:1.2;padding:9px 1px 2px;font-weight:850}
+#shipAlbumPlanetLayer{opacity:1}
+ #shipLogo{position:absolute;left:50%;top:10.5%;transform:translateX(-50%) scale(var(--ship-planet-zoom));transform-origin:50% 50%;width:18.5%;aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 0 22px rgba(0,191,255,.30);pointer-events:none;transition:filter .45s ease}
+ #shipWarpLayer{position:absolute;inset:0;z-index:4;opacity:0;pointer-events:none;background:radial-gradient(circle at 50% 31%,rgba(198,244,255,.26) 0,rgba(84,200,255,.10) 8%,rgba(0,0,0,0) 24%),repeating-conic-gradient(from 0deg at 50% 31%,rgba(208,247,255,0) 0deg,rgba(208,247,255,.22) .35deg,rgba(208,247,255,0) .8deg,rgba(208,247,255,0) 7deg);mix-blend-mode:screen;filter:blur(.6px);transition:opacity .22s ease;transform:scale(1.25)}
+ #shipAtmosphereLayer{position:absolute;inset:0;z-index:5;opacity:0;pointer-events:none;background:radial-gradient(ellipse at 48% 38%,rgba(223,255,255,.74),rgba(104,239,255,.30) 23%,rgba(73,180,232,.12) 48%,rgba(255,255,255,0) 72%),repeating-radial-gradient(ellipse at 52% 45%,rgba(214,255,255,.18) 0 7%,rgba(85,217,245,.08) 9% 15%,rgba(255,255,255,0) 18% 27%);filter:blur(4px) saturate(1.18);mix-blend-mode:screen;transform:scale(1.08);transition:opacity .8s ease;animation:atmoDrift 11s ease-in-out infinite alternate}
+ @keyframes atmoDrift{from{transform:scale(1.05) translate3d(-1%,1%,0)}to{transform:scale(1.13) translate3d(1%,-1%,0)}}
+ #shipSpeedAlert{position:absolute;z-index:14;left:39%;top:8.5%;width:22%;padding:5px 8px;border:1px solid rgba(166,241,255,.55);border-radius:999px;background:rgba(2,18,34,.68);color:#eafdff;font-size:clamp(10px,.82vw,14px);font-weight:950;letter-spacing:.14em;text-align:center;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .25s ease;text-shadow:0 0 7px rgba(142,239,255,.55)}
+ #shipFrame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;pointer-events:none;transition:opacity 1.85s ease}
+ #shipTrackTitle{position:absolute;z-index:8;top:.18%;left:34%;width:32%;height:6.15%;border:0;background:transparent;color:#f4fbff;font-size:clamp(14px,1.18vw,21px);font-weight:900;text-shadow:0 2px 5px #000;overflow:hidden;text-overflow:ellipsis;line-height:1.02}
+ .ship-side{position:absolute;z-index:10;top:16.15%;width:10.45%;height:45.8%;display:grid;grid-template-rows:repeat(6,1fr);gap:1.25%}
+ .ship-left{left:1.75%}.ship-right{right:1.75%}
+ .ship-side button{width:100%;height:100%;min-height:0;padding:0 4px;border:0;border-radius:14px;background:rgba(3,24,45,.18);color:#f2fbff;font-size:clamp(13px,1.08vw,18px);font-weight:900;text-shadow:0 2px 4px #000;box-shadow:none}
+ .ship-side button[aria-pressed="true"],.ship-side button.active{outline:2px solid #23ffd0;background:rgba(15,74,88,.28);box-shadow:0 0 14px rgba(35,255,208,.24) inset}
+ .ship-hide-combined{width:100%;height:100%;min-height:0;padding:0 4px;border:0;border-radius:14px;background:rgba(3,24,45,.18);color:#f2fbff;font-size:clamp(11px,.92vw,16px);font-weight:900;text-shadow:0 2px 4px #000;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;user-select:none;-webkit-user-select:none}
+ .ship-hide-combined input{width:15px;height:15px;margin:0;accent-color:#21e5c1;flex:0 0 auto}
+ #shipHideControl{font-size:clamp(12px,.98vw,16px)}
+ #shipSensorLayer{position:absolute;inset:0;z-index:9;pointer-events:none}
+ #shipTargetLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%)}
+ #shipTargetReticle{position:absolute;left:50%;top:25.5%;width:15%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:0;transition:opacity .38s ease,width .08s linear,height .08s linear;will-change:left,top,width,height}
+ .ship-reticle-ring{position:absolute;inset:0;border:2px solid rgba(236,248,255,.92);border-radius:50%;box-shadow:0 0 10px rgba(188,236,255,.35)}
+ .ship-reticle-ring.inner{inset:15%;border-color:rgba(140,236,255,.95)}
+ .ship-reticle-h,.ship-reticle-v{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.88)}
+ .ship-reticle-h{width:128%;height:2px}.ship-reticle-v{width:2px;height:128%}
+ .ship-reticle-corners span{position:absolute;width:20%;height:20%;border:2px solid rgba(153,239,255,.95)}
+ .ship-reticle-corners span:nth-child(1){left:-2%;top:-2%;border-right:0;border-bottom:0}.ship-reticle-corners span:nth-child(2){right:-2%;top:-2%;border-left:0;border-bottom:0}.ship-reticle-corners span:nth-child(3){left:-2%;bottom:-2%;border-right:0;border-top:0}.ship-reticle-corners span:nth-child(4){right:-2%;bottom:-2%;border-left:0;border-top:0}
+ #shipTargetLabel{position:absolute;left:60.2%;top:12.9%;padding:5px 9px;border-radius:999px;background:rgba(6,18,33,.76);border:1px solid rgba(120,215,255,.46);color:#f3fcff;font-size:clamp(9px,.72vw,12px);font-weight:900;letter-spacing:.13em;text-transform:uppercase;box-shadow:0 0 10px rgba(55,189,255,.15);opacity:0;transition:opacity .8s ease}
+ #shipAnalysisPanel{position:absolute;left:60.0%;top:18.1%;width:18.4%;max-height:27%;overflow:hidden;padding:9px 11px;border-radius:13px;background:rgba(4,15,28,.72);border:1px solid rgba(100,203,255,.38);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.10);backdrop-filter:blur(4px);opacity:0;transform:translateY(5px);transition:opacity .8s ease,transform .8s ease}
+ #shipAnalysisHead{font-size:clamp(10px,.78vw,13px);font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#abebff;margin-bottom:5px}
+ #shipAnalysisText{font-size:clamp(10px,.78vw,13px);line-height:1.30;white-space:pre-line;text-align:left}
+ #shipStage.targeting-active #shipTargetReticle,#shipStage.targeting-active #shipTargetLabel{opacity:.94}
+ #shipStage.target-magnetic #shipTargetReticle .outer{border-color:rgba(168,246,255,.98);box-shadow:0 0 12px rgba(92,224,255,.62),0 0 28px rgba(56,232,255,.30)}
+ #shipStage.target-locked #shipTargetReticle .outer{border-color:rgba(214,255,245,.98);box-shadow:0 0 10px rgba(117,255,222,.55),0 0 24px rgba(56,232,255,.28)}
+ #shipStage.target-centered #shipTargetReticle .inner{border-color:rgba(255,255,255,1);box-shadow:0 0 12px rgba(255,255,255,.58)}
+ #shipStage.scan-active #shipAnalysisPanel{opacity:1;transform:translateY(0)}
+ #shipApproachPanel{position:absolute;left:74.9%;top:61.7%;width:5.0%;height:20.5%;z-index:13;pointer-events:auto;touch-action:none}
+ #shipApproachLever{position:absolute;inset:0;pointer-events:auto;touch-action:none;outline:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+ #shipApproachBase{position:absolute;left:50%;top:0;transform:translateX(-50%);width:78%;height:100%;border-radius:22px;background:linear-gradient(90deg,rgba(2,12,22,.90),rgba(24,72,104,.84),rgba(2,12,22,.92));border:1px solid rgba(80,180,235,.38);box-shadow:inset 0 0 12px rgba(0,0,0,.65),0 0 12px rgba(0,153,255,.08)}
+ #shipApproachRail{position:absolute;left:50%;top:8%;transform:translateX(-50%);width:11px;height:84%;border-radius:999px;background:linear-gradient(90deg,#06131f,#39779d,#06131f);box-shadow:inset 0 0 4px #000}
+ #shipApproachNeutral{position:absolute;left:18%;right:18%;top:50%;height:2px;background:rgba(137,227,255,.55);box-shadow:0 0 5px rgba(75,205,255,.28)}
+ #shipApproachKnob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60px;height:24px;border-radius:8px;background:linear-gradient(#bcecff,#3fa8df);border:1px solid rgba(226,251,255,.95);box-shadow:0 0 13px rgba(49,194,255,.35),inset 0 0 4px rgba(255,255,255,.55)}
+ #shipApproachKnob::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:19px;height:48px;border-radius:7px;background:linear-gradient(90deg,#b9ebff,#4baee0,#c8f2ff);border:1px solid rgba(230,252,255,.9);box-shadow:0 0 8px rgba(55,195,255,.25)}
+ #shipApproachKnob::after{content:'';position:absolute;left:8px;right:8px;top:50%;height:5px;transform:translateY(-50%);border-radius:999px;background:rgba(5,31,49,.42)}
+ #shipAttitudePanel{position:absolute;left:20.2%;top:61.7%;width:5.8%;height:20.5%;z-index:13;pointer-events:auto;touch-action:none}
+ #shipAttitudeControl{position:absolute;inset:0;outline:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+ #shipAttitudeBase{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:86%;aspect-ratio:1;border-radius:22%;background:radial-gradient(circle,rgba(25,79,109,.72),rgba(2,13,23,.92) 72%);border:1px solid rgba(80,180,235,.42);box-shadow:inset 0 0 14px rgba(0,0,0,.72),0 0 12px rgba(0,153,255,.08)}
+ #shipAttitudeBase::before,#shipAttitudeBase::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(104,214,255,.32)}
+ #shipAttitudeBase::before{width:72%;height:2px}#shipAttitudeBase::after{width:2px;height:72%}
+ #shipAttitudeKnob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46px;height:22px;border-radius:8px;background:linear-gradient(#bcecff,#3fa8df);border:1px solid rgba(226,251,255,.95);box-shadow:0 0 13px rgba(49,194,255,.35),inset 0 0 4px rgba(255,255,255,.55)}
+ #shipAttitudeKnob::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:44px;border-radius:7px;background:linear-gradient(90deg,#b9ebff,#4baee0,#c8f2ff);border:1px solid rgba(230,252,255,.9)}
+ #autoPilotBtn{position:absolute;z-index:13;right:2.15%;top:68.2%;width:9.6%;height:5.6%;min-height:0;padding:0 4px;border:1px solid rgba(82,192,241,.45);border-radius:11px;background:rgba(3,24,45,.56);color:#f2fbff;font-size:clamp(10px,.78vw,13px);font-weight:900;text-transform:uppercase}
+ #shipHideControl{position:absolute;z-index:13;right:2.15%;top:74.7%;width:9.6%;min-height:4.8%;display:flex;align-items:center;justify-content:center;gap:4px;padding:3px 4px;border:1px solid rgba(82,192,241,.32);border-radius:10px;background:rgba(3,24,45,.44);font-size:clamp(9px,.68vw,11px);font-weight:800}
+ #shipHideControl input{width:14px;height:14px;margin:0;accent-color:#16dba5}
+ #shipRadarScope{position:absolute;left:7.35%;top:70.45%;width:11.45%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:radial-gradient(circle at center,rgba(21,145,191,.12),rgba(0,8,16,.08) 68%);box-shadow:inset 0 0 14px rgba(0,0,0,.22);pointer-events:auto;cursor:pointer;touch-action:manipulation}
+ #shipRadarScope::before,#shipRadarScope::after{content:'';position:absolute;left:50%;top:50%;background:rgba(115,232,255,.32);transform:translate(-50%,-50%)}
+ #shipRadarScope::before{width:1px;height:92%}#shipRadarScope::after{width:92%;height:1px}
+ #shipRadarSweep{position:absolute;inset:3%;border-radius:50%;background:conic-gradient(from 0deg,rgba(67,239,255,0) 0deg,rgba(67,239,255,.38) 23deg,rgba(67,239,255,0) 45deg,rgba(67,239,255,0) 360deg);mix-blend-mode:screen;animation:shipRadarSweep 6.8s linear infinite}
+ @keyframes shipRadarSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+ #shipRadarBlips span{position:absolute;width:7%;aspect-ratio:1;border-radius:50%;background:rgba(178,246,255,.66);box-shadow:0 0 5px rgba(178,246,255,.55)}
+ #shipRadarTarget{position:absolute;left:50%;top:50%;width:12%;aspect-ratio:1;border:1px solid rgba(238,254,255,.95);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(157,239,255,.76);transition:left .18s linear,top .18s linear,width .28s ease}
+ #shipRadarTarget::after{content:'';position:absolute;left:50%;top:50%;width:28%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#eafdff;box-shadow:0 0 7px #b9efff}
+ #shipDistanceMini{position:absolute;left:7.15%;top:84.6%;width:11.8%;font-size:clamp(8px,.66vw,11px);line-height:1.12;color:#d9f8ff;text-align:center;text-shadow:0 1px 2px #000;pointer-events:none}
+ #shipEQLeft{position:absolute;z-index:9;left:2.75%;top:81.1%;width:3.75%;height:11.5%;display:flex;align-items:flex-end;gap:3px;transform:rotate(-3deg);pointer-events:none}
+ #shipEQRight{position:absolute;z-index:9;left:80.65%;top:72.2%;width:10.55%;height:9.3%;display:flex;align-items:flex-end;gap:3px;transform:rotate(2deg);pointer-events:auto;cursor:pointer;touch-action:manipulation}
+ #shipEQOverlay{position:absolute;left:29%;top:33.5%;width:42%;height:17.5%;z-index:12;padding:8px 11px 9px;border:1px solid rgba(116,225,255,.50);border-radius:12px;background:linear-gradient(180deg,rgba(4,18,31,.68),rgba(1,9,18,.48));box-shadow:0 0 18px rgba(64,200,255,.12),inset 0 0 18px rgba(70,205,255,.05);backdrop-filter:blur(3px);opacity:0;transform:translateY(5px);transition:opacity .32s ease,transform .32s ease;pointer-events:none}
+ #shipEQOverlay.open{opacity:.94;transform:translateY(0)}
+ #shipEQOverlayTitle{height:18%;font-size:clamp(8px,.66vw,11px);font-weight:950;letter-spacing:.18em;color:#b9efff;text-align:left;text-transform:uppercase;opacity:.9}
+ #shipEQOverlayBars{height:78%;display:flex;align-items:flex-end;gap:2px}
+ #shipEQOverlayBars span{flex:1 1 0;min-width:2px;height:8%;border-radius:3px 3px 1px 1px;background:linear-gradient(to top,rgba(38,176,255,.42),rgba(149,241,255,.95));box-shadow:0 0 5px rgba(62,207,255,.22);transition:height .055s linear,opacity .055s linear}
+ .ship-eq-bar{flex:1;min-width:0;height:22%;border-radius:999px 999px 2px 2px;background:linear-gradient(to top,rgba(27,134,215,.22),rgba(118,224,255,.82));box-shadow:0 0 6px rgba(45,191,255,.16)}
+ #shipProgress{position:absolute;z-index:8;left:28%;top:54.4%;width:44%;height:12.5%;overflow:visible;pointer-events:none}.ship-progress-base{fill:none;stroke:rgba(51,221,255,.28);stroke-width:10;stroke-linecap:round}.ship-progress-fill{fill:none;stroke:#28e8ff;stroke-width:10;stroke-linecap:round;stroke-dasharray:0 100;filter:drop-shadow(0 0 5px rgba(40,232,255,.6))}
+ #shipProgressHit{position:absolute;z-index:11;left:29%;top:55.4%;width:42%;height:8%;cursor:pointer;touch-action:none}.ship-time{position:absolute;z-index:9;top:59.1%;color:#e9f8ff;font-size:clamp(11px,.9vw,15px);font-weight:750;text-shadow:0 1px 3px #000}.ship-time-now{left:27.6%}.ship-time-left{right:27.6%}
+ .ship-transport{position:absolute;z-index:12;top:61.15%;width:7.5%;height:9.2%;min-height:0;padding:0;border:1px solid rgba(35,183,255,.62);background:linear-gradient(180deg,rgba(7,39,68,.84),rgba(2,20,37,.84));color:#fff;font-size:clamp(19px,1.85vw,31px);box-shadow:0 0 13px rgba(0,170,255,.17);border-radius:10px}
+ #shipPrev{left:38.0%;clip-path:polygon(22% 0,100% 0,82% 100%,0 100%)}
+ #shipPlay{left:46.0%;width:8.6%;height:10.2%;top:60.55%;clip-path:polygon(16% 0,84% 0,100% 100%,0 100%);border-color:#37e8ff;box-shadow:0 0 18px rgba(32,220,255,.32)}
+ #shipNext{left:55.6%;clip-path:polygon(0 0,78% 0,100% 100%,18% 100%)}
+ #shipBottomActions{position:absolute;z-index:12;left:22.2%;top:82.8%;width:55.7%;height:8.25%;display:grid;grid-template-columns:1.05fr .84fr 1.05fr;gap:1.9%}
+ #shipBottomActions>*{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:0;padding:0 8px;border:0;border-radius:14px;background:rgba(3,24,45,.14);color:#f2fbff;text-decoration:none;font-size:clamp(13px,1.02vw,17px);font-weight:900;text-shadow:0 2px 4px #000;line-height:1.05;text-align:center}
+ #shipTrackTitle,#shipLeftControls,#shipRightControls,#shipProgress,#shipProgressHit,.ship-time,.ship-transport,#shipApproachPanel,#shipAttitudePanel,#autoPilotBtn,#shipHideControl,#shipBottomActions,#shipSensorLayer,#viewToggle{transition:opacity 1.85s ease}
+ body.view-ship.hud-hidden #shipTrackTitle,body.view-ship.hud-hidden #shipLeftControls,body.view-ship.hud-hidden #shipRightControls,body.view-ship.hud-hidden #shipProgress,body.view-ship.hud-hidden #shipProgressHit,body.view-ship.hud-hidden .ship-time,body.view-ship.hud-hidden .ship-transport,body.view-ship.hud-hidden #shipApproachPanel,body.view-ship.hud-hidden #shipAttitudePanel,body.view-ship.hud-hidden #autoPilotBtn,body.view-ship.hud-hidden #shipHideControl,body.view-ship.hud-hidden #shipBottomActions,body.view-ship.hud-hidden #shipSensorLayer,body.view-ship.hud-hidden #viewToggle,body.view-ship.hud-hidden #shipFrame,body.view-ship.hud-hidden #shipSpeedAlert{opacity:0!important;pointer-events:none!important}
+ body.view-ship.hud-hidden #shipStage{opacity:1!important;pointer-events:auto!important;background:#000}
+ body.view-ship.hud-hidden #shipWindowViewport{clip-path:none!important;overflow:visible!important}
+ body.view-ship.hud-hidden #shade{display:none!important}
+ body.view-ship.hud-hidden #bgImage{opacity:0!important}
+
+ #shipArrivalContact{position:absolute;z-index:24;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);width:min(58%,690px);min-width:320px;max-height:88%;overflow:hidden;padding:14px 16px;border-radius:20px;background:linear-gradient(180deg,rgba(3,17,31,.91),rgba(2,12,24,.88));border:1px solid rgba(64,255,196,.70);box-shadow:0 0 14px rgba(59,255,194,.48),0 0 42px rgba(0,218,255,.22),inset 0 0 28px rgba(33,255,192,.06),0 20px 48px rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#effbff;opacity:0;pointer-events:none;transition:opacity 2.35s ease,transform 2.35s ease;text-align:left;display:flex;flex-direction:column}
+ #shipArrivalContact.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+ #shipArrivalContact h2{margin:0 28px 5px 0;font-size:clamp(18px,1.55vw,25px);line-height:1.05}
+ #shipArrivalContact .arrival-sub{margin:0 0 8px;font-size:clamp(11px,.84vw,14px);opacity:.88}
+ #shipArrivalContact textarea,#shipArrivalContact input[type="email"]{width:100%;border:1px solid rgba(76,239,204,.54);border-radius:12px;background:rgba(0,7,14,.65);color:#effbff;padding:9px 10px;font:inherit;outline:none;box-shadow:0 0 12px rgba(40,255,205,.10),inset 0 0 12px rgba(40,255,205,.04)}
+ #shipArrivalContact textarea{min-height:92px;max-height:42vh;resize:none;overflow-y:auto;transition:height .18s ease,box-shadow .4s ease}
+ #shipArrivalContact textarea:focus{box-shadow:0 0 14px rgba(52,255,196,.40),0 0 34px rgba(0,222,255,.16),inset 0 0 15px rgba(40,255,205,.08)}
+ #shipArrivalContact input[type="email"]{margin-top:6px}
+ .arrival-options{display:flex;flex-wrap:wrap;gap:6px 13px;margin:8px 0;font-size:clamp(10px,.78vw,13px)}
+ .arrival-options label{display:flex;align-items:center;gap:6px}
+ .arrival-options input{width:16px;height:16px;accent-color:#20e7b8}
+ #arrivalResponseLabel,#arrivalEmailWrap{display:none}.private-selected #arrivalResponseLabel{display:flex}.need-email #arrivalEmailWrap{display:block}
+ .arrival-actions{display:flex;gap:7px;justify-content:flex-end;align-items:center;margin-top:8px;flex-wrap:wrap}
+ .arrival-actions button{min-height:34px;padding:6px 11px;border-radius:10px;font-size:12px}
+ #arrivalSend{border-color:rgba(70,255,198,.72);background:rgba(12,100,88,.74);font-weight:900}
+ #arrivalViewWall{margin-right:auto;border-color:rgba(81,200,255,.52);background:rgba(8,52,80,.72)}
+ #arrivalClose{background:rgba(14,25,39,.72)}
+ #arrivalStatus{min-height:1.25em;margin-top:6px;font-size:11px;opacity:.86}
+ .arrival-save-note{margin-top:5px;font-size:10px;line-height:1.25;opacity:.62}
+ body.view-ship.arrival-mode #shipFrame,body.view-ship.arrival-mode #shipTrackTitle,body.view-ship.arrival-mode #shipLeftControls,body.view-ship.arrival-mode #shipRightControls,body.view-ship.arrival-mode #shipProgress,body.view-ship.arrival-mode #shipProgressHit,body.view-ship.arrival-mode .ship-time,body.view-ship.arrival-mode .ship-transport,body.view-ship.arrival-mode #shipApproachPanel,body.view-ship.arrival-mode #shipAttitudePanel,body.view-ship.arrival-mode #autoPilotBtn,body.view-ship.arrival-mode #shipHideControl,body.view-ship.arrival-mode #shipBottomActions,body.view-ship.arrival-mode #shipSensorLayer,body.view-ship.arrival-mode #viewToggle,body.view-ship.arrival-mode #shipSpeedAlert{opacity:0!important;pointer-events:none!important}
+ body.view-ship.arrival-mode #shipWindowViewport{clip-path:none!important;overflow:visible!important}
+ body.view-ship.arrival-mode #hudTap{display:none!important}
+ #shipReflectionWall{position:absolute;inset:0;z-index:40;background:#000 url('../ge-images/img/2.gif') center/cover no-repeat;opacity:0;pointer-events:none;transition:opacity .9s ease;color:#f4fbff;overflow:hidden}
+ #shipReflectionWall.open{opacity:1;pointer-events:auto}
+ #reflectionField{position:absolute;inset:0;touch-action:none}
+ #reflectionPrompt{position:absolute;z-index:3;left:50%;top:4%;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(2,15,26,.72);border:1px solid rgba(114,233,255,.55);font-size:clamp(12px,1vw,17px);font-weight:900;text-align:center;white-space:nowrap}
+ #reflectionControls{position:absolute;z-index:5;left:50%;bottom:3.5%;transform:translateX(-50%);display:flex;gap:8px}
+ #reflectionControls button{min-width:86px;min-height:38px;border-radius:12px;background:rgba(3,24,45,.82);border:1px solid rgba(73,196,255,.55);color:#effbff;font-weight:850}
+ .soul-reflection-dot{position:absolute;width:18px;height:18px;transform:translate(-50%,-50%);border:0;border-radius:50%;padding:0;background:rgba(4,22,42,.9) center/72% 72% no-repeat url('../ge-images/images/ge-logo%203.png');box-shadow:0 0 6px 2px rgba(255,255,255,.62),0 0 18px 7px rgba(86,207,255,.28);cursor:pointer;isolation:isolate}
+ .soul-reflection-dot::before,.soul-reflection-dot::after{content:'';position:absolute;inset:-45%;z-index:-1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(236,252,255,.34) 0 14%,rgba(111,217,255,.20) 28%,rgba(101,239,220,.10) 45%,transparent 69%);filter:blur(3px);animation:soulGas 4.6s ease-in-out infinite alternate}
+ .soul-reflection-dot::after{inset:-70%;opacity:.42;filter:blur(6px);animation-duration:7.2s;animation-direction:alternate-reverse}
+ .soul-reflection-dot.draft{width:22px;height:22px;box-shadow:0 0 9px 4px rgba(255,255,255,.92),0 0 30px 12px rgba(52,255,197,.44);animation:soulPulse 1.15s ease-in-out infinite alternate}
+ .soul-reflection-dot.newborn{animation:soulPulse 1.5s ease-in-out 8 alternate}
+ @keyframes soulPulse{from{transform:translate(-50%,-50%) scale(.82);filter:brightness(.9)}to{transform:translate(-50%,-50%) scale(1.28);filter:brightness(1.4)}}
+ @keyframes soulGas{0%{transform:translate3d(-2px,1px,0) scale(.86) rotate(0deg);opacity:.35}50%{transform:translate3d(2px,-1px,0) scale(1.14) rotate(90deg);opacity:.78}100%{transform:translate3d(-1px,-2px,0) scale(.98) rotate(180deg);opacity:.48}}
+ #reflectionBubble{position:absolute;z-index:7;left:50%;bottom:11%;transform:translateX(-50%);width:min(76%,680px);max-height:31%;overflow:auto;padding:10px 12px;border-radius:14px;background:rgba(3,17,31,.90);border:1px solid rgba(135,231,255,.55);box-shadow:0 0 20px rgba(66,210,255,.18);display:none;white-space:pre-wrap;font-size:clamp(11px,.85vw,14px)}
+ #reflectionEarthWrap{position:absolute;z-index:6;right:3.2%;top:5%;width:clamp(112px,17vw,190px);aspect-ratio:1;pointer-events:none;filter:drop-shadow(0 0 13px rgba(76,191,255,.28))}
+ #reflectionEarth{display:block;width:100%;height:100%}
+ #reflectionEarthLabel{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);white-space:nowrap;font-size:9px;letter-spacing:.10em;font-weight:850;opacity:.66;text-shadow:0 1px 4px #000}
+ #arrivalLocationLabel{display:none;align-items:center;gap:6px}
+ .share-location #arrivalLocationLabel{display:flex}
+ #arrivalLocationWrap{display:none;margin-top:5px;padding:7px 8px;border:1px solid rgba(87,225,209,.23);border-radius:11px;background:rgba(0,10,19,.28)}
+ .share-location #arrivalLocationWrap{display:block}
+ #arrivalLocationText{width:100%;border:1px solid rgba(76,239,204,.38);border-radius:10px;background:rgba(0,7,14,.55);color:#effbff;padding:8px 9px;font:inherit;outline:none}
+ #arrivalGeoBtn{margin-top:6px;min-height:31px;padding:5px 9px;border-radius:9px;border:1px solid rgba(90,220,255,.48);background:rgba(7,53,78,.68);color:#effbff;font-weight:800}
+ #arrivalGeoStatus{margin-top:5px;min-height:1.1em;font-size:10px;opacity:.72}
+ @media(max-width:700px){#reflectionEarthWrap{width:102px;right:2.5%;top:8%}#reflectionPrompt{max-width:58%;white-space:normal;line-height:1.1}.arrival-actions{gap:5px}.arrival-actions button{padding:6px 8px}}
+ #reflectionBubble.open{display:block}
+}
+body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
+body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!important}
+@media(orientation:landscape){
+ #shipRightControls #shipHideControl{position:relative!important;inset:auto!important;right:auto!important;top:auto!important;width:100%!important;height:100%!important;min-height:0!important;z-index:auto!important;padding:0 4px!important;border-radius:14px!important;background:rgba(3,24,45,.18)!important}
+}
+
+
+
+/* INNER HORIZON 08: one explicit action path and true circular Souls. */
+#arrivalPrivate,#arrivalPost{display:none!important}
+button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
+.soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
+#reflectionControls{width:min(94%,760px)!important;display:grid!important;grid-template-columns:1fr 1fr 1fr 1fr!important;gap:8px!important}
+#arrivalPostBtn:disabled{opacity:.38!important;pointer-events:none!important}
+#geGate{position:fixed;inset:0;z-index:1000000;display:none;overflow:hidden;background:transparent;color:#effbff;isolation:isolate;touch-action:none}
+#geGate.open{display:block}
+#geGateBackdrop{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:transparent;
+  -webkit-backdrop-filter:blur(0px) saturate(1);
+  backdrop-filter:blur(0px) saturate(1);
+}
+#geGateBackdrop::after{
+  content:'';position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;
+}
+/* Focus goes softer early, but the black dimmer takes the entire approach to build. */
+#geGate.blurring #geGateBackdrop{
+  animation:geGateBlurBuild var(--ge-gate-blur-build,16s) ease-in-out forwards;
+}
+#geGate.blurring #geGateBackdrop::after{
+  animation:geGateDimBuild var(--ge-gate-dim-build,86s) linear forwards;
+}
+@keyframes geGateBlurBuild{
+  0%{-webkit-backdrop-filter:blur(.2px) saturate(1);backdrop-filter:blur(.2px) saturate(1)}
+  16%{-webkit-backdrop-filter:blur(2.2px) saturate(1.02);backdrop-filter:blur(2.2px) saturate(1.02)}
+  28%{-webkit-backdrop-filter:blur(1.2px) saturate(1.01);backdrop-filter:blur(1.2px) saturate(1.01)}
+  45%{-webkit-backdrop-filter:blur(5px) saturate(1.04);backdrop-filter:blur(5px) saturate(1.04)}
+  58%{-webkit-backdrop-filter:blur(3.2px) saturate(1.03);backdrop-filter:blur(3.2px) saturate(1.03)}
+  76%{-webkit-backdrop-filter:blur(9px) saturate(1.06);backdrop-filter:blur(9px) saturate(1.06)}
+  88%{-webkit-backdrop-filter:blur(7px) saturate(1.05);backdrop-filter:blur(7px) saturate(1.05)}
+  100%{-webkit-backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07);backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07)}
+}
+@keyframes geGateDimBuild{
+  0%{opacity:0}
+  28%{opacity:.035}
+  48%{opacity:.10}
+  68%{opacity:.22}
+  84%{opacity:.42}
+  100%{opacity:var(--ge-gate-dim,.75)}
+}
+#geGateWaves{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity var(--ge-gate-wave-rise,10s) ease-in;overflow:hidden;transform:translateZ(0);will-change:opacity}
+#geGate.waves #geGateWaves{opacity:1}
+#geGate.centered #geGateWaves{opacity:0}
+#geGateWaves::before{content:"";position:absolute;inset:0;pointer-events:none;-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01);animation:geWaterLens 4.8s ease-in-out infinite;will-change:backdrop-filter}
+.geGateFreqRing{position:absolute;left:50%;top:50%;width:11vmin;height:11vmin;margin:-5.5vmin 0 0 -5.5vmin;border-radius:50%;pointer-events:none;border:1.25px solid rgba(128,226,255,.34);box-shadow:0 0 18px rgba(50,185,255,.16),inset 0 0 10px rgba(165,240,255,.08);opacity:0;transform:translate3d(0,0,0) scale(.28);animation:geWaterFrequency var(--water-cycle,8.4s) linear infinite;animation-delay:var(--water-delay,0s);will-change:transform,opacity}
+@keyframes geWaterFrequency{0%{transform:translate3d(0,0,0) scale(.28);opacity:0}8%{opacity:.22}34%{opacity:.42}70%{opacity:.20}100%{transform:translate3d(0,0,0) scale(12.5);opacity:0}}
+@keyframes geWaterLens{0%,100%{-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01)}35%{-webkit-backdrop-filter:blur(2.1px) saturate(1.025);backdrop-filter:blur(2.1px) saturate(1.025)}62%{-webkit-backdrop-filter:blur(4.4px) saturate(1.045);backdrop-filter:blur(4.4px) saturate(1.045)}82%{-webkit-backdrop-filter:blur(1.4px) saturate(1.02);backdrop-filter:blur(1.4px) saturate(1.02)}}
+#geGateSunWrap{position:absolute;left:50%;top:50%;height:100svh;width:100svh;max-width:none;max-height:none;transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+#geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 6svh rgba(35,175,255,.72),0 0 15svh rgba(0,128,255,.54),0 0 28svh rgba(0,96,255,.34),0 0 40svh rgba(0,75,255,.16);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
+#geGatePanel{position:absolute;z-index:5;left:50%;top:62%;bottom:auto;transform:translate(-50%,18px);width:min(440px,88vw);max-width:88vw;padding:16px;border-radius:20px;border:1px solid rgba(94,205,255,.42);background:rgba(1,12,25,.78);box-shadow:0 14px 38px rgba(0,0,0,.48),0 0 24px rgba(34,161,255,.14);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center}
+#geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#geGatePanelHeader{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;align-items:center;gap:4px;margin-bottom:12px}
+#geGateTitle{font-size:clamp(19px,4.4vw,25px);font-weight:850;letter-spacing:.035em;margin:0;color:#fff}
+#geGateBack{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;border-radius:9px;border:1px solid rgba(112,216,255,.72);background:rgba(5,39,68,.88);color:#f4fbff;font:800 23px/1 system-ui;cursor:pointer}
+#geGateBack:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#geGateStatus{min-height:0;margin:7px 0 0;font-size:clamp(12px,3vw,14px);line-height:1.35;color:#d9efff}
+#geGateStatus:empty{display:none}
+#geGateEntry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
+#geGateWord{width:100%;min-width:0;min-height:46px;border:1px solid rgba(91,202,255,.56);border-radius:12px;background:rgba(0,5,13,.78);color:#f4fbff;padding:9px 11px;text-align:center;font:700 17px/1.2 system-ui;outline:none;letter-spacing:.12em}
+#geGateWord:focus{border-color:rgba(114,229,255,.95);box-shadow:0 0 16px rgba(62,190,255,.24)}
+#geGateWord::placeholder{color:rgba(230,244,255,.65);font-weight:550;letter-spacing:.015em;opacity:1}
+#geGateEnter,#geGateHint,#geGateEmail,#geGateAccessSend{border:1px solid rgba(72,195,255,.60);border-radius:12px;background:rgba(7,45,75,.82);color:#f4fbff;font-weight:800}
+#geGateEnter{min-height:46px;padding:8px 16px}
+#geGateHint{margin:10px auto 0;min-height:38px;padding:7px 15px;font-size:14px}
+#geGateHintText{min-height:1.4em;margin:9px 0 0;font-size:clamp(17px,4.25vw,22px);font-weight:750;line-height:1.25;color:#e8f9ff;text-shadow:0 2px 8px #000}
+#geGateHelp{display:block;margin-top:12px;color:#d9f4ff}
+#geGateHelp.show{display:block}
+#geGateEmail{min-height:40px;padding:8px 16px}
+#geGate.wrong #geGateWord{animation:geGateNudge .34s ease}@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* Every Vault-verified Radio code runs the same Sun zoom/fade.
+   Use a keyframe sequence, not a transform transition that can be cancelled
+   by the Sun's previous inline entrance/positioning transitions on Safari. */
+@keyframes geGateAcceptedCodeZoom{
+  0%{transform:translate3d(0,0,0) scale(1);opacity:1;filter:brightness(1) saturate(1)}
+  36%{transform:translate3d(0,0,0) scale(2.25);opacity:.96;filter:brightness(1.28) saturate(1.15)}
+  100%{transform:translate3d(0,0,0) scale(7);opacity:0;filter:brightness(1.55) saturate(1.35)}
+}
+@keyframes geGateAcceptedCodeBackdrop{from{opacity:1}to{opacity:0}}
+#geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,24px)!important}
+#geGate.unlocking #geGateWaves{opacity:0!important}
+#geGate.unlocking #geGateBackdrop{animation:geGateAcceptedCodeBackdrop var(--ge-gate-unlock,6s) ease-in forwards!important}
+#geGate.unlocking #geGateSun{
+  animation:geGateAcceptedCodeZoom var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1) both!important
+}
+#geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
+#geGateAccessForm{display:none;margin-top:12px;padding:14px 12px;border:1px solid rgba(94,205,255,.30);border-radius:14px;background:rgba(0,8,18,.62);text-align:center}
+#geGateAccessForm.show{display:block}
+#geGateAccessText{margin:0 0 12px;color:#f2fbff;font:650 14px/1.45 system-ui}
+#geGateAccessSend{min-height:42px;padding:9px 17px;font-size:14px}
+#geGateAccessEmail::placeholder,#geGateAccessMessage::placeholder{color:rgba(225,241,250,.58)}
+#geGateAccessEmail:focus,#geGateAccessMessage:focus{border-color:rgba(114,229,255,.95);box-shadow:0 0 14px rgba(62,190,255,.18)}
+#geGateAccessMessage{min-height:78px;resize:vertical}
+#geGateAccessSend{display:block;width:100%;margin-top:12px;min-height:44px;padding:9px 12px;font-size:15px}
+#geGateAccessResult{min-height:1.25em;margin-top:8px;text-align:center;font-size:13px;color:#d9f4ff}
+@media(max-width:560px){#geGatePanel{top:61%;width:min(410px,88vw);max-width:88vw;padding:14px}#geGateHintText{font-size:clamp(18px,4.8vw,22px)}}
+@media(orientation:landscape) and (max-height:620px){#geGatePanel{top:57%;width:min(500px,64vw);max-width:64vw;padding:10px 12px}#geGateTitle{font-size:17px}#geGateHintText{font-size:16px}#geGateAccessMessage{min-height:54px}}
+@media(prefers-reduced-motion:reduce){.geGateRipple{animation-duration:1ms!important}}
+
+
+/* Protected layout correction: clear the music/title line without touching Ship JS. */
+#shipPrev,#shipPlay,#shipNext{transform:translateY(50%)!important;}
+
+/* REBUILD 15: Gate access is immediate and viewport-bound. */
+#geGateHelp{display:block!important}
+#geGateEmail{visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+#geGateAccessForm{
+ display:none;position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+ transform:translate(-50%,-50%)!important;margin:0!important;width:min(460px,calc(100vw - 28px))!important;
+ max-width:calc(100vw - 28px)!important;max-height:calc(100dvh - 28px)!important;overflow:auto!important;
+ box-sizing:border-box!important;padding:44px 18px max(18px,env(safe-area-inset-bottom))!important;
+ border:1px solid rgba(94,205,255,.45)!important;border-radius:16px!important;background:rgba(0,8,18,.96)!important;
+ box-shadow:0 18px 70px rgba(0,0,0,.75),0 0 30px rgba(54,181,255,.16)!important;z-index:2147483646!important;
+ overscroll-behavior:contain;-webkit-overflow-scrolling:touch;text-align:center!important;
+}
+#geGateAccessForm.show{display:flex!important;flex-direction:column!important;gap:14px!important}
+#geGateAccessClose{position:absolute;right:10px;top:8px;width:34px;height:34px;border:0;background:transparent;color:#eaf9ff;font:700 28px/1 system-ui;cursor:pointer}
+#geGateAccessText{margin:0!important;color:#f2fbff!important;font:650 15px/1.45 system-ui!important}
+#geGateAccessSend{width:100%!important;margin:0!important;min-height:46px!important}
+@media(max-height:430px){#geGateAccessForm{top:max(8px,env(safe-area-inset-top))!important;transform:translateX(-50%)!important;max-height:calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important}}
+
+
+#player{display:none!important}
+#playerSeekWrap{width:min(760px,94vw);margin:2px auto 7px;display:flex;align-items:center;gap:10px}
+#playerSeekWrap .geSongIndex{min-width:2ch;flex:0 0 auto;text-align:center;font-weight:850;font-size:15px;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 1px 4px #000}
+#playerSeekWrap #playerSeek{flex:1 1 auto;min-width:0}
+#playerSeek{width:100%;min-height:24px;accent-color:#7adfff}
+#musicGroup{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:7px!important;width:min(760px,96vw)!important}
+#prevBtn,#playBtn,#nextBtn{grid-row:1!important;grid-column:span 2!important;min-height:48px!important}
+#liveBtn,#shuffleBtn,#shareBtn{grid-row:2!important;grid-column:span 2!important;min-height:42px!important}
+#legacyBtn{display:none!important}
+
+
+#shipArrivalContact{max-height:calc(100dvh - 24px)!important;overflow:auto!important;overscroll-behavior:contain!important}
+.arrival-actions{position:sticky!important;bottom:0!important;padding:10px 0 max(8px,env(safe-area-inset-bottom))!important;background:linear-gradient(transparent,rgba(2,12,22,.97) 34%)!important}
+#arrivalPrivateSendBtn,#arrivalPostBtn,#arrivalViewWall{font-weight:900!important}
+@media(max-height:820px){
+ body.view-player{overflow:hidden!important}
+ body.view-player .wrap{height:100dvh!important;overflow:hidden!important;padding-top:3px!important;padding-bottom:3px!important}
+ body.view-player header{margin-bottom:2px!important}
+ body.view-player #bgGroup{margin-top:8px!important;gap:5px!important}
+ body.view-player #supportText{margin-block:2px!important}
+ body.view-player #bottomActions{gap:4px!important}
+ body.view-player footer{margin-top:2px!important}
+}
+
+
+/* Spectrum: 110 continuously advancing time-history rings. */
+.sun-spectrum-ring{
+  position:absolute;left:50%;top:50%;width:100%;height:100%;border-radius:50%;
+  transform:translate(-50%,-50%) scale(var(--spectrum-scale,1));
+  border:var(--spectrum-width,1px) solid var(--spectrum-color,rgba(4,30,88,.55));
+  opacity:1;box-sizing:border-box;pointer-events:none;will-change:transform,border-color;
+}
+#sunEQAura[data-mode="spectrum"]{inset:-2%;filter:none!important}
+
+/* Glow: two genuine halo layers, each independently colored and sized. */
+.sun-glow-layer{
+  position:absolute;left:50%;top:50%;width:100%;height:100%;border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;
+  will-change:transform,opacity,filter;
+}
+.sun-glow-outer{z-index:1}
+.sun-glow-inner{z-index:2}
+#sunEQAura[data-mode="glow"]{inset:-1%;filter:none!important}
+
+/* Sun-first mobile player: top of the page is a full visual stage, controls live below it. */
+@media(max-width:700px){
+  body.view-player{overflow-y:auto!important;overflow-x:hidden!important}
+  body.view-player .wrap{
+    height:auto!important;min-height:100dvh!important;overflow:visible!important;
+    padding:0 12px max(24px,env(safe-area-inset-bottom))!important;gap:12px!important
+  }
+  body.view-player header{
+    position:relative!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
+    margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important
+  }
+  body.view-player .logo-wrap{
+    width:min(56vw,56dvh,330px)!important;height:min(56vw,56dvh,330px)!important;
+    margin:0!important;flex:0 0 auto!important
+  }
+  body.view-player header h1{
+    position:absolute!important;left:50%!important;bottom:8.5dvh!important;transform:translateX(-50%)!important;
+    margin:0!important;white-space:nowrap!important;font-size:20px!important
+  }
+  body.view-player header .tag{
+    position:absolute!important;left:50%!important;bottom:5.3dvh!important;transform:translateX(-50%)!important;
+    margin:0!important;white-space:nowrap!important;font-size:13px!important
+  }
+  body.view-player #titleBtn{}
+  body.view-player #playerSeekWrap{width:92vw!important;margin:2px auto 8px!important}
+  body.view-player #musicGroup{width:92vw!important;gap:10px!important;margin:0 auto 8px!important}
+  body.view-player #musicGroup button{min-height:56px!important;font-size:17px!important}
+  body.view-player #prevBtn,body.view-player #playBtn,body.view-player #nextBtn{min-height:62px!important;font-size:18px!important}
+  body.view-player #bgGroup{width:92vw!important;margin-top:18px!important}
+  body.view-player #bottomActions{width:92vw!important;margin-bottom:18px!important}
+}
+
+/* Landscape player remains scrollable: first screen centers the sun, controls are below. */
+@media(orientation:landscape) and (max-height:700px){
+  body.view-player{overflow-y:auto!important;overflow-x:hidden!important}
+  body.view-player .wrap{height:auto!important;min-height:100dvh!important;overflow:visible!important;padding:0 14px 24px!important}
+  body.view-player header{height:100dvh!important;min-height:100dvh!important;margin:0!important;position:relative!important}
+  body.view-player .logo-wrap{width:min(54dvh,34vw,330px)!important;height:min(54dvh,34vw,330px)!important;margin:0!important}
+  body.view-player header h1{bottom:8dvh!important}
+  body.view-player header .tag{bottom:3.5dvh!important}
+  body.view-player #musicGroup{width:min(900px,94vw)!important;gap:10px!important}
+  body.view-player #musicGroup button{min-height:54px!important;font-size:17px!important}
+}
+
+
+/* Portrait base: the full page must scroll when content exceeds the visible Safari viewport. */
+@media (orientation:portrait) and (max-width:700px){
+  html,body{height:auto;min-height:100%;overflow-x:hidden!important;overflow-y:auto!important}
+  body.view-player.portrait-player{height:auto!important;min-height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important}
+  body.view-player.portrait-player .wrap{
+    box-sizing:border-box!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    max-height:none!important;
+    overflow:visible!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:clamp(3px,.65dvh,7px)!important;
+    padding:max(6px,env(safe-area-inset-top)) 10px max(6px,env(safe-area-inset-bottom))!important;
+  }
+  body.view-player.portrait-player header{
+    flex:0 0 clamp(150px,25dvh,205px)!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:2px!important;
+    position:relative!important;
+  }
+  body.view-player.portrait-player .logo-wrap{
+    width:clamp(126px,19dvh,176px)!important;
+    height:clamp(126px,19dvh,176px)!important;
+    margin:0 auto 3px!important;
+    flex:0 0 auto!important;
+  }
+  body.view-player.portrait-player header h1{
+    position:static!important;transform:none!important;
+    margin:0!important;font-size:clamp(17px,4.7vw,21px)!important;line-height:1.02!important
+  }
+  body.view-player.portrait-player header .tag{
+    position:static!important;transform:none!important;
+    margin:0!important;font-size:clamp(12px,3.35vw,15px)!important;line-height:1.05!important
+  }
+  body.view-player.portrait-player #titleBtn{;
+    font-size:clamp(14px,3.8vw,17px)!important;line-height:1.05!important
+  }
+  body.view-player.portrait-player #playerSeekWrap{
+    flex:0 0 18px!important;width:92vw!important;height:18px!important;margin:0 auto!important
+  }
+  body.view-player.portrait-player #playerSeek{height:18px!important;min-height:18px!important;margin:0!important}
+  body.view-player.portrait-player #musicGroup{
+    flex:0 0 auto!important;width:94vw!important;
+    display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:5px!important;margin:0!important
+  }
+  body.view-player.portrait-player #musicGroup button{
+    min-width:0!important;height:clamp(36px,5.4dvh,46px)!important;min-height:36px!important;
+    padding:3px 4px!important;font-size:clamp(13px,3.55vw,16px)!important;line-height:1!important
+  }
+  body.view-player.portrait-player #prevBtn,
+  body.view-player.portrait-player #playBtn,
+  body.view-player.portrait-player #nextBtn{
+    grid-row:1!important;grid-column:span 2!important;height:clamp(40px,5.9dvh,50px)!important;font-size:clamp(15px,4vw,18px)!important
+  }
+  body.view-player.portrait-player #liveBtn,
+  body.view-player.portrait-player #shuffleBtn,
+  body.view-player.portrait-player #shareBtn{grid-row:2!important;grid-column:span 2!important}
+  body.view-player.portrait-player #liveStatus{flex:0 0 auto!important;margin:0!important;padding:3px 7px!important;font-size:10px!important}
+  body.view-player.portrait-player #bgGroup{
+    flex:0 0 auto!important;width:94vw!important;margin:0!important;padding:5px 7px!important;gap:4px!important;border-radius:10px!important
+  }
+  body.view-player.portrait-player #bgGroup .section-label{font-size:clamp(11px,3vw,13px)!important;line-height:1!important}
+  body.view-player.portrait-player #bgGroup .bg-row{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;width:100%!important
+  }
+  body.view-player.portrait-player #bgGroup button{
+    min-width:0!important;height:clamp(30px,4.4dvh,38px)!important;min-height:30px!important;
+    padding:2px 3px!important;font-size:clamp(11px,3vw,13px)!important;line-height:1!important
+  }
+  body.view-player.portrait-player #supportText{display:none!important}
+  body.view-player.portrait-player #bottomActions{
+    flex:0 0 auto!important;width:94vw!important;margin:0!important;
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-auto-rows:clamp(29px,4.2dvh,36px)!important;gap:4px!important
+  }
+  body.view-player.portrait-player #bottomActions>*{
+    grid-column:auto!important;grid-row:auto!important;order:initial!important;
+    min-width:0!important;width:100%!important;height:100%!important;min-height:0!important;
+    padding:2px 3px!important;font-size:clamp(9px,2.65vw,12px)!important;line-height:1!important;border-radius:8px!important
+  }
+  body.view-player.portrait-player #hudCombined{font-size:clamp(9px,2.65vw,12px)!important;gap:3px!important}
+  body.view-player.portrait-player #hudCombined input{width:14px!important;height:14px!important}
+  body.view-player.portrait-player footer{display:none!important}
+}
+/* Extra compression for short portrait phones without shrinking text into illegibility. */
+@media (orientation:portrait) and (max-height:720px){
+  body.view-player.portrait-player header{flex-basis:132px!important}
+  body.view-player.portrait-player .logo-wrap{width:112px!important;height:112px!important}
+  body.view-player.portrait-player #musicGroup button{height:34px!important}
+  body.view-player.portrait-player #prevBtn,
+  body.view-player.portrait-player #playBtn,
+  body.view-player.portrait-player #nextBtn{height:37px!important}
+  body.view-player.portrait-player #bgGroup button{height:28px!important}
+  body.view-player.portrait-player #bottomActions{grid-auto-rows:27px!important}
+}
+
+/* Sun Lab is a fixed, predictable viewport dialog on every phone. */
+.sunlab-panel{
+  box-sizing:border-box!important;
+  left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(420px,calc(100vw - 20px))!important;
+  height:min(680px,calc(100dvh - 20px))!important;
+  max-height:calc(100dvh - 20px)!important;
+  overflow:hidden!important;
+  display:none;
+  grid-template-rows:auto auto auto minmax(0,1fr) auto!important;
+  padding:12px!important
+}
+.sunlab-panel.show{display:grid!important}
+.sunlab-title{margin:0 0 6px!important}
+.sunlab-sub{margin:0 0 7px!important;font-size:12px!important;line-height:1.25!important}
+.sunlab-modebar{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;margin:0 0 6px!important}
+.sunlab-modebtn{min-width:0!important;min-height:38px!important;padding:5px 3px!important;font-size:12px!important}
+.sunlab-modehint{margin:0 0 5px!important;font-size:12px!important}
+#sunLabGrid{min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;padding-right:2px!important}
+.sunlab-actions{margin-top:7px!important;flex:0 0 auto!important}
+#sunLabClose,#sunLabReset{min-height:38px!important;font-size:12px!important}
+/* Edit while seeing the live Sun. The scrollable slider area stays local to
+   the drawer; neither portrait nor landscape covers the visualization. */
+@media (orientation:portrait){
+  .sunlab-panel{
+    left:0!important;right:0!important;top:auto!important;bottom:0!important;
+    transform:none!important;width:100vw!important;
+    height:49dvh!important;max-height:49dvh!important;min-height:0!important;
+    border-radius:20px 20px 0 0!important;
+    padding:8px 12px max(9px,env(safe-area-inset-bottom))!important;
+  }
+  .sunlab-sub{display:none!important}
+  .sunlab-modebtn{min-height:30px!important}
+  .sunlab-title h3{font-size:15px!important}
+  .sunlab-actions{overflow-x:auto!important;flex-wrap:nowrap!important;
+    justify-content:flex-start!important;-webkit-overflow-scrolling:touch}
+  .sunlab-actions .sunlab-mini{flex:0 0 auto!important;min-height:31px!important}
+}
+@media (orientation:landscape){
+  .sunlab-panel{
+    left:auto!important;right:max(0px,env(safe-area-inset-right))!important;
+    top:0!important;bottom:0!important;transform:none!important;
+    width:min(43vw,510px)!important;height:100dvh!important;
+    max-height:100dvh!important;min-height:0!important;
+    border-radius:18px 0 0 18px!important;
+    padding:8px 12px 8px!important;
+  }
+  .sunlab-sub{display:none!important}
+  .sunlab-title{margin-bottom:3px!important}
+  .sunlab-modebtn{min-height:29px!important}
+  .sunlab-actions{overflow-x:auto!important;flex-wrap:nowrap!important;
+    justify-content:flex-start!important}
+  .sunlab-actions .sunlab-mini{flex:0 0 auto!important;min-height:29px!important}
+}
+
+/* Expanded Inner Horizon options must enlarge the usable panel, never escape it. */
+#shipArrivalContact{
+  box-sizing:border-box!important;
+  max-height:var(--arrival-max-height,calc(100dvh - 20px))!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+}
+#shipArrivalContact .arrival-actions{
+  position:sticky!important;bottom:0!important;z-index:3!important;
+  padding-top:10px!important;padding-bottom:max(6px,env(safe-area-inset-bottom))!important;
+  background:linear-gradient(transparent,rgba(2,12,24,.98) 34%)!important
+}
+#arrivalPrivateSendBtn.sent,#arrivalPrivateSendBtn:disabled{
+  opacity:.48!important;filter:saturate(.35)!important;cursor:default!important
+}
+
+/* Ship LIVE is unmistakably red when active. */
+#shipStage button.ship-live-active,
+#shipStage button[data-proxy="liveBtn"][aria-pressed="true"]{
+  background:rgba(145,16,34,.92)!important;
+  border-color:rgba(255,83,108,.96)!important;
+  color:#fff!important;
+  outline:2px solid rgba(255,83,108,.9)!important;
+  box-shadow:0 0 18px rgba(255,42,72,.34),inset 0 0 16px rgba(255,70,95,.18)!important
+}
+
+
+.spectrum-meter{
+  display:grid;gap:6px;padding:9px 10px;margin:0 0 8px;
+  border:1px solid rgba(94,210,255,.40);border-radius:12px;
+  background:rgba(4,18,31,.76);box-shadow:inset 0 0 18px rgba(56,191,255,.05)
+}
+.spectrum-meter[hidden]{display:none!important}
+.spectrum-meter-title{
+  font-size:11px;font-weight:950;letter-spacing:.12em;text-align:center;color:#bceeff
+}
+.spectrum-meter-line{
+  display:grid;grid-template-columns:42px minmax(0,1fr) 40px;gap:7px;align-items:center;
+  font-size:11px;font-weight:850
+}
+.spectrum-meter-line>span{opacity:.88}
+.spectrum-meter-line>b{font-variant-numeric:tabular-nums;text-align:right;font-size:10px;opacity:.86}
+.spectrum-meter-track{
+  height:9px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;
+  box-shadow:inset 0 0 3px rgba(0,0,0,.6)
+}
+.spectrum-meter-track i{
+  display:block;width:0;height:100%;border-radius:999px;background:#54c8ff;
+  transition:width .055s linear
+}
+#spectrumPulseMeter{background:linear-gradient(90deg,#183b8f,#4cc8ff,#e9fbff)}
+.spectrum-meter-line.combined{
+  margin-top:2px;padding-top:5px;border-top:1px solid rgba(255,255,255,.08)
+}
+@media(max-width:520px){
+  .spectrum-meter{padding:8px;gap:5px}
+  .spectrum-meter-line{grid-template-columns:38px minmax(0,1fr) 36px;font-size:10px}
+}
+
+
+@keyframes geRadioStartupCue{
+  0%,100%{opacity:.76;filter:brightness(.94);outline-color:rgba(255,88,116,.42);box-shadow:0 0 7px rgba(255,55,88,.14),0 0 17px rgba(255,35,72,.08),inset 0 0 9px rgba(255,80,106,.07)}
+  38%{opacity:.98;filter:brightness(1.20);outline-color:rgba(255,154,174,.74);box-shadow:0 0 14px rgba(255,154,174,.44),0 0 34px rgba(255,68,98,.31),0 0 56px rgba(255,35,76,.16),inset 0 0 17px rgba(255,127,148,.15)}
+  44%{opacity:1;filter:brightness(1.27);outline-color:rgba(255,184,198,.88);box-shadow:0 0 18px rgba(255,184,198,.62),0 0 42px rgba(255,78,108,.46),0 0 72px rgba(255,38,78,.24),inset 0 0 21px rgba(255,142,162,.21)}
+  48%{opacity:.93;filter:brightness(1.13);outline-color:rgba(255,137,158,.67);box-shadow:0 0 12px rgba(255,130,154,.34),0 0 29px rgba(255,63,96,.25),inset 0 0 15px rgba(255,116,140,.13)}
+  52%{opacity:1;filter:brightness(1.30);outline-color:rgba(255,194,207,.92);box-shadow:0 0 19px rgba(255,194,207,.66),0 0 44px rgba(255,82,112,.48),0 0 76px rgba(255,39,80,.25),inset 0 0 22px rgba(255,146,166,.22)}
+  57%{opacity:.96;filter:brightness(1.18);outline-color:rgba(255,148,169,.72);box-shadow:0 0 14px rgba(255,145,167,.41),0 0 32px rgba(255,67,99,.29),inset 0 0 16px rgba(255,122,145,.14)}
+  64%{opacity:.98;filter:brightness(1.20);outline-color:rgba(255,154,174,.74);box-shadow:0 0 14px rgba(255,154,174,.44),0 0 34px rgba(255,68,98,.31),0 0 56px rgba(255,35,76,.16),inset 0 0 17px rgba(255,127,148,.15)}
+}
+@keyframes geRadioPlayHeartbeat{
+  0%,100%{opacity:.66;filter:brightness(.92);background:rgba(18,39,57,.78);border-color:rgba(103,184,221,.52);color:#fff;box-shadow:0 0 6px rgba(94,214,255,.08)}
+  38%{opacity:.95;filter:brightness(1.14);background:rgba(31,70,92,.85);border-color:rgba(156,224,243,.76);color:#fff;box-shadow:0 0 13px rgba(162,233,248,.36),0 0 31px rgba(86,217,255,.28),0 0 52px rgba(29,159,255,.14)}
+  44%{opacity:1;filter:brightness(1.24);background:rgba(40,89,113,.90);border-color:rgba(199,244,253,.91);color:#fff;box-shadow:0 0 17px rgba(201,246,255,.56),0 0 39px rgba(96,226,255,.42),0 0 65px rgba(31,167,255,.22)}
+  48%{opacity:.91;filter:brightness(1.09);background:rgba(28,63,84,.83);border-color:rgba(144,215,237,.71);color:#fff;box-shadow:0 0 11px rgba(148,224,242,.28),0 0 25px rgba(80,205,255,.21)}
+  52%{opacity:1;filter:brightness(1.27);background:rgba(43,94,119,.91);border-color:rgba(210,248,255,.94);color:#fff;box-shadow:0 0 18px rgba(211,249,255,.60),0 0 42px rgba(101,230,255,.44),0 0 69px rgba(33,170,255,.23)}
+  57%{opacity:.94;filter:brightness(1.12);background:rgba(30,68,89,.84);border-color:rgba(151,220,240,.73);color:#fff;box-shadow:0 0 12px rgba(154,228,245,.31),0 0 28px rgba(83,211,255,.23)}
+  64%{opacity:.95;filter:brightness(1.14);background:rgba(31,70,92,.85);border-color:rgba(156,224,243,.76);color:#fff;box-shadow:0 0 13px rgba(162,233,248,.36),0 0 31px rgba(86,217,255,.28),0 0 52px rgba(29,159,255,.14)}
+}
+#liveBtn.radio-start-cue,#shipStage [data-proxy="liveBtn"].radio-start-cue{animation:geRadioStartupCue 5.8s ease-in-out infinite!important;background:rgba(150,18,40,.88)!important;border-color:rgba(255,104,130,.86)!important;outline:2px solid rgba(255,100,128,.64)!important;color:#fff!important}
+#shipPlay.radio-play-start-cue{animation:geRadioPlayHeartbeat 5.8s ease-in-out infinite!important;outline:2px solid rgba(130,228,255,.58)!important}
+@media(prefers-reduced-motion:reduce){
+ #liveBtn.radio-start-cue,#shipStage [data-proxy="liveBtn"].radio-start-cue{animation:none!important;filter:brightness(1.15)!important;box-shadow:0 0 13px rgba(255,150,170,.50),0 0 34px rgba(255,62,98,.32)!important}
+ #shipPlay.radio-play-start-cue{animation:none!important;background:rgba(37,82,106,.86)!important;border-color:rgba(184,239,251,.86)!important;color:#fff!important;box-shadow:0 0 13px rgba(170,237,250,.44),0 0 32px rgba(94,221,255,.32)!important}
+}
+/* A single, clear song-Love button below the normal transport. */
+#loveBtn{grid-column:span 6!important;justify-self:center!important;
+  width:max-content!important;min-width:106px!important;
+  padding:6px 17px!important;border-radius:999px!important;
+  border:1px solid rgba(230,150,183,.48)!important;
+  background:rgba(45,16,34,.82)!important;color:#ffd4e6!important}
+#loveBtn[aria-pressed="true"]{background:rgba(124,24,66,.88)!important;
+  border-color:rgba(255,135,182,.9)!important;color:white!important}
+body.view-player.portrait-player #loveBtn{grid-row:3!important;grid-column:1/-1!important;
+  min-height:30px!important;height:32px!important;margin:0 auto!important}
+/* Definitive transport positions across phone sizes and player orientations. */
+body.view-player #musicGroup #prevBtn{grid-row:1!important;grid-column:1 / span 2!important}
+body.view-player #musicGroup #playBtn{grid-row:1!important;grid-column:3 / span 2!important}
+body.view-player #musicGroup #nextBtn{grid-row:1!important;grid-column:5 / span 2!important}
+/* Place Background OFF between Previous and Next, including on desktop. */
+#bgGroup .bg-row{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#bgGroup .bg-row #bgPrev{grid-row:1;grid-column:1}
+#bgGroup .bg-row #bgOff{grid-row:1;grid-column:2}
+#bgGroup .bg-row #bgNext{grid-row:1;grid-column:3}
+/* Clear, persistent LOVE feedback on touch screens. */
+#musicGroup #loveBtn:disabled{opacity:.63!important}
+#musicGroup #loveBtn[aria-pressed="true"]{background:rgba(154,19,71,.95)!important;
+  border-color:#ff9abc!important;color:#fff!important;box-shadow:0 0 14px rgba(255,72,137,.32)!important}
+#musicGroup #loveBtn.love-unavailable{opacity:.63!important;box-shadow:none!important;cursor:not-allowed!important}
+/* Keep live-status bubble as a compact, centered text pill. */
+#radioPreviewClock[hidden]{display:none!important}
+#radioPreviewClock{
+  display:table!important;width:max-content!important;
+  max-width:calc(100vw - 32px)!important;margin:3px auto!important;
+  padding:4px 12px!important;border-radius:999px;
+  border:1px solid rgba(87,203,247,.54);background:rgba(4,18,35,.87);
+  color:#ddf8ff;font:800 clamp(10px,2.75vw,12px)/1.3 system-ui,-apple-system,sans-serif;
+  letter-spacing:.055em;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap
+}
+#radioPreviewClock[data-stage="final"]{border-color:rgba(255,194,109,.75);color:#ffe5b1}
+#geGateNextPreview[hidden]{display:none!important}
+#geGateNextPreview{
+  display:flex!important;width:100%;min-height:44px;margin:12px auto 0;
+  align-items:center;justify-content:center;white-space:normal!important;
+  border:1px solid rgba(101,230,190,.88);border-radius:12px;
+  background:#114c41;color:#effff8;font:850 12px/1.25 system-ui,-apple-system,sans-serif;
+}
+#liveStatus.show,body.view-player #liveStatus.show,
+body.view-player.portrait-player #liveStatus.show{
+  display:table!important;width:max-content!important;
+  max-width:calc(100vw - 30px)!important;
+  margin:4px auto 8px!important;align-self:center!important;
+  padding:6px 13px!important;border-radius:999px!important;
+  white-space:normal!important;overflow-wrap:break-word!important;
+  text-align:center!important;line-height:1.3!important;
+}
+
+
+#radioCopyright{
+  position:fixed;
+  left:50%;
+  bottom:max(3px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  z-index:5201;
+  pointer-events:none;
+  width:max-content;
+  max-width:96vw;
+  white-space:nowrap;
+  color:#cbd8ff;
+  opacity:.62;
+  font-size:clamp(7px,1.9vw,10px);
+  line-height:1;
+  text-shadow:0 0 6px rgba(0,0,0,.88);
+}
+.ship-progress-base{stroke-width:13!important;stroke:rgba(51,221,255,.34)!important}
+.ship-progress-fill{stroke-width:16!important;filter:drop-shadow(0 0 7px rgba(40,232,255,.72))!important}
+#shipProgressMarker{
+  stroke:#dffcff;
+  stroke-width:22;
+  stroke-linecap:round;
+  filter:drop-shadow(0 0 7px rgba(63,228,255,.90));
+}
+#shipProgressTab{
+  fill:#eaffff;
+  stroke:#29e7ff;
+  stroke-width:5;
+  filter:drop-shadow(0 0 8px rgba(54,229,255,.92));
+}
+#shipProgressHit{height:11%!important;top:54.5%!important}
+
+@keyframes geAutoCenterFlash{
+  0%,100%{opacity:.72;filter:brightness(1);text-shadow:0 0 8px rgba(80,220,255,.55)}
+  35%{opacity:1;filter:brightness(1.75);text-shadow:0 0 10px #fff,0 0 26px #56eaff,0 0 48px rgba(47,207,255,.80)}
+  58%{opacity:.80;filter:brightness(1.10)}
+}
+#shipSpeedAlert.auto-center{
+  animation:geAutoCenterFlash .78s ease-out infinite!important;
+  color:#eaffff!important;
+}
+
+@media (pointer:coarse) and (orientation:landscape){
+  #shipAttitudePanel{
+    left:17.95%!important;
+    top:59.0%!important;
+    width:9.65%!important;
+    height:26.0%!important;
+  }
+  #shipAttitudeBase{width:80%!important}
+  #shipAttitudeKnob{width:50px!important;height:24px!important}
+  #shipAttitudeKnob::before{height:48px!important}
+}
+
+
+/* Portrait spacing pass from annotated mobile layout:
+   lift the complete Sun/title header into the upper open area,
+   keep the primary transport together, and let the secondary
+   Backgrounds + utility controls settle into the unused lower area. */
+@media (orientation:portrait) and (max-width:700px){
+  body.view-player.portrait-player header{
+    transform:translateY(-32px)!important;
+    z-index:2!important;
+  }
+  body.view-player.portrait-player #bgGroup{
+    margin-top:auto!important;
+  }
+  body.view-player.portrait-player #bottomActions{
+    margin-top:2px!important;
+    margin-bottom:max(10px,env(safe-area-inset-bottom))!important;
+  }
+}
+@media (orientation:portrait) and (max-width:380px){
+  body.view-player.portrait-player header{
+    transform:translateY(-24px)!important;
+  }
+}
+
+
+#geOnAirIntro{
+  position:fixed;inset:0;z-index:1000100;display:none;align-items:center;justify-content:center;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  background:rgba(0,0,0,.89);color:#fff;overflow:auto;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)
+}
+#geOnAirIntro.open{display:flex}
+#geOnAirIntroPanel{
+  position:relative;width:min(470px,94vw);padding:30px 18px 20px;text-align:center;
+  border:1px solid rgba(133,217,255,.38);border-radius:24px;
+  background:linear-gradient(180deg,rgba(2,13,27,.97),rgba(0,5,13,.95));
+  box-shadow:0 20px 60px rgba(0,0,0,.62),0 0 38px rgba(37,166,255,.13)
+}
+#geOnAirIntroClose{
+  position:absolute;right:9px;top:9px;width:42px;height:42px;border:0;border-radius:50%;
+  background:rgba(255,255,255,.06);color:#fff;font:700 24px/1 system-ui;z-index:2
+}
+.geOnAirScreen{display:none}
+.geOnAirScreen.active{display:block;animation:geOnAirFade .5s ease both}
+@keyframes geOnAirFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.geOnAirEyebrow{font:800 11px/1.2 system-ui;letter-spacing:.20em;color:#a9ddf7;text-transform:uppercase;margin-bottom:10px}
+.geOnAirTitle{font:900 clamp(24px,7vw,34px)/1.04 system-ui;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 0 24px rgba(118,219,255,.20)}
+.geOnAirText{max-width:370px;margin:12px auto 20px;color:#d9eaf3;font:600 14px/1.48 system-ui}
+.geOnAirChoices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.geOnAirChoice{
+  min-height:94px;padding:13px 10px;border:1px solid rgba(111,203,245,.50);border-radius:22px;
+  background:rgba(7,31,49,.72);color:#fff;font:900 16px/1.08 system-ui;letter-spacing:.06em;
+  text-transform:uppercase;position:relative
+}
+.geOnAirChoice small{display:block;margin-top:7px;color:#bcd6e3;font:650 10px/1.28 system-ui;letter-spacing:.01em;text-transform:none}
+#geOnAirIAm{
+  border-color:rgba(255,255,255,.76);background:rgba(255,255,255,.065);
+  animation:geIAmBreath 4s ease-in-out infinite
+}
+@keyframes geIAmBreath{
+  0%,100%{box-shadow:0 0 5px rgba(255,255,255,.10),0 0 13px rgba(255,255,255,.04);transform:scale(.995)}
+  50%{box-shadow:0 0 17px rgba(255,255,255,.88),0 0 40px rgba(255,255,255,.34);transform:scale(1.015)}
+}
+.geOnAirSection{margin:18px 0 0;text-align:left}
+.geOnAirSectionTitle{margin:0 0 8px;color:#a9ddf7;font:850 10px/1.2 system-ui;letter-spacing:.15em;text-transform:uppercase}
+.geOnAirBubbles{display:flex;flex-wrap:wrap;gap:8px}
+.geOnAirBubble,.geOnAirAction,.geOnAirBack{
+  border:1px solid rgba(116,199,236,.43);background:rgba(255,255,255,.045);color:#edfaff;
+  font:800 12px/1.15 system-ui
+}
+.geOnAirBubble{min-height:42px;padding:9px 13px;border-radius:999px}
+.geOnAirBubble.selected{border-color:rgba(188,237,255,.95);background:rgba(42,137,180,.28);box-shadow:0 0 13px rgba(86,204,255,.18)}
+.geOnAirAction{width:100%;min-height:48px;margin-top:15px;border-radius:14px;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.geOnAirBack{margin-top:15px;min-height:40px;padding:8px 17px;border-radius:999px}
+.geOnAirInputStatus{margin-top:8px;color:#bcd6e3;font:600 11px/1.35 system-ui}
+.geOnAirNote{margin-top:16px;padding:11px;border-radius:13px;background:rgba(66,171,215,.08);color:#cfe7f2;font:600 11px/1.4 system-ui}
+@media(max-width:390px){
+  #geOnAirIntroPanel{padding:28px 14px 17px}
+  .geOnAirChoices{gap:8px}
+  .geOnAirChoice{min-height:88px;font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){#geOnAirIAm{animation:none;box-shadow:0 0 16px rgba(255,255,255,.45)}}
+
+
+/* Safe isolated visual-mode Sun. Normal logo stays a normal homepage link. */
+@media (orientation:portrait) and (max-width:700px){
+  body.view-player.portrait-player header{transform:none!important}
+}
+#geFloatingSun{
+  position:fixed;z-index:31010;display:none;left:0;top:0;width:180px;height:180px;
+  border-radius:50%;pointer-events:none;touch-action:none;-webkit-user-select:none;user-select:none;
+  transform:translate3d(0,0,0) scale(1);transform-origin:center center;
+  opacity:0;transition:opacity 1.25s ease;cursor:grab
+}
+#geFloatingSun img{
+  width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;pointer-events:none;
+  box-shadow:0 0 18px rgba(63,190,255,.38),0 0 42px rgba(0,128,255,.18)
+}
+body.view-player.hud-hidden #geFloatingSun{display:block;opacity:1;pointer-events:auto}
+body.view-player.hud-hidden.sun-faded #geFloatingSun{opacity:0;pointer-events:none}
+body.view-ship #geFloatingSun{display:none!important;pointer-events:none!important}
+/* I AM owns the only visible Sun while its private stage is open.
+   This overrides the high-z-index, six-second HUD floating Sun on all devices. */
+body.iam-studio-open #geFloatingSun{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+body.iam-studio-open header .logo-wrap{visibility:hidden!important;pointer-events:none!important}
+body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;pointer-events:none!important}
+
+
+/* Smooth startup heartbeat: keep the button stable and animate only a composited glow layer. */
+#liveBtn.radio-start-cue,
+#shipStage [data-proxy="liveBtn"].radio-start-cue{
+  position:relative!important;
+  overflow:visible!important;
+  animation:none!important;
+  opacity:1!important;
+  filter:none!important;
+  background:rgba(150,18,40,.88)!important;
+  border-color:rgba(255,104,130,.86)!important;
+  outline:1px solid rgba(255,100,128,.48)!important;
+  box-shadow:inset 0 0 10px rgba(255,80,106,.10)!important;
+}
+#liveBtn.radio-start-cue::after,
+#shipStage [data-proxy="liveBtn"].radio-start-cue::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:.06;
+  transform:scale(.995);
+  will-change:opacity,transform;
+  box-shadow:
+    0 0 12px rgba(255,172,188,.46),
+    0 0 28px rgba(255,74,106,.36),
+    0 0 54px rgba(255,38,78,.22);
+  animation:geRadioGlowBreath 8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes geRadioGlowBreath{
+  0%{opacity:.06;transform:scale(.995)}
+  42%{opacity:.86;transform:scale(1.008)}
+  48%{opacity:1;transform:scale(1.016)}
+  52%{opacity:.72;transform:scale(1.006)}
+  56%{opacity:1;transform:scale(1.018)}
+  61%{opacity:.88;transform:scale(1.010)}
+  100%{opacity:.06;transform:scale(.995)}
+}
+
+/* Ship play cue uses the same smooth envelope in cyan. */
+#shipPlay.radio-play-start-cue{
+  position:absolute!important;
+  overflow:visible!important;
+  animation:none!important;
+  opacity:1!important;
+  filter:none!important;
+  background:rgba(30,68,89,.84)!important;
+  border-color:rgba(151,220,240,.73)!important;
+  outline:1px solid rgba(130,228,255,.45)!important;
+  box-shadow:inset 0 0 9px rgba(94,221,255,.10)!important;
+}
+#shipPlay.radio-play-start-cue::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:.06;
+  transform:scale(.995);
+  will-change:opacity,transform;
+  box-shadow:
+    0 0 12px rgba(201,246,255,.44),
+    0 0 28px rgba(96,226,255,.34),
+    0 0 52px rgba(31,167,255,.20);
+  animation:geRadioGlowBreath 8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@media(prefers-reduced-motion:reduce){
+  #liveBtn.radio-start-cue::after,
+  #shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+  #shipPlay.radio-play-start-cue::after{animation:none!important;opacity:.62!important;transform:none!important}
+}
+
+
+/* Keep the studio controls scrollable without hiding its two live level meters. */
+#iamSoundPanel .iamFxGroupLabel{font:850 11px/1.35 system-ui,sans-serif;color:#b6f0ff;letter-spacing:.045em;margin:14px 0 7px}
+#iamSoundPanel .iamFxExplanation{font:650 11px/1.5 system-ui,sans-serif;color:#bddbe9;margin:12px 2px}
+#iamSoundPanel .iamFxMeters{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;margin:12px 0;padding:9px;border:1px solid rgba(116,222,250,.4);border-radius:10px;background:#061825}
+#iamSoundPanel .iamFxMeters>b,#iamSoundPanel .iamFxMeters b{font:850 11px/1.5 system-ui,sans-serif;color:#eafaff}
+#iamSoundPanel .iamFxBar{width:100%;height:12px;overflow:hidden;border-radius:10px;background:#18374b;border:1px solid #40728f}
+#iamSoundPanel .iamFxBar i{display:block;width:0;height:100%;background:linear-gradient(90deg,#36c0fd,#73f5c5,#ffca70);transition:width .07s linear}
+#iamSoundPanel .iamSlider{display:grid!important;grid-template-columns:minmax(78px,94px) minmax(70px,1fr) 56px!important;gap:9px!important;align-items:center!important;min-height:40px!important}
+#iamSoundPanel .iamSlider span{font:800 11px/1.2 system-ui,sans-serif!important;color:#e1f3ff}
+#iamSoundPanel .iamSlider output{font:800 11px/1.3 ui-monospace,monospace!important;text-align:right}
+#iamSoundPanel .iamSlider input[type=range]{width:100%;min-width:0;min-height:30px;accent-color:#6ed9f9;touch-action:pan-x}
+body.iam-studio-open #iamSoundPanel.show{overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+body.iam-studio-open #iamSoundPanel .iamFxMeters{display:grid!important}
+#iamMonitorBtn{white-space:normal!important;min-width:132px!important}
+
+
+/* Keep the current song pill sized to its title instead of stretching across the phone. */
+body.view-player.portrait-player #titleBtn{;
+}
+
+/* I AM lives between the transport and Backgrounds. */
+#iamLaunchRow{
+  flex:0 0 auto;
+  width:min(760px,94vw);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:0 auto;
+}
+#iamLaunchBtn{
+  position:relative;
+  min-width:112px;
+  min-height:42px;
+  padding:8px 24px;
+  border-radius:999px;
+  border:1px solid rgba(235,250,255,.78);
+  background:rgba(8,26,42,.78);
+  color:#fff;
+  font:900 15px/1 system-ui;
+  letter-spacing:.18em;
+  overflow:visible;
+  box-shadow:inset 0 0 12px rgba(255,255,255,.04);
+}
+#iamLaunchBtn::after{
+  content:"";
+  position:absolute;
+  inset:-6px;
+  border-radius:999px;
+  pointer-events:none;
+  box-shadow:0 0 8px rgba(255,255,255,.18),0 0 22px rgba(255,255,255,.08);
+  animation:geIAmLaunchBreath 4s ease-in-out infinite;
+}
+@keyframes geIAmLaunchBreath{
+  0%,100%{opacity:.12;transform:scale(.985)}
+  50%{opacity:1;transform:scale(1.045)}
+}
+body.iam-studio-open #iamLaunchBtn{
+  border-color:rgba(120,218,255,.9);
+  background:rgba(18,65,91,.90);
+}
+#iamStudio{
+  display:none;
+  box-sizing:border-box;
+  width:min(760px,94vw);
+  min-height:0;
+  flex:1 1 auto;
+  margin:0 auto;
+  padding:10px;
+  border:1px solid rgba(94,205,255,.34);
+  border-radius:18px;
+  background:rgba(2,12,23,.83);
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+body.iam-studio-open #iamStudio{display:flex;flex-direction:column}
+body.iam-studio-open #bgGroup,
+body.iam-studio-open #supportText,
+body.iam-studio-open #bottomActions{display:none!important}
+.iamStudioHead{text-align:center;margin:0 0 8px}
+.iamStudioHead strong{display:block;font:900 clamp(17px,4.8vw,22px)/1.05 system-ui;letter-spacing:.08em}
+.iamStudioHead small{display:block;margin-top:4px;color:#b9d9e7;font:650 10px/1.25 system-ui}
+.iamIconChoices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 8px}
+.iamIconChoice{
+  min-height:70px;padding:6px;border:1px solid rgba(96,188,230,.38);border-radius:15px;
+  background:rgba(8,28,43,.70);color:#eefaff;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;font:850 10px/1 system-ui
+}
+.iamIconChoice svg{width:37px;height:37px;display:block;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.iamIconChoice.selected{border-color:#c9f3ff;background:rgba(33,116,153,.34);box-shadow:0 0 13px rgba(99,211,255,.18)}
+.iamSourceRow{display:flex;justify-content:center;gap:7px;margin:0 0 7px}
+.iamSource{
+  min-height:34px;padding:5px 14px;border-radius:999px;border:1px solid rgba(96,188,230,.36);
+  background:rgba(7,25,38,.70);color:#dff6ff;font:850 11px/1 system-ui
+}
+.iamSource.selected{border-color:#c9f3ff;background:rgba(33,116,153,.34)}
+#iamInputChoices{display:none;flex-wrap:wrap;justify-content:center;gap:6px;margin:2px 0 7px}
+#iamInputChoices.show{display:flex}
+.iamInputBubble{
+  min-height:32px;max-width:100%;padding:5px 10px;border-radius:999px;border:1px solid rgba(104,195,235,.34);
+  background:rgba(5,22,34,.76);color:#dff6ff;font:750 10px/1.12 system-ui;overflow:hidden;text-overflow:ellipsis
+}
+.iamInputBubble.selected{border-color:#c9f3ff;background:rgba(31,108,143,.42)}
+#iamNowPlaying{
+  min-height:28px;margin:1px auto 6px;padding:6px 9px;max-width:96%;border-radius:10px;
+  color:#cde7f1;font:650 10px/1.25 system-ui;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.iamTransport{
+  margin-top:auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:center;
+  gap:14px;
+  padding:5px 8px 2px;
+}
+.iamBigButton{
+  justify-self:center;
+  width:min(30vw,112px);
+  height:min(30vw,112px);
+  min-width:82px;
+  min-height:82px;
+  max-width:112px;
+  max-height:112px;
+  padding:0;
+  border-radius:50%;
+  border:2px solid rgba(220,246,255,.82);
+  background:rgba(11,33,49,.88);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 0 16px rgba(92,210,255,.16);
+}
+.iamBigButton svg{width:44%;height:44%;stroke:currentColor;fill:none;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
+#iamRecordBtn:not(.recording){animation:geIAmRecordInvite 2.7s ease-in-out infinite}
+@keyframes geIAmRecordInvite{
+  0%,100%{box-shadow:0 0 10px rgba(255,255,255,.12)}
+  50%{box-shadow:0 0 24px rgba(255,255,255,.62),0 0 48px rgba(101,209,255,.22)}
+}
+#iamRecordBtn.recording{
+  border-color:#ff7990;
+  background:rgba(137,18,42,.88);
+  animation:geIAmRecording 1.15s ease-in-out infinite
+}
+@keyframes geIAmRecording{0%,100%{box-shadow:0 0 8px rgba(255,70,100,.24)}50%{box-shadow:0 0 30px rgba(255,80,108,.86)}}
+#iamPlayBtn.ready{border-color:rgba(130,255,205,.82);background:rgba(13,78,65,.72)}
+#iamTimer{text-align:center;font:900 18px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;margin:5px 0 2px}
+#iamStatus{text-align:center;min-height:2.4em;color:#cbe3ed;font:650 10px/1.3 system-ui;margin:3px auto 5px;max-width:94%}
+.iamMiniActions{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:5px}
+.iamMiniActions button{
+  min-height:34px;padding:5px 11px;border-radius:999px;border:1px solid rgba(104,195,235,.34);
+  background:rgba(5,22,34,.76);color:#dff6ff;font:800 10px/1 system-ui
+}
+#iamSoundPanel{display:none;margin-top:7px;padding:8px;border:1px solid rgba(96,188,230,.22);border-radius:12px}
+#iamSoundPanel.show{display:block}
+.iamPresetRow{display:flex;justify-content:center;gap:6px;margin-bottom:7px}
+.iamPreset{
+  min-height:31px;padding:5px 10px;border-radius:999px;border:1px solid rgba(104,195,235,.32);
+  background:rgba(6,23,36,.7);color:#dff6ff;font:800 10px/1 system-ui
+}
+.iamPreset.selected{border-color:#c9f3ff;background:rgba(31,108,143,.42)}
+.iamSlider{display:grid;grid-template-columns:58px 1fr 34px;gap:6px;align-items:center;margin:5px 0;color:#cce6f2;font:750 9px/1 system-ui}
+.iamSlider input{width:100%}
+.iamMeters{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:2px 0 6px
+}
+.iamMeter{
+  display:grid;grid-template-columns:52px minmax(0,1fr);gap:6px;align-items:center;
+  min-height:28px;padding:4px 7px;border:1px solid rgba(102,196,237,.30);border-radius:999px;
+  background:rgba(3,20,33,.72)
+}
+.iamMeter>span{
+  font:950 12px/.95 system-ui;letter-spacing:.04em;text-align:center;color:#eefaff
+}
+.iamMeterTrack{
+  position:relative;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.10)
+}
+.iamMeterTrack::after{
+  content:"";position:absolute;right:14%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.50)
+}
+.iamMeterFill{
+  display:block;width:100%;height:100%;border-radius:inherit;transform:scaleX(.02);transform-origin:left center;
+  background:linear-gradient(90deg,#2ccfa0 0 68%,#eac34d 82%,#ff647c 100%);
+  transition:transform .055s linear;will-change:transform
+}
+.iamGainRow{
+  display:grid;grid-template-columns:70px minmax(0,1fr) 42px;gap:7px;align-items:center;
+  width:100%;min-height:32px;margin:0 0 5px;padding:4px 7px;border:1px solid rgba(102,196,237,.26);
+  border-radius:999px;background:rgba(4,20,32,.62);color:#eefaff
+}
+.iamGainRow span{
+  font:950 12px/.95 system-ui;letter-spacing:.025em;text-align:center
+}
+.iamGainRow input{width:100%;min-width:0}
+.iamGainRow output{font:900 10px/1 system-ui;text-align:right;color:#cceafa}
+body.iam-studio-open #iamStudio{overflow:hidden!important}
+@media(orientation:portrait) and (max-width:700px){
+  .iamIconChoices{gap:5px!important;margin:2px 0 5px!important}
+  .iamIconChoice{min-height:52px!important;padding:3px!important}
+  .iamIconChoice svg{width:27px!important;height:27px!important}
+  .iamSourceRow{margin-bottom:4px!important}
+  #iamNowPlaying{min-height:22px!important;margin:0 auto 4px!important;padding:3px 7px!important}
+  .iamMeter{min-height:25px!important;padding:3px 6px!important}
+  .iamGainRow{min-height:28px!important;margin-bottom:3px!important;padding:3px 6px!important}
+  #iamStatus{margin:2px auto 3px!important;min-height:1.4em!important}
+  .iamMiniActions{margin-top:2px!important}
+}
+#iamTakeAudio{display:none}
+#iamSaveBtn[hidden]{display:none!important}
+
+/* Replay the real Website/Radio QR intro pages from Sun Lab. */
+#qrIntroTest{
+  position:fixed;inset:0;z-index:1000200;display:none;background:#000
+}
+#qrIntroTest.open{display:block}
+#qrIntroFrame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+#qrIntroClose{
+  position:absolute;z-index:3;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));
+  min-width:48px;min-height:48px;border-radius:999px;border:1px solid rgba(180,232,255,.58);
+  background:rgba(3,18,31,.86);color:#fff;font:900 23px/1 system-ui
+}
+@media(orientation:portrait) and (max-width:700px){
+  #iamLaunchRow{width:94vw!important}
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+    margin-top:auto!important;
+    margin-right:auto!important;
+    margin-bottom:0!important;
+    margin-left:auto!important;
+  }
+  #iamLaunchBtn{min-height:36px;padding:6px 21px;font-size:13px}
+  body.iam-studio-open #iamStudio{width:94vw!important;padding:8px!important}
+}
+@media(max-height:720px) and (orientation:portrait){
+  .iamStudioHead small{display:none}
+  .iamIconChoice{min-height:58px}
+  .iamIconChoice svg{width:30px;height:30px}
+  .iamBigButton{min-width:72px;min-height:72px;width:22vw;height:22vw}
+}
+@media(prefers-reduced-motion:reduce){
+  #iamLaunchBtn::after,#iamRecordBtn:not(.recording),#iamRecordBtn.recording{animation:none!important}
+}
+
+
+/* I AM launcher is its own round control in the open space. */
+#iamLaunchBtn{
+  width:84px!important;height:84px!important;min-width:84px!important;min-height:84px!important;
+  max-width:84px!important;max-height:84px!important;padding:0!important;border-radius:50%!important;
+  font-size:15px!important;letter-spacing:.12em!important
+}
+@media(orientation:portrait) and (max-width:700px){
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+    flex:1 1 auto!important;min-height:78px!important;width:94vw!important;
+    margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bgGroup{margin-top:0!important}
+
+  /* Once I AM opens, the normal header collapses so music transport rises to the top.
+     A temporary clone of the real Blue Sun performs the 2-second move to center. */
+  body.view-player.portrait-player.iam-studio-open header{
+    flex:0 0 0!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;
+    overflow:visible!important;transform:none!important;pointer-events:none!important
+  }
+  body.view-player.portrait-player.iam-studio-open header .logo-wrap,
+  body.view-player.portrait-player.iam-studio-open header h1,
+  body.view-player.portrait-player.iam-studio-open header .tag{visibility:hidden!important}
+
+  body.view-player.portrait-player.iam-studio-open #titleBtn{margin-top:0!important}
+  body.view-player.portrait-player.iam-studio-open #iamLaunchRow{display:none!important}
+  body.view-player.portrait-player.iam-studio-open #bgGroup,
+  body.view-player.portrait-player.iam-studio-open #bottomActions,
+  body.view-player.portrait-player.iam-studio-open #supportText{display:none!important}
+
+  body.view-player.portrait-player.iam-studio-open #iamStudio{
+    display:block!important;position:fixed!important;z-index:140!important;
+    left:3vw!important;right:3vw!important;top:calc(env(safe-area-inset-top) + 154px)!important;
+    bottom:max(8px,env(safe-area-inset-bottom))!important;width:auto!important;height:auto!important;
+    padding:0!important;margin:0!important;border:0!important;background:transparent!important;
+    overflow:hidden!important;pointer-events:none
+  }
+  body.view-player.portrait-player.iam-studio-open #iamStudio>*{pointer-events:auto}
+
+  /* Quick screen: no setup maze and no scrolling. */
+  body.iam-studio-open .iamStudioHead,
+  body.iam-studio-open .iamIconChoices,
+  body.iam-studio-open #iamInputChoices,
+  body.iam-studio-open .iamSourceRow,
+  body.iam-studio-open #iamNowPlaying,
+  body.iam-studio-open #iamSoundPanel,
+  body.iam-studio-open #iamPlayBtn,
+  body.iam-studio-open #iamSoundBtn,
+  body.iam-studio-open #iamMonitorBtn,
+  body.iam-studio-open #iamSaveBtn{display:none!important}
+
+  body.iam-studio-open .iamMeters{
+    position:absolute;left:0;right:0;top:2px;margin:0!important;
+    grid-template-columns:1fr 1fr!important;gap:7px!important
+  }
+  body.iam-studio-open .iamGainRow{
+    position:absolute;left:50%;top:38px;transform:translateX(-50%);
+    width:min(360px,88vw)!important;margin:0!important
+  }
+  body.iam-studio-open #iamTimer{
+    position:absolute;left:50%;top:84px;transform:translateX(-50%);
+    z-index:4;margin:0!important;font-size:17px!important
+  }
+
+  /* The one transport button sits directly on the centered Sun. */
+  body.iam-studio-open .iamTransport{
+    position:fixed!important;z-index:145!important;left:50%!important;top:52%!important;
+    transform:translate(-50%,-50%)!important;width:auto!important;height:auto!important;
+    display:block!important;padding:0!important;margin:0!important;pointer-events:auto!important
+  }
+  body.iam-studio-open #iamRecordBtn{
+    width:92px!important;height:92px!important;min-width:92px!important;min-height:92px!important;
+    max-width:92px!important;max-height:92px!important;border-radius:50%!important;
+    background:rgba(8,31,49,.90)!important;border:2px solid rgba(222,249,255,.94)!important;
+    box-shadow:0 0 17px rgba(180,240,255,.38),0 0 38px rgba(60,190,255,.20)!important
+  }
+  body.iam-studio-open #iamRecordBtn.record-ready{
+    background:rgba(175,18,46,.94)!important;border-color:#ff9bae!important;
+    box-shadow:0 0 18px rgba(255,92,118,.58),0 0 42px rgba(255,58,95,.28)!important
+  }
+  body.iam-studio-open #iamRecordBtn.recording{
+    background:rgba(154,16,42,.96)!important;border-color:#ffd0d9!important
+  }
+  body.iam-studio-open #iamRecordBtn.take-ready{
+    background:rgba(11,79,65,.92)!important;border-color:rgba(139,255,211,.90)!important
+  }
+
+  body.iam-studio-open #iamStatus{
+    position:absolute;left:7%;right:7%;bottom:52px;margin:0!important;min-height:18px!important;
+    font-size:11px!important;line-height:1.2!important
+  }
+  body.iam-edit-open #iamSoundPanel{
+    display:block!important;position:fixed!important;z-index:170!important;
+    left:4vw!important;right:4vw!important;top:calc(env(safe-area-inset-top) + 170px)!important;
+    bottom:max(12px,env(safe-area-inset-bottom))!important;margin:0!important;padding:12px!important;
+    overflow:auto!important;background:rgba(2,12,23,.96)!important;border:1px solid rgba(94,205,255,.42)!important;
+    border-radius:18px!important
+  }
+  body.iam-edit-open .iamTransport,
+  body.iam-edit-open .iamMeters,
+  body.iam-edit-open .iamGainRow,
+  body.iam-edit-open #iamTimer,
+  body.iam-edit-open #iamStatus,
+  body.iam-edit-open #iamTakeActions{display:none!important}
+
+  #iamTakeActions{
+    display:none;position:absolute;left:0;right:0;bottom:6px;
+    grid-template-columns:1fr 1fr;gap:12px;padding:0 12px
+  }
+  body.iam-studio-open.iam-has-take #iamTakeActions{display:grid!important}
+  #iamTakeActions button{
+    min-height:38px;border-radius:999px;border:1px solid rgba(154,225,255,.50);
+    background:rgba(5,27,42,.82);color:#f1fbff;font:900 12px/1 system-ui;letter-spacing:.04em
+  }
+
+  .iamSunFlight{
+    position:fixed;z-index:1;margin:0;padding:0;border-radius:50%;pointer-events:none;
+    object-fit:cover;will-change:left,top,width,height,transform,opacity;
+    transition:left 2s cubic-bezier(.22,.72,.18,1),top 2s cubic-bezier(.22,.72,.18,1),
+               width 2s cubic-bezier(.22,.72,.18,1),height 2s cubic-bezier(.22,.72,.18,1),
+               transform 2s cubic-bezier(.22,.72,.18,1),opacity .35s ease;
+    box-shadow:0 0 25px rgba(58,208,255,.30),0 0 65px rgba(0,126,255,.18)
+  }
+  .iamSunFlight.centered{
+    left:50%!important;top:52%!important;width:min(58vw,270px)!important;height:min(58vw,270px)!important;
+    transform:translate(-50%,-50%)!important;opacity:.58!important
+  }
+}
+
+
+/* I AM: transport above, music/voice around the Blue Sun; never overlay the queue. */
+#iamListeningMode{display:none}
+body.iam-studio-open #iamListeningMode button,
+body.iam-studio-open #iamMonitorBtn{
+  min-height:40px;border-radius:999px;border:1px solid rgba(146,222,255,.55);
+  padding:8px 12px;background:rgba(5,22,35,.88);color:#f0faff;
+  font:800 12px/1 system-ui;white-space:nowrap
+}
+body.iam-studio-open #iamListeningMode button.selected{
+  background:rgba(27,105,148,.94);border-color:#b5f2ff
+}
+body.iam-studio-open #iamListeningMode{display:flex;gap:8px;justify-content:center}
+body.iam-studio-open #iamMonitorBtn{display:inline-flex!important;justify-content:center;align-items:center}
+body.iam-studio-open #iamMonitorBtn[aria-pressed="true"]{
+  background:rgba(15,108,76,.9)!important;border-color:#a9f5d0
+}
+body.iam-studio-open #iamMonitorBtn:disabled{opacity:.58}
+body.iam-studio-open #iamSoundBtn,
+body.iam-studio-open #iamSaveBtn{display:none!important}
+body.iam-edit-open #iamSoundPanel{display:block!important}
+#iamEditBack,#iamEditSave{
+  display:none;border-radius:999px;border:1px solid rgba(162,222,255,.5);
+  background:rgba(8,41,60,.9);color:white;padding:10px 16px;font:800 13px/1 system-ui
+}
+body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-block}
+.iamEditToolbar{display:flex;gap:10px;justify-content:space-between;margin-bottom:14px}
+@media(orientation:portrait) and (max-width:700px){
+  body.view-player.portrait-player.iam-studio-open #titleBtn{
+    position:fixed!important;z-index:155!important;left:50%!important;
+    top:max(70px,calc(env(safe-area-inset-top) + 10px))!important;
+    transform:translateX(-50%)!important;width:max-content!important;
+    max-width:92vw!important;height:38px!important;min-height:38px!important;
+    margin:0!important;background:rgba(7,22,36,.94)!important
+  }
+  body.view-player.portrait-player.iam-studio-open #playerSeekWrap{
+    position:fixed!important;z-index:155!important;
+    top:max(113px,calc(env(safe-area-inset-top) + 53px))!important;
+    left:4vw!important;width:92vw!important;height:19px!important;margin:0!important
+  }
+  body.view-player.portrait-player.iam-studio-open #musicGroup{
+    position:fixed!important;z-index:155!important;
+    top:max(143px,calc(env(safe-area-inset-top) + 83px))!important;
+    left:3vw!important;width:94vw!important;margin:0!important;
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-template-rows:42px!important;gap:5px!important
+  }
+  body.view-player.portrait-player.iam-studio-open #musicGroup button{
+    grid-row:1!important;min-height:42px!important;height:42px!important;
+    grid-column:auto!important;font-size:13px!important;padding:5px 2px!important;
+    background:rgba(6,24,40,.9)!important
+  }
+  body.view-player.portrait-player.iam-studio-open #prevBtn{grid-column:1!important}
+  body.view-player.portrait-player.iam-studio-open #playBtn{grid-column:2!important}
+  body.view-player.portrait-player.iam-studio-open #nextBtn{grid-column:3!important}
+  body.view-player.portrait-player.iam-studio-open #liveBtn{grid-column:4!important}
+  body.view-player.portrait-player.iam-studio-open #shuffleBtn,
+  body.view-player.portrait-player.iam-studio-open #shareBtn{display:none!important}
+  body.view-player.portrait-player.iam-studio-open #liveStatus{display:none!important}
+
+  body.view-player.portrait-player.iam-studio-open #iamStudio{
+    position:fixed!important;z-index:140!important;inset:0!important;
+    width:100vw!important;height:100dvh!important;padding:0!important;
+    pointer-events:none!important;overflow:visible!important
+  }
+  body.iam-studio-open .iamMeters{
+    position:fixed!important;z-index:147!important;
+    top:calc(52% - 165px)!important;left:3vw!important;width:94vw!important;right:auto!important;
+    display:grid!important;grid-template-columns:1fr 1fr!important;
+    gap:10px!important;margin:0!important
+  }
+  body.iam-studio-open .iamMeter{
+    grid-template-columns:1fr!important;gap:4px!important;min-width:0!important;
+    padding:7px!important;min-height:54px!important;border-radius:15px!important;
+    background:rgba(5,21,35,.85)!important
+  }
+  body.iam-studio-open .iamMeter>span{text-align:center!important}
+  body.iam-studio-open .iamMeterTrack{width:100%!important}
+  body.iam-studio-open #iamTimer{
+    position:fixed!important;top:calc(52% + 137px)!important;left:50%!important;
+    transform:translateX(-50%)!important;z-index:147!important
+  }
+  body.iam-studio-open .iamGainRow{
+    position:fixed!important;z-index:147!important;
+    top:calc(52% + 177px)!important;left:50%!important;transform:translateX(-50%)!important;
+    width:90vw!important;min-height:42px!important;
+    background:rgba(5,21,35,.9)!important
+  }
+  body.iam-studio-open #iamListeningMode{
+    position:fixed!important;z-index:150!important;left:5vw!important;width:90vw!important;
+    top:calc(52% + 231px)!important;pointer-events:auto!important
+  }
+  body.iam-studio-open .iamMiniActions{
+    position:fixed!important;z-index:150!important;
+    top:calc(52% + 281px)!important;left:0!important;width:100vw!important;
+    display:flex!important;justify-content:center!important;pointer-events:none!important
+  }
+  body.iam-studio-open .iamMiniActions #iamMonitorBtn{pointer-events:auto!important}
+  body.iam-studio-open #iamStatus{
+    position:fixed!important;z-index:147!important;
+    left:6vw!important;right:6vw!important;bottom:max(83px,calc(env(safe-area-inset-bottom) + 77px))!important;
+    padding:6px!important;border-radius:10px!important;background:rgba(5,19,31,.8)!important;
+    line-height:1.25!important;font-size:12px!important;text-align:center!important
+  }
+  body.iam-studio-open #iamTakeActions{
+    position:fixed!important;z-index:147!important;
+    bottom:max(31px,calc(env(safe-area-inset-bottom) + 22px))!important;
+    left:4vw!important;width:92vw!important;right:auto!important;gap:14px!important;padding:0!important
+  }
+  body.iam-edit-open #iamListeningMode,body.iam-edit-open .iamMiniActions{display:none!important}
+  body.iam-edit-open #iamSoundPanel{z-index:180!important}
+}
+
+
+body.iam-studio-open #iamExitBtn{
+ display:block!important;position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;
+ right:12px!important;z-index:180!important;padding:9px 15px!important;
+ min-height:37px!important;border-radius:999px!important;border:1px solid rgba(181,229,255,.65)!important;
+ background:rgba(3,20,35,.95)!important;color:#f3faff!important;font:800 12px/1 system-ui!important
+}
+#iamExitBtn{display:none}
+body.iam-studio-open #iamSoundBtn{display:inline-flex!important;align-items:center!important;justify-content:center!important;pointer-events:auto!important;
+ min-height:39px!important;padding:5px 13px!important;background:rgba(7,33,52,.94)!important;border:1px solid rgba(161,231,255,.6)!important}
+body.iam-studio-open .iamMiniActions{gap:12px!important}
+body.iam-studio-open #iamSoundPanel{display:none!important}
+body.iam-studio-open #iamSoundPanel.show,body.iam-edit-open #iamSoundPanel{
+ display:block!important;position:fixed!important;z-index:175!important;
+ top:max(192px,calc(env(safe-area-inset-top) + 142px))!important;
+ bottom:max(8px,env(safe-area-inset-bottom))!important;
+ left:4vw!important;right:4vw!important;margin:0!important;padding:14px!important;
+ border:1px solid rgba(122,213,255,.55)!important;border-radius:16px!important;
+ overflow:auto!important;background:rgba(2,14,26,.985)!important;
+ box-shadow:0 20px 55px rgba(0,0,0,.66)!important;pointer-events:auto!important
+}
+body.iam-studio-open #iamSoundPanel .iamSlider{display:grid!important;grid-template-columns:94px 1fr 49px;gap:7px;align-items:center;min-height:42px;margin:7px 0}
+body.iam-studio-open #iamSoundPanel .iamSlider span{font:800 12px/1.2 system-ui}
+body.iam-studio-open #iamSoundPanel .iamSlider input{width:100%;min-width:0}
+body.iam-studio-open #iamSoundPanel .iamSlider output{font:800 11px/1.2 system-ui;text-align:right}
+#iamSourceIndicator{font:800 11px/1.3 system-ui;color:#bcecff;text-align:center;margin:5px auto 15px}
+ .iamSoundHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+ .iamSoundHead strong{font:900 12px/1.2 system-ui;letter-spacing:.06em}
+ #iamSoundClose{border-radius:999px;background:rgba(13,64,92,.86);border:1px solid rgba(168,232,255,.54);color:white;padding:10px 12px;font:900 11px/1 system-ui;min-height:36px}
+.iamStemTitle,.iamWaveTitle{font:800 10px/1.4 system-ui;letter-spacing:.08em;color:#bceaff;margin:14px 0 5px}
+.iamStemButtons{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.iamStemButtons button,#iamRestoreTake{
+ min-height:36px;border-radius:12px;border:1px solid rgba(111,203,255,.45);
+ background:rgba(13,65,91,.55);color:#effaff;font:800 10px/1.2 system-ui
+}
+#iamRestoreTake{display:block;width:100%;margin-top:15px}
+#iamStemActions[hidden]{display:none!important}
+#iamStemActions canvas{display:block;width:100%;max-width:100%;height:52px;border-radius:8px;
+ background:rgba(18,50,68,.7)}
+@media(orientation:landscape) and (max-height:620px){
+ body.iam-studio-open #iamExitBtn{right:8px!important;top:7px!important}
+ body.iam-studio-open #iamSoundPanel.show{top:62px!important}
+}
+
+
+#iamPrivatePicker[hidden]{display:none!important}
+#iamPrivatePicker{
+ position:fixed!important;inset:0!important;z-index:190!important;display:flex!important;
+ align-items:center!important;justify-content:center!important;
+ background:rgba(1,9,19,.91)!important;backdrop-filter:blur(8px)!important;
+ padding:12px!important
+}
+.iamPickerBody{
+ width:min(520px,96vw);height:min(78dvh,750px);min-height:180px;
+ overflow:hidden;display:flex;flex-direction:column;
+ border:1px solid rgba(130,222,255,.6);border-radius:18px;background:rgba(3,22,37,.98)
+}
+.iamPickerHeader{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ padding:12px;border-bottom:1px solid rgba(109,207,246,.3);font:850 12px/1.3 system-ui
+}
+#iamPrivatePickerClose{
+ padding:8px 15px;border-radius:999px;border:1px solid rgba(156,220,255,.6);
+ background:rgba(28,67,94,.8);color:#fff;font:800 12px/1 system-ui
+}
+#iamPrivatePickerList{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.iamPrivateTrackChoice{
+ width:100%;min-height:46px;display:block;text-align:left;padding:10px 12px;
+ border:0;border-bottom:1px solid rgba(111,205,243,.12);
+ background:transparent;color:#e5f7ff;font:750 12px/1.3 system-ui
+}
+.iamPrivateTrackChoice.current{background:rgba(30,108,156,.4)}
+
+
+body.iam-studio-open #iamMicRetryBtn{
+ display:block!important;box-sizing:border-box!important;width:100%!important;
+ height:21px!important;min-height:21px!important;line-height:21px!important;
+ margin:0!important;padding:0 2px!important;border:0!important;
+ border-radius:5px!important;background:transparent!important;
+ color:#a5ffdb!important;text-align:center!important;
+ font:900 10px/21px system-ui!important;letter-spacing:.025em!important;
+ pointer-events:auto!important;touch-action:manipulation!important;
+ cursor:pointer!important
+}
+body.iam-studio-open #iamMicRetryBtn.mic-needs-help{
+ color:#ffe0a2!important;text-decoration:underline;text-underline-offset:3px
+}
+body.iam-studio-open .iamMeters{pointer-events:auto!important}
+
+
+#iamPrivateTransport{display:none}
+body.iam-studio-open #iamPrivateTransport{
+ display:flex!important;flex-direction:column!important;gap:5px!important;
+ position:fixed!important;z-index:166!important;
+ top:max(112px,calc(env(safe-area-inset-top) + 88px))!important;
+ left:3vw!important;width:94vw!important;margin:0!important;padding:6px 8px!important;
+ box-sizing:border-box!important;border-radius:13px!important;
+ background:rgba(2,18,31,.95)!important;border:1px solid rgba(111,206,248,.42)!important;
+ pointer-events:auto!important
+}
+body.iam-studio-open #iamPrivateTransport .iamPrivateTransportButtons{
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px!important
+}
+body.iam-studio-open #iamPrivateTransport button{
+ display:block!important;min-width:0!important;min-height:34px!important;height:34px!important;
+ border:1px solid rgba(134,218,255,.45)!important;
+ background:rgba(14,55,80,.9)!important;color:#effaff!important;
+ border-radius:10px!important;padding:4px 2px!important;
+ font:850 10px/1.1 system-ui!important;touch-action:manipulation!important
+}
+body.iam-studio-open #iamPrivateRadio{
+ color:#ffd7dd!important;border-color:rgba(255,110,132,.45)!important
+}
+body.iam-studio-open #iamStopMusic{
+ color:#fff4cc!important;border-color:rgba(255,188,103,.65)!important;
+ background:rgba(89,46,13,.86)!important;
+}
+body.iam-studio-open #iamPrivateTransport .iamPrivateMusicVolume{
+ display:grid!important;grid-template-columns:72px minmax(0,1fr) 39px;align-items:center;gap:8px;
+ color:#daf3ff;font:850 10px/1 system-ui
+}
+body.iam-studio-open #iamPrivateMusicVolume{width:100%;min-width:0;touch-action:pan-x}
+#iamMatchRadioSong[hidden]{display:none!important}
+body.iam-studio-open #iamMatchRadioSong:not([hidden]){
+ display:block!important;width:100%!important;min-height:30px!important;height:auto!important;
+ padding:5px 8px!important;border:1px solid rgba(116,237,190,.7)!important;
+ background:rgba(4,69,53,.95)!important;color:#d9ffed!important;
+ font:900 11px/1.2 system-ui!important;border-radius:8px!important
+}
+body.iam-studio-open #iamMatchRadioSong:disabled{opacity:.5!important}
+body.iam-studio-open #iamPrivateMusicRead{text-align:right;font-size:10px}
+body.iam-studio-open #iamPrivateSeekLine,body.iam-studio-open .iamPrivateSeekLine{
+ display:flex!important;align-items:center!important;gap:8px!important
+}
+body.iam-studio-open #iamPrivateMusicSeek{width:100%;min-width:0}
+body.iam-studio-open #iamPrivateMusicTime{
+ width:42px;flex:0 0 42px;font:800 10px/1 system-ui;color:#c0e8fa;text-align:right
+}
+body.iam-studio-open #musicGroup,body.iam-studio-open #playerSeekWrap{display:none!important}
+body.iam-studio-open .iamMeters{
+ top:max(230px,calc(52% - 165px))!important
+}
+@media(max-height:710px){
+ body.iam-studio-open #iamPrivateTransport{
+  top:max(72px,calc(env(safe-area-inset-top) + 50px))!important;
+  padding:4px 6px!important;gap:3px!important
+ }
+ body.iam-studio-open #iamPrivateTransport button{min-height:30px!important;height:30px!important}
+ body.iam-studio-open .iamMeters{top:max(175px,calc(52% - 165px))!important}
+}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open #iamPrivateTransport{width:min(570px,86vw)!important;left:50%!important;transform:translateX(-50%)!important;top:8px!important}
+ body.iam-studio-open .iamMeters{top:155px!important}
+}
+
+
+#geHeadphoneNotice[hidden]{display:none!important}
+#geHeadphoneNotice{
+  position:fixed;inset:0;z-index:1000002;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background:rgba(0,5,12,.82);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+}
+#geHeadphoneNotice .ge-hn-dialog{
+  width:min(380px,100%);max-height:80dvh;overflow-y:auto;box-sizing:border-box;
+  border:1px solid rgba(106,209,255,.78);border-radius:18px;padding:23px 20px 18px;
+  background:#061723;box-shadow:0 16px 55px rgba(0,0,0,.6);
+  text-align:center;color:#ecfaff;font:400 15px/1.5 system-ui,-apple-system,sans-serif;
+}
+#geHeadphoneNotice h2{
+  margin:0 0 10px;color:white;font:850 18px/1.2 system-ui,-apple-system,sans-serif;
+  letter-spacing:.025em;
+}
+#geHeadphoneNotice p{margin:0 0 18px}
+#geHeadphoneNotice button{
+  display:flex;justify-content:center;width:100%;min-height:48px;
+  padding:10px;border:1px solid #77dbff;border-radius:11px;
+  background:rgba(21,89,123,.92);color:#fff;font:850 15px/1 system-ui,-apple-system,sans-serif;
+}
+
+
+body.iam-studio-open #iamMicTestBtn,body.iam-studio-open #iamMicTestPlayBtn{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ min-height:37px!important;padding:6px 9px!important;pointer-events:auto!important;
+ border:1px solid rgba(155,240,185,.62)!important;background:rgba(6,70,56,.88)!important;
+ border-radius:999px!important;color:#effff4!important;font:850 10px/1 system-ui!important
+}
+body.iam-studio-open #iamMicTestPlayBtn[hidden]{display:none!important}
+body.iam-studio-open #iamMicRetryBtn{
+ font-size:10px!important;letter-spacing:0!important
+}
+body.iam-studio-open .iamMiniActions{gap:5px!important}
+@media(max-width:370px){
+ body.iam-studio-open .iamMiniActions button{padding-left:6px!important;padding-right:6px!important;font-size:9px!important}
+}
+
+
+/* Never expose the original Radio transport while the private studio is open.
+   Match the high-specificity portrait rules written earlier in the stylesheet. */
+html body.view-player.portrait-player.iam-studio-open #musicGroup,
+html body.view-player.portrait-player.iam-studio-open #liveBtn,
+html body.view-player.portrait-player.iam-studio-open #playerSeekWrap,
+html body.iam-studio-open #musicGroup,
+html body.iam-studio-open #liveBtn,
+html body.iam-studio-open #playerSeekWrap,
+html body.iam-studio-open .iamSourceRow{
+ display:none!important;visibility:hidden!important;pointer-events:none!important
+}
+
+
+/* Show the actual post-recording workflow, not the disabled legacy play icon. */
+body.iam-studio-open #iamPlayBtn{display:none!important}
+body.iam-studio-open #iamTakeActions{
+ display:none!important;visibility:hidden!important;pointer-events:none!important
+}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions{
+ display:grid!important;visibility:visible!important;pointer-events:auto!important;
+ position:fixed!important;z-index:210!important;
+ left:3vw!important;right:3vw!important;bottom:max(16px,env(safe-area-inset-bottom))!important;
+ width:94vw!important;margin:0!important;padding:8px!important;
+ box-sizing:border-box!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:7px!important;border:1px solid rgba(148,220,255,.62)!important;
+ border-radius:14px!important;background:rgba(2,18,32,.97)!important;
+ box-shadow:0 8px 25px rgba(0,0,0,.55)!important
+}
+body.iam-studio-open.iam-has-take #iamTakeActions button{
+ display:block!important;min-width:0!important;min-height:46px!important;
+ padding:6px 3px!important;border:1px solid rgba(153,219,255,.65)!important;
+ border-radius:10px!important;background:rgba(19,70,96,.88)!important;
+ color:white!important;font:850 11px/1.15 system-ui!important;touch-action:manipulation!important
+}
+body.iam-studio-open.iam-has-take #iamListenBtn{
+ background:rgba(10,102,75,.9)!important;border-color:rgba(151,255,206,.8)!important
+}
+body.iam-studio-open #iamTakeActions button:disabled{opacity:.42!important}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{
+ bottom:max(98px,calc(env(safe-area-inset-bottom) + 80px))!important;
+ top:auto!important;position:fixed!important;z-index:180!important;
+ pointer-events:auto!important
+}
+body.iam-edit-open #iamEditPreview{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ border-radius:999px!important;border:1px solid rgba(141,242,198,.75)!important;
+ background:rgba(11,100,69,.88)!important;color:#fff!important;
+ padding:10px 13px!important;min-height:36px!important;font:800 12px/1 system-ui!important
+}
+#iamEditPreview{display:none}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions{
+  width:min(590px,94vw)!important;left:50%!important;right:auto!important;
+  transform:translateX(-50%)!important;bottom:5px!important;padding:4px!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions button{
+  min-height:34px!important;font-size:10px!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{display:none!important}
+}
+
+
+/* The iPhone must have a REAL playback control immediately after STOP.
+   Native audio controls double as a Safari format/decoder diagnostic. */
+body.iam-studio-open #iamTakeAudio{display:none!important}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeAudio{
+ display:block!important;visibility:visible!important;pointer-events:auto!important;
+ position:fixed!important;z-index:215!important;left:3vw!important;width:94vw!important;
+ bottom:max(91px,calc(env(safe-area-inset-bottom) + 75px))!important;
+ height:44px!important;min-height:44px!important;margin:0!important;
+ background:rgba(1,23,36,.96)!important;border-radius:11px!important;
+}
+body.iam-studio-open.iam-take-error:not(.iam-edit-open) #iamTakeActions{
+ display:grid!important;visibility:visible!important;pointer-events:auto!important;
+ position:fixed!important;z-index:215!important;left:3vw!important;right:3vw!important;
+ width:94vw!important;bottom:max(16px,env(safe-area-inset-bottom))!important;
+ grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:7px!important;padding:8px!important;box-sizing:border-box!important;
+ border:1px solid rgba(247,155,120,.75)!important;border-radius:13px!important;
+ background:rgba(30,14,19,.96)!important;
+}
+body.iam-studio-open.iam-take-error #iamTakeActions button{
+ min-height:42px!important;pointer-events:auto!important;color:white!important;
+ border-radius:10px!important;border:1px solid rgba(245,170,145,.6)!important;
+ background:rgba(95,42,40,.9)!important;font:800 11px/1 system-ui!important
+}
+body.iam-studio-open.iam-take-error #iamTakeActions button:disabled{opacity:.32!important}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{
+ position:fixed!important;z-index:171!important;bottom:max(159px,calc(env(safe-area-inset-bottom) + 143px))!important;
+ top:auto!important
+}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeAudio{
+  width:min(590px,94vw)!important;left:50%!important;
+  transform:translateX(-50%)!important;
+  bottom:47px!important;height:36px!important;min-height:36px!important
+ }
+}
+
+
+body.iam-edit-open #iamSoundPanel{
+ position:fixed!important;z-index:230!important;
+ top:max(70px,calc(env(safe-area-inset-top) + 47px))!important;
+ bottom:max(8px,env(safe-area-inset-bottom))!important;
+ left:3vw!important;right:3vw!important;
+ width:94vw!important;box-sizing:border-box!important;
+ padding:12px 12px 32px!important;overflow-y:auto!important;
+ overflow-x:hidden!important;overscroll-behavior:contain!important;
+ -webkit-overflow-scrolling:touch!important;pointer-events:auto!important;
+ background:rgba(1,15,29,.98)!important;
+}
+body.iam-edit-open #iamSoundPanel *{box-sizing:border-box}
+body.iam-edit-open .iamEditToolbar{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:6px!important;position:sticky!important;top:0!important;z-index:3!important;
+ padding:8px 0!important;background:#071725!important
+}
+body.iam-edit-open .iamEditToolbar button{
+ min-width:0!important;max-width:100%!important;min-height:38px!important;
+ padding:6px 4px!important;font:800 11px/1.15 system-ui!important
+}
+body.iam-edit-open #iamStemActions{display:block!important;min-width:0!important}
+body.iam-edit-open #iamTimelineEditor{
+ display:flex!important;flex-direction:column!important;gap:9px!important;
+ margin:10px 0!important;padding:10px 7px!important;border-radius:13px!important;
+ border:1px solid rgba(95,187,232,.48)!important;background:rgba(5,29,46,.88)!important
+}
+.iamEditorSectionLabel,.iamEditInstruction{
+ font:600 11px/1.4 system-ui;color:#b8d5e8
+}
+.iamEditorTimelineRow{display:flex;flex-direction:column;gap:4px;width:100%}
+.iamEditorTimelineRow>span{font:800 11px/1.2 system-ui;letter-spacing:.06em;color:#d0f1ff}
+.iamEditorTimelineRow canvas{
+ display:block;width:100%!important;height:92px!important;border-radius:7px;
+ border:1px solid rgba(108,197,231,.4);background:#03111e
+}
+#iamWavevoice{touch-action:none;cursor:crosshair}
+#iamSelectionTime{font:700 11px/1.3 system-ui;color:#b4f9d7;min-height:17px}
+.iamEditorControls{
+ display:grid;grid-template-columns:72px 60px minmax(0,1fr) 72px;
+ gap:5px;align-items:center;width:100%
+}
+.iamEditorControls label,.iamEditorSync,.iamEditorPan{font:700 11px/1.35 system-ui}
+.iamEditorControls button,.iamEditTools button{
+ min-width:0;min-height:38px;padding:5px;border-radius:9px;
+ border:1px solid rgba(151,216,246,.55);background:rgba(12,56,78,.94);
+ color:#eefaff;font:800 10px/1.2 system-ui;touch-action:manipulation
+}
+.iamEditorControls input,.iamEditorPan input,.iamEditorSync input{min-width:0;width:100%}
+.iamEditorPan,.iamEditorSync{display:flex;flex-direction:column;gap:5px}
+.iamEditorSync output{color:#cbfadc}
+.iamEditTools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.iamEditTools button{min-height:44px}
+.iamEditTools button:disabled{opacity:.45}
+@media(max-width:360px){
+ .iamEditorControls{grid-template-columns:54px 52px minmax(0,1fr) 54px;gap:3px}
+ .iamEditorControls button{font-size:9px}
+ body.iam-edit-open #iamSoundPanel{padding:8px 7px 24px!important}
+}
+body.iam-studio-open:not(.iam-edit-open) #iamTimelineEditor{display:none!important}
+
+
+/* One vertical rhythm: transport > meters > record sun > lower control stack.
+   Older scattered percentage-based positions are overridden here. */
+@media(orientation:portrait) and (max-width:700px){
+ body.iam-studio-open:not(.iam-edit-open) #iamPrivateTransport{
+  top:max(69px,calc(env(safe-area-inset-top) + 45px))!important;
+  max-height:118px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) .iamMeters{
+  position:fixed!important;
+  top:max(190px,calc(env(safe-area-inset-top) + 166px))!important;
+  left:3vw!important;width:94vw!important;z-index:155!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) .iamTransport{
+  top:43%!important;left:50%!important;transform:translate(-50%,-50%)!important;
+  z-index:145!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) #iamRecordBtn{
+  width:84px!important;height:84px!important;min-width:84px!important;min-height:84px!important;
+  max-width:84px!important;max-height:84px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamTimer{
+  top:auto!important;bottom:282px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) .iamGainRow{
+  top:auto!important;bottom:231px!important;height:42px!important;min-height:42px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamListeningMode{
+  top:auto!important;bottom:178px!important;min-height:42px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) .iamMiniActions{
+  top:auto!important;bottom:119px!important;min-height:39px!important;
+  width:96vw!important;left:2vw!important;gap:5px!important;
+  justify-content:center!important;flex-wrap:wrap!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamStatus{
+  top:auto!important;bottom:max(55px,calc(env(safe-area-inset-bottom) + 45px))!important;
+  left:4vw!important;right:4vw!important;max-height:54px!important;
+  overflow-y:auto!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamGainRow,
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamListeningMode,
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions,
+ body.iam-studio-open.iam-take-error:not(.iam-edit-open) .iamGainRow,
+ body.iam-studio-open.iam-take-error:not(.iam-edit-open) #iamListeningMode,
+ body.iam-studio-open.iam-take-error:not(.iam-edit-open) .iamMiniActions{
+  display:none!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamStatus,
+ body.iam-studio-open.iam-take-error:not(.iam-edit-open) #iamStatus{
+  top:auto!important;bottom:max(158px,calc(env(safe-area-inset-bottom) + 145px))!important;
+  max-height:49px!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeAudio{
+  top:auto!important;bottom:max(89px,calc(env(safe-area-inset-bottom) + 78px))!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions,
+ body.iam-studio-open.iam-take-error:not(.iam-edit-open) #iamTakeActions{
+  top:auto!important;bottom:max(14px,env(safe-area-inset-bottom))!important
+ }
+}
+@media(orientation:portrait) and (max-height:725px){
+ body.iam-studio-open:not(.iam-edit-open) #iamPrivateTransport{
+  top:max(51px,calc(env(safe-area-inset-top) + 28px))!important;
+  max-height:108px!important;padding:3px 5px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) .iamMeters{
+  top:max(162px,calc(env(safe-area-inset-top) + 137px))!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) .iamTransport{top:44%!important}
+ body.iam-studio-open:not(.iam-edit-open) #iamRecordBtn{
+  width:76px!important;height:76px!important;min-width:76px!important;min-height:76px!important;
+  max-width:76px!important;max-height:76px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamTimer{bottom:245px!important}
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) .iamGainRow{bottom:195px!important}
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamListeningMode{bottom:146px!important}
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) .iamMiniActions{
+  bottom:92px!important;gap:3px!important
+ }
+ body.iam-studio-open:not(.iam-edit-open):not(.iam-has-take):not(.iam-take-error) #iamStatus{
+  bottom:max(34px,env(safe-area-inset-bottom))!important;
+  font-size:10px!important;max-height:46px!important
+ }
+}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open:not(.iam-edit-open) .iamTransport{top:51%!important}
+ body.iam-studio-open:not(.iam-edit-open) .iamGainRow,
+ body.iam-studio-open:not(.iam-edit-open) #iamListeningMode,
+ body.iam-studio-open:not(.iam-edit-open) #iamTimer,
+ body.iam-studio-open:not(.iam-edit-open) .iamMiniActions{
+  display:none!important
+ }
+ body.iam-studio-open:not(.iam-edit-open) #iamStatus{
+  bottom:5px!important;max-height:35px!important;font-size:10px!important
+ }
+}
+
+
+/* The studio song title is already in its transport; don't draw a second
+   title button over private transport or over the edit panel. */
+body.iam-studio-open #titleBtn{display:none!important}
+@media(orientation:portrait) and (max-height:725px){
+ body.iam-studio-open:not(.iam-edit-open) .iamTransport{
+  top:48%!important
+ }
+}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open:not(.iam-edit-open) .iamTransport{
+  top:70%!important
+ }
+ body.iam-edit-open #iamSoundPanel{
+  top:5px!important;bottom:5px!important;max-height:calc(100dvh - 10px)!important
+ }
+}
+
+
+/* The previous hard 100dvh + overflow:hidden contract clipped the second
+   utility row on Safari. Keep a compact first screen but always allow the
+   remaining controls to be reached if browser chrome reduces the viewport. */
+@media (orientation:portrait) and (max-width:700px){
+  html{
+    height:auto!important;min-height:100%!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.view-player.portrait-player{
+    height:auto!important;min-height:100svh!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) .wrap{
+    height:auto!important;min-height:100svh!important;max-height:none!important;
+    overflow:visible!important;justify-content:flex-start!important;
+    gap:clamp(3px,.5dvh,6px)!important;
+    padding-bottom:calc(22px + env(safe-area-inset-bottom))!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) header{
+    margin-bottom:-12px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+    flex:0 0 auto!important;min-height:70px!important;
+    margin:4px auto 2px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchBtn{
+    width:74px!important;height:74px!important;
+    min-width:74px!important;min-height:74px!important;
+    max-width:74px!important;max-height:74px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bgGroup{
+    margin-top:0!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+    margin-bottom:0!important;
+    flex:0 0 auto!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bottomActions>*{
+    visibility:visible!important;
+  }
+}
+
+
+/* Dedicated always-visible row: never hidden by Sun Lab's scrollable action strip. */
+.sunlab-panel{grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto!important}
+.sunlab-access-tools{display:flex;align-items:center;gap:9px;min-width:0;margin-top:8px;padding:7px 1px 0;border-top:1px solid rgba(120,185,219,.32)}
+.sunlab-access-tools #sunLabResetCodes{min-height:43px!important;border:1px solid rgba(97,215,255,.75)!important;color:#effbff!important;font-weight:800!important}
+.sunlab-access-tools #sunLabResetSite{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
+.sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
+@media(max-width:370px){.sunlab-access-tools{flex-wrap:wrap}.sunlab-access-tools span{font-size:12px}}
+
+/* Guest radio runs its existing 33:33 clock invisibly: no countdown marker.
+   Offline controls are available ONLY in the local owner test until a server
+   verifies real paid membership. Existing cached audio is left untouched. */
+#radioPreviewClock{display:none!important}
+/* Offline stays visible. Permissions are enforced by the downloader. */
+.ge-gate-membership{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #52bee3;border-radius:12px;background:#0d3956;color:#e8fbff;font-weight:850;text-decoration:none;line-height:1.2}
+#geGateNextPreview[hidden]{display:none!important}
+
+/* Guest only sees SUPPORT plus a small ACCESS entry; developer LOVE unlocks
+   Sun Lab and offline tools. Arrange remains permanently hidden. */
+#arrangeBtn{display:none!important}
+body:not(.ge-offline-entitled) #installBtn,
+body:not(.ge-offline-entitled) #hudCombined{display:none!important}
+body.ge-offline-entitled #accessLaunchBtn{display:none!important}
+#accessLaunchBtn{grid-column:3;grid-row:2;min-height:36px!important;padding:6px 10px!important;font-size:13px!important;font-weight:800!important}
+#geGateHelp{display:flex!important;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:9px}
+#geGateHelp .ge-gate-membership{flex:1 1 135px;font-size:13px}
+#geGateHelp .ge-gate-contact{background:rgba(9,28,45,.94);border-color:rgba(154,198,219,.55)}
+#bottomActions{grid-template-columns:repeat(3,minmax(0,1fr))}
+body:not(.ge-offline-entitled) #bottomActions{display:flex!important;justify-content:center;align-items:center;gap:12px}
+body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!important;width:auto!important;min-height:42px!important;font-size:14px!important}
+@media(max-width:700px){
+ body.view-player.portrait-player header h1{bottom:11dvh!important;line-height:1.15!important;max-width:92vw;text-align:center;white-space:normal!important}
+ body.view-player.portrait-player header .tag{bottom:6dvh!important;line-height:1.25!important;max-width:92vw;text-align:center;white-space:normal!important}
+ body.view-player.portrait-player #titleBtn{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+}
+
+/* The original Blue Sun remains central and is never replaced by album planets. */
+#shipEQOverlay{left:38%!important;top:13%!important;width:24%!important;height:38%!important;min-width:0!important;max-height:none!important;border-radius:50%!important;padding:2%!important;background:radial-gradient(circle,rgba(0,20,40,.83) 0%,rgba(1,16,35,.68) 62%,rgba(0,4,15,.10) 73%)!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;gap:1px!important}
+#shipEQOverlayTitle{height:auto!important;font-size:clamp(8px,.7vw,13px)!important;text-align:center!important}
+#shipEQOrb{width:min(100%,32dvh)!important;height:76%!important;aspect-ratio:1;overflow:visible;filter:drop-shadow(0 0 9px rgba(57,200,255,.32))}
+.ship-eq-ring-base{stroke:rgba(92,206,255,.72);stroke-width:1.5;fill:none}
+.ship-eq-ring-inner{stroke:rgba(49,136,209,.5);stroke-width:1;fill:rgba(0,24,55,.18);stroke-dasharray:4 7}
+#shipEQOrbStatus{font-size:clamp(8px,.64vw,12px);font-weight:750;letter-spacing:.04em;color:#b7e8ff;text-align:center}
+body.view-ship.ge-sunlab-entitled #shipSunLabBtn,
+body.view-ship.ge-offline-entitled #shipGateTestBtn{display:inline-flex!important;align-items:center;justify-content:center}
+body:not(.ge-sunlab-entitled) #shipSunLabBtn,
+body:not(.ge-offline-entitled) #shipGateTestBtn{display:none!important}
+body.view-ship .sunlab-panel.show{position:fixed!important;left:50%!important;right:auto!important;top:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:min(94vw,900px)!important;height:50dvh!important;max-height:50dvh!important;min-height:0!important;border-radius:18px 18px 0 0!important;z-index:15000!important;padding:8px 13px max(8px,env(safe-area-inset-bottom))!important}
+body.view-ship .sunlab-panel.show #sunLabGrid{min-height:0!important;overflow-y:auto!important}
+body.view-ship .sunlab-panel.show .sunlab-actions{overflow-x:auto!important;white-space:nowrap!important}
+
+
+body:not(.iam-studio-open) #musicGroup #shuffleBtn{grid-row:2!important;grid-column:1 / span 2!important}
+body:not(.iam-studio-open) #musicGroup #liveBtn{grid-row:2!important;grid-column:3 / span 2!important}
+body:not(.iam-studio-open) #musicGroup #shareBtn{grid-row:2!important;grid-column:5 / span 2!important}
+#liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+#shipPlay.radio-play-start-cue::after{animation:geRadioSingleArrivalPulse 6.7s ease-in-out infinite!important}
+@keyframes geRadioSingleArrivalPulse{
+  0%{opacity:.035;transform:scale(.996)}
+  18%{opacity:.10;transform:scale(.997)}
+  44%{opacity:.38;transform:scale(1.001)}
+  68%{opacity:.76;transform:scale(1.008)}
+  78%{opacity:.90;transform:scale(1.012)}
+  80%{opacity:1;transform:scale(1.025)}
+  83%{opacity:.70;transform:scale(1.009)}
+  100%{opacity:.035;transform:scale(.996)}
+}
+@media(prefers-reduced-motion:reduce){
+ #liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+ #shipPlay.radio-play-start-cue::after{animation:none!important;opacity:.48!important;transform:none!important}
+}
+
+
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgPer{grid-area:2 / 1 / 3 / 3!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgShuf{grid-area:2 / 3 / 3 / 5!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{grid-area:2 / 5 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:clamp(32px,4.4dvh,41px)!important;margin:0!important;padding:5px 4px!important;font-size:clamp(11px,1.65vw,15px)!important}
+body.view-player:not(.iam-studio-open) #bottomActions #shareBtn{grid-area:2 / 3 / 3 / 4!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:36px!important}
+/* Hide Text is a normal player display control, not an owner-only setting.
+   Keep Per Song | Shuffle | Hide Text adjacent for every listener. */
+@media(max-width:700px){body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{font-size:clamp(11px,3vw,14px)!important}}
+
+
+/* Hide, don't delete, temporarily shelved features. */
+#chooseSongsBtn,#loveBtn,#bgAuto,#shipStage [data-proxy="bgAuto"]{display:none!important}
+/* Six fixed columns prevent flex rules from pushing Legacy or Share off-center. */
+body.view-player:not(.iam-studio-open) #musicGroup{
+ display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+ width:min(760px,94vw)!important;gap:7px!important;align-items:stretch!important;
+}
+body.view-player:not(.iam-studio-open) #musicGroup #prevBtn{grid-area:1 / 1 / 2 / 3!important}
+body.view-player:not(.iam-studio-open) #musicGroup #playBtn{grid-area:1 / 3 / 2 / 5!important;display:flex!important}
+body.view-player:not(.iam-studio-open) #musicGroup #nextBtn{grid-area:1 / 5 / 2 / 7!important}
+body.view-player:not(.iam-studio-open) #musicGroup #shuffleBtn{grid-area:2 / 1 / 3 / 3!important}
+body.view-player:not(.iam-studio-open) #musicGroup #liveBtn{grid-area:2 / 3 / 3 / 5!important}
+body.view-player:not(.iam-studio-open) #musicGroup #shareBtn{grid-area:2 / 5 / 3 / 7!important}
+body.view-player:not(.iam-studio-open) #musicGroup #liveStatus.show{
+ grid-area:3 / 2 / 4 / 6!important;width:100%!important;
+ margin:0 auto!important;display:block!important;padding:5px 7px!important;
+ font-size:clamp(11px,1vw,13px)!important;white-space:normal!important;
+}
+/* The status is visually anchored to the RADIO column, not below another row. */
+body.view-player:not(.iam-studio-open) #musicGroup #liveStatus.show{grid-column:3 / span 2!important}
+body.view-player:not(.iam-studio-open) #iamLaunchRow{
+ width:100%!important;display:flex!important;align-items:center!important;
+ justify-content:center!important;align-self:center!important;margin-inline:auto!important
+}
+body.view-player:not(.iam-studio-open) #iamLaunchBtn{
+ position:relative!important;isolation:isolate!important;overflow:visible!important;
+ margin:0 auto!important;flex:0 0 auto!important;transform:none!important
+}
+body.view-player:not(.iam-studio-open) #iamLaunchBtn::after{
+ inset:-15px!important;
+ box-shadow:0 0 15px 5px rgba(100,218,255,.28),
+ 0 0 37px 15px rgba(55,172,255,.22),0 0 70px 28px rgba(36,138,255,.12)!important;
+ animation:geIAmWideGlow 7.5s ease-in-out infinite!important
+}
+@keyframes geIAmWideGlow{
+ 0%,100%{opacity:.16;transform:scale(.86)}
+ 47%{opacity:.86;transform:scale(1.18)}
+ 55%{opacity:1;transform:scale(1.25)}
+}
+#liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after{
+ inset:-11px!important;
+ box-shadow:0 0 16px 6px rgba(255,205,224,.80),
+ 0 0 38px 14px rgba(255,64,105,.76),0 0 75px 23px rgba(255,24,83,.49)!important;
+ animation:geRadioSingleArrivalPulse 6.7s ease-in-out infinite!important;
+}
+/* Compact scalable desktop architecture; never clip the Blue Sun at the top. */
+@media(min-width:701px){
+ body.view-player{min-height:100dvh!important;height:auto!important;overflow-y:auto!important;overflow-x:hidden!important}
+ body.view-player .wrap{
+   width:min(100%,980px)!important;max-width:980px!important;
+   height:auto!important;min-height:100dvh!important;max-height:none!important;
+   overflow:visible!important;box-sizing:border-box!important;
+   justify-content:flex-start!important;padding:clamp(10px,1.8dvh,23px) 16px 22px!important;
+   gap:clamp(6px,.9dvh,11px)!important;
+ }
+ body.view-player header{
+   position:relative!important;display:flex!important;flex-direction:column!important;
+   height:auto!important;min-height:0!important;max-height:none!important;
+   margin:0 auto!important;padding:0!important;gap:5px!important;
+   flex:0 0 auto!important;align-items:center!important;justify-content:center!important
+ }
+ body.view-player header .logo-wrap{
+   position:relative!important;
+   width:clamp(138px,min(25vw,24dvh),238px)!important;
+   height:clamp(138px,min(25vw,24dvh),238px)!important;
+   max-width:calc(100vw - 36px)!important;max-height:30dvh!important;
+   flex:0 0 auto!important;margin:0 auto 5px!important;
+ }
+ body.view-player header h1,body.view-player header .tag{
+   position:static!important;transform:none!important;margin:0!important;
+   width:auto!important;white-space:normal!important
+ }
+ body.view-player #bgGroup{margin-top:clamp(6px,1.8dvh,16px)!important}
+ body.view-player #musicGroup button{min-height:clamp(38px,5dvh,52px)!important}
+}
+#shipRightControls{grid-template-rows:repeat(7,minmax(0,1fr))!important}
+#shipRightControls [data-proxy="nextBtn"]{grid-row:1!important}
+#shipRightControls [data-proxy="prevBtn"]{grid-row:2!important}
+#shipRightControls [data-proxy="shuffleBtn"]{grid-row:3!important}
+#shipRightControls [data-proxy="liveBtn"]{grid-row:4!important}
+#shipRightControls [data-proxy="legacyBtn"]{grid-row:5!important}
+#shipRightControls [data-proxy="shareBtn"]{grid-row:6!important}
+#shipRightControls #shipHideControl{grid-row:7!important}
+#shipRightControls [data-proxy="legacyBtn"],
+#shipRightControls [data-proxy="shareBtn"]{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ text-align:center!important;justify-self:center!important;align-self:stretch!important;
+ width:100%!important;max-width:100%!important;line-height:1.1!important
+}
+#shipLeftControls{grid-template-rows:repeat(5,minmax(0,1fr))!important}
+#shipStage.arrival-mode #shipPlay,
+body.view-ship.arrival-mode #shipPlay,
+body.view-ship.arrival-mode #shipPrev,
+body.view-ship.arrival-mode #shipNext{display:none!important}
+/* Keep read messages on screen and leave the original Soul coordinates fixed. */
+#shipReflectionWall.open #reflectionBubble.open{
+ display:block!important;z-index:90!important;
+ left:50%!important;bottom:13%!important;transform:translateX(-50%)!important;
+ width:min(78%,700px)!important;max-height:46%!important;
+ overflow-y:auto!important;background:rgba(1,13,30,.97)!important;
+ font-size:clamp(13px,1.2vw,18px)!important;line-height:1.45!important
+}
+button.soul-reflection-dot:active,button.soul-reflection-dot:focus,
+button.soul-reflection-dot.selected{
+ transform:translate(-50%,-50%) scale(1)!important;
+ outline:2px solid rgba(136,245,255,.95)!important;
+ box-shadow:0 0 11px 5px rgba(200,250,255,.80),0 0 25px 9px rgba(75,187,255,.42)!important
+}
+button.soul-reflection-dot.draft:active{transform:translate(-50%,-50%)!important}
+#arrivalViewWall{margin:0!important;order:8!important}
+#arrivalPrivateSendBtn{order:9!important;border-color:rgba(70,255,198,.86)!important;background:rgba(12,100,88,.85)!important}
+#arrivalPostBtn{order:1!important}
+#arrivalEditBtn{order:2!important}
+#arrivalClose{order:10!important}
+/* Reply prompt collects email only after an explicit Yes; no silent extraction. */
+#arrivalReplyPrompt{position:absolute;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,8,20,.76);color:#eefaff}
+#arrivalReplyPrompt.open{display:flex}
+.arrival-reply-panel{width:min(520px,94%);padding:19px;border-radius:17px;border:1px solid #58e4f7;background:#041728;box-shadow:0 0 45px rgba(16,130,186,.38)}
+.arrival-reply-panel h2{font-size:clamp(16px,1.8vw,25px);margin:0 0 10px}
+.arrival-reply-panel p{font-size:13px}
+.arrival-reply-choice{display:flex;gap:9px;flex-wrap:wrap}
+.arrival-reply-panel button{min-height:43px;margin:7px 5px 3px 0;font-size:12px}
+#arrivalReplyEmailStep[hidden],#arrivalReplyChoice[hidden]{display:none!important}
+#arrivalReplyEmailStep label{display:block;font-size:13px;margin:8px 0}
+#arrivalReplyEmail{width:100%;padding:10px;background:#061a30;border:1px solid #60c9e4;color:white;border-radius:9px}
+@media(prefers-reduced-motion:reduce){body.view-player #iamLaunchBtn::after{animation:none!important;opacity:.5}}
+
+
+/* One spacing model for Radio screens: Sun > title > tagline. Visual halo
+   doesn't alter the clickable Sun's box; neither title nor Sun is shifted. */
+body.view-player:not(.iam-studio-open) .wrap{
+ display:flex!important;flex-direction:column!important;align-items:center!important;
+ justify-content:flex-start!important;box-sizing:border-box!important;
+ width:100%!important;max-width:980px!important;
+ height:auto!important;min-height:100dvh!important;max-height:none!important;
+ overflow:visible!important;
+ padding:clamp(10px,1.7dvh,20px) max(12px,env(safe-area-inset-left))
+  max(48px,calc(42px + env(safe-area-inset-bottom)))!important;
+ gap:clamp(5px,.8dvh,10px)!important
+}
+body.view-player:not(.iam-studio-open){min-height:100dvh!important;height:auto!important;overflow-x:hidden!important;overflow-y:auto!important}
+body.view-player:not(.iam-studio-open) header{
+ position:relative!important;transform:none!important;
+ display:flex!important;flex:0 0 auto!important;
+ flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ width:100%!important;margin:0 auto!important;padding:0!important;
+ gap:0!important
+}
+body.view-player:not(.iam-studio-open) header .logo-wrap{
+ display:block!important;position:relative!important;transform:none!important;
+ flex:0 0 auto!important;
+ width:clamp(138px,min(24vw,24dvh),224px)!important;
+ height:clamp(138px,min(24vw,24dvh),224px)!important;
+ max-width:calc(100vw - 32px)!important;max-height:28dvh!important;
+ min-width:0!important;min-height:0!important;
+ margin:0 auto clamp(26px,3.6dvh,42px)!important;padding:0!important;
+ border-radius:50%!important;z-index:3!important;
+ pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important
+}
+body.view-player:not(.iam-studio-open) #homeLink>*{pointer-events:none!important}
+body.view-player:not(.iam-studio-open) header h1{
+ display:block!important;position:static!important;transform:none!important;
+ flex:0 0 auto!important;height:auto!important;min-height:0!important;
+ width:auto!important;max-width:95vw!important;
+ margin:0 auto clamp(4px,.65dvh,8px)!important;padding:0!important;
+ font-size:clamp(19px,2.5vw,28px)!important;line-height:1.16!important;
+ text-align:center!important;white-space:normal!important
+}
+body.view-player:not(.iam-studio-open) header .tag{
+ display:block!important;position:static!important;transform:none!important;
+ flex:0 0 auto!important;margin:0 auto!important;padding:0!important;
+ font-size:clamp(12px,1.65vw,16px)!important;line-height:1.22!important;
+ text-align:center!important;white-space:normal!important
+}
+/* Radio visual spacing revision: Sun/title distance, I AM centered in free
+   space, Backgrounds + CONTACT/SUPPORT/CODE above copyright. */
+ /* The I AM launcher occupies the center of the flexible space between the
+   primary Radio controls and the Backgrounds panel. The copyright remains
+   in its own reserved bottom strip, never under interactive controls. */
+body.view-player:not(.iam-studio-open) #iamLaunchRow{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!important;
+ width:min(760px,94vw)!important;max-width:94vw!important;margin:0 auto!important;
+}
+body.view-player:not(.iam-studio-open) #bgGroup{
+ flex:0 0 auto!important;
+ width:min(760px,94vw)!important;max-width:94vw!important;
+ margin:0 auto!important;
+ padding:clamp(7px,1.1dvh,13px)!important;
+ gap:clamp(5px,.75dvh,9px)!important;
+ display:flex!important;flex-direction:column!important;
+ align-items:center!important;justify-content:center!important;
+ border-radius:12px!important
+}
+body.view-player:not(.iam-studio-open) #bgGroup .section-label{
+ margin:0!important;padding:0!important;line-height:1.12!important
+}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row{
+ display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+ grid-auto-rows:minmax(32px,auto)!important;
+ gap:6px!important;margin:0!important;padding:0!important;width:100%!important
+}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row button{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ width:100%!important;height:auto!important;min-width:0!important;
+ min-height:clamp(32px,4.4dvh,41px)!important;max-width:100%!important;
+ margin:0!important;padding:5px 4px!important;
+ flex:none!important;font-size:clamp(11px,1.65vw,15px)!important;
+ text-align:center!important
+}
+body.view-player:not(.iam-studio-open) #bgGroup #bgPrev{grid-area:1 / 1 / 2 / 3!important}
+body.view-player:not(.iam-studio-open) #bgGroup #bgOff{grid-area:1 / 3 / 2 / 5!important}
+body.view-player:not(.iam-studio-open) #bgGroup #bgNext{grid-area:1 / 5 / 2 / 7!important}
+body.view-player:not(.iam-studio-open) #bgGroup #bgPer{grid-area:2 / 1 / 3 / 4!important}
+body.view-player:not(.iam-studio-open) #bgGroup #bgShuf{grid-area:2 / 4 / 3 / 7!important}
+body.view-player:not(.iam-studio-open) #bgGroup #bgAuto{display:none!important}
+/* Strict CONTACT | SUPPORT | CODE row at the bottom; extra owner tools may
+   appear in additional rows without displacing or breaking this first row. */
+body.view-player:not(.iam-studio-open) #supportText{display:none!important}
+body.view-player:not(.iam-studio-open) #bottomActions{
+ flex:0 0 auto!important;
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ grid-auto-rows:minmax(40px,auto)!important;
+ align-items:stretch!important;justify-items:stretch!important;
+ width:min(760px,94vw)!important;max-width:94vw!important;
+ margin:clamp(5px,.85dvh,9px) auto 0!important;padding:0!important;
+ gap:clamp(5px,.8vw,9px)!important
+}
+body.view-player:not(.iam-studio-open) #bottomActions #contactLaunchBtn{
+ grid-area:1 / 1 / 2 / 2!important
+}
+body.view-player:not(.iam-studio-open) #bottomActions #accessLaunchBtn{
+ grid-area:1 / 3 / 2 / 4!important;display:flex!important
+}
+body.view-player:not(.iam-studio-open) #bottomActions #hudCombined{grid-area:2 / 3 / 3 / 4!important}
+body.view-player:not(.iam-studio-open) #bottomActions #arrangeBtn{grid-area:3 / 2 / 4 / 3!important}
+body.view-player:not(.iam-studio-open) #bottomActions #installBtn{grid-area:3 / 3 / 4 / 4!important}
+body.view-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn,
+body.view-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ box-sizing:border-box!important;width:100%!important;min-width:0!important;
+ height:100%!important;min-height:40px!important;
+ margin:0!important;padding:7px 6px!important;font-size:clamp(12px,1.6vw,15px)!important;
+ line-height:1.15!important;text-align:center!important;border-radius:11px!important
+}
+body.view-player:not(.iam-studio-open) footer{
+ flex:0 0 auto!important;margin:clamp(3px,.6dvh,8px) auto 0!important;padding:0!important;
+ font-size:clamp(10px,1.3vw,13px)!important;line-height:1.2!important
+}
+/* Phone portrait: scale typography and Sun together, keep controls reachable.
+   No negative header margins and no hidden overflow clipping utility row. */
+@media(orientation:portrait) and (max-width:700px){
+ body.view-player.portrait-player:not(.iam-studio-open) .wrap{
+   width:100%!important;min-height:100dvh!important;height:auto!important;
+   max-height:none!important;overflow:visible!important;
+   padding:max(7px,env(safe-area-inset-top)) 9px
+    max(48px,calc(42px + env(safe-area-inset-bottom)))!important;
+   gap:clamp(3px,.55dvh,7px)!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) header{
+   flex:0 0 auto!important;margin:0 auto!important;
+   transform:none!important;padding:0!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap{
+   width:clamp(112px,20dvh,176px)!important;
+   height:clamp(112px,20dvh,176px)!important;
+   max-height:24dvh!important;margin:0 auto clamp(23px,3.1dvh,38px)!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) header h1{
+   font-size:clamp(17px,4.7vw,22px)!important;
+   margin-bottom:clamp(3px,.55dvh,7px)!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) header .tag{
+   font-size:clamp(12px,3.5vw,15px)!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+   flex:1 1 0px!important;min-height:clamp(90px,15dvh,155px)!important;
+   align-items:center!important;justify-content:center!important;
+   margin:0 auto!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) #bgGroup{
+   margin-top:0!important;margin-bottom:0!important;
+   width:94vw!important;padding:6px 8px!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row button{
+   min-height:clamp(30px,4.3dvh,37px)!important;font-size:clamp(11px,3vw,14px)!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+   width:94vw!important;display:grid!important;
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   grid-auto-rows:minmax(35px,auto)!important;
+   margin:clamp(4px,.5dvh,8px) auto 0!important
+ }
+ body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn,
+ body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
+   min-height:35px!important;font-size:clamp(11px,3vw,14px)!important
+ }
+}
+
+
+/* Superseded: portrait fixed-height anchors removed. Keep Ship actions. */
+/* Ship view uses the already-wired CONTACT/CODE actions on the same three
+   bottom-panel locations as the portrait player: CONTACT | SUPPORT | CODE.
+   Keep the developer/owner tools in their own strip, never crowding that row. */
+#shipOwnerActions{display:none}
+@media (orientation:landscape){
+  body.view-ship #shipBottomActions{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:1.9%!important;
+  }
+  body.view-ship #shipBottomActions>*{
+    min-width:0!important;white-space:nowrap!important;
+    font-size:clamp(11px,1.02vw,17px)!important;
+  }
+  body.view-ship.ge-offline-entitled #shipOwnerActions{
+    position:absolute;z-index:12;left:22.2%;top:92%;width:55.7%;height:5.8%;
+    display:flex!important;align-items:stretch;justify-content:center;gap:1.5%;
+  }
+  body.view-ship #shipOwnerActions>button{
+    flex:1 1 0;min-width:0;min-height:0;padding:2px 5px;
+    border:1px solid rgba(79,180,226,.44);border-radius:8px;
+    color:#e8f8ff;background:rgba(3,24,45,.65);
+    font-size:clamp(8px,.75vw,12px);font-weight:850;
+  }
+  body.view-ship.hud-hidden #shipOwnerActions,
+  body.view-ship.arrival-mode #shipOwnerActions{
+    opacity:0!important;pointer-events:none!important;
+  }
+}
+
+
+/* Preserve all existing actions; place the three public utilities on one row
+   and keep CODE centered directly under SUPPORT. Applies to both phone and
+   desktop player views after earlier legacy layout overrides. */
+body.view-player:not(.iam-studio-open) #bottomActions{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(36px,auto)!important;
+  align-items:stretch!important;justify-items:stretch!important;
+  gap:clamp(4px,.7vw,8px)!important;
+}
+body.view-player:not(.iam-studio-open) #bottomActions #contactLaunchBtn{
+  grid-area:1 / 1 / 2 / 2!important;
+}
+body.view-player:not(.iam-studio-open) #bottomActions #shareBtn{
+  grid-area:1 / 3 / 2 / 4!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+body.view-player:not(.iam-studio-open) #bottomActions #accessLaunchBtn{
+  grid-area:2 / 2 / 3 / 3!important;
+  min-width:0!important;width:100%!important;min-height:36px!important;
+}
+body.view-player:not(.iam-studio-open) #bottomActions #hudCombined{grid-area:3 / 3 / 4 / 4!important}
+body.view-player:not(.iam-studio-open) #bottomActions #arrangeBtn{grid-area:4 / 2 / 5 / 3!important}
+body.view-player:not(.iam-studio-open) #bottomActions #installBtn{grid-area:4 / 3 / 5 / 4!important}
+body.view-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn,
+body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn,
+body.view-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
+  box-sizing:border-box!important;width:100%!important;min-width:0!important;
+  min-height:36px!important;height:100%!important;
+  margin:0!important;padding:6px 4px!important;
+  font-size:clamp(11px,2.8vw,14px)!important;
+  border-radius:10px!important;line-height:1.1!important;
+  text-align:center!important;align-items:center!important;justify-content:center!important;
+}
+/* Same CONTACT | SUPPORT | SHARE / centered CODE arrangement in ship mode.
+   Its second row stays above the existing owner-tools strip. */
+@media(orientation:landscape){
+  body.view-ship #shipBottomActions{
+    top:78.4%!important;height:12.9%!important;
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+    gap:5% 1.9%!important;
+  }
+  body.view-ship #shipBottomActions [data-proxy="contactLaunchBtn"]{grid-area:1 / 1 / 2 / 2!important}
+  body.view-ship #shipBottomActions > a{grid-area:1 / 2 / 2 / 3!important}
+  body.view-ship #shipBottomActions [data-proxy="shareBtn"]{grid-area:1 / 3 / 2 / 4!important}
+  body.view-ship #shipBottomActions [data-proxy="accessLaunchBtn"]{grid-area:2 / 2 / 3 / 3!important}
+  body.view-ship #shipBottomActions > *{
+    box-sizing:border-box!important;width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;padding:1px 4px!important;
+    font-size:clamp(10px,1vw,16px)!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+  }
+  #shipRightControls{grid-template-rows:repeat(6,minmax(0,1fr))!important}
+  #shipRightControls #shipHideControl{grid-row:6!important}
+}

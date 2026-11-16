@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V9_NO_LEGACY_LITE_RADIO_20261114';
+const SITE_SHELL='GE_SITE_SHELL_V10_RADIO_CSS_CONSOLIDATED_20261116';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -12,6 +12,9 @@ const SHELL=['./','./index.html','./ge-offline-library.js','./radio/offline-play
 // Cache the normal website AND Radio startup files before activating a
 // replacement worker. The website must not show READY if its scripts are absent.
 const REQUIRED_OFFLINE_FILES=[
+  './radio/radio-base.css',
+  './radio/radio-components.css',
+  './radio/radio-layout.css',
   './ge-offline-library.js',
   './ge-dream.js',
   './radio/website-live.js',
