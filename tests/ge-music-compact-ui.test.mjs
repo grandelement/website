@@ -37,8 +37,27 @@ try{
    await page.touchscreen.tap(ui.sun.x,ui.sun.y);
    await page.waitForFunction(()=>window.GEMusicV5?.state()?.open===false,{timeout:3000});
    await page.evaluate(()=>window.GEMusicV5.open());
+   // ALBUMS is artwork-only. Choose a cover, then use the existing SONGS/OFFLINE header.
+   const albums=await page.evaluate(()=>{
+    const root=document.querySelector('#geMusicV5Host').shadowRoot;
+    const universe=root.querySelector('.geStandaloneAlbumUniverse');
+    const board=universe.querySelector('.geUniverseAlbums');
+    const covers=[...board.querySelectorAll('.geUniverseAlbum')];
+    const first=covers[0]?.getBoundingClientRect();
+    return {
+     visible:universe.classList.contains('isActive'),
+     toolbar:!!universe.querySelector('.geUniverseToolbar'),
+     lastRemoved:!covers.some(x=>x.dataset.album==='Fundamental Groove'),
+     large:!!first&&first.width>=200&&first.height>=200,
+     scrolls:board.scrollHeight>board.clientHeight
+    };
+   });
+   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.large&&albums.scrolls,
+     'ALBUMS must show large scrollable covers and no marked controls: '+JSON.stringify(albums));
+   await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geUniverseAlbum[data-album="Fire"]').click());
+   await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Fire');
    const pos=await page.evaluate(()=>{
-    const r=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geUniverseOfflineLaunch').getBoundingClientRect();
+    const r=document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.musicOfflineLaunch').getBoundingClientRect();
     return {x:r.x+r.width/2,y:r.y+r.height/2};
    });
    const before=await page.url();
@@ -51,7 +70,7 @@ try{
    });
    assert(after.offline&&after.open,'OFFLINE opens the one MUSIC download workspace');
    assert.equal(after.url,before,'OFFLINE must not redirect');
-   console.log('PASS '+width+'px: compact toolbar, album title, blue Sun, shared MUSIC OFFLINE');
+   console.log('PASS '+width+'px: large scrolling albums without toolbar; song header OFFLINE stays available');
   }finally{await page.close()}
  }
 }finally{await browser.close()}
