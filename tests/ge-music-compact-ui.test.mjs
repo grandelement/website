@@ -48,12 +48,31 @@ try{
      visible:universe.classList.contains('isActive'),
      toolbar:!!universe.querySelector('.geUniverseToolbar'),
      lastRemoved:!covers.some(x=>x.dataset.album==='Fundamental Groove'),
-     large:!!first&&first.width>=200&&first.height>=200,
-     scrolls:board.scrollHeight>board.clientHeight
+     fitted:!!first&&first.width>30&&first.height>30&&
+       board.scrollHeight<=board.clientHeight+3,
+     attached:covers.every((cover,i)=>i===0||
+       Math.abs(cover.getBoundingClientRect().top-covers[i-1].getBoundingClientRect().bottom)<2),
+     singleAbsent:!covers.some(x=>x.dataset.album==='Singles'),
+     zoomed:board.style.getPropertyValue('--ge-universe-zoom')
     };
    });
-   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.large&&albums.scrolls,
-     'ALBUMS must show large scrollable covers and no marked controls: '+JSON.stringify(albums));
+   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.fitted&&albums.attached&&albums.singleAbsent&&albums.zoomed==='1',
+     'ALBUMS must fit all connected covers in one view, no Singles or marked controls: '+JSON.stringify(albums));
+   const zoom=await page.evaluate(()=>{
+    const root=document.querySelector('#geMusicV5Host').shadowRoot;
+    const board=root.querySelector('.geUniverseAlbums');
+    const first=board.querySelector('.geUniverseAlbum');
+    const before=first.getBoundingClientRect().width;
+    board.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:-400,bubbles:true,cancelable:true}));
+    const after=first.getBoundingClientRect().width;
+    const scrolls=board.scrollHeight>board.clientHeight;
+    board.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:1500,bubbles:true,cancelable:true}));
+    return {before,after,scrolls,restored:first.getBoundingClientRect().width};
+   });
+   assert(zoom.after>zoom.before*2&&zoom.scrolls,
+     'Pinch/zoom must enlarge covers into a scrollable close view: '+JSON.stringify(zoom));
+   assert(Math.abs(zoom.restored-zoom.before)<3,
+     'Pinch back must restore the full compact album view: '+JSON.stringify(zoom));
    await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geUniverseAlbum[data-album="Fire"]').click());
    await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Fire');
    const pos=await page.evaluate(()=>{
@@ -74,7 +93,7 @@ try{
    assert(after.offline&&after.open&&after.choices&&after.footer,
      'OFFLINE expands four choices without hiding MUSIC/PLAY controls');
    assert.equal(after.url,before,'OFFLINE must not redirect');
-   console.log('PASS '+width+'px: album covers, mini OFFLINE dock, choices and playable MUSIC bottom row');
+   console.log('PASS '+width+'px: connected fit albums, pinch closeup, no Singles, mini OFFLINE dock and playable footer');
   }finally{await page.close()}
  }
 }finally{await browser.close()}
