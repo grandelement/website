@@ -125,8 +125,6 @@ try{
  assert.equal(safariTab,true,'Test must execute in an ordinary Safari-like tab');
  // No valid code must be denied with a concrete message, without closing MUSIC.
  const denied=await page.evaluate(()=>{
-  window.GERadioOfflineBridge={canDownload:()=>false,allowedPaths:()=>[],
-    promptCode:()=>{},rescan:()=>Promise.resolve()};
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   root.querySelector('.geOfflineStart').click();
   return {status:root.querySelector('.geOfflineStatus').textContent,
@@ -134,17 +132,53 @@ try{
  });
  assert.equal(denied.visible,true,'Denied OFFLINE attempt keeps the same download screen open');
  assert.match(denied.status,/OFFLINE permission/i);
- // Mock an actually verified listener's signed OFFLINE grant for browser QA.
- // In production GE Vault checks code scopes before this bridge returns true.
+ // Simulate only the existing Vault endpoint's signed response. Leave the
+ // actual Radio access bridge, MUSIC code form and OFFLINE click handlers live.
+ // Server grant enforcement has a separate test in access-music-session.test.mjs.
  await page.evaluate(path=>{
-  window.GERadioOfflineBridge={
-   canDownload:()=>true,allowedPaths:()=>[path],verify:async()=>true,
-   rescan:()=>Promise.resolve(),promptCode:()=>{}
+  const nativeFetch=window.fetch.bind(window);
+  window.fetch=(input,options)=>{
+   const url=typeof input==='string'?input:input?.url||'';
+   if(url==='https://vault.grandelement.com/v1/public/access/music-session'){
+    const body=JSON.parse(options?.body||'{}');
+    const success=body.action==='redeem'||
+     (body.action==='verify'&&body.require_offline===true&&body.track_path===path);
+    const response=body.action==='redeem'?
+     {ok:true,token:'browser-qa-vault-signed-session',session_expires_at:Math.floor(Date.now()/1000)+3600,
+      restricted:true,allowed_tracks:[path],playlist_ids:[],offline_enabled:true,display_name:'TEST CODE'}:
+      {ok:success,authorized:success,offline_enabled:success,
+       error:success?'':'OFFLINE not permitted'};
+    return Promise.resolve(new Response(JSON.stringify(response),{
+     status:success?200:403,headers:{'content-type':'application/json'}}));
+   }
+   return nativeFetch(input,options);
   };
+ },song);
+ await page.evaluate(()=>{
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  root.querySelector('.accessToggle').click();
+ });
+ await page.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  const form=root?.querySelector('.musicCodeTools');
+  const input=root?.querySelector('.musicCodeInput');
+  return !!form&&!form.hidden&&!!input&&input.getBoundingClientRect().height>0;
+ });
+ await page.evaluate(()=>{
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  root.querySelector('.musicCodeInput').value='QA-MOCK-VERIFIED-OFFLINE-CODE';
+  root.querySelector('.musicCodeUnlock').click();
+ });
+ await page.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  return root?.querySelector('.window.geOfflineOpen .geOfflineWorkspace')&&
+   window.GEOfflineDownloads?.canDownload()===true;
+ },{timeout:15000});
+ await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
   root.querySelector('[data-ge-offline="all"]').click();
   root.querySelector('.geOfflineStart').click();
- },song);
+ });
  await page.waitForFunction(()=>{
   const root=document.getElementById('geMusicV5Host')?.shadowRoot;
   const status=root?.querySelector('.geOfflineStatus')?.textContent||'';
