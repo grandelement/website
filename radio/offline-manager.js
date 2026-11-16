@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.16-offline-dock-v5';
+const VERSION='2026.11.16-backgrounds-pinch-v6';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
