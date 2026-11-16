@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-offline-dock-v5';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7';
+const VERSION='2026.11.16-cold-catalog-v6';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261116_COLD_CATALOG_FIT_V8';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -19,6 +19,9 @@ const REQUIRED=[
  '../playlists/registry.json','../config/site-live.json',
  './manifest.webmanifest',
  '../ge-images/images/ge-logo-2.jpg','../ge-images/img/31.gif',
+ // Real offline backgrounds. Store a bounded set, not 200 MB of animation.
+ '../ge-images/img/1.gif','../ge-images/img/47.gif','../ge-images/img/0.gif',
+ '../ge-images/img/6.gif','../ge-images/img/16.gif','../ge-images/img/9.gif',
  ...ARTWORK.map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
 ];
 const OPTIONAL=['./preview-lab.html','./favicon.ico',
@@ -170,7 +173,7 @@ async function media(request){
  // Saved recordings are always local-first, even if iPhone Safari falsely
  // reports online after Airplane Mode. Explicit RELOAD-MEDIA bypasses this
  // via the fetch handler above; never delete listener downloads.
- if(AUDIO.test(url.pathname)){
+ if(AUDIO.test(url.pathname)||IMAGE.test(url.pathname)){
   const saved=await cached(request,{media:true});
   if(saved?.ok)return rangeResponse(request,saved);
  }
@@ -197,7 +200,7 @@ async function staticFile(request){
  // iOS sometimes reports online after Airplane Mode, and a stalled network
  // request would otherwise block the Music player from loading at all.
  const pathname=new URL(request.url).pathname;
- const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
+ const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|radio\/(?:manifest|track-durations|loudness)\.json|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
  if(startup){
   const saved=await cached(request);
   if(saved?.ok)return saved;
