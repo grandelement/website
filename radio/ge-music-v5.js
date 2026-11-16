@@ -1600,6 +1600,24 @@ universe.addEventListener('touchend',event=>{
  }
 },{passive:true});
 universe.addEventListener('touchcancel',()=>{pinchStartDistance=0;pinchInProgress=false;},{passive:true});
+// Mobile Safari also emits native GestureEvents during two-finger pinch.
+// Intercept them on the album universe so only the covers zoom, never the
+// whole Radio web page. TouchEvents above provide the cross-browser fallback.
+universe.addEventListener('gesturestart',event=>{
+ event.preventDefault();
+ pinchStartZoom=universeZoom;
+ pinchInProgress=true;
+},{passive:false});
+universe.addEventListener('gesturechange',event=>{
+ event.preventDefault();
+ setUniverseZoom(pinchStartZoom*(Number(event.scale)||1));
+ pinchInProgress=true;
+},{passive:false});
+universe.addEventListener('gestureend',event=>{
+ event.preventDefault();
+ pinchReleaseUntil=Date.now()+280;
+ pinchInProgress=false;
+},{passive:false});
 universe.addEventListener('click',event=>{
  if(Date.now()<pinchReleaseUntil){event.stopImmediatePropagation();event.preventDefault();}
 },true);
