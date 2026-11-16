@@ -7,6 +7,11 @@ import { Script } from 'node:vm';
 const read=path=>readFileSync(path,'utf8');
 const music=read('radio/ge-music-v5.js');
 const radio=read('radio/index.html');
+const radioBaseCSS=read('radio/radio-base.css');
+const radioComponentsCSS=read('radio/radio-components.css');
+const radioLayoutCSS=read('radio/radio-layout.css');
+const radioCSS=[radioBaseCSS,radioComponentsCSS,radioLayoutCSS].join('\n');
+const rootSW=read('sw.js');
 const home=read('index.html');
 const player=read('radio/preview-lab.html');
 const sw=read('radio/sw.js');
@@ -22,6 +27,20 @@ const siteConfig=JSON.parse(read('config/site-live.json'));
 
 const requireText=(src,exp,what)=>assert.match(src,exp,'REGRESSION: '+what);
 const requireNot=(src,exp,what)=>assert.doesNotMatch(src,exp,'REGRESSION: '+what);
+
+// Keep styles modular: no fresh inline CSS patches, with all three styles cached offline.
+assert.doesNotMatch(radio,/<style(?:\s|>)/i,'REGRESSION: inline CSS patches were added to the Radio page');
+for(const module of ['base','components','layout'])
+ assert.ok(radio.includes('data-ge-css="'+module+'"'),'Missing maintained Radio CSS module '+module);
+assert.ok(radio.indexOf('data-ge-css="base"')<radio.indexOf('ge-accessibility.css') &&
+ radio.indexOf('ge-accessibility.css')<radio.indexOf('data-ge-css="components"') &&
+ radio.indexOf('data-ge-css="components"')<radio.indexOf('data-ge-css="layout"'),
+ 'Radio CSS ordering must preserve accessibility and responsive cascade');
+for(const file of ['radio-base.css','radio-components.css','radio-layout.css']){
+ assert.ok(sw.includes("'./"+file+"'"),'Radio offline worker does not cache '+file);
+ assert.ok(rootSW.includes("'./radio/"+file+"'"),'Site offline worker does not cache '+file);
+}
+
 
 // The published audio library is independent of the small saved-playlist lists.
 assert.ok(Array.isArray(catalog.tracks)&&catalog.tracks.length>=90,'Track durations catalog unexpectedly lost songs');
@@ -62,9 +81,9 @@ requireText(radio,/id="liveBtn"/,'RADIO mode button removed');
 requireText(radio,/id="chooseSongsBtn"/,'Original Radio SONGS control removed');
 // The title-tap quick selector must remain a viewport-centered, independently
 // scrollable dialog. The previous title-relative placement clipped on iPhone.
-requireText(radio,/#geQuickSongPanel\{[\s\S]*?left:50%!important;top:50%!important/,'Radio quick-song picker must stay viewport-centered');
+requireText(radioCSS,/#geQuickSongPanel\{[\s\S]*?left:50%!important;top:50%!important/,'Radio quick-song picker must stay viewport-centered');
 requireText(radio,/document\.body\.append\(geQuickSongBackdrop,geQuickSongPanel\)/,'Song picker must not be inside the clipped Radio dashboard');
-requireText(radio,/#geQuickSongPanel\{[\s\S]*?overflow-y:auto!important;overflow-x:hidden!important/,'Song picker vertical scrolling removed');
+requireText(radioCSS,/#geQuickSongPanel\{[\s\S]*?overflow-y:auto!important;overflow-x:hidden!important/,'Song picker vertical scrolling removed');
 requireText(radio,/geQuickSongPanel\.setPointerCapture\(/,'Desktop mouse drag scrolling removed');
 requireText(radio,/geQuickSongBackdrop\.addEventListener\('click',geCloseQuickSongPanel\)/,'Song picker backdrop dismissal removed');
 
@@ -108,11 +127,7 @@ requireText(player,/openMusicList\(false\)/,'Music player must open the arranged
 
 // Owner revision 2026-10-30: BLITZ Radio 1 exclusively, auto-attempt on
 // arrival, visible neutral RADIO control until real forward audio progress.
-const pulseStyleStart=radio.indexOf('<style id="ge-radio-connected-red-dimmer-20261028">');
-assert.ok(pulseStyleStart>=0,'REGRESSION: connected-only red dimmer stylesheet removed');
-const pulseStyleEnd=radio.indexOf('</style>',pulseStyleStart);
-assert.ok(pulseStyleEnd>pulseStyleStart,'REGRESSION: RADIO dimmer style not closed');
-const pulseStyle=radio.slice(pulseStyleStart,pulseStyleEnd);
+const pulseStyle=radioComponentsCSS; // Radio pulse rules now belong to the maintained CSS module.
 for(const text of [
  '@keyframes geRadioRedDimmerLubDub',
  'animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important',
@@ -185,7 +200,7 @@ requireText(radio,/Owner revision: ATTEMPT AUDIBLE Radio 1 playback immediately 
 requireText(radio,/audio\.muted=false;\s*audio\.defaultMuted=false;[\s\S]*?audio\.src=freshLiveStreamURL\(\)/,'Initial Radio 1 stream must be unmuted');
 requireText(radio,/const connected=!!\(playing&&!audio\.muted\)/,'RADIO heartbeat must not reflect muted signal probes');
 requireText(radio,/audio\.paused\|\|audio\.muted/,'Native PLAY must unlock a still-muted stream');
-requireText(radio,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
+requireText(radioCSS,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
 requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
 requireText(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Only a genuinely stalled active Radio 1 stream may restart');
 requireText(radio,/function activateRadioOnUserGesture\(\)/,'First iPhone RADIO tap must unlock native playback synchronously');
@@ -199,7 +214,7 @@ requireText(radio,/function setLiveStatus\(text,show=true\)/,'Underlying live st
 requireText(radio,/115000/,'Radio 1 watchdog shortened');
 requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'Long startup message removed');
 requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'Radio 1 warm-up window removed');
-requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO button state removed');
+requireText(radioCSS,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO button state removed');
 requireNot(radio,/id="ge-protected-radio-red-pulse-v1"/,'Old always-red style restored');
 
 // First paint must use the saved Radio layout before deferred scripts
@@ -207,7 +222,7 @@ requireNot(radio,/id="ge-protected-radio-red-pulse-v1"/,'Old always-red style re
 const accessClient=read('ge-accessibility.js');
 requireText(radio,/id="ge-radio-first-paint-mode"/,'Prepaint Radio view selection removed');
 requireText(radio,/class="ge-radio-initializing"/,'Radio initial-layout lock removed');
-requireText(radio,/id="ge-radio-first-style"/,'Radio styles not ready before first paint');
+requireText(radio,/data-ge-css="base"/,'Radio styles not ready before first paint');
 requireText(radio,/document\.body\.classList\.remove\('ge-radio-initializing'\)/,'Radio initial-layout lock never released');
 requireText(accessClient,/min-width:820px.*hover:hover.*pointer:fine/,'Desktop fit must not repeatedly recompute mobile sizes');
 requireText(music,/class="selectAllSongs" type="checkbox"/,'Global SONGS select-all checkbox removed');
@@ -223,7 +238,7 @@ requireText(radio,/offlineButton\.hidden=false/,'OFFLINE must remain visible whe
 requireText(radio,/offlineButton\.setAttribute\('aria-disabled',String\(!permissions.offline\)\)/,'OFFLINE locked state must follow verified Vault permission');
 requireText(radio,/if\(!geRadioUtilityAllowed\('offline'\)\)\{/,'OFFLINE actions must require verified Vault permission');
 requireText(radio,/window.GEGate\.openCodeEntry\(\)/,'Locked OFFLINE button must offer CODE entry');
-requireText(radio,/ge-radio-offline-always-visible-20261031/,'Always-visible OFFLINE layout missing');
+requireText(radioCSS,/#offlineLaunchBtn/,'Always-visible OFFLINE layout missing');
 requireText(radio,/shipOffline\.hidden=false/,'Ship OFFLINE control must remain visible');
 requireText(radio,/setUtility\(\$\('reloadBtn'\),false\)/,'Reload control must remain hidden until re-enabled by owner');
 requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
@@ -232,20 +247,20 @@ assert.ok(!radio.includes("r.sunLab===true"),'Sun Lab must not grant Offline or 
 assert.ok(radio.includes('return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;'),'Radio must request the canonical BLITZ mount');
 assert.ok(homeRadio.includes('return STREAM;'),'Homepage must request the canonical BLITZ mount');
 assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must not have proxy-breaking cache-busting query');
-requireText(radio,/id="ge-radio-no-extra-row-20261031"/,'Whole visible buffering bar and empty grid row must be gone');
-requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
+requireText(radioCSS,/#musicGroup > #liveStatus\.show/,'Whole visible buffering bar and empty grid row must be gone');
+requireText(radioCSS,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
 requireText(radio,/grid-area:2\/1\/3\/2!important/,'Sun Lab must replace the retired RELOAD position');
-requireText(radio,/ge-radio-no-extra-row-20261031/,'Removed Radio status bar returned');
-requireText(radio,/id="ge-radio-music-same-height-20261031"/,'MUSIC equal-size portrait override removed');
-requireText(radio,/sw\.js\?v=20261105-listener-safe-batch-v88/,'Current iPhone offline-ready UI shell not refreshed');
-requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
+requireText(radioCSS,/#musicGroup > #liveStatus\.show/,'Removed Radio status bar returned');
+requireText(radioCSS,/#musicGroup > #geMusicV5Button/,'MUSIC equal-size portrait override removed');
+requireText(radio,/sw\.js\?v=20261116-css-consolidated-v1/,'Current iPhone offline-ready UI shell not refreshed');
+requireText(radioCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Unauthorized Offline button must remain hidden');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
-requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
+requireText(radioCSS,/ge-radio-iphone-locked/,'iPhone border-lock stylesheet removed');
 requireText(radio,/ge-radio-iphone-locked/,'Safari visual viewport lock removed');
 requireText(radio,/--ge-radio-visible-h/,'Safari height-to-layout binding removed');
-requireText(radio,/#geDesktopUtilityStrip\{/,'Bottom utilities must anchor to the frame');
-requireText(radio,/bottom:calc\(39px \+ env\(safe-area-inset-bottom\)\)/,'Bottom utility dimension must use safe inset');
-requireText(radio,/#iamLaunchRow\[hidden\]/,'IAM defaults off until a code grants it');
+requireText(radioCSS,/#geDesktopUtilityStrip\{/,'Bottom utilities must anchor to the frame');
+requireText(radioCSS,/safe-area-inset-bottom/,'Bottom utility dimension must use safe inset');
+requireText(radioCSS,/#iamLaunchRow\[hidden\]/,'IAM defaults off until a code grants it');
 requireText(radio,/sunLab:result\.capabilities\?\.sun_lab===true/,'Sun Lab must use authenticated Vault capability');
 requireText(radio,/permissions\.iam,?/,'IAM must be checked before display');
 requireText(radio,/geRadioSunLabAllowed/,'Sun Lab permission must be independently checked');

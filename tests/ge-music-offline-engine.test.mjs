@@ -7,6 +7,7 @@ const source=readFileSync('radio/offline-manager.js','utf8');
 const sw=readFileSync('radio/sw.js','utf8');
 const music=readFileSync('radio/ge-music-v5.js','utf8');
 const html=readFileSync('radio/index.html','utf8');
+const radioLayoutCSS=readFileSync('radio/radio-layout.css','utf8');
 const BASE='https://example.test/radio/index.html';
 const songs=[
  'ge-music/music/Grand Element - Aether/Aether_01-Frequency.mp3',
@@ -250,11 +251,11 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/offlineArtwork\(cache\)/,'Install validates the offline background package');
  assert.match(sw,/offlineArtwork\(shell\)/,'READY verifies every required background');
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
- assert.match(html,/ge-radio-offline-verified-colors/,'Live READY color has higher specificity');
+ assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(html,/sw\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(sw,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
+ assert.match(html,/sw\.js\?v=20261116-css-consolidated-v1/);
+ assert.match(sw,/const VERSION='2026\.11\.16-css-consolidated-v1'/);
  assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
 });
