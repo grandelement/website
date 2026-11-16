@@ -210,7 +210,7 @@ test('OFFLINE is a nonblocking MUSIC dock and main Radio has verified readiness 
  assert.doesNotMatch(music,/classList\.add\('geOfflineOpen'\)/);
  assert.match(html,/ge-radio-offline-live-status/);
  assert.match(html,/OFFLINE ✓/);
- assert.match(html,/data-ge-state="ready"/);
+ assert.match(radioLayoutCSS,/data-ge-state="ready"/);
  assert.match(source,/GE_RADIO_OFFLINE_PENDING_V2/);
  assert.match(source,/GE_RADIO_OFFLINE_STATUS_V2/);
  assert.match(source,/ge-radio-offline-status/);
