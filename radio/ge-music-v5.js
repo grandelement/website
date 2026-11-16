@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.64-20261116-LARGE-ALBUM-UNIVERSE';
+const BUILD='GE-MUSIC-V7.65-20261116-SAFARI-OFFLINE-VERIFIED';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2166,6 +2166,13 @@ async function redeemMusicCode(){
    el('.accessToggle').setAttribute('aria-expanded','false');
    // A code changes permissions, not pages, tabs or music screen designs.
    render();
+   if(offlineResumeAfterAccess){
+    if(access.offlineEnabled===true){
+     window.dispatchEvent(new Event('ge-access-experience-updated'));
+    }else{
+     say('This code opens MUSIC, but does not include OFFLINE downloads.');
+    }
+   }
  }catch(error){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
@@ -2934,10 +2941,10 @@ async function offlineCheck(){
   if(offlineBusy)return;
   setOfflineProgress(result.ready?100:result.percent);
   setOfflineMessage(result.ready?
-   'READY · Music and Radio startup files verified. Test Airplane Mode.':
+   'READY · Saved in this '+(engine.installed()?'Home Screen app':'Safari browser')+'. Test Airplane Mode in the same app.':
    result.partial?
     'PARTIAL · Some saved files are missing. Use UPDATE MISSING.':
-    'NOT READY · Connect online, choose your music and press DOWNLOAD.');
+    'NOT READY · Tap DOWNLOAD. This Safari tab can save music; installed Home Screen apps use separate storage.');
  }catch(_){setOfflineMessage('NOT READY · Could not verify saved files. Reconnect and repair.')}
 }
 function offlineProgressUpdate(event){
@@ -2966,27 +2973,25 @@ async function offlineDownload(){
   return;
  }
  if(!engine.canDownload()){
-  setOfflineMessage('Enter an OFFLINE CODE before downloading. Saved music stays intact.');
+  setOfflineMessage(musicAccessActive()?
+   'This MUSIC code is active, but it does not include OFFLINE downloads. Tap ACCESS CODE to enter an OFFLINE-enabled code.':
+   'OFFLINE downloads need an access code with OFFLINE permission. Tap ACCESS CODE above.');
   offlineResumeAfterAccess=true;
-  hideOffline();close();engine.promptCode();
   return;
  }
- if(!engine.installed()&&/iPhone|iPad|iPod/i.test(navigator.userAgent)){
-  setOfflineMessage('Open the installed Radio Home Screen app to download on iPhone.');
-  return;
- }
+ // The same downloader works in Safari and in an installed Home Screen app.
+ // Each context has its own saved music; never block the Safari download button.
  offlineBusy=true;offlineStart.disabled=true;offlineStop.hidden=false;
  setOfflineProgress(0);setOfflineMessage('Preparing your offline music…');
  try{
   const result=await engine.save({mode,paths,onProgress:offlineProgressUpdate});
   if(result.error){
-   setOfflineMessage(result.error==='access'?'Enter OFFLINE CODE to download.':
-    'NOT READY · '+(result.message||'Reconnect and use UPDATE MISSING.'));
+   setOfflineMessage('NOT READY · '+(result.message||'Reconnect and use UPDATE MISSING.'));
   }else{
    setOfflineProgress(result.ready?100:result.percent);
    setOfflineMessage(result.ready?
-    'READY · Music and Radio files verified. Test Airplane Mode.':
-    'PARTIAL · Some files need repair. Press UPDATE MISSING. Existing music is safe.');
+    'READY · Download complete in this '+(engine.installed()?'Home Screen app':'Safari browser')+'. Test Airplane Mode.':
+    'PARTIAL · '+(result.message||'Some files need repair. Press UPDATE MISSING. Existing music is safe.'));
   }
  }catch(_){setOfflineMessage('PARTIAL · Download interrupted. Use UPDATE MISSING.')}
  finally{offlineBusy=false;offlineStart.disabled=false;offlineStop.hidden=true}
@@ -3044,6 +3049,11 @@ function close(){
 // Music preview. The transport remains embedded and server-gated behind Radio.
 function openCodeEntry(){
  if(!state.open)open();
+ if(el('.window').classList.contains('geOfflineOpen')){
+  if(offlineBusy){setOfflineMessage('Stop the download before entering a different code.');return}
+  offlineResumeAfterAccess=true;
+  hideOffline();
+ }
  if(state.view==='albums')setView('browse-songs');
  const panel=el('.musicCodeTools');
  panel.hidden=false;
@@ -3200,6 +3210,10 @@ el('.gePlaylistPicker').addEventListener('click',event=>{
 
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
 el('.accessToggle').addEventListener('click',()=>{
+ if(el('.window').classList.contains('geOfflineOpen')){
+  openCodeEntry();
+  return;
+ }
  const panel=el('.musicCodeTools'),opened=panel.hidden;
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
  if(opened)el('.musicCodeInput').focus();
