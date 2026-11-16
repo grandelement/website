@@ -260,7 +260,6 @@ try{
    mediaLength:(await media.arrayBuffer()).byteLength,
    imageStatus:image.status,spectrumStatus:spectrum.status,decoded,backgrounds,
    visualSrc:visual.src,visualLoaded:visual.complete&&visual.naturalWidth>0};
-  };
  },song);
  assert.equal(result.ready,true,'Airplane Mode reload must remain READY');
  assert.equal(result.mediaStatus,206,'Saved audio range requests must work offline');
