@@ -14,6 +14,7 @@ const page=await browser.newPage();
 page.setDefaultTimeout(75000);
 try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
+ await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1');
  await page.goto(base,{waitUntil:'domcontentloaded',timeout:60000});
  await page.waitForFunction(()=>!!window.GEOfflineDownloads&&!!window.GEMusicV5?.open);
  // MUSIC must open ALBUMS, not the buried SONGS view shown on iPhone.
@@ -118,19 +119,46 @@ try{
   });
  });
  assert.equal(shell.ready,true,'Service worker required shell and artwork must pass: '+JSON.stringify(shell));
- // Mock a locally verified listener grant in this test only; production uses GE Gate.
- const prepared=await page.evaluate(async path=>{
+ // The reported failure: Safari on iPhone must not reject a download
+ // solely because the page was not installed as a Home Screen icon.
+ const safariTab=await page.evaluate(()=>!window.GEOfflineDownloads.installed());
+ assert.equal(safariTab,true,'Test must execute in an ordinary Safari-like tab');
+ // No valid code must be denied with a concrete message, without closing MUSIC.
+ const denied=await page.evaluate(()=>{
+  window.GERadioOfflineBridge={canDownload:()=>false,allowedPaths:()=>[],
+    promptCode:()=>{},rescan:()=>Promise.resolve()};
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  root.querySelector('.geOfflineStart').click();
+  return {status:root.querySelector('.geOfflineStatus').textContent,
+   visible:root.querySelector('.window').classList.contains('geOfflineOpen')};
+ });
+ assert.equal(denied.visible,true,'Denied OFFLINE attempt keeps the same download screen open');
+ assert.match(denied.status,/OFFLINE permission/i);
+ // Mock an actually verified listener's signed OFFLINE grant for browser QA.
+ // In production GE Vault checks code scopes before this bridge returns true.
+ await page.evaluate(path=>{
   window.GERadioOfflineBridge={
-   canDownload:()=>true,allowedPaths:()=>[path],rescan:()=>Promise.resolve(),
-   promptCode:()=>{}
+   canDownload:()=>true,allowedPaths:()=>[path],verify:async()=>true,
+   rescan:()=>Promise.resolve(),promptCode:()=>{}
   };
-  const result=await window.GEOfflineDownloads.save({mode:'checked',paths:[path]});
+  const root=document.getElementById('geMusicV5Host').shadowRoot;
+  root.querySelector('[data-ge-offline="all"]').click();
+  root.querySelector('.geOfflineStart').click();
+ },song);
+ await page.waitForFunction(()=>{
+  const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+  const status=root?.querySelector('.geOfflineStatus')?.textContent||'';
+  return /^READY/.test(status)||/^PARTIAL/.test(status)||/^NOT READY/.test(status)&&/stopped|failed|error/i.test(status);
+ },{timeout:120000});
+ const prepared=await page.evaluate(async()=>{
+  const result=await window.GEOfflineDownloads.inspect();
   return {ready:result.ready,partial:result.partial,error:result.error,
    stations:result.stations,stationTotal:result.stationTotal,
-   saved:result.saved,total:result.total};
- },song);
+   saved:result.saved,total:result.total,
+   display:document.getElementById('geMusicV5Host')?.shadowRoot?.querySelector('.geOfflineStatus')?.textContent};
+ });
  assert.equal(prepared.error,undefined,'Download engine failed: '+JSON.stringify(prepared));
- assert.equal(prepared.ready,true,'Radio must verify saved audio, station IDs, app files and art');
+ assert.equal(prepared.ready,true,'Safari button must save real audio, station IDs, app files and art: '+JSON.stringify(prepared));
  assert.ok(prepared.stations>0&&prepared.stationTotal===prepared.stations);
  assert.equal(prepared.saved,1);
  // Simulate physical disconnection and cold browser navigation after caching.
@@ -163,7 +191,7 @@ try{
  assert.equal(result.spectrumStatus,200);
  assert.ok(Number(result.decoded.duration)>0,
   'Offline cached audio must decode and have a positive duration: '+JSON.stringify(result.decoded));
- console.log('PASS offline Radio browser cold start, actual audio, station IDs, artwork, SUN LAB script, MUSIC progress');
+ console.log('PASS iPhone Safari-tab OFFLINE DOWNLOAD button, real audio, station IDs, art and cold offline playback');
 }finally{
  await browser.close();
 }
