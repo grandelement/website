@@ -47,8 +47,11 @@ test('radio cold start checks stored identity with no Vault request',()=>{
 test('single MUSIC offline engine is scoped to verified Radio grants',()=>{
  assert.match(sw,/'.\/offline-manager\.js'/);
  assert.match(radio,/window\.GERadioOfflineBridge=\{/);
- assert.match(radio,/canDownload:\(\)=>geRadioUtilityAllowed\('offline'\)/);
- assert.match(radio,/allowedPaths:\(\)=>\{const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(radio,/canDownload:\(\)=>navigator\.onLine!==false&&/);
+ assert.match(radio,/geRadioUtilityAllowed\('offline'\)\|\|!!geMusicOfflineCode\(\)/);
+ assert.match(radio,/allowedPaths:\(\)=>\{/);
+ assert.match(radio,/const allowed=geOfflineSongAllowance\(\)/);
+ assert.match(radio,/require_offline:true/,'Music code OFFLINE scope must be confirmed by Vault');
  assert.match(manager,/const AUDIO='ge-radio-media-v4'/);
  assert.match(manager,/bridge\(\)\.canDownload\?\.\(\)/);
  assert.match(manager,/cache\.put\(url,new Response\(blob,\{status:200,headers\}\)\)/);
