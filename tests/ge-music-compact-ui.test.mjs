@@ -48,12 +48,35 @@ try{
      visible:universe.classList.contains('isActive'),
      toolbar:!!universe.querySelector('.geUniverseToolbar'),
      lastRemoved:!covers.some(x=>x.dataset.album==='Fundamental Groove'),
-     large:!!first&&first.width>=200&&first.height>=200,
-     scrolls:board.scrollHeight>board.clientHeight
+     singlesRemoved:!covers.some(x=>/^singles?$/i.test(x.dataset.album)),
+     fits:!!first&&first.width>35&&first.width<150&&
+      board.scrollHeight<=board.clientHeight+4,
+     touches: covers.every((x,i)=>!i||Math.abs(x.getBoundingClientRect().top-
+      covers[i-1].getBoundingClientRect().bottom)<=2),
+     count:covers.length
     };
    });
-   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.large&&albums.scrolls,
-     'ALBUMS must show large scrollable covers and no marked controls: '+JSON.stringify(albums));
+   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.singlesRemoved&&albums.fits&&albums.touches,
+     'ALBUMS must fit all connected covers with no Singles or marked controls: '+JSON.stringify(albums));
+   const zoom=await page.evaluate(()=>{
+    const root=document.getElementById('geMusicV5Host').shadowRoot;
+    const universe=root.querySelector('.geStandaloneAlbumUniverse');
+    const board=universe.querySelector('.geUniverseAlbums');
+    const first=board.querySelector('.geUniverseAlbum');
+    const before=first.getBoundingClientRect().width;
+    const dispatch=(name,points)=>{
+     const event=new Event(name,{bubbles:true,cancelable:true});
+     Object.defineProperty(event,'touches',{value:points.map(([x,y])=>({clientX:x,clientY:y}))});
+     universe.dispatchEvent(event);
+    };
+    dispatch('touchstart',[[140,260],[220,260]]);
+    dispatch('touchmove',[[55,260],[305,260]]);
+    dispatch('touchend',[]);
+    return {before,after:first.getBoundingClientRect().width,
+     scrolls:board.scrollHeight>board.clientHeight};
+   });
+   assert(zoom.after>zoom.before*2&&zoom.scrolls,
+    'Pinch must grow actual album covers into a scrollable zoom view: '+JSON.stringify(zoom));
    await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.geUniverseAlbum[data-album="Fire"]').click());
    await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Fire');
    const pos=await page.evaluate(()=>{
