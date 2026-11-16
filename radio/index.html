@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_COLDSTART_V7 -->
 <!-- GE_RADIO_UI_BUILD_20261116_SAFARI_OFFLINE_V6 -->
 <!-- GE_RADIO_UI_BUILD_20261116_LARGE_ALBUMS_V5 -->
 <!-- GE_RADIO_UI_BUILD_20261115_OFFLINE_MUSIC_V3 -->
@@ -5023,6 +5024,12 @@ document.addEventListener('DOMContentLoaded',function(){
 <style id="ge-sun-lab-public-control-style">
 #sunLabPanel.ge-sunlab-public #sunLabAdvancedToggle,
 #sunLabPanel.ge-sunlab-public #sunLabAdvancedTools{display:none!important}
+</style>
+<style id="ge-radio-offline-readiness-indicator">
+#offlineLaunchBtn[data-ge-state="ready"]{background:#14694d!important;border:2px solid #9cf7cb!important;color:#fff!important;box-shadow:0 0 10px rgba(42,229,140,.5)!important}
+#offlineLaunchBtn[data-ge-state="downloading"]{background:#94611a!important;border:2px solid #ffe0a0!important;color:#fff!important}
+#offlineLaunchBtn[data-ge-state="partial"]{background:#704b16!important;border:2px solid #eac37e!important;color:#fff!important}
+#offlineLaunchBtn[data-ge-state="missing"],#offlineLaunchBtn[data-ge-state="checking"]{background:#10446c!important}
 </style>
 </head>
 <body class="ge-radio-initializing">
@@ -10095,7 +10102,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-safari-offline-v4',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261116-offline-dock-v5',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -13343,7 +13350,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261116-safari-offline-v4"></script>
+<script defer src="./ge-music-v5.js?v=20261116-offline-dock-v5"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
@@ -13870,8 +13877,33 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabB
 }
 html.ge-radio-ui body:not(.view-player) #geUtilityRow{display:none!important}
 </style>
+<script id="ge-radio-offline-live-status">
+(()=>{
+ const button=document.getElementById('offlineLaunchBtn');
+ if(!button)return;
+ function render(detail){
+  const state=['ready','downloading','partial','missing'].includes(detail?.state)?detail.state:'checking';
+  const percent=Number.isFinite(detail?.percent)?Math.max(0,Math.min(99,Math.round(detail.percent))):0;
+  button.dataset.geState=state;
+  button.textContent=state==='ready'?'OFFLINE ✓':
+   state==='downloading'?'OFFLINE '+percent+'%':'OFFLINE';
+  const label=state==='ready'?'OFFLINE READY · Radio is saved for Airplane Mode':
+   state==='downloading'?'OFFLINE DOWNLOADING '+percent+' percent':
+   state==='partial'?'OFFLINE PARTIAL · Update missing files':
+   'OFFLINE NOT YET VERIFIED';
+  button.setAttribute('aria-label',label);
+  button.title=label;
+ }
+ render({state:'checking'});
+ window.addEventListener('ge-radio-offline-status',event=>render(event.detail));
+ window.addEventListener('pageshow',()=>{
+  // Green is ONLY assigned after a fresh verification of media and startup.
+  void window.GEOfflineDownloads?.syncStatus?.();
+ });
+})();
+</script>
 <script defer src="./offline-spectrum.js?v=20261115-v1"></script>
-<script defer src="./offline-manager.js?v=20261116-safari-offline-v4"></script>
+<script defer src="./offline-manager.js?v=20261116-offline-dock-v5"></script>
 
 </body>
 </html>
