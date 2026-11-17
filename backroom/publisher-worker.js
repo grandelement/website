@@ -715,6 +715,10 @@ async function geManagePublicSettings(request,env,cors){
   const next=structuredClone(current);
   for(const key of keys){
     const value=changes[key];
+    if(key==='music.firstTrack'&&value===null){
+      if(next.music&&typeof next.music==='object')delete next.music.firstTrack;
+      continue;
+    }
     if(value===null||typeof value!=='object'&&typeof value!=='string'&&typeof value!=='number'&&typeof value!=='boolean')
       return json({ok:false,error:'Invalid '+key+' value.'},400,cors);
     if(key.startsWith('music.')){
