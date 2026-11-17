@@ -24,7 +24,13 @@ try{
  const page=await browser.newPage();
  page.on('dialog',dialog=>void dialog.accept());
  await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
- await page.setContent(pageHtml,{waitUntil:'domcontentloaded'});
+ await page.setRequestInterception(true);
+ page.on('request',request=>{
+  if(request.url()==='http://ge-direct.test/backroom/github-direct.html'){
+   void request.respond({status:200,contentType:'text/html',body:pageHtml});
+  }else void request.abort();
+ });
+ await page.goto('http://ge-direct.test/backroom/github-direct.html',{waitUntil:'domcontentloaded'});
  await page.evaluate(({config,manifest,registry})=>{
   window.__mock={initial:config,remote:structuredClone(config),manifest,registry,
    sha:'base-sha',putCount:0,tokenHeaderSeen:false,requested:[]};
@@ -42,7 +48,7 @@ try{
    }
    if(u==='https://api.github.com/repos/grandelement/website/contents/config/site-live.json'&&options.method==='PUT'){
     const payload=JSON.parse(options.body);
-    assert.equal(payload.sha,state.sha);
+    if(payload.sha!==state.sha)throw Error('Incorrect expected GitHub SHA');
     const bytes=Uint8Array.from(atob(payload.content),c=>c.charCodeAt(0));
     state.remote=JSON.parse(new TextDecoder().decode(bytes));
     state.sha='new-sha';state.putCount++;
