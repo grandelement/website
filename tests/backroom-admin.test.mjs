@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 const read=path=>readFileSync(path,'utf8');
 const back=read('backroom/index.html');
+const navCSS=read('backroom/save-center.css');
 const publisher=read('backroom/publisher-worker.js');
 const vault=read('vault-worker/src/index.js');
 const schema=read('vault-worker/schema.sql');
@@ -41,11 +42,13 @@ assert.ok(!back.includes('proxy.dataset.websiteAction=actionId'),
  'Save and Publish must not be duplicated across secondary website screens');
 assert.ok(!back.includes("indicator.textContent='PLAYLISTS · GITHUB CONNECTED'"),
  'GitHub playlist reads must not overwrite Vault connection status');
-assert.ok(back.includes('grid-template-columns:repeat(28,minmax(0,1fr))!important'),
-  'Four tabs in first row and seven in second row should fit without scrolling');
-assert.ok(back.includes('button:nth-child(-n+4){grid-column:span 7!important}'), 'Four first-row tabs');
-assert.ok(back.includes('button:nth-child(n+5){grid-column:span 7!important}'), 'Four buttons per row including FANS');
-assert.ok(back.includes('button[data-tab="radio"][aria-selected="true"]'), 'RADIO highlights when active');
+assert.ok(navCSS.includes('grid-template-columns:repeat(4,minmax(0,1fr))!important'),
+  'The desktop main bar must have RADIO, ACCESS CODES, FANS and SAVE TO GITHUB');
+assert.ok(navCSS.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important'),
+  'The phone main bar must show two rows of two accessible controls');
+assert.ok(navCSS.includes('#backroomMain #backroomTabs > #brTopSave'),
+  'SAVE TO GITHUB must be in the same main control grid as FANS');
+assert.ok(navCSS.includes('button[data-tab][aria-selected="true"]'), 'Selected Back Room tab highlights when active');
 assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling directions should remain');
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
