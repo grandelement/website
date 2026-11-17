@@ -3553,8 +3553,10 @@ window.GEMusicV5={open,close,openOffline,openCodeEntry,preload:preloadCatalog,sh
     say('Loading songs. Tap PLAY when the library is ready.');
     return false;
   }
-  const publicDefault=Array.isArray(window.GEPublicPlayerPlaylistPaths)?
-    new Set(window.GEPublicPlayerPlaylistPaths):new Set();
+  // PLAYER selection is now assigned in Radio > Music. The older profile
+  // playlist must never silently intersect or override that new destination.
+  const publicDefault=Array.isArray(catalogRouting?.playerSongPaths)?new Set():
+    (Array.isArray(window.GEPublicPlayerPlaylistPaths)?new Set(window.GEPublicPlayerPlaylistPaths):new Set());
   // PLAYER is an independent Back Room destination. Do not accidentally
   // intersect its approved songs with the separate RADIO / Shuffle rotation.
   const approvedMaster=Array.isArray(catalogRouting?.playerSongPaths)?
