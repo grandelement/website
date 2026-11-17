@@ -1734,6 +1734,44 @@ async function geDJApi(path,payload){
   if(!response.ok||body.ok===false)throw Error(body.error||('DJ request failed ('+response.status+').'));
   return body;
 }
+// The original BLITZ DJ Booth remains the only authority for on-air playlists.
+// This sends the owner's selected RADIO checkboxes to its existing playlist store.
+// It never starts playback or changes the current on-air playlist by itself.
+window.GE_BACKROOM_SAVE_RADIO_SELECTION=async function(name,selectedPaths){
+ if(!token())throw Error('Sign in to the Back Room before editing BLITZ playlists.');
+ name=String(name||'').trim();
+ if(!name||name.length>100)throw Error('Enter a playlist name (up to 100 characters).');
+ if(!Array.isArray(selectedPaths)||!selectedPaths.length||selectedPaths.length>500)
+   throw Error('Choose 1 to 500 RADIO songs.');
+ const paths=[...new Set(selectedPaths.map(String))];
+ if(paths.length!==selectedPaths.length)throw Error('Duplicate song paths are not allowed.');
+ const [saved,library]=await Promise.all([
+  geDJApi('/control/playlists'),geDJApi('/control/library')
+ ]);
+ if(!Array.isArray(saved.items)||!Array.isArray(library.items))
+  throw Error('Original BLITZ playlist catalog is unavailable. Nothing was changed.');
+ const valid=new Set(library.items.filter(x=>x?.kind==='song'&&typeof x.path==='string').map(x=>x.path));
+ const missing=paths.filter(p=>!valid.has(p));
+ if(missing.length)throw Error(missing.length+' selected songs are absent from the BLITZ DJ library. Refresh the DJ library before saving.');
+ const existing=saved.items.find(item=>String(item.name||'').toLowerCase()===name.toLowerCase());
+ if(existing&&String(existing.name||'').toLowerCase()==='bangers')
+  throw Error('BANGERS is protected from this shortcut. Use the original DJ Booth to edit it.');
+ if(existing&&!confirm('REPLACE THE SAVED BLITZ PLAYLIST "'+existing.name+'" WITH '+paths.length+' CHECKED SONGS? The live on-air playlist will not change until you select USE ON RADIO 1.'))
+  return {cancelled:true};
+ const answer=await geDJApi('/control/playlists/save',{
+  id:String(existing?.id||''),name,paths
+ });
+ const savedItem=answer.playlist;
+ if(!savedItem?.id)throw Error('BLITZ did not confirm the playlist save.');
+ const verified=await geDJApi('/control/playlists');
+ const proof=verified.items?.find(x=>String(x.id)===String(savedItem.id));
+ if(!proof||!Array.isArray(proof.paths)||
+    JSON.stringify(proof.paths)!==JSON.stringify(paths))
+   throw Error('BLITZ saved a playlist but the readback did not match. Check original DJ Booth before using it on air.');
+ return {id:String(savedItem.id),name:savedItem.name||name,
+  count:paths.length,vaultSaved:answer.vault_saved===true,
+  vaultError:String(answer.vault_error||'')};
+};
 async function refreshDJPlaylistSource(){
   $('brDJPlaylistStatus').textContent='CONNECTING TO ORIGINAL DJ PLAYLIST STORE…';
   try{
