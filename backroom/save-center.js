@@ -7,7 +7,22 @@
  const button=$('brTopSave'),display=$('brCentralSaveStatus');
  if(!button||!display)return;
  let busy=false;
- const tab=()=>document.querySelector('#backroomTabs button[data-tab][aria-selected="true"]')?.dataset.tab||'radio';
+ // Secondary tabs are moved out of #backroomTabs into MORE TOOLS.
+ // Read the selected tab from the full Back Room, not just the top nav.
+ const tab=()=>document.querySelector('#backroomMain button[data-tab][aria-selected="true"]')?.dataset.tab||'radio';
+ const syncLabel=()=>{
+   const privateTab=['access','fans'].includes(tab());
+   const label=privateTab?'SAVE TO VAULT':'SAVE TO GITHUB';
+   button.textContent=label;
+   button.setAttribute('aria-label',label+' for the selected Back Room section');
+   button.title=privateTab?'Save this selected private record to the GE Vault':
+     'Publish this section’s changes to GitHub';
+ };
+ const root=$('backroomMain');
+ if(root)new MutationObserver(syncLabel).observe(root,{
+   subtree:true,attributes:true,attributeFilter:['aria-selected']
+ });
+ syncLabel();
  const show=(message,kind='info')=>{
    display.hidden=false;display.dataset.kind=kind;display.textContent=message;
  };
