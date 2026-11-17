@@ -7,7 +7,7 @@ const entry=readFileSync('backroom/index.html','utf8');
 const redirect=readFileSync('backroom/github-entry-redirect.js','utf8');
 assert.equal((entry.match(/href="\.\/github-direct\.html/g)||[]).length,0,
  'One Back Room: no competing direct publisher entrance');
-assert.ok(redirect.includes('window.parent===window')&&redirect.includes("location.replace('./')"),
+assert.ok(redirect.includes('window.parent!==window')&&redirect.includes('window.parent.location.origin')&&redirect.includes("location.replace('./')"),
  'Standalone Direct Publisher bookmarks must redirect to the single Back Room');
 assert.ok(html.includes('github-entry-redirect.js'),'Canonical redirect script must be included');
 assert.ok(entry.includes('id="brDirectPublisherFrame"'),'Embedded editor must remain in main Back Room');
