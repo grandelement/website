@@ -1,0 +1,62 @@
+name: GE Vault live mobile browser delivery
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ge-vault-live-browser.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-public-visitor-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser driver
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Verify live site visitor event reaches Vault D1 from mobile browser
+        run: |
+          node --input-type=module <<'JS'
+          import puppeteer from 'puppeteer-core';
+          const browser=await puppeteer.launch({
+            executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--disable-setuid-sandbox']
+          });
+          try {
+            const page=await browser.newPage();
+            await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
+            const vaultRequests=[],browserErrors=[];
+            page.on('requestfailed',req=>{
+              if(req.url().includes('vault.grandelement.com'))
+                browserErrors.push('VAULT_REQUEST_FAILED '+(req.failure()?.errorText||'unknown'));
+            });
+            page.on('pageerror',e=>browserErrors.push('PAGE_ERROR '+String(e?.message||e).slice(0,180)));
+            page.on('response',response=>{
+              if(response.url().includes('vault.grandelement.com/v1/public/events'))
+                vaultRequests.push({http:response.status(),cors:response.headers()['access-control-allow-origin']||'MISSING'});
+            });
+            await page.goto('https://grandelement.com/',{waitUntil:'domcontentloaded',timeout:45000});
+            await page.waitForFunction(()=>!!window.GEVault?.deliveryStatus,{timeout:25000});
+            try{
+              await page.waitForFunction(()=>window.GEVault?.deliveryStatus?.()?.confirmed_at,{timeout:20000});
+            }catch(_e){}
+            const report=await page.evaluate(()=>({
+              origin:location.origin,
+              has_client:!!window.GEVault,
+              delivery:window.GEVault?.deliveryStatus?.()||null,
+              serviceWorkerControlled:!!navigator.serviceWorker?.controller
+            }));
+            const safeDelivery={pending:report.delivery?.pending||0,
+              confirmed:!!report.delivery?.confirmed_at,
+              cooldown:!!report.delivery?.retry_after};
+            console.log('LIVE MOBILE SITE',JSON.stringify({origin:report.origin,has_client:report.has_client,delivery:safeDelivery,
+              serviceWorkerControlled:report.serviceWorkerControlled,requests:vaultRequests,errors:browserErrors.slice(0,5)}));
+            if(!report.has_client||!safeDelivery.confirmed||safeDelivery.cooldown||
+               !vaultRequests.some(x=>x.http===201))
+              throw Error('Public website could not confirm a live Vault fan event via actual mobile Chrome');
+            console.log('PASS: real mobile browser sent the public website fan event and got D1 acceptance.');
+          }finally{await browser.close();}
+          JS
