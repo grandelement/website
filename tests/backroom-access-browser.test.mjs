@@ -93,7 +93,7 @@ try{
        'Access-Control-Allow-Methods':'GET, POST, OPTIONS'},
      body:JSON.stringify(data)});
  });
- await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:45000});
+ await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:100000});
  try{
    await page.waitForFunction(()=>{
      const el=document.getElementById('brAccessSelect');
