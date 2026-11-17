@@ -602,6 +602,78 @@ async function handleGithubPlaylists(request,env,cors){
   }
 }
 
+/* Owner-only, narrowly-scoped merchandise publisher.
+   Saves only floating shirt/hat controls; other current public, Radio, DJ,
+   Vault and music settings are read from GitHub and retained unchanged. */
+function geMerchValidate(source){
+  if(!source||typeof source!=='object'||Array.isArray(source))throw Error('Missing merchandise settings.');
+  const bounded=(key,min,max)=>{
+    if(source[key]===''||source[key]===null||source[key]===undefined)throw Error('Missing '+key+'.');
+    const n=Number(source[key]);
+    if(!Number.isFinite(n)||n<min||n>max)throw Error('Invalid '+key+' (allowed '+min+' to '+max+').');
+    return n;
+  };
+  const data={
+    size:bounded('size',25,250),
+    speed:bounded('speed',25,400),
+    rotation:bounded('rotation',0,400),
+    direction:String(source.direction||''),
+    entryDirection:String(source.entryDirection||''),
+    entryTiming:String(source.entryTiming||''),
+    entryMinSeconds:bounded('entryMinSeconds',5,600),
+    entryMaxSeconds:bounded('entryMaxSeconds',5,600),
+    quantity:bounded('quantity',0,2)
+  };
+  if(!Number.isInteger(data.quantity))throw Error('Invalid merchandise quantity.');
+  if(!['normal','reverse'].includes(data.direction))throw Error('Invalid rotation direction.');
+  if(!['random','left','right'].includes(data.entryDirection))throw Error('Invalid entry direction.');
+  if(!['random','fixed'].includes(data.entryTiming))throw Error('Invalid entry interval type.');
+  if(data.entryMaxSeconds<data.entryMinSeconds)throw Error('Maximum entry interval is below minimum.');
+  return data;
+}
+async function geHandleMerchandise(request,env,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:'Back Room owner sign-in required. Sign in again.'},401,cors);
+  try{
+    const branch=env.GITHUB_BRANCH||'main',path='config/site-live.json';
+    const source=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+    if(!source.ok)throw Error('Cannot read current live GE settings (HTTP '+source.status+').');
+    const file=await source.json();
+    const current=JSON.parse(decodeGithubText(file.content||''));
+    if(!validConfig(current))throw Error('Published configuration is incomplete; not saving.');
+    if(request.method==='GET')
+      return json({ok:true,merchandise:current.merchandise||{}},200,cors);
+    const body=await request.json().catch(()=>null);
+    if(!body||!Object.prototype.hasOwnProperty.call(body,'expectedMerchandise'))
+      return json({ok:false,error:'Load current merchandise settings before saving.'},400,cors);
+    if(JSON.stringify(body.expectedMerchandise||{})!==JSON.stringify(current.merchandise||{}))
+      return json({ok:false,error:'Merchandise was changed elsewhere. Reload Back Room before saving.'},409,cors);
+    let merch;
+    try{merch=geMerchValidate(body.merchandise)}
+    catch(e){return json({ok:false,error:String(e.message||e)},400,cors)}
+    const next=structuredClone(current);
+    next.merchandise={...(current.merchandise||{}),...merch};
+    next.publishedAt=new Date().toISOString();
+    const contents=JSON.stringify(next,null,2)+'\n';
+    if(contents.length>250000)throw Error('Public configuration exceeds GitHub limit.');
+    const updated=await github(env,path,{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:'Back Room: publish verified floating merchandise settings only',
+        content:utf8B64(contents),sha:file.sha,branch
+      })
+    });
+    const answer=await updated.json().catch(()=>({}));
+    if(!updated.ok){
+      if(updated.status===409||updated.status===422)
+        return json({ok:false,error:'Live settings changed while saving. Reload and retry.'},409,cors);
+      throw Error('GitHub refused merchandise save (HTTP '+updated.status+'): '+String(answer.message||''));
+    }
+    return json({ok:true,commit:String(answer.commit?.sha||''),merchandise:next.merchandise},200,cors);
+  }catch(error){
+    return json({ok:false,error:String(error?.message||error).slice(0,240)},502,cors);
+  }
+}
+
 const GE_UPLOAD_LIMIT=60*1024*1024;
 const GE_AUDIO_TYPES={mp3:"audio/mpeg",m4a:"audio/mp4",wav:"audio/wav",ogg:"audio/ogg"};
 // Owner-only PRIVATE R2 upload. Never writes to public GitHub or changes Radio.
@@ -872,6 +944,9 @@ export default {
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
       return json(upstream.data,upstream.status,cors);
     }
+
+    if(url.pathname==='/manage/merchandise'&&['GET','POST'].includes(request.method))
+      return geHandleMerchandise(request,env,cors);
 
     if(url.pathname==='/publish'&&request.method==='POST'){
       if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in again.'},401,cors);
