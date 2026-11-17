@@ -12,6 +12,7 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
  const errors=[];
  let outage=false;
+ let playlistOutage=false;
  const sourceReads={codes:0,playlists:0};
  const savedFans=[
    {id:'fan_aaaaaaa1',display_name:'Fan One',code_id:'access_test1',code_label:'Test 1'},
@@ -26,7 +27,10 @@ try{
  page.on('request',req=>{
    const url=req.url();
    if(!url.startsWith('https://ge-backroom-publisher.grandelement.workers.dev/')){
-     if(url.includes('/playlists/registry.json'))sourceReads.playlists++;
+     if(url.includes('/playlists/registry.json')){
+       sourceReads.playlists++;
+       if(playlistOutage){void req.respond({status:503,contentType:'application/json',body:'{"ok":false,"error":"GitHub playlist outage"}'});return;}
+     }
      void req.continue();return;
    }
    const route=new URL(url).pathname;
@@ -58,6 +62,7 @@ try{
         max_uses:0,use_count:0,duration_mode:'none',
         experience:{games_enabled:true,autopilot_enabled:true,radio_playlist_id:''}}
      ]};
+   else if(route==='/manage/github-playlists'&&playlistOutage){status=503;data={ok:false,error:'GitHub playlist outage'};}
    else if(route==='/manage/github-playlists')data={ok:true,items:[
      {id:'playlist_test2',name:'Test 2',tracks:[
        {track_path:'ge-music/music/Grand Element - 2024 - Fire/Fire_06_Smoke.mp3',
@@ -242,6 +247,14 @@ try{
  assert.equal(await page.$eval('#brCodeFanCode',x=>x.value),'',
   'A new fan profile cannot inherit another fan access code');
  console.log('PASS: ACCESS OFFLINE shortcut and Vault-backed FANS profile search/load/new/close stay isolated.');
+ // A separate GitHub outage must NEVER label the private Vault as disconnected.
+ playlistOutage=true;
+ await page.click('#brTabAccess');
+ await page.waitForFunction(()=>document.getElementById('brVaultCounts')?.textContent?.includes('GITHUB PLAYLISTS: UNAVAILABLE'),{timeout:30000});
+ assert.equal(await page.$eval('#brVaultConnection',el=>el.textContent),'VAULT · CONNECTED',
+   'GitHub playlist outages must not falsely report the private Vault as offline');
+ playlistOutage=false;
+ console.log('PASS: GitHub playlist outage does not change independently healthy Vault status.');
  // Simulate a real iPhone with an authenticated owner but failed Vault read.
  outage=true;
  await page.reload({waitUntil:'domcontentloaded',timeout:45000});
@@ -260,6 +273,7 @@ try{
  assert.ok(disconnected.musicPresent&&disconnected.accessPresent);
  assert.equal(disconnected.keyDisabled,true,'Unverified codes cannot be revealed');
  assert.ok(disconnected.names.some(n=>/VAULT NOT LOADED/.test(n)));
+ assert.equal(disconnected.state,'VAULT · OFFLINE','Failed private code read must report the Vault itself offline');
  assert.match(disconnected.status,/CODES: UNAVAILABLE/);
  assert.deepEqual(errors,[],'Browser reported initialization errors');
  console.log('PASS: Back Room keeps key controls folded and handles Vault outages without hiding Music and Access.',
