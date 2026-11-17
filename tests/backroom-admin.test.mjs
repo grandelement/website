@@ -28,8 +28,10 @@ for(const tab of tabs){
 }
 assert.ok(back.includes('data-tab="playlists"'),'Original DJ playlists need a dedicated tab next to RADIO');
 assert.ok(back.includes('data-tab="moon"'),'Radio Moon must have its own tab');
-assert.ok(back.includes("const primaryTabs=['radio','music','access','fans']"),
- 'The four owner jobs must be the entire main bar');
+assert.ok(back.includes("const primaryTabs=['radio','access','fans']")&&
+ back.includes("if(topSave)nav.appendChild(topSave)")&&
+ back.includes('id="brTopSave"'),
+ 'The four owner jobs are RADIO, ACCESS CODES, FANS and SAVE TO GITHUB');
 assert.ok(back.includes("moreTools.id='brMoreTools'") &&
  back.includes("moreTools.insertAdjacentElement('afterend',accessSubnav)"),
  'Secondary tools must have one collapsible drawer before the content');
