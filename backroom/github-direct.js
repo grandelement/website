@@ -28,6 +28,7 @@ const clone=thing=>JSON.parse(JSON.stringify(thing));
 
 function authenticationMessage(message,kind='warn'){
  $('authStatus').dataset.kind=kind;$('authStatus').textContent=String(message||'');
+ reportToBackroom('GE_DIRECT_STATUS',{message:String(message||''),kind});
 }
 const bytesToBase64=bytes=>btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));
 const base64ToBytes=text=>Uint8Array.from(atob(text),char=>char.charCodeAt(0));
@@ -450,7 +451,9 @@ if(embedded){
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==window.parent||!event.data)return;
   const {type}=event.data;
-  if(type==='GE_BACKROOM_UNLOCK'){
+  if(type==='GE_BACKROOM_HELLO'){
+   reportToBackroom('GE_DIRECT_READY');
+  }else if(type==='GE_BACKROOM_UNLOCK'){
    const pass=String(event.data.passcode||'');
    if(!pass)return;
    if(localStorage.getItem(CREDENTIAL_KEY)){
