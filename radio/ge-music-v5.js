@@ -15,7 +15,7 @@ const LEGACY_ALBUMS=new Set(['Fundamental Groove','Trio','Live','Sessions I','Se
 const albumDescriptions={Aether:'Energy, consciousness and the unseen connections between us.',Intergy:'Solo electronic grooves, piano, analog synth and rhythm.', 'Sessions I':'Original Grand Element full-band studio sessions.', 'Sessions II':'Further recordings from the original band sessions.',Trio:'A stripped-back studio trio with keys, guitar and drums.',Live:'Live performances from the Grand Element trio.','Fundamental Groove':'Instrumental grooves built around rhythm and movement.',Love:'A collection exploring love and connection.',Soul:'Instrumental reflections on soul and feeling.',Spirit:'Music exploring spirit and atmosphere.',Fire:'Rhythm, energy and intensity.',Singles:'Individual Grand Element recordings.'};
 // Representative hues visually checked against all 11 JPG covers in
 // ge-images/images. These are NOT the unrelated GOLF_PLANETS gameplay colors.
-const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#e2b448','Aether':'#bfc4cd','Singles':'#6e9bb5'};
+const albumColors=window.GE_ALBUM_COLORS||{};
 function applyAlbumStyle(element,name){
  const hex=albumColors[name]||'#addcf5';
  element.style.setProperty('--ge-album-accent',hex);
@@ -24,6 +24,29 @@ function applyAlbumStyle(element,name){
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
 const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+let catalogRouting=null;
+function playerTracksFromCatalog(all){
+ const paths=catalogRouting?.playerSongPaths;
+ if(!Array.isArray(paths))return all;
+ const allowed=new Set(paths);
+ return all.filter(track=>allowed.has(track.path));
+}
+async function loadCatalogRouting(){
+ let data=null;
+ try{
+  const response=await fetch('../config/site-live.json?music_routing='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('Routing settings unavailable');
+  data=await response.json();
+  try{localStorage.setItem('GE_MUSIC_CATALOG_ROUTING_V1',JSON.stringify(data.music?.catalogRouting||{}))}catch(_){}
+ }catch(_){
+  try{catalogRouting=JSON.parse(localStorage.getItem('GE_MUSIC_CATALOG_ROUTING_V1')||'null')}catch(_){}
+ }
+ if(data)catalogRouting=data.music?.catalogRouting||null;
+ if(state.catalogAllTracks?.length){
+  state.tracks=playerTracksFromCatalog(state.catalogAllTracks);
+  updateMeta();render();
+ }
+}
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -1655,9 +1678,9 @@ function renderStandaloneAlbums(){
  if(!state.loaded){const loading=document.createElement('p');loading.textContent='Loading albums…';board.append(loading);return;}
  const access=musicAccessActive();
  const allowed=access?.restricted?new Set(access.allowed):null;
- const names=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
-  // Keep all albums in the visual cover stack except Singles, whose songs remain in MUSIC.
-  .filter(name=>name!=='Singles')
+ const names=[...new Set((state.catalogAllTracks||state.tracks).filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
+  // FRONT album artwork is independent of PLAYER song availability.
+  .filter(name=>name!=='Singles'&&(!Array.isArray(catalogRouting?.frontAlbums)||catalogRouting.frontAlbums.includes(name)))
   .sort((a,b)=>rank(a)-rank(b));
  board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
@@ -1810,9 +1833,11 @@ async function fetchCatalog(options={}){
  const strict=!!options.strict;
  const all=[];
  const publishCatalog=(paths,final=false)=>{
-  const unique=[...new Set(paths)].map(details);
-  unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
-  state.tracks=unique;state.loaded=unique.length>0;state.loading=!state.loaded&&!final;
+  const inventory=[...new Set(paths)].map(details);
+  inventory.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
+  state.catalogAllTracks=inventory;
+  const unique=playerTracksFromCatalog(inventory);
+  state.tracks=unique;state.loaded=inventory.length>0;state.loading=!state.loaded&&!final;
   if(!state.activePlaylist)restoreWorkingOrder();
   const filter=el('.songFilter'),prior=filter.value;
   // One album selector. Never recreate the retired ALL SONGS / CHECKED SONGS interface.
@@ -3497,9 +3522,9 @@ window.GEMusicV5={open,close,openOffline,openCodeEntry,preload:preloadCatalog,sh
   const paths=[...new Set((Array.isArray(urls)?urls:[]).map(canonical).filter(Boolean))];
   if(!paths.length)throw Error('Radio supplied no playable songs');
   const unique=paths.map(details).sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
-  state.tracks=unique;state.loaded=true;state.loading=false;
+  state.catalogAllTracks=unique;state.tracks=playerTracksFromCatalog(unique);state.loaded=true;state.loading=false;
   updateMeta();render();
-  showCatalogSource('RADIO SHARED CATALOG',unique.length);
+  showCatalogSource('RADIO SHARED CATALOG',state.tracks.length);
   return unique.length;
  },
  playAll:(direction='play')=>{
@@ -3543,6 +3568,7 @@ window.GEMusicV5={open,close,openOffline,openCodeEntry,preload:preloadCatalog,sh
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 // Load at startup rather than making the listener press PLAY twice while
 // the library downloads its manifest and initializes the music queue.
+void loadCatalogRouting();
 preloadCatalog();
 window.addEventListener('ge-music-demo-purchase-updated',()=>{if(state.open)render()});
 // A Vault-verified checkout can return the visitor directly to their MUSIC
