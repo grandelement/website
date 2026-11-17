@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self' https://api.github.com; form-action 'none'; base-uri 'none'; object-src 'none'">
 <title>GE Studios · Direct GitHub Publisher</title>
 <style>
@@ -26,15 +26,51 @@ fieldset{border:1px solid #376684;border-radius:12px;margin:12px 0;padding:11px}
 #songs{max-height:66vh;overflow:auto;overscroll-behavior:contain;border:1px solid #396d85;border-radius:11px;margin-top:10px}
 .songRow{display:grid;grid-template-columns:minmax(0,1fr) 54px 54px 54px;gap:8px;padding:10px;align-items:center;border-bottom:1px solid #2a4e61}
 .songRow:nth-child(even){background:#0b2b42}.songRow>span{overflow-wrap:anywhere;font-size:15px}.songRow small{display:block;font-size:12px}
-#token{width:100%;min-width:0;letter-spacing:.03em}#playlist{width:100%}
+[hidden]{display:none!important}
+#publisherLock{max-width:640px;margin:clamp(18px,8vh,75px) auto}
+#publisherLock h1{font-size:clamp(27px,7vw,36px)}
+#publisherLock button{width:100%;margin-top:10px}
+#publisherLock input[type=password]{width:100%;margin:4px 0 12px}
+#publisherLock label{margin-top:10px;font-weight:700}
+#publisherLock .muted{font-size:14px}
+#authStatus{white-space:pre-wrap;overflow-wrap:anywhere}
+#authStatus[data-kind="error"]{color:#ffbdbd}
+#authStatus[data-kind="success"]{color:#a4f8cf}
+#playlist{width:100%}
 #scopes{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:3px 12px}
 @media(max-width:480px){body{padding:8px}section,.panel{padding:10px}h2{font-size:18px}.songRow{gap:4px;grid-template-columns:minmax(0,1fr) 38px 38px 38px}.songRow>span{font-size:13px}.columnLegend{font-size:10px}button{font-size:15px}}
 </style>
-<script defer src="./github-direct.js?v=20261117-1"></script>
+<script defer src="./github-direct.js?v=20261117-passcode-v1"></script>
 </head><body>
+<section id="publisherLock" aria-label="Direct GitHub publisher access">
+<h1>GE BACK ROOM</h1>
+<p>One passcode to unlock. One button to save public website settings to GitHub.</p>
+<div id="firstSetup" hidden>
+<h2>One-time connection on this device</h2>
+<p>GitHub needs one authorization when connecting a new device. After this, use only your passcode to unlock and save.</p>
+<p><a href="https://github.com/settings/personal-access-tokens/new?name=GE%20Direct%20Publisher%20Only&target_name=grandelement&contents=write" target="_blank" rel="noopener noreferrer">Create a GitHub connection</a>: select only <strong>grandelement/website</strong>, with Contents Read and write. Your credential will be encrypted on this device, not uploaded to the site or stored in GitHub.</p>
+<label>GitHub connection token, one time
+<input id="setupToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste once to connect"></label>
+<label>Choose your Back Room passcode
+<input id="setupCode" type="password" autocomplete="new-password" placeholder="At least 10 characters"></label>
+<label>Repeat passcode
+<input id="setupConfirm" type="password" autocomplete="new-password" placeholder="Repeat the same passcode"></label>
+<button id="setupButton" class="primary" type="button">CONNECT AND UNLOCK</button>
+<p class="muted">Use a strong passcode with at least 10 characters. A short numeric PIN is not safe enough to protect GitHub publishing credentials. If you clear browser data, change devices or your GitHub token expires, connection setup is needed again.</p>
+</div>
+<div id="unlockAccess" hidden>
+<label>BACK ROOM PASSCODE
+<input id="unlockCode" type="password" autocomplete="current-password" placeholder="Enter your passcode"></label>
+<button id="unlockButton" class="primary" type="button">UNLOCK</button>
+<button id="forgetDevice" type="button">RESET THIS DEVICE'S GITHUB CONNECTION</button>
+<p class="muted">Your GitHub credential is encrypted on this device. The passcode unlocks it for this session; nothing needs to be pasted when saving.</p>
+</div>
+<p id="authStatus" role="status" aria-live="polite"></p>
+</section>
+<div id="editor" hidden>
 <header><h1>GE Studios · Direct GitHub Publisher</h1>
 <p>Publish public music and player settings directly to GitHub. <strong>No Cloudflare Publisher or Vault connection required.</strong> This does not control BLITZ on-air playback, private fans or access codes.</p>
-<div class="actions"><button id="reload" type="button">LOAD PUBLISHED SETTINGS</button><a href="./" rel="noreferrer">Back to Back Room</a></div></header>
+<div class="actions"><button id="reload" type="button">LOAD PUBLISHED SETTINGS</button><button id="lockPublisher" type="button">LOCK</button><a href="./" rel="noreferrer">Back to Back Room</a></div></header>
 <div class="panel" role="status" aria-live="polite" id="status" data-kind="warn">Loading public music settings…</div>
 <section><h2>Music destinations</h2><p id="counts">Reading music files…</p>
 <p class="muted">FRONT controls album covers. STORE controls shop previews. PLAYER controls the music browser. RADIO controls website Radio/Shuffle songs, not the live BLITZ DJ queue.</p>
@@ -52,10 +88,8 @@ fieldset{border:1px solid #376684;border-radius:12px;margin:12px 0;padding:11px}
 <label class="check"><input type="checkbox" value="legacy"> LEGACY</label>
 <label class="check"><input type="checkbox" value="iam"> I AM</label>
 </div></fieldset></section>
-<section><h2>Save directly to GitHub</h2>
-<p>Your choices are automatically backed up as a <strong>local draft on this device</strong>. They are not published until GitHub confirms the commit.</p>
-<p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=GE%20Direct%20Publisher%20Only&target_name=grandelement&expires_in=30&contents=write" target="_blank" rel="noreferrer noopener">fine-grained token on GitHub</a> with access to <strong>only</strong> the <code>grandelement/website</code> repository and <strong>Contents: Read and write</strong>. Never send your token in chat. It is never saved by this page and is erased after each save attempt.</p>
-<label>GitHub token for this save<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste token immediately before saving"></label>
-<div class="actions" style="margin-top:12px"><button id="save" class="primary" type="button" disabled>SAVE TO GITHUB</button><button id="discard" type="button" disabled>DISCARD LOCAL DRAFT</button></div>
+<section><h2>Save to GitHub</h2>
+<p>Your choices are saved as a local draft on this device until you press SAVE. No token or second password is needed once unlocked.</p>
+<div class="actions"><button id="save" class="primary" type="button" disabled>SAVE TO GITHUB</button><button id="discard" type="button" disabled>DISCARD LOCAL DRAFT</button></div>
 </section><p class="muted">Source: <a href="https://github.com/grandelement/website/blob/main/config/site-live.json" target="_blank" rel="noopener noreferrer">config/site-live.json</a>. Saves check the latest GitHub version and verify the written settings by reading them back.</p>
-</body></html>
+</div></body></html>
