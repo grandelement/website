@@ -62,7 +62,8 @@ try{
  assert.equal(await page.$eval('#save',n=>n.disabled),true,'No changes should be saved');
  const initial=await page.$eval('#counts',e=>e.textContent);
  assert.match(initial,/51 RADIO SONGS/);
- await page.$eval('.songRow:last-child input:last-child',e=>e.click());
+ await page.$eval('#songs .songRow:not(.columnLegend) label:last-child input:not(:checked)',e=>e.click());
+ await page.waitForFunction(()=>document.getElementById('counts').textContent.includes('52 RADIO SONGS'))
  await page.waitForFunction(()=>!document.getElementById('save').disabled);
  await page.click('#save');
  assert.match(await page.$eval('#status',e=>e.textContent),/ENTER THE FINE-GRAINED GITHUB TOKEN/);
@@ -85,7 +86,7 @@ try{
  assert.deepEqual(state.remote.music.publicDJPlaylistNames,config.music.publicDJPlaylistNames);
  assert.equal(state.requests.some(url=>url.includes('workers.dev')),false);
  // A concurrent edit to the same routing file must prevent unsafe overwriting.
- await page.$eval('.songRow:last-child input:last-child',e=>e.click());
+ await page.$eval('#songs .songRow:not(.columnLegend) label:last-child input:checked',e=>e.click());
  await page.evaluate(()=>{window.__mock.remote.music.radioMasterSongPaths.pop()});
  await page.$eval('#token',e=>e.value='github_pat_TEST_SECRET');
  await page.click('#save');
