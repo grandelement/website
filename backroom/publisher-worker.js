@@ -771,6 +771,7 @@ export default {
         }catch(error){console.error('GE Vault health probe failed',String(error?.name||'Error'))}
       }
       return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true,
+        catalog_routing_api:2,manifest_rebuild_available:true,
         access_codes_bridge_configured:!!(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN),
         vault_service_bound:vaultProbe.bound,
         vault_reachable:vaultProbe.reachable,
