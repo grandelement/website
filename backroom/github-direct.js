@@ -15,6 +15,11 @@ const SCOPE=['sunlab','offline','reload','debug','legacy','iam'];
 const KEYS=['frontAlbums','storeAlbums','storeSongPaths','playerSongPaths','radioSongPaths'];
 let files=[],albums=[],base=null,work=null,assignments={},busy=false,playlistList=[];
 let unlockedToken='',authBusy=false;
+const embedded=window.parent!==window&&new URLSearchParams(location.search).get('embedded')==='1';
+if(embedded)document.documentElement.classList.add('ge-direct-embedded');
+function reportToBackroom(type,detail={}){
+ if(embedded)window.parent.postMessage({type,...detail},location.origin);
+}
 const distinct=items=>[...new Set(items)];
 const sorted=items=>distinct(items).sort();
 const orderedAlbums=items=>distinct(items).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
@@ -23,6 +28,7 @@ const clone=thing=>JSON.parse(JSON.stringify(thing));
 
 function authenticationMessage(message,kind='warn'){
  $('authStatus').dataset.kind=kind;$('authStatus').textContent=String(message||'');
+ reportToBackroom('GE_DIRECT_STATUS',{message:String(message||''),kind});
 }
 const bytesToBase64=bytes=>btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));
 const base64ToBytes=text=>Uint8Array.from(atob(text),char=>char.charCodeAt(0));
@@ -61,6 +67,7 @@ async function decryptCredential(data,passcode){
 }
 function showAuthentication(){
  $('editor').hidden=true;$('publisherLock').hidden=false;
+ reportToBackroom('GE_DIRECT_LOCKED');
  let connected=false;
  try{connected=!!localStorage.getItem(CREDENTIAL_KEY)}
  catch(_){authenticationMessage('Device storage is unavailable. A saved connection requires browser storage.','error')}
@@ -72,6 +79,7 @@ function grantAccess(token){
  unlockedToken=token;
  $('publisherLock').hidden=true;$('editor').hidden=false;
  authenticationMessage('');
+ reportToBackroom('GE_DIRECT_UNLOCKED');
  void load();
 }
 async function setupAccess(){
@@ -148,6 +156,7 @@ const fileName=path=>String(path).split('/').pop().replace(/\.(?:mp3|m4a|wav|ogg
  .replace(/^[^_]+_\d+[-_]?/,'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
 function status(message,kind='warn'){
  $('status').dataset.kind=kind;$('status').textContent=message;
+ reportToBackroom('GE_DIRECT_STATUS',{message:String(message),kind});
 }
 function snapshot(config){
  const music=config.music||{},routing=music.catalogRouting||{},profile=music.publicPlayer||{};
@@ -252,14 +261,15 @@ function renderAll(){
  renderAlbums();renderSongs();renderProfile();counts();
 }
 async function fetchPublished(){
- const query='?ge-direct='+Date.now();
- const [cfgResponse,manifestResponse,playlistResponse]=await Promise.all([
-  fetch('../config/site-live.json'+query,{cache:'no-store'}),
-  fetch('../radio/manifest.json'+query,{cache:'no-store'}),
-  fetch('../playlists/registry.json'+query,{cache:'no-store'})
+ // Never initialize a new editing session from GitHub Pages: that deploy may lag behind GitHub.
+ // Every unlock loads the authoritative main branch with the authenticated owner credential.
+ if(!unlockedToken)throw Error('Enter the Back Room passcode to load current GitHub settings.');
+ const [live,inventory,playlistFile]=await Promise.all([
+  githubGet(unlockedToken),
+  githubReadFile(unlockedToken,'radio/manifest.json'),
+  githubReadFile(unlockedToken,'playlists/registry.json')
  ]);
- if(!cfgResponse.ok||!manifestResponse.ok)throw Error('Public website settings or music manifest unavailable.');
- const config=await cfgResponse.json(),manifest=await manifestResponse.json();
+ const config=live.data,manifest=inventory.data;
  if(!Array.isArray(manifest.files)||!Array.isArray(config.music?.radioMasterSongPaths))
   throw Error('Missing public music inventory or approved Radio songs.');
  files=distinct(manifest.files.filter(p=>/^ge-music\/music\/.+\.(?:mp3|m4a|wav|ogg|flac)$/i.test(p)))
@@ -267,7 +277,7 @@ async function fetchPublished(){
   .sort((a,b)=>ORDER.indexOf(a.album)-ORDER.indexOf(b.album)||a.name.localeCompare(b.name));
  if(!files.length)throw Error('Music inventory empty. Nothing changed.');
  albums=distinct(files.map(row=>row.album)).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
- try{const data=playlistResponse.ok?await playlistResponse.json():null;playlistList=data?.playlists||[]}catch(_){playlistList=[]}
+ playlistList=Array.isArray(playlistFile.data?.playlists)?playlistFile.data.playlists:[];
  $('albumFilter').replaceChildren(new Option('ALL ALBUMS',''),
   ...albums.map(a=>new Option(a,a)));
  return config;
@@ -288,6 +298,7 @@ async function load(force=false){
   }
   assignments=work.assignments||fresh.assignments;
   renderAll();
+  reportToBackroom('GE_DIRECT_LOADED',{config,summary:{files:files.length,radio:work.radioSongPaths.length,player:work.playerSongPaths.length}});
  }catch(e){status('NOT LOADED · '+String(e.message||e),'error')}
  finally{busy=false;$('reload').disabled=false;counts()}
 }
@@ -300,8 +311,11 @@ function encode64(s){
  for(let i=0;i<buf.length;i+=8192)list.push(String.fromCharCode(...buf.subarray(i,i+8192)));
  return btoa(list.join(''));
 }
-async function githubGet(token){
- const response=await fetch(API+'?ref=main',{cache:'no-store',credentials:'omit',
+async function githubReadFile(token,path){
+ if(!['config/site-live.json','radio/manifest.json','playlists/registry.json'].includes(path))
+  throw Error('GitHub source is not an approved public settings file.');
+ const url='https://api.github.com/repos/grandelement/website/contents/'+path+'?ref=main';
+ const response=await fetch(url,{cache:'no-store',credentials:'omit',
   headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'}});
  const data=await response.json().catch(()=>({}));
  if(!response.ok||!data.sha||!data.content)
@@ -309,6 +323,7 @@ async function githubGet(token){
    'GitHub GET rejected (HTTP '+response.status+'). Check token repository and Contents permissions.');
  return {data:JSON.parse(decode64(data.content)),sha:data.sha};
 }
+async function githubGet(token){return githubReadFile(token,'config/site-live.json')}
 function checkSelections(){
  const allowed=new Set(files.map(x=>x.path)),validAlbums=new Set(albums);
  if(!work.radioSongPaths.length)throw Error('Keep at least one RADIO song enabled.');
@@ -323,11 +338,11 @@ function checkSelections(){
  if(Object.values(work.assignments).some(Boolean)&&
     KEYS.some(k=>!same(work[k],base[k])))throw Error('Playlist assignment is active. Use the assigned playlist editor; direct save will not override it.');
 }
-async function save(){
+async function save(skipConfirmation=false){
  if(busy||!changed()){status('NO CHANGES TO SAVE.','warn');return}
  const secret=unlockedToken;
  if(!secret){status('LOCKED · Enter the Back Room passcode to save.','error');return}
- if(!confirm('Publish your selected FRONT, STORE, PLAYER, RADIO and Public Player settings to GitHub? This will NOT change the BLITZ DJ queue, private Vault or access codes.'))return;
+ if(!skipConfirmation&&!confirm('Publish your selected FRONT, STORE, PLAYER, RADIO and Public Player settings to GitHub? This will NOT change the BLITZ DJ queue, private Vault or access codes.'))return;
  busy=true;$('save').disabled=true;$('discard').disabled=true;
  let commit='';
  try{
@@ -366,6 +381,7 @@ async function save(){
   status('SAVED AND VERIFIED ON GITHUB · '+commit.slice(0,12)+'\n'+
    work.playerSongPaths.length+' PLAYER · '+work.radioSongPaths.length+' RADIO · '+
    work.storeSongPaths.length+' STORE SONGS. Pages deployment follows.','success');
+  reportToBackroom('GE_DIRECT_COMMIT',{commit,config:read.data});
  }catch(e){
   status((commit?'COMMIT MADE BUT NOT VERIFIED · ':'NOT SAVED · ')+String(e.message||e)+
    '\nYour selections remain in the local draft.','error');
@@ -384,5 +400,84 @@ $('search').addEventListener('input',renderSongs);
 $('playlist').addEventListener('change',()=>{work.playlistId=$('playlist').value;remember();counts()});
 for(const box of $('scopes').querySelectorAll('input[type=checkbox]'))
  box.addEventListener('change',()=>{work.scopes=sorted([...$('scopes').querySelectorAll('input:checked')].map(x=>x.value));remember();counts()});
+
+
+async function patchPublicSettings(message){
+ const reply=payload=>reportToBackroom('GE_DIRECT_PUBLIC_RESULT',{requestId:message.requestId,...payload});
+ if(!unlockedToken){reply({ok:false,error:'GitHub connection locked. Unlock Back Room to save.'});return}
+ if(busy){reply({ok:false,error:'A GitHub save is already in progress.'});return}
+ const changes=message.changes,expected=message.expected;
+ const allow=['welcome','about','visual','albums','easySettings','merchandise','games','gateTiming','radioMoon','music.startupEnabled','music.firstTrack'];
+ if(!changes||!expected||!Object.keys(changes).length||Object.keys(changes).some(k=>!allow.includes(k))){
+  reply({ok:false,error:'Invalid or empty public settings patch.'});return
+ }
+ busy=true;
+ try{
+  const {data:remote,sha}=await githubGet(unlockedToken);
+  for(const key of Object.keys(changes)){
+   const current=key.startsWith('music.')?remote.music?.[key.slice(6)]:remote[key];
+   if(!same(current??null,expected[key]??null))throw Error('GitHub changed '+key+'. Keep your edits and review before retrying.');
+  }
+  const next=clone(remote);
+  for(const [key,value] of Object.entries(changes)){
+   if(key.startsWith('music.')){
+    next.music={...(next.music||{})};next.music[key.slice(6)]=clone(value);
+   }else next[key]=clone(value);
+  }
+  if(!Array.isArray(next.music?.radioMasterSongPaths)||!next.music.radioMasterSongPaths.length)
+   throw Error('Cannot publish an empty Radio master.');
+  next.publishedAt=new Date().toISOString();
+  const put=await fetch(API,{method:'PUT',cache:'no-store',credentials:'omit',headers:{
+   Accept:'application/vnd.github+json',Authorization:'Bearer '+unlockedToken,
+   'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'
+  },body:JSON.stringify({message:'GE Back Room: save '+Object.keys(changes).join(', '),
+   content:encode64(JSON.stringify(next,null,2)+'\n'),sha,branch:'main'})});
+  const response=await put.json().catch(()=>({}));
+  if(!put.ok||!response.commit?.sha)throw Error('GitHub rejected save (HTTP '+put.status+'). '+String(response.message||''));
+  const check=await githubGet(unlockedToken);
+  for(const [key,value] of Object.entries(changes)){
+   const got=key.startsWith('music.')?check.data.music?.[key.slice(6)]:check.data[key];
+   if(!same(got??null,value??null))throw Error('GitHub commit created, but '+key+' verification failed. Do not overwrite.');
+  }
+  const commit=response.commit.sha;
+  reportToBackroom('GE_DIRECT_COMMIT',{commit,config:check.data});
+  reply({ok:true,commit,paths:Object.keys(changes)});
+ }catch(error){reply({ok:false,error:String(error.message||error)})}
+ finally{busy=false;counts()}
+}
+
+if(embedded){
+ // The single Back Room login forwards its password only to the same-origin embedded editor.
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==window.parent||!event.data)return;
+  const {type}=event.data;
+  if(type==='GE_BACKROOM_HELLO'){
+   reportToBackroom('GE_DIRECT_READY');
+  }else if(type==='GE_BACKROOM_UNLOCK'){
+   const pass=String(event.data.passcode||'');
+   if(!pass)return;
+   if(localStorage.getItem(CREDENTIAL_KEY)){
+    $('unlockCode').value=pass;
+    void unlockAccess();
+   }else{
+    $('setupCode').value=pass;
+    $('setupConfirm').value=pass;
+    authenticationMessage('FIRST CONNECTION ONLY · Add a repository-limited GitHub credential once. Your Back Room password is already entered.','warn');
+   }
+  }else if(type==='GE_BACKROOM_SAVE'){
+   if(!unlockedToken){status('NOT SAVED · GitHub connection is locked. Complete the one-time connection in the Back Room.','error');return}
+   void save(event.data.confirmed===true);
+  }else if(type==='GE_BACKROOM_LOCK'){
+   lockAccess();
+  }else if(type==='GE_BACKROOM_PUBLIC_PATCH'){
+   void patchPublicSettings(event.data);
+  }
+ });
+ if(typeof ResizeObserver!=='undefined'){
+  new ResizeObserver(()=>reportToBackroom('GE_DIRECT_HEIGHT',{height:Math.ceil(document.body.scrollHeight)+16}))
+   .observe(document.body);
+ }
+ reportToBackroom('GE_DIRECT_READY');
+}
 showAuthentication();
 })();

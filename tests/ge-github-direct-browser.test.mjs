@@ -45,6 +45,13 @@ try{
    if(u.startsWith('../config/site-live.json'))return new Response(JSON.stringify(state.initial),{status:200});
    if(u.startsWith('../radio/manifest.json'))return new Response(JSON.stringify(state.manifest),{status:200});
    if(u.startsWith('../playlists/registry.json'))return new Response(JSON.stringify(state.registry),{status:200});
+   if(u==='https://api.github.com/repos/grandelement/website/contents/radio/manifest.json?ref=main'||
+      u==='https://api.github.com/repos/grandelement/website/contents/playlists/registry.json?ref=main'){
+    const data=u.includes('/radio/manifest.json')?state.manifest:state.registry;
+    const bytes=new TextEncoder().encode(JSON.stringify(data));
+    const text=btoa(Array.from(bytes,x=>String.fromCharCode(x)).join(''));
+    return new Response(JSON.stringify({sha:'inventory-sha',content:text}),{status:200});
+   }
    if(u==='https://api.github.com/repos/grandelement/website/contents/config/site-live.json?ref=main'){
     state.tokenHeaderSeen=String(options.headers?.Authorization||'').startsWith('Bearer github_pat_');
     const bytes=new TextEncoder().encode(JSON.stringify(state.remote));
@@ -115,6 +122,12 @@ try{
  assert.deepEqual(saved.remote.music.publicDJPlaylistNames,config.music.publicDJPlaylistNames);
  assert.deepEqual(saved.remote.welcome,config.welcome);
  assert.equal(saved.requests.some(url=>url.includes('workers.dev')),false);
+ assert.equal(saved.requests.some(url=>url.startsWith('../config/site-live.json')),false,
+  'Opening the Back Room must load the authoritative GitHub config, not stale GitHub Pages');
+ assert.equal(saved.requests.some(url=>url.includes('/contents/radio/manifest.json?ref=main')),true,
+  'The music inventory must refresh automatically on unlock');
+ assert.equal(saved.requests.some(url=>url.includes('/contents/playlists/registry.json?ref=main')),true,
+  'Saved playlist choices must refresh automatically on unlock');
 
  // Lock, reject incorrect passcode, then unlock with the one passcode and no token.
  await page.click('#lockPublisher');
