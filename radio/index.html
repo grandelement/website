@@ -3641,6 +3641,11 @@ function geInlineMusicDisplayTitle(){
 }
 function geInlineMusicSyncTransport(){
   if(!geInlineMusicActive)return;
+  // Read the actual, same-origin native playback element. iOS may deliver
+  // iframe state messages late, especially after tapping PAUSE or resuming.
+  const actualMusic=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+  if(actualMusic?.currentSrc && actualMusic.readyState>=2)
+    geInlineMusicPaused=!!actualMusic.paused||!!actualMusic.ended;
   gePlaylistQuickUpdate();
   if(geInlineMusicTitle)titleBtn.textContent=geInlineMusicDisplayTitle();
   const playButton=$('playBtn');
@@ -4480,9 +4485,11 @@ function syncMainTransport(){
   if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
   const radioSelected=state.live||state.livePreparing;
   if(playBtn){
-    const activeSong=!radioSelected&&!audio.paused&&!!state.currentURL&&!isStationID(state.currentURL);
-    const resumableSong=!radioSelected&&audio.paused&&!!state.currentURL&&!isStationID(state.currentURL);
-    playBtn.textContent=activeSong?'PAUSE':resumableSong?'PLAY':'PLAYER';
+    const songSource=String(state.currentURL||audio.currentSrc||'');
+    const songLoaded=!!songSource&&!isStationID(songSource);
+    const activeSong=!radioSelected&&songLoaded&&!audio.paused&&!audio.ended;
+    const resumableSong=!radioSelected&&songLoaded&&audio.paused;
+    playBtn.textContent=activeSong?'PAUSE':resumableSong?'PLAY':'PLAY';
     playBtn.setAttribute('aria-label',activeSong?'Pause music':resumableSong?'Resume music':'Play music');
     playBtn.title=activeSong?'Pause music':resumableSong?'Resume music':'Play music';
     playBtn.setAttribute('aria-pressed',String(activeSong));
@@ -4581,9 +4588,15 @@ playBtn?.addEventListener('click',()=>{
     void playURL(first,{record:state.shuffle,backgroundChange:true,userAction:true});
     return;
   }
+  // The same center button PAUSES an already audible song rather than
+  // silently starting a second PLAYER queue (including Safari native audio).
+  const songSource=String(state.currentURL||audio.currentSrc||'');
+  if(!state.live&&!state.livePreparing&&songSource&&!isStationID(songSource)){
+    if(!audio.paused&&!audio.ended){requestUserPause();syncMainTransport();return;}
+    if(audio.paused&&!audio.ended){resumeAudio();syncMainTransport();return;}
+  }
   // PLAY starts the complete permitted song library in the protected shuffle
-  // player, independent of the MUSIC selector. NEXT/PREV use that same queue.
-  // The existing 33:33 preview and verified Music access remain enforced.
+  // player. NEXT/PREV use the same queue. The 33:33 gate remains enforced.
   startPlayerPlaylist();
 });
 playerSeek?.addEventListener('input',()=>{
