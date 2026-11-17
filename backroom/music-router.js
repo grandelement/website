@@ -202,6 +202,34 @@ async function rebuild(){
 for(const id of ['brRadioStationStatus','brRadioPlaylistTools']){
  const el=$(id);if(el)$('brRouteRadioAux').append(el);
 }
+const djRow=document.createElement('div');
+djRow.className='brRouteDjSaveRow';
+djRow.innerHTML='<label for="brRouteDjName">BLITZ PLAYLIST NAME</label>'+
+ '<input id="brRouteDjName" type="text" maxlength="100" value="GE Master Rotation" aria-label="Name for the original BLITZ playlist">'+
+ '<button type="button" id="brRouteDjSave">SAVE CHECKED RADIO SONGS AS BLITZ PLAYLIST</button>'+
+ '<p class="brRouteHelp">SAVE creates or updates a playlist in the original BLITZ DJ Booth, but does not put it on air. After saving, choose it under RADIO 1 and press USE ON RADIO 1.</p>';
+$('brRouteRadioAux').insertBefore(djRow,$('brRadioStationStatus'));
+async function saveBlitzPlaylist(){
+ if(!loaded||busy)return;
+ if(!serverReady){status('The new Publisher must be deployed before saving a Radio selection.');return;}
+ if(changed()){status('SAVE ALL CHANGES first, so the approved RADIO checkboxes match GitHub.');return;}
+ const chosen=sorted('radioSongPaths'),name=$('brRouteDjName').value.trim();
+ if(!name||!chosen.length){status('Enter a playlist name and check at least one RADIO song.');return;}
+ if(!confirm('SAVE '+chosen.length+' RADIO SONGS IN THE ORIGINAL BLITZ DJ BOOTH AS "'+name+'"?\n\nThis saves a playlist only. It will not change the live radio until you press USE ON RADIO 1.'))return;
+ busy=true;$('brRouteDjSave').disabled=true;status('VERIFYING MUSIC FILES AND SAVING BLITZ DJ PLAYLIST…');
+ try{
+  if(typeof window.GE_BACKROOM_SAVE_RADIO_SELECTION!=='function')
+   throw Error('The original BLITZ playlist connection is not available on this page.');
+  const saved=await window.GE_BACKROOM_SAVE_RADIO_SELECTION(name,chosen);
+  if(saved.cancelled){status('BLITZ playlist update cancelled.');return;}
+  status(saved.vaultSaved?
+   'BLITZ DJ PLAYLIST SAVED · '+saved.name+' · '+saved.count+' SONGS · VAULT VERIFIED. Choose the playlist and press USE ON RADIO 1.':
+   'BLITZ PLAYLIST SAVED · '+saved.name+' · '+saved.count+' SONGS · VAULT SYNC NOT VERIFIED. '+saved.vaultError);
+  document.getElementById('brRadio1Check')?.click();
+ }catch(error){status('BLITZ PLAYLIST NOT VERIFIED · '+String(error.message||error))}
+ finally{busy=false;$('brRouteDjSave').disabled=false;updateCount()}
+}
+$('brRouteDjSave').addEventListener('click',()=>void saveBlitzPlaylist());
 $('brRouteRefresh').addEventListener('click',()=>void load());
 $('brRouteSave').addEventListener('click',()=>void save());
 $('brRouteRebuild').addEventListener('click',()=>void rebuild());
