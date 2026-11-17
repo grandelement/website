@@ -3,14 +3,61 @@
    changing existing player, mobile, accessibility or offline behavior.
    Edit this stylesheet directly; do not append CSS to radio/index.html. */
 
-/* Radio portrait footer: one shared size and column contract for both rows.
-   Keep music, backgrounds, Gate, Vault and color states untouched. */
+/* Radio mobile layout: ONE owner of all public portrait geometry.
+   Other stylesheets may color the buttons, but must not set their sizes or spacing.
+   Short screens keep the whole page scrollable; tall screens leave the art center open. */
 @media (orientation:portrait) and (max-width:700px) {
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open){
+   --ge-footer-h:40px;
+   --ge-footer-gap:6px;
+   --ge-radio-music-height:41px;
+   --ge-radio-secondary-height:34px;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
+   box-sizing:border-box!important;min-height:100dvh!important;height:auto!important;max-height:none!important;
+   overflow:visible!important;justify-content:flex-start!important;
+   padding-top:max(22px,env(safe-area-inset-top))!important;
+   padding-bottom:max(25px,env(safe-area-inset-bottom))!important;
+   gap:clamp(3px,.5dvh,5px)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
+   margin:0 auto!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
+   grid-template-rows:repeat(2,var(--ge-radio-music-height))!important;
+   grid-auto-rows:var(--ge-radio-music-height)!important;
+   gap:5px!important;margin-bottom:0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button,
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button[data-ge-symbol]{
+   height:var(--ge-radio-music-height)!important;
+   min-height:var(--ge-radio-music-height)!important;max-height:var(--ge-radio-music-height)!important;
+   padding:4px!important;font-size:var(--ge-radio-music-font)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
+   width:min(86vw,650px)!important;max-width:calc(100% - 8px)!important;
+   margin:clamp(24px,3.5dvh,33px) auto 0!important;gap:6px!important;
+   padding:0!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
+   width:100%!important;max-width:100%!important;box-sizing:border-box!important;
+   margin:0!important;padding:4px!important;gap:4px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row{
+   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   grid-template-rows:repeat(2,var(--ge-radio-secondary-height))!important;
+   grid-auto-rows:var(--ge-radio-secondary-height)!important;
+   gap:5px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > :is(button,#hudCombined){
+   box-sizing:border-box!important;height:var(--ge-radio-secondary-height)!important;
+   min-height:var(--ge-radio-secondary-height)!important;max-height:var(--ge-radio-secondary-height)!important;
+   padding:3px!important;font-size:var(--ge-radio-secondary-font)!important;
+ }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip{
-   --ge-footer-h:40px;--ge-footer-gap:6px;
    display:flex!important;flex-flow:column nowrap!important;gap:var(--ge-footer-gap)!important;
    align-items:stretch!important;justify-content:flex-start!important;
-   width:94vw!important;max-width:760px!important;min-width:0!important;
+   min-width:0!important;
    margin:0 auto!important;padding:0!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
@@ -52,6 +99,17 @@
    display:flex!important;align-items:center!important;justify-content:center!important;
    text-align:center!important;white-space:normal!important;
    font:800 clamp(12px,3vw,14px)/1.1 system-ui,sans-serif!important;
+ }
+  /* On tall phones move the Blue Sun toward the upper quarter and
+     let the picture breathe between the title and lower playback controls.
+     On short phones keep the gap flexible so footer controls remain reachable. */
+ @media (min-height:740px){
+   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
+     margin-top:clamp(40px,8dvh,72px)!important;
+   }
+   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #playerSeekWrap{
+     margin-top:auto!important;
+   }
  }
 }
 
