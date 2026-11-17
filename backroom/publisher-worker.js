@@ -882,6 +882,22 @@ export default {
     }
 
 
+    if(url.pathname==='/manage/public-config'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      try{
+        const branch=env.GITHUB_BRANCH||'main';
+        const response=await github(env,'config/site-live.json?ref='+encodeURIComponent(branch),{method:'GET'});
+        if(!response.ok)throw Error('GitHub settings read refused (HTTP '+response.status+').');
+        const file=await response.json();
+        const config=JSON.parse(decodeGithubText(file.content||''));
+        if(!validConfig(config))throw Error('Published GitHub configuration is incomplete.');
+        return json({ok:true,config},200,cors);
+      }catch(error){
+        return json({ok:false,error:String(error?.message||error).slice(0,180)},503,cors);
+      }
+    }
+
     if(url.pathname==='/manage/github-health'&&request.method==='GET'){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
