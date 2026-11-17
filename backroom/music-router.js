@@ -50,10 +50,15 @@ function useRecord(record){
  baseSignature=snapshot();
 }
 function updateCount(){
+ if(!loaded){
+  $('brRouteCounts').textContent='SIGN IN TO LOAD THE MASTER CATALOG';
+  $('brRouteSave').disabled=true;return;
+ }
  $('brRouteCounts').textContent=entries.length+' FILES · '+flags.frontAlbums.size+' FRONT · '+flags.storeAlbums.size+
   ' STORE · '+flags.playerSongPaths.size+' PLAYER · '+flags.radioSongPaths.size+' RADIO';
  $('brRouteSave').disabled=!loaded||!serverReady||busy||!changed();
- if(changed())status('UNSAVED CHANGES · SAVE ALL CHANGES to publish.');
+ if(changed())status(serverReady?'UNSAVED CHANGES · SAVE ALL CHANGES to publish.':
+  'READ ONLY · Publisher needs the new Music routing deployment before it can save.');
 }
 function toggle(kind,value,aria){
  const label=document.createElement('label');label.className='brRouteBox';
@@ -148,9 +153,12 @@ async function load(force=false){
 async function save(){
  if(!loaded||!serverReady||busy)return;
  if(!changed()){status('NO CHANGES.');return;}
+ const oldRadio=Array.isArray(expected?.radioSongPaths)?expected.radioSongPaths:[];
+ const radioSongPaths=[...oldRadio.filter(path=>flags.radioSongPaths.has(path)),
+  ...sorted('radioSongPaths').filter(path=>!oldRadio.includes(path))];
  const routing={frontAlbums:sorted('frontAlbums'),storeAlbums:sorted('storeAlbums'),
   storeSongPaths:sorted('storeSongPaths'),playerSongPaths:sorted('playerSongPaths'),
-  radioSongPaths:sorted('radioSongPaths')};
+  radioSongPaths};
  if(!routing.radioSongPaths.length){status('NOT SAVED · Retain at least one RADIO track.');return;}
  if(!confirm('PUBLISH FRONT / STORE / PLAYER / RADIO CHECKBOXES?\n\nThis changes public music routing in one GitHub commit. It does not change payments or the live BLITZ DJ queue.'))return;
  busy=true;$('brRouteSave').disabled=true;status('SAVING ALL MUSIC DESTINATIONS…');
