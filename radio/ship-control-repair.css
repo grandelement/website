@@ -1,0 +1,109 @@
+/* Ship cockpit repair (2026-11-16). Isolated from the protected audio / transport engine.
+   SHARE lives on the right. Exactly three actions stay along the bottom. */
+html.ge-radio-ui body.view-ship #shipBottomActions{
+  position:absolute!important;
+  left:22.2%!important;top:82.4%!important;width:55.7%!important;height:9%!important;
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1fr)!important;grid-auto-rows:unset!important;
+  column-gap:2%!important;row-gap:0!important;
+  align-items:stretch!important;justify-items:stretch!important;
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > *{
+  box-sizing:border-box!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  flex-direction:row!important;gap:4px!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  overflow:hidden!important;white-space:nowrap!important;
+  padding:2px 5px!important;margin:0!important;
+  font-size:clamp(10px,1.5dvh,14px)!important;line-height:1.06!important;
+  border-radius:12px!important;text-align:center!important;
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > [data-proxy="contactLaunchBtn"]{
+  grid-area:1 / 1 / 2 / 2!important
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > a{
+  grid-area:1 / 2 / 2 / 3!important
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > [data-proxy="accessLaunchBtn"]{
+  grid-area:1 / 3 / 2 / 4!important
+}
+/* Icon metadata comes from ge-accessibility.js. Keep icon and caption compact
+   on the SAME line, rather than tall pseudo-elements overflowing the bubbles. */
+html.ge-radio-ui body.view-ship #shipBottomActions > [data-ge-symbol]{
+  font-size:0!important;flex-direction:row!important;gap:4px!important;
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > [data-ge-symbol]::before{
+  content:attr(data-ge-symbol)!important;display:inline-block!important;
+  font:700 clamp(11px,1.7dvh,15px)/1 system-ui,sans-serif!important;
+  white-space:nowrap!important;flex:0 0 auto!important;
+}
+html.ge-radio-ui body.view-ship #shipBottomActions > [data-ge-symbol]::after{
+  content:attr(data-ge-caption)!important;display:inline-block!important;
+  font:850 clamp(9px,1.4dvh,13px)/1.05 system-ui,sans-serif!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  min-width:0!important;
+}
+/* Fill the unused right-hand slot with SHARE, keeping Hide Ship reachable. */
+html.ge-radio-ui body.view-ship #shipRightControls{
+  grid-template-rows:repeat(6,minmax(0,1fr))!important;
+  gap:1.25%!important;
+}
+html.ge-radio-ui body.view-ship #shipRightControls [data-proxy="shareBtn"]{
+  grid-row:5!important;display:flex!important;visibility:visible!important;
+  align-items:center!important;justify-content:center!important;
+  font-size:clamp(10px,1.7dvh,14px)!important;
+}
+html.ge-radio-ui body.view-ship #shipRightControls #shipHideControl{
+  grid-row:6!important;
+}
+/* The blue sun remains the existing image. This ring reuses the verified EQ
+   bins, and shows a dim outline instead of faking audio when no signal exists. */
+#shipPlanetLayer #shipSunEQHalo{
+  position:absolute;z-index:0;left:50%;top:10.5%;width:18.5%;aspect-ratio:1;
+  transform:translateX(-50%) scale(var(--ship-planet-zoom));
+  transform-origin:50% 50%;overflow:visible;pointer-events:none;
+  opacity:.92;filter:drop-shadow(0 0 5px rgba(46,187,255,.75));
+}
+#shipPlanetLayer #shipSunEQHalo svg{
+  width:100%;height:100%;overflow:visible;display:block;
+}
+#shipPlanetLayer #shipSunEQHalo .ship-sun-eq-bar{
+  stroke:rgba(86,218,255,.94);stroke-width:3.3;stroke-linecap:round;
+  pointer-events:none;
+}
+#shipPlanetLayer #shipLogo{z-index:1}
+/* Keep the title within its central header. On a phone landscape, CSS viewport
+   width is not enough to judge font size because Safari can use desktop metrics. */
+html.ge-radio-ui body.view-ship #shipTrackTitle{
+  min-width:0!important;min-height:0!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  line-height:1.05!important;
+  font-size:clamp(11px,1.9dvh,16px)!important;
+  padding:0 3px!important;
+}
+@media (pointer:coarse),(max-height:780px){
+  html.ge-radio-ui body.view-ship .ship-side button{
+    font-size:clamp(9px,1.55dvh,13px)!important;
+    line-height:1.08!important;white-space:normal!important;
+    padding:1px 2px!important;
+  }
+  html.ge-radio-ui body.view-ship #shipRightControls [data-proxy="shareBtn"],
+  html.ge-radio-ui body.view-ship #shipHideControl{
+    font-size:clamp(9px,1.5dvh,12px)!important;
+  }
+  html.ge-radio-ui body.view-ship #autoPilotBtn{
+    font-size:clamp(9px,1.55dvh,12px)!important;
+    line-height:1.1!important;padding:1px 2px!important;
+    overflow:hidden!important;
+  }
+  html.ge-radio-ui body.view-ship #shipTrackTitle{
+    font-size:clamp(10px,1.8dvh,15px)!important;
+  }
+  html.ge-radio-ui body.view-ship #shipBottomActions > *{padding:1px 2px!important;gap:3px!important}
+  html.ge-radio-ui body.view-ship #shipBottomActions > [data-ge-symbol]::before{
+    font-size:clamp(10px,1.5dvh,13px)!important;
+  }
+  html.ge-radio-ui body.view-ship #shipBottomActions > [data-ge-symbol]::after{
+    font-size:clamp(9px,1.35dvh,12px)!important;
+  }
+}
