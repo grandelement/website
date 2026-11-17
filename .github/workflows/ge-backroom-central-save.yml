@@ -1,0 +1,46 @@
+name: GE Back Room Single SAVE and CSS Contract
+on:
+  pull_request:
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/save-center.js'
+      - 'backroom/save-center.css'
+      - 'backroom/publisher-worker.js'
+      - 'backroom/music-router.js'
+      - 'tests/ge-backroom-central-save.test.mjs'
+      - 'tests/backroom-access-browser.test.mjs'
+      - '.github/workflows/ge-backroom-central-save.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/save-center.js'
+      - 'backroom/save-center.css'
+      - 'backroom/publisher-worker.js'
+      - 'tests/ge-backroom-central-save.test.mjs'
+      - 'tests/backroom-access-browser.test.mjs'
+      - '.github/workflows/ge-backroom-central-save.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate scoped owner GitHub publication without private changes
+        run: node tests/ge-backroom-central-save.test.mjs
+      - name: Verify old private Vault auth still works
+        run: node tests/private-vault-binding.test.mjs
+      - name: Verify JavaScript syntax in new Back Room save handler
+        run: node --check backroom/save-center.js
+      - name: Install mobile Chromium client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Test top SAVE navigation and original Access/Fan Vault controls in mobile browser
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-save-browser.log 2>&1 &
+          node tests/backroom-access-browser.test.mjs
