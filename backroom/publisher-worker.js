@@ -165,7 +165,16 @@ async function publishLive(env,cfg){
   const current=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
   if(!current.ok)throw new Error('Could not read live configuration from GitHub.');
   const currentData=await current.json();
+  const live=JSON.parse(decodeGithubText(currentData.content||''));
+  if(!validConfig(live))throw new Error('Current GitHub music routing is unavailable; publish blocked.');
   const out=structuredClone(cfg);
+  // Legacy full-site publishing must never roll back selections saved through
+  // the unified Radio > Music editor or its approved player profile.
+  out.music=out.music&&typeof out.music==='object'?out.music:{};
+  for(const key of ['radioMasterSongPaths','radioMasterRevision','catalogRouting','publicPlayer']){
+    if(Object.prototype.hasOwnProperty.call(live.music||{},key))out.music[key]=structuredClone(live.music[key]);
+    else delete out.music[key];
+  }
   out.version=Math.max(1,Number(out.version)||1);
   out.mode='live';
   out.publishedAt=new Date().toISOString();
