@@ -1,0 +1,50 @@
+name: GE Back Room Single SAVE and CSS Contract
+on:
+  pull_request:
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/save-center.js'
+      - 'backroom/save-center.css'
+      - 'backroom/publisher-worker.js'
+      - 'backroom/music-router.js'
+      - 'tests/ge-backroom-central-save.test.mjs'
+      - 'scripts/audit-ge-css-buttons.mjs'
+      - 'tests/backroom-access-browser.test.mjs'
+      - 'tests/ge-backroom-save-button-browser.test.mjs'
+      - '.github/workflows/ge-backroom-central-save.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/save-center.js'
+      - 'backroom/save-center.css'
+      - 'backroom/publisher-worker.js'
+      - 'tests/ge-backroom-central-save.test.mjs'
+      - 'scripts/audit-ge-css-buttons.mjs'
+      - 'tests/backroom-access-browser.test.mjs'
+      - 'tests/ge-backroom-save-button-browser.test.mjs'
+      - '.github/workflows/ge-backroom-central-save.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate scoped owner GitHub publication without private changes
+        run: node tests/ge-backroom-central-save.test.mjs
+      - name: Verify old private Vault auth still works
+        run: node tests/private-vault-binding.test.mjs
+      - name: Verify JavaScript syntax in new Back Room save handler
+        run: node --check backroom/save-center.js
+      - name: Audit CSS cascade and connected Back Room controls
+        run: node scripts/audit-ge-css-buttons.mjs
+      - name: Install mobile Chromium client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Test mobile SAVE placement and Github / Vault dispatch in isolated real browser
+        run: node tests/ge-backroom-save-button-browser.test.mjs
