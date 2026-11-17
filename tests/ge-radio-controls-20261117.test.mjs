@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
+import {readFileSync} from 'node:fs';
+
+const radioSource=readFileSync('radio/index.html','utf8');
+assert.match(radioSource,/id="playBtn"[^>]*>PLAYER<\/button>/,'PLAYER is the idle label');
+assert.match(radioSource,/playButton\.textContent=geInlineMusicPaused\?'PLAYER':'PAUSE'/,'Inline songs use PLAYER / PAUSE');
+assert.match(radioSource,/playBtn\.textContent=activeSong\?'PAUSE':'PLAYER'/,'Native songs use PLAYER / PAUSE');
 
 const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
@@ -35,6 +41,38 @@ try{
    });
    let first=await get();
    console.log('CONTROL_BASE '+width+'x'+height+' '+JSON.stringify(first));
+   const footer=await page.evaluate(()=>{
+     const rect=element=>{
+       const r=element.getBoundingClientRect();
+       return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,centerY:r.top+r.height/2};
+     };
+     const row1=['accessLaunchBtn','contactLaunchBtn','shareBtn'].map(id=>rect(document.getElementById(id)));
+     const row2=[document.getElementById('offlineLaunchBtn'),document.querySelector('#geUtilityRow a.bc-btn'),document.getElementById('sunLabBtn')].map(rect);
+     return {row1,row2,first:rect(document.getElementById('bottomActions')),second:rect(document.getElementById('geUtilityRow')),label:document.getElementById('playBtn').textContent.trim()};
+   });
+   console.log('FOOTER_GEOMETRY '+width+'x'+height+' '+JSON.stringify(footer));
+   assert.equal(footer.label,'PLAYER','Idle music button must read PLAYER');
+   const close=(a,b,tolerance=2)=>Math.abs(a-b)<=tolerance;
+   if(isMobile){
+     assert(close(footer.first.left,footer.second.left)&&close(footer.first.right,footer.second.right),
+       'Both public footer rows must have the same outer edges: '+JSON.stringify(footer));
+     for(let i=0;i<3;i++){
+       assert(close(footer.row1[i].left,footer.row2[i].left)&&close(footer.row1[i].width,footer.row2[i].width),
+         'CODE/CONTACT/SHARE and OFFLINE/SUPPORT/SUN LAB must align by column: '+JSON.stringify(footer));
+     }
+     for(const row of [footer.row1,footer.row2]){
+       assert(row.every(btn=>close(btn.height,row[0].height,1)&&close(btn.top,row[0].top,1)),
+         'Footer controls in each row must have matching heights and tops: '+JSON.stringify(footer));
+     }
+     assert(close(footer.row1[0].height,footer.row2[0].height,1),
+       'Both public footer rows must have the same button height');
+     assert(footer.row2[0].top>footer.row1[0].bottom,
+       'OFFLINE/SUPPORT/SUN LAB must appear immediately below CODE/CONTACT/SHARE');
+   }else{
+     const controls=[...footer.row1,...footer.row2];
+     assert(controls.every(btn=>close(btn.height,controls[0].height,1)),
+       'Desktop utility controls must share a standard button height: '+JSON.stringify(footer));
+   }
    assert(first.hudAutoHide.width>=27.5&&first.hudAutoHide.height>=27.5,
        'Hide Text checkbox must be 28px on every view: '+JSON.stringify(first.hudAutoHide));
    assert(first.hudAutoHide.right+3<=first.hudCombined.right,
