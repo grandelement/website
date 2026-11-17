@@ -1,0 +1,41 @@
+name: GE Radio reviewed controls
+on:
+  pull_request:
+    paths:
+      - "radio/index.html"
+      - "radio/radio-base.css"
+      - "radio/radio-components.css"
+      - "radio/player-button-effects.css"
+      - "radio/player-mobile-fit.css"
+      - "tests/ge-radio-controls-20261117.test.mjs"
+      - ".github/workflows/ge-radio-reviewed-controls.yml"
+  push:
+    branches: [main]
+    paths:
+      - "radio/index.html"
+      - "radio/radio-base.css"
+      - "radio/radio-components.css"
+      - "radio/player-button-effects.css"
+      - "radio/player-mobile-fit.css"
+      - "tests/ge-radio-controls-20261117.test.mjs"
+      - ".github/workflows/ge-radio-reviewed-controls.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install headless browser
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Check control sizes, checkbox, shuffle state, and tap targets
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-reviewed-controls.log 2>&1 &
+          node tests/ge-radio-controls-20261117.test.mjs
