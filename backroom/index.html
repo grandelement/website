@@ -1006,6 +1006,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>MERCHANDISE quantity</span><select id="brMerchQuantity"><option value="2">BOTH ITEMS</option><option value="1">HAT ONLY</option><option value="0">HIDE BOTH</option></select></label>
   </div>
   <p class="brMerchHelp">100% is normal. The hat is already 25% smaller than its original size.</p>
+  <div class="brMerchSaveTools" style="display:grid;gap:8px;margin:14px 0;padding:12px;border:1px solid #417994;border-radius:10px;background:#061d2e">
+    <button id="brMerchSave" class="primary" type="button" style="min-height:54px;font-size:16px;font-weight:900">SAVE MERCHANDISE TO LIVE WEBSITE</button>
+    <button id="brMerchReload" type="button" style="min-height:44px">RELOAD SAVED MERCHANDISE</button>
+    <p id="brMerchSaveStatus" role="status" aria-live="polite" style="margin:0;font-size:13px;overflow-wrap:anywhere">
+      These controls save only floating shirt and hat settings. Live website changes appear after GitHub Pages deployment.
+    </p>
+  </div>
 </section>
 
 <section data-br-tab="games">
@@ -2526,6 +2533,104 @@ async function loadMusic(){
   }catch(_e){$('firstTrackSelect').innerHTML='<option>Music list unavailable</option>'}
 }
 
+
+// Merchandise is its own safe public setting. Saving here uses the existing
+// signed Back Room owner session and GitHub App on Cloudflare, never a browser PAT.
+function geMerchEditorValues(){
+  const value=(id,min,max)=>{
+    const el=$(id),raw=el?.value;
+    if(raw===''||raw===undefined||raw===null)throw Error('Enter '+(el?.closest('label')?.innerText||id)+'.');
+    const n=Number(raw);
+    if(!Number.isFinite(n)||n<min||n>max)throw Error((el?.closest('label')?.innerText||id)+' must be '+min+' to '+max+'.');
+    return n;
+  };
+  const settings={
+    size:value('brMerchSize',25,250),
+    speed:value('brMerchSpeed',25,400),
+    rotation:value('brMerchRotation',0,400),
+    direction:$('brMerchDirection').value,
+    entryDirection:$('brMerchEntryDirection').value,
+    entryTiming:$('brMerchEntryTiming').value,
+    entryMinSeconds:value('brMerchEntryMin',5,600),
+    entryMaxSeconds:value('brMerchEntryMax',5,600),
+    quantity:value('brMerchQuantity',0,2)
+  };
+  if(settings.entryMaxSeconds<settings.entryMinSeconds)
+    throw Error('Entry maximum must be greater than or equal to minimum.');
+  return settings;
+}
+function geMerchReflect(saved){
+  const merch=saved||{};
+  for(const [id,key] of [
+    ['brMerchSize','size'],['brMerchSpeed','speed'],['brMerchRotation','rotation'],
+    ['brMerchDirection','direction'],['brMerchEntryDirection','entryDirection'],
+    ['brMerchEntryTiming','entryTiming'],['brMerchEntryMin','entryMinSeconds'],
+    ['brMerchEntryMax','entryMaxSeconds'],['brMerchQuantity','quantity']
+  ])if(Object.prototype.hasOwnProperty.call(merch,key))field(id,merch[key]);
+}
+function geMerchRemember(saved){
+  if(!cfg||typeof cfg!=='object')return;
+  cfg.merchandise=clone(saved);
+  if(publisherBase&&typeof publisherBase==='object')publisherBase.merchandise=clone(saved);
+  // Otherwise a stale device-side draft can overwrite the new published value
+  // when Back Room is reopened, even though the GitHub commit succeeded.
+  try{
+    const local=localDraft()||clone(cfg);
+    local.merchandise=clone(saved);
+    localStorage.setItem(WORK_KEY,JSON.stringify(local));
+  }catch(_e){}
+}
+let geMerchBusy=false;
+async function geMerchAction(save){
+  const status=$('brMerchSaveStatus'),saveButton=$('brMerchSave'),loadButton=$('brMerchReload');
+  if(geMerchBusy)return;
+  if(!serverAuthenticated||!token()){
+    status.textContent='NOT SAVED · Sign in to Back Room again to publish merchandise.';
+    return;
+  }
+  if(save&&!publisherBase){
+    status.textContent='NOT SAVED · Published baseline unavailable. Reload Back Room first.';
+    return;
+  }
+  let proposed;
+  try{if(save)proposed=geMerchEditorValues()}
+  catch(error){status.textContent='NOT SAVED · '+String(error.message||error);return;}
+  geMerchBusy=true;saveButton.disabled=true;loadButton.disabled=true;
+  status.textContent=save?'SAVING MERCHANDISE THROUGH OWNER PUBLISHER…':'LOADING LIVE MERCHANDISE SETTINGS…';
+  let committed='';
+  try{
+    if(save){
+      const response=await api('/manage/merchandise',{
+        method:'POST',timeoutMs:25000,
+        body:JSON.stringify({merchandise:proposed,expectedMerchandise:publisherBase.merchandise||{}})
+      });
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok||!result.ok)throw Error(result.error||'Merchandise publishing failed (HTTP '+response.status+').');
+      committed=String(result.commit||'');
+      if(!committed)throw Error('Publisher did not provide a GitHub commit confirmation.');
+    }
+    const verifyResponse=await api('/manage/merchandise',{method:'GET',timeoutMs:20000});
+    const verified=await verifyResponse.json().catch(()=>({}));
+    if(!verifyResponse.ok||!verified.ok||!verified.merchandise)
+      throw Error('Cannot read merchandise back from published GitHub settings.');
+    if(save&&Object.keys(proposed).some(key=>verified.merchandise[key]!==proposed[key]))
+      throw Error('The published merchandise values did not match the requested settings.');
+    geMerchReflect(verified.merchandise);
+    geMerchRemember(verified.merchandise);
+    status.textContent=save?
+      'PUBLISHED AND VERIFIED · '+committed.slice(0,10)+
+      ' · SPEED '+verified.merchandise.speed+'% · SIZE '+verified.merchandise.size+
+      '% · ROTATION '+verified.merchandise.rotation+'%. Refresh the public site after Pages deployment.':
+      'LOADED LIVE · SPEED '+(verified.merchandise.speed??100)+
+      '% · SIZE '+(verified.merchandise.size??100)+
+      '% · ROTATION '+(verified.merchandise.rotation??100)+'%.';
+  }catch(error){
+    status.textContent=(committed?'GITHUB COMMIT MADE, BUT VERIFICATION FAILED · ':'NOT SAVED · ')+
+      String(error.message||error);
+  }finally{geMerchBusy=false;saveButton.disabled=false;loadButton.disabled=false;}
+}
+$('brMerchSave').addEventListener('click',()=>void geMerchAction(true));
+$('brMerchReload').addEventListener('click',()=>void geMerchAction(false));
 
 const GE_GITHUB_CONFIG_API='https://api.github.com/repos/grandelement/website/contents/config/site-live.json';
 const GE_GITHUB_PUBLIC_FIELDS=['welcome','about','visual','albums','easySettings','merchandise','games','gateTiming','radioMoon'];
