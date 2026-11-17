@@ -10,6 +10,7 @@ on:
       - 'tests/ge-backroom-central-save.test.mjs'
       - 'scripts/audit-ge-css-buttons.mjs'
       - 'tests/backroom-access-browser.test.mjs'
+      - 'tests/ge-backroom-save-button-browser.test.mjs'
       - '.github/workflows/ge-backroom-central-save.yml'
   push:
     branches: [main]
@@ -21,6 +22,7 @@ on:
       - 'tests/ge-backroom-central-save.test.mjs'
       - 'scripts/audit-ge-css-buttons.mjs'
       - 'tests/backroom-access-browser.test.mjs'
+      - 'tests/ge-backroom-save-button-browser.test.mjs'
       - '.github/workflows/ge-backroom-central-save.yml'
   workflow_dispatch:
 permissions:
@@ -44,8 +46,5 @@ jobs:
         run: node scripts/audit-ge-css-buttons.mjs
       - name: Install mobile Chromium client
         run: npm install --no-save --ignore-scripts puppeteer-core@24
-      - name: Test top SAVE navigation and original Access/Fan Vault controls in mobile browser
-        run: |
-          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-save-browser.log 2>&1 &
-          for i in {1..30}; do if curl -fsSI http://127.0.0.1:8765/backroom/ >/dev/null; then break; fi; sleep 1; done
-          node tests/backroom-access-browser.test.mjs
+      - name: Test mobile SAVE placement and Github / Vault dispatch in isolated real browser
+        run: node tests/ge-backroom-save-button-browser.test.mjs
