@@ -7156,10 +7156,36 @@ Vector ${vector}. ${pair[1]}.`;
       blob.style.setProperty('--blob-blur',(((glowMul*9.2)+(energy*(4.8+mistMul*3.4))*wavePreset.blur)*(glowOnly?1.18:1)).toFixed(2)+'px');
     });
   }
+  // Reuse existing frequency snapshots for Music played in the protected
+  // same-origin iframe. Never create a second audio player on iPhone.
+  let inlineSpectrumPath='',inlineSpectrumRetryAt=0;
+  function inlineSpectrumData(){
+    if(!geInlineMusicActive||!geInlineMusicCurrentPath)return null;
+    const transport=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+    if(!transport||transport.paused||transport.ended)return null;
+    const path=canonicalSongPath(geInlineMusicCurrentPath);
+    if(!path)return null;
+    const url=new URL('../'+path,location.href).href;
+    const now=performance.now();
+    if(path!==inlineSpectrumPath){inlineSpectrumPath=path;inlineSpectrumRetryAt=0;}
+    if(now>=inlineSpectrumRetryAt){
+      inlineSpectrumRetryAt=now+15000;
+      void window.GEOfflineSpectrum?.prepare?.(url);
+    }
+    return window.GEOfflineSpectrum?.read?.(url,transport.currentTime)||null;
+  }
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
-    if(localSpectrumSource()){
+    const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
+    if(inlinePlaying){
+      const bins=inlineSpectrumData();
+      if(bins){
+        eqData=bins;
+        live=bins.some(bin=>bin>1);
+        if(live)eqLastSignalAt=performance.now();
+      }
+    }else if(localSpectrumSource()){
       const bins=window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime);
       if(bins){
         eqData=bins;
@@ -7186,6 +7212,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
+      else if(inlinePlaying)eqMessage('MUSIC EQ · SAVED FREQUENCIES NOT AVAILABLE');
       else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
     }
