@@ -264,6 +264,16 @@ async function rebuild(){
 for(const id of ['brRadioStationStatus','brRadioPlaylistTools']){
  const el=$(id);if(el)$('brRouteRadioAux').append(el);
 }
+const oldProfile=$('brPublicPlayerProfile');
+if(oldProfile){
+ const advanced=document.createElement('details');
+ advanced.id='brRouteAdvancedPlayer';
+ const summary=document.createElement('summary');
+ summary.textContent='ADVANCED PLAYER FEATURES · NOT THE PLAYLIST SELECTOR';
+ advanced.append(summary);
+ oldProfile.parentElement.insertBefore(advanced,oldProfile);
+ advanced.append(oldProfile);
+}
 const djRow=document.createElement('div');
 djRow.className='brRouteDjSaveRow';
 djRow.innerHTML='<label for="brRouteDjName">BLITZ PLAYLIST NAME</label>'+
