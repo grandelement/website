@@ -255,7 +255,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/,'MUSIC startup entry is still present');
- assert.match(html,/sw\.js\?v=20261117-icon-dock-v1/,'Radio registers the new shell release');
- assert.match(sw,/const VERSION='2026\.11\.17-icon-dock-v1'/,'New offline shell version preserves saved media cache');
+ assert.match(html,/sw\.js\?v=20261117-icon-dock-v2/,'Radio registers the new shell release');
+ assert.match(sw,/const VERSION='2026\.11\.17-icon-dock-v2'/,'New offline shell version preserves saved media cache');
  assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
 });
