@@ -3,117 +3,176 @@
    changing existing player, mobile, accessibility or offline behavior.
    Edit this stylesheet directly; do not append CSS to radio/index.html. */
 
-/* Radio mobile layout: ONE owner of all public portrait geometry.
-   Other stylesheets may color the buttons, but must not set their sizes or spacing.
-   Short screens keep the whole page scrollable; tall screens leave the art center open. */
-@media (orientation:portrait) and (max-width:700px) {
+/* CANONICAL RADIO PORTRAIT. All control placement, width, height, spacing
+   and button glyph sizing lives here, not in a second mobile stylesheet.
+   The Sun and song title stay at top; progress + controls live at the bottom. */
+.ge-radio-icon{display:none}
+.ge-radio-icon-label{display:initial}
+#geBgQuickRow{display:none}
+@media (orientation:portrait) and (max-width:700px){
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open){
-   --ge-footer-h:40px;
-   --ge-footer-gap:6px;
-   --ge-radio-music-height:41px;
-   --ge-radio-secondary-height:34px;
+   --ge-music-h:43px;--ge-bg-h:36px;--ge-utility-h:42px;--ge-control-gap:6px;
+   overflow-x:hidden!important;overflow-y:auto!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
-   box-sizing:border-box!important;min-height:100dvh!important;height:auto!important;max-height:none!important;
+   box-sizing:border-box!important;width:100%!important;max-width:100%!important;
+   min-height:100dvh!important;height:auto!important;max-height:none!important;
+   display:flex!important;flex-direction:column!important;align-items:center!important;
    overflow:visible!important;justify-content:flex-start!important;
-   padding-top:max(22px,env(safe-area-inset-top))!important;
-   padding-bottom:max(25px,env(safe-area-inset-bottom))!important;
-   gap:clamp(3px,.5dvh,5px)!important;
+   gap:4px!important;margin:0 auto!important;
+   padding: max(22px,env(safe-area-inset-top)) 12px max(24px,env(safe-area-inset-bottom))!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
-   margin:0 auto!important;
+   position:relative!important;transform:none!important;
+   margin:clamp(32px,8dvh,72px) auto 0!important;padding:0!important;
+   gap:0!important;overflow:visible!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header .logo-wrap{
+   position:relative!important;transform:none!important;overflow:visible!important;isolation:isolate!important;
+   width:clamp(126px,min(37vw,20dvh),156px)!important;
+   height:clamp(126px,min(37vw,20dvh),156px)!important;
+   max-height:24dvh!important;margin:0 auto clamp(15px,2dvh,22px)!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #sunEQFog,
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #sunEQAura{
+   overflow:visible!important;pointer-events:none!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) header h1{
+   font-size:clamp(18px,4.55vw,23px)!important;line-height:1.1!important;margin:0 auto 3px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) header .tag{
+   font-size:clamp(12px,3.3vw,14px)!important;line-height:1.15!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #titleBtn{
+   font-size:clamp(13px,3.7vw,17px)!important;min-height:34px!important;max-height:42px!important;
+   padding:6px 12px!important;margin:5px auto 0!important;
+   max-width:89vw!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #playerSeekWrap{
+   width:100%!important;max-width:100%!important;margin:7px auto 6px!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
-   grid-template-rows:repeat(2,var(--ge-radio-music-height))!important;
-   grid-auto-rows:var(--ge-radio-music-height)!important;
-   gap:5px!important;margin-bottom:0!important;
+   display:grid!important;width:100%!important;max-width:100%!important;
+   grid-template-columns:repeat(6,minmax(0,1fr))!important;
+   grid-template-rows:repeat(2,var(--ge-music-h))!important;
+   grid-auto-rows:var(--ge-music-h)!important;
+   gap:6px!important;margin:0 auto!important;align-items:stretch!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button,
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button[data-ge-symbol]{
-   height:var(--ge-radio-music-height)!important;
-   min-height:var(--ge-radio-music-height)!important;max-height:var(--ge-radio-music-height)!important;
-   padding:4px!important;font-size:var(--ge-radio-music-font)!important;
+   box-sizing:border-box!important;width:100%!important;min-width:0!important;
+   height:var(--ge-music-h)!important;min-height:var(--ge-music-h)!important;
+   max-height:var(--ge-music-h)!important;padding:3px!important;
+   font-size:var(--ge-radio-music-font,13px)!important;line-height:1.1!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
-   width:min(86vw,650px)!important;max-width:calc(100% - 8px)!important;
-   margin:clamp(24px,3.5dvh,33px) auto 0!important;gap:6px!important;
-   padding:0!important;
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #playBtn{
+   background:linear-gradient(180deg,#165eab,#06386a)!important;
+   border-color:rgba(140,226,255,.95)!important;color:#f5fdff!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
-   width:100%!important;max-width:100%!important;box-sizing:border-box!important;
-   margin:0!important;padding:4px!important;gap:4px!important;
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#nextBtn,#shuffleBtn[aria-pressed="false"]){
+   background:linear-gradient(180deg,#35658e,#142f53)!important;color:#effaff!important;
+ }
+ /* The compact background rail follows MUSIC and precedes the six utilities. */
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
+   display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+   grid-auto-flow:row dense!important;align-items:stretch!important;
+   width:100%!important;max-width:100%!important;min-width:0!important;
+   height:auto!important;min-height:0!important;overflow:visible!important;
+   position:relative!important;inset:auto!important;transform:none!important;
+   margin:8px auto 0!important;padding:0!important;
+   gap:9px 5px!important;background:transparent!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geBgQuickRow{
+   display:grid!important;grid-column:1/-1!important;grid-row:1!important;
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   width:76%!important;max-width:330px!important;margin:0 auto!important;
+   gap:6px!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geBgQuickRow > button{
+   box-sizing:border-box!important;height:var(--ge-bg-h)!important;
+   min-height:var(--ge-bg-h)!important;max-height:var(--ge-bg-h)!important;
+   min-width:0!important;width:100%!important;margin:0!important;padding:5px!important;
+   display:flex!important;align-items:center!important;justify-content:center!important;
+   color:#eaf8ff!important;background:rgba(8,29,58,.82)!important;
+   border:1px solid rgba(110,188,228,.85)!important;border-radius:12px!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geBgQuickRow > #geBgQuickOptions[aria-pressed="true"]{
+   border-color:#00ffa8!important;outline:2px solid #00ffa8!important;outline-offset:-2px!important;
+ }
+ /* The existing detailed background functions remain available by tapping the
+    center picture icon. The panel expands only when explicitly requested. */
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
+   display:none!important;
+   grid-column:1/-1!important;grid-row:2!important;
+   width:100%!important;max-width:100%!important;min-width:0!important;
+   box-sizing:border-box!important;position:relative!important;inset:auto!important;
+   margin:0!important;padding:6px!important;gap:4px!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player.ge-bg-options-open:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
+   display:flex!important;flex-direction:column!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row{
    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-   grid-template-rows:repeat(2,var(--ge-radio-secondary-height))!important;
-   grid-auto-rows:var(--ge-radio-secondary-height)!important;
-   gap:5px!important;
+   grid-auto-rows:var(--ge-bg-h)!important;gap:5px!important;width:100%!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > :is(button,#hudCombined){
-   box-sizing:border-box!important;height:var(--ge-radio-secondary-height)!important;
-   min-height:var(--ge-radio-secondary-height)!important;max-height:var(--ge-radio-secondary-height)!important;
-   padding:3px!important;font-size:var(--ge-radio-secondary-font)!important;
+   box-sizing:border-box!important;min-width:0!important;
+   height:var(--ge-bg-h)!important;min-height:var(--ge-bg-h)!important;max-height:var(--ge-bg-h)!important;
+   padding:3px!important;font-size:var(--ge-radio-secondary-font,12px)!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip{
-   display:flex!important;flex-flow:column nowrap!important;gap:var(--ge-footer-gap)!important;
-   align-items:stretch!important;justify-content:flex-start!important;
-   min-width:0!important;
-   margin:0 auto!important;padding:0!important;
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #supportText{display:none!important}
+ /* The original two DOM wrappers contribute their native buttons directly
+    to ONE grid. No duplicate click handlers, no new buttons with fake actions. */
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > :is(#bottomActions,#geUtilityRow){
+   display:contents!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bgGroup{
-   width:100%!important;max-width:100%!important;min-width:0!important;
-   margin:0!important;flex:0 0 auto!important;
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > :is(#bottomActions,#geUtilityRow) > :is(button,a.bc-btn){
+   position:relative!important;inset:auto!important;transform:none!important;
+   display:flex!important;align-items:center!important;justify-content:center!important;
+   box-sizing:border-box!important;min-width:0!important;max-width:100%!important;width:100%!important;
+   height:var(--ge-utility-h)!important;min-height:var(--ge-utility-h)!important;
+   max-height:var(--ge-utility-h)!important;margin:0!important;padding:3px!important;
+   font-size:13px!important;line-height:1.1!important;text-align:center!important;
+   border-radius:11px!important;color:#f5fdff!important;white-space:nowrap!important;
+   grid-row:var(--ge-utility-row,2)!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #supportText{
-   display:none!important;
+ html.ge-radio-ui body.view-player.portrait-player.ge-bg-options-open:not(.iam-studio-open) #geDesktopUtilityStrip{
+   --ge-utility-row:3;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
-   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-   grid-template-rows:var(--ge-footer-h)!important;grid-auto-rows:var(--ge-footer-h)!important;
-   align-items:stretch!important;justify-items:stretch!important;
-   gap:var(--ge-footer-gap)!important;width:100%!important;max-width:100%!important;min-width:0!important;
-   margin:0!important;box-sizing:border-box!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions{
-   padding:0!important;border:0!important;background:none!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow{
-   padding:0!important;border:0!important;background:none!important;
- }
- /* First row: CODE | CONTACT | SHARE */
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
-   grid-area:1 / 1 / 2 / 2!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn{
-   grid-area:1 / 2 / 2 / 3!important;
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #sunLabBtn{grid-column:1!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #offlineLaunchBtn{grid-column:2!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #contactLaunchBtn{grid-column:3!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > a.bc-btn{grid-column:4!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #accessLaunchBtn{grid-column:5!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #shareBtn{grid-column:6!important}
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > a.bc-btn{
+   background:rgba(15,97,68,.86)!important;border:1px solid #00ffa8!important;
+   box-shadow:0 0 8px rgba(0,255,168,.26)!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{
-   grid-area:1 / 3 / 2 / 4!important;
+   background:rgba(93,68,143,.78)!important;border-color:rgba(193,163,255,.95)!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > :is(#bottomActions,#geUtilityRow) > :is(button,a.bc-btn){
-   box-sizing:border-box!important;position:static!important;transform:none!important;
-   width:100%!important;min-width:0!important;max-width:100%!important;
-   height:var(--ge-footer-h)!important;min-height:var(--ge-footer-h)!important;max-height:var(--ge-footer-h)!important;
-   margin:0!important;padding:4px 3px!important;
-   display:flex!important;align-items:center!important;justify-content:center!important;
-   text-align:center!important;white-space:normal!important;
-   font:800 clamp(12px,3vw,14px)/1.1 system-ui,sans-serif!important;
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip .ge-radio-icon{
+   display:block!important;width:23px!important;height:23px!important;flex:0 0 auto!important;
  }
-  /* On tall phones move the Blue Sun toward the upper quarter and
-     let the picture breathe between the title and lower playback controls.
-     On short phones keep the gap flexible so footer controls remain reachable. */
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip .ge-radio-icon-label,
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup .ge-radio-icon-label{
+   display:none!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup .ge-radio-icon{
+   display:block!important;width:22px!important;height:22px!important;flex:0 0 auto!important;margin:auto!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > footer{
+   margin-top:6px!important;font-size:clamp(11px,3vw,13px)!important;
+ }
+ /* On tall portrait phones the remaining free height is placed entirely
+    before the seek bar, keeping the middle artwork open. */
  @media (min-height:740px){
-   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
-     margin-top:clamp(40px,8dvh,72px)!important;
-   }
    html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #playerSeekWrap{
      margin-top:auto!important;
    }
  }
 }
-
-
 /* The music transport stays below the Sun. Desktop utilities fill only the
    bottom of the available viewport, immediately above the two footer lines.
    Phones retain their separately designed portrait/ship layout. */
@@ -364,23 +423,6 @@
 }
 
 
-/* iPhone player: keep the full Sun in view, restore breathing room between
-   transport and background controls, and make secondary utilities subordinate. */
-@media (orientation:portrait) and (max-width:700px){
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
-  min-height:100vh!important;min-height:100dvh!important;
-  height:auto!important;max-height:none!important;overflow:visible!important;
-  padding-top:clamp(18px,3dvh,32px)!important;
-  padding-bottom:max(28px,env(safe-area-inset-bottom))!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > header{
-  margin-top:clamp(8px,2dvh,22px)!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
-  margin-top:clamp(20px,3dvh,34px)!important;
-  gap:clamp(8px,1.25dvh,14px)!important;
- }
-}
 /* Player footer buttons retain legible white labels on dark glass.
    SHARE alone uses the approved soft violet accent. */
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > :is(#accessLaunchBtn,#contactLaunchBtn){
