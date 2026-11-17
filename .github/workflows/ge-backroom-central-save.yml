@@ -47,4 +47,5 @@ jobs:
       - name: Test top SAVE navigation and original Access/Fan Vault controls in mobile browser
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-save-browser.log 2>&1 &
+          for i in {1..30}; do if curl -fsSI http://127.0.0.1:8765/backroom/ >/dev/null; then break; fi; sleep 1; done
           node tests/backroom-access-browser.test.mjs
