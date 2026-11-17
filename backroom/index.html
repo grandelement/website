@@ -754,6 +754,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
+  <button id="brTabWebsite" type="button" role="tab" data-tab="website" aria-selected="false">WEBSITE</button>
   <button id="brTabWelcome" type="button" role="tab" data-tab="welcome" aria-selected="true">WELCOME</button>
   <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
@@ -918,6 +919,25 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
+<section data-br-tab="website" id="brWebsitePlayerSettings">
+  <h2>WEBSITE PLAYER SETTINGS</h2>
+  <section id="brPublicPlayerProfile" aria-label="Public Player profile">
+    <div class="brPlayerProfileHeader"><strong>PUBLIC PLAYER PROFILE</strong><button id="brPublicPlayerLoad" type="button">REFRESH</button><button id="brPublicPlayerSave" type="button" class="primary">SAVE PROFILE</button></div>
+    <label for="brPublicPlaylist"><span>WEBSITE PLAYER SOURCE</span>
+      <select id="brPublicPlaylist"><option value="">MASTER SONGS · DEFAULT</option></select>
+    </label>
+    <div class="brPublicScopeChecks" role="group" aria-label="Public Player permissions">
+      <label class="check"><input type="checkbox" value="sunlab" name="brPublicScope"><span>SUN LAB</span></label>
+      <label class="check"><input type="checkbox" value="offline" name="brPublicScope"><span>OFFLINE</span></label>
+      <label class="check"><input type="checkbox" value="reload" name="brPublicScope"><span>RELOAD</span></label>
+      <label class="check"><input type="checkbox" value="debug" name="brPublicScope"><span>DEBUG</span></label>
+      <label class="check"><input type="checkbox" value="legacy" name="brPublicScope"><span>LEGACY</span></label>
+      <label class="check"><input type="checkbox" value="iam" name="brPublicScope"><span>I AM</span></label>
+    </div>
+    <p id="brPublicPlayerStatus" role="status">PUBLIC FEATURES ARE OFF UNLESS CHECKED. Codes still use their own permissions.</p>
+  </section>
+</section>
+
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
   <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
@@ -1003,21 +1023,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brRadioPlaylistMount"></div>
   </details>
   <!-- Shared Radio Master editor; uses the same published config as player and access codes. -->
-  <section id="brPublicPlayerProfile" aria-label="Public Player profile">
-    <div class="brPlayerProfileHeader"><strong>PUBLIC PLAYER PROFILE</strong><button id="brPublicPlayerLoad" type="button">REFRESH</button><button id="brPublicPlayerSave" type="button" class="primary">SAVE PROFILE</button></div>
-    <label for="brPublicPlaylist"><span>WEBSITE PLAYER SOURCE</span>
-      <select id="brPublicPlaylist"><option value="">MASTER SONGS · DEFAULT</option></select>
-    </label>
-    <div class="brPublicScopeChecks" role="group" aria-label="Public Player permissions">
-      <label class="check"><input type="checkbox" value="sunlab" name="brPublicScope"><span>SUN LAB</span></label>
-      <label class="check"><input type="checkbox" value="offline" name="brPublicScope"><span>OFFLINE</span></label>
-      <label class="check"><input type="checkbox" value="reload" name="brPublicScope"><span>RELOAD</span></label>
-      <label class="check"><input type="checkbox" value="debug" name="brPublicScope"><span>DEBUG</span></label>
-      <label class="check"><input type="checkbox" value="legacy" name="brPublicScope"><span>LEGACY</span></label>
-      <label class="check"><input type="checkbox" value="iam" name="brPublicScope"><span>I AM</span></label>
-    </div>
-    <p id="brPublicPlayerStatus" role="status">PUBLIC FEATURES ARE OFF UNLESS CHECKED. Codes still use their own permissions.</p>
-  </section>
   <details id="brMusicRadioMaster"><summary>MASTER SONG APPROVALS</summary>
   <section id="brMasterSection" aria-label="Master Song List">
     <div class="brMasterToolbar">
@@ -1343,12 +1348,12 @@ window.GE_BACKROOM_SHOW_MUSIC=function(){
 };
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]:not([hidden])')];
-  const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
+  const categories=['website','welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   // The four owner jobs are always visible. Less-used pages live in one drawer.
   const primaryTabs=['radio','access','fans'];
   const secondaryGroups=[
-    {label:'WEBSITE',tabs:['welcome','about','universe']},
+    {label:'WEBSITE',tabs:['website','welcome','about','universe']},
     {label:'OTHER SETTINGS',tabs:['games','moon','gate','scores']}
   ];
   const secondaryCategories=secondaryGroups.flatMap(group=>group.tabs);
@@ -1407,7 +1412,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='fans'||category==='radio'||category==='playlists'||category==='moon'||category==='music'){
+    if(category==='website'||category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='fans'||category==='radio'||category==='playlists'||category==='moon'||category==='music'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -1501,7 +1506,8 @@ function installBackroomTabs(){
     }
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
-    if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();window.GE_BACKROOM_RADIO_STATUS_CHECK?.();}
+    if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_RADIO_STATUS_CHECK?.();}
+    if(tab==='website')window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();
     for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     const secondary=secondaryCategories.includes(tab);
     moreSummary.textContent=secondary?'MORE TOOLS · '+tab.toUpperCase()+' SELECTED':'MORE TOOLS · WEBSITE, GAMES & SETTINGS';
@@ -2411,7 +2417,7 @@ new MutationObserver(syncGeneralStatus).observe($('brPublicPlayerStatus'),{child
 $('brPublicPlayerLoad').addEventListener('click',()=>void brPublicPlayerLoad());
 $('brPublicPlayerSave').addEventListener('click',()=>void brPublicPlayerSave());
 window.GE_BACKROOM_SHOW_PLAYER_PROFILE=()=>{if(!brPublicPlayerLoaded)void brPublicPlayerLoad()};
-if(document.querySelector('#brTabRadio[aria-selected="true"]'))void brPublicPlayerLoad();
+if(document.querySelector('#brTabWebsite[aria-selected="true"]'))void brPublicPlayerLoad();
 
 $('brMasterRefresh').addEventListener('click',()=>void brMasterLoadPublished());
 $('brMasterSave').addEventListener('click',()=>void brMasterSavePublished());
