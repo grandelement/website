@@ -337,11 +337,11 @@ function checkSelections(){
  if(Object.values(work.assignments).some(Boolean)&&
     KEYS.some(k=>!same(work[k],base[k])))throw Error('Playlist assignment is active. Use the assigned playlist editor; direct save will not override it.');
 }
-async function save(){
+async function save(skipConfirmation=false){
  if(busy||!changed()){status('NO CHANGES TO SAVE.','warn');return}
  const secret=unlockedToken;
  if(!secret){status('LOCKED · Enter the Back Room passcode to save.','error');return}
- if(!confirm('Publish your selected FRONT, STORE, PLAYER, RADIO and Public Player settings to GitHub? This will NOT change the BLITZ DJ queue, private Vault or access codes.'))return;
+ if(!skipConfirmation&&!confirm('Publish your selected FRONT, STORE, PLAYER, RADIO and Public Player settings to GitHub? This will NOT change the BLITZ DJ queue, private Vault or access codes.'))return;
  busy=true;$('save').disabled=true;$('discard').disabled=true;
  let commit='';
  try{
@@ -463,7 +463,7 @@ if(embedded){
    }
   }else if(type==='GE_BACKROOM_SAVE'){
    if(!unlockedToken){status('NOT SAVED · GitHub connection is locked. Complete the one-time connection in the Back Room.','error');return}
-   void save();
+   void save(event.data.confirmed===true);
   }else if(type==='GE_BACKROOM_LOCK'){
    lockAccess();
   }else if(type==='GE_BACKROOM_PUBLIC_PATCH'){
