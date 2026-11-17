@@ -67,7 +67,8 @@ assert(!backroom.includes('async async function'),'Duplicate async regression de
 assert(backroom.includes('GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1'),'Published config fallback missing');
 assert(backroom.includes("if(serverAuthenticated)backroomVaultManagers.init()"),'Private Vault must not auto-initialize for local editor');
 assert(home.includes('ge-merch-random-scheduler'),'Merchandise random scheduler missing');
-assert(home.includes('45000+Math.random()*30000'),'Merchandise spacing must be 45–75 seconds');
+assert(home.includes('bounded(cfg.entryMinSeconds,45)')&&home.includes('bounded(cfg.entryMaxSeconds,75)'),
+  'Merchandise default spacing must be 45–75 seconds');
 assert(home.includes('--ge-merch-factor:.5625'),'Reduced hat size missing');
 assert(home.includes('ge-merch-flying'),'Merchandise flyby animation hook missing');
 assert(!home.includes('.workers.dev'),'Public homepage must not require a Cloudflare Worker URL');
