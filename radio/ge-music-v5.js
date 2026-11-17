@@ -1656,8 +1656,8 @@ function renderStandaloneAlbums(){
  const access=musicAccessActive();
  const allowed=access?.restricted?new Set(access.allowed):null;
  const names=[...new Set(state.tracks.filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
-  // Hide only the marked last cover from this visual album stack. Its songs stay in MUSIC.
-  .filter(name=>name!=='Singles'&&name!=='Fundamental Groove')
+  // Keep all albums in the visual cover stack except Singles, whose songs remain in MUSIC.
+  .filter(name=>name!=='Singles')
   .sort((a,b)=>rank(a)-rank(b));
  board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
