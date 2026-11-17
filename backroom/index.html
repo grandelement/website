@@ -829,6 +829,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   font-size:clamp(12px,3vw,14px);font-weight:800;
 }
 </style>
+<link rel="stylesheet" href="./music-router.css?v=20261116-a">
 </head>
 <body>
 <div id="lockScreen">
@@ -1031,6 +1032,37 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
+  <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
+    <h2>RADIO / MUSIC · MASTER CATALOG</h2>
+    <p class="brRouteHelp">One GitHub song inventory. FRONT controls the public album-cover stack. STORE controls the shop preview. PLAYER controls the music browser. RADIO controls website Radio/Shuffle approvals. The BLITZ on-air program remains under RADIO.</p>
+    <div class="brRouteActions">
+      <button type="button" id="brRouteRefresh">REFRESH</button>
+      <button type="button" id="brRouteRebuild">RELOAD FILES + REBUILD MANIFEST</button>
+      <button type="button" id="brRouteSave" class="primary" disabled>SAVE ALL CHANGES</button>
+    </div>
+    <p id="brRouteStatus" role="status" aria-live="polite">Sign in, then load the master catalog.</p>
+    <nav id="brRouteViews" role="group" aria-label="Music destinations">
+      <button type="button" data-route-view="all" aria-pressed="true">ALL</button>
+      <button type="button" data-route-view="front">FRONT</button>
+      <button type="button" data-route-view="store">STORE</button>
+      <button type="button" data-route-view="player">PLAYER</button>
+      <button type="button" data-route-view="radio">RADIO</button>
+    </nav>
+    <div class="brRouteFilters">
+      <input id="brRouteSearch" type="search" placeholder="FIND SONG OR ALBUM" aria-label="Find song or album">
+      <select id="brRouteAlbum" aria-label="Filter songs by album"><option value="">ALL ALBUMS</option></select>
+      <output id="brRouteCounts"></output>
+    </div>
+    <div id="brRouteMatrix" class="brRouteMatrix" data-view="all">
+      <div id="brRouteStickyHead" class="brRouteStickyHead" aria-hidden="true"></div>
+      <div id="brRouteSongList"></div>
+    </div>
+    <div id="brRouteRadioAux" hidden>
+      <h3>RADIO 1 · ON-AIR PLAYLISTS</h3>
+      <p class="brRouteHelp">RADIO song checkmarks control the website Radio/Shuffle pool. For the actual BLITZ stream, choose and activate an original DJ playlist below. Radio 2 uses a separate backup program.</p>
+    </div>
+  </section>
+
   <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
     <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
     <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
@@ -5305,6 +5337,7 @@ async function bootBackroom(){
   populate();await loadMusic();
   window.GE_BACKROOM_MASTER_READY=true;
   await brMasterLoadPublished();
+  window.GE_BACKROOM_ROUTER_LOAD?.();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
   if(selectedTab==='scores')void loadBackroomScores();
@@ -5426,5 +5459,7 @@ $('gatePassword').focus();
  });
 })();
 </script>
+<script src="../config/album-colors.js?v=20261116-a"></script>
+<script src="./music-router.js?v=20261116-a"></script>
 </body>
 </html>
