@@ -45,6 +45,9 @@ assert(Array.isArray(approved)&&approved.length>0,'Published Radio Master cannot
 assert.equal(new Set(approved).size,approved.length,'Radio Master duplicates found');
 for(const path of approved)assert(manifest.files.includes(path),'Radio Master song missing: '+path);
 assert(!backroom.includes('id="gateLocal"'),'PUBLIC BACK ROOM BYPASS MUST NOT EXIST');
+assert(!backroom.includes('access_legacy_love_v1'),'Back Room must not special-case a legacy LOVE code');
+assert(!backroom.includes('legacyLoveAudit'),'Back Room must not treat LOVE as a privileged code');
+
 assert(!backroom.includes('openLocalEditor'),'Local editor bypass must be removed');
 assert(backroom.includes('id="gatePassword"'),'Owner password gate missing');
 assert(backroom.includes('id="gateEnter"'),'Owner sign-in missing');
@@ -64,7 +67,8 @@ assert(!backroom.includes('async async function'),'Duplicate async regression de
 assert(backroom.includes('GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1'),'Published config fallback missing');
 assert(backroom.includes("if(serverAuthenticated)backroomVaultManagers.init()"),'Private Vault must not auto-initialize for local editor');
 assert(home.includes('ge-merch-random-scheduler'),'Merchandise random scheduler missing');
-assert(home.includes('45000+Math.random()*30000'),'Merchandise spacing must be 45–75 seconds');
+assert(home.includes('bounded(cfg.entryMinSeconds,45)')&&home.includes('bounded(cfg.entryMaxSeconds,75)'),
+  'Merchandise default spacing must be 45–75 seconds');
 assert(home.includes('--ge-merch-factor:.5625'),'Reduced hat size missing');
 assert(home.includes('ge-merch-flying'),'Merchandise flyby animation hook missing');
 assert(!home.includes('.workers.dev'),'Public homepage must not require a Cloudflare Worker URL');
