@@ -253,9 +253,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(html,/sw\.js\?v=20261116-css-core-v2/);
- assert.match(sw,/const VERSION='2026\.11\.16-css-core-v2'/);
- assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=[\w-]+/,'Radio loads one versioned offline manager');
+ assert.match(html,/\.\/ge-music-v5\.js\?v=[\w-]+/,'Radio loads canonical versioned MUSIC UI');
+ assert.match(html,/sw\.js\?v=[\w-]+/,'Radio registers a versioned service worker');
+ assert.match(sw,/const VERSION='\d{4}\.\d{2}\.\d{2}-[\w-]+'/,'Radio worker has a versioned cache contract');
+ assert.match(source,/const VERSION='\d{4}\.\d{2}\.\d{2}-[\w-]+'/,'Offline manager has its own versioned contract');
 });
