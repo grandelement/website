@@ -92,14 +92,16 @@ function updatePlaylistHint(){
 function updateCount(){
  if(!loaded){
   $('brRouteCounts').textContent='SIGN IN TO LOAD THE MASTER CATALOG';
-  $('brRouteSave').disabled=true;return;
+  $('brRouteSave').textContent='SAVE · SIGN IN REQUIRED';
+  $('brRouteSave').disabled=busy;return;
  }
  const route=resolved();
  $('brRouteCounts').textContent=entries.length+' FILES · '+(route.routing.frontAlbums?.length||0)+' FRONT · '+
   (route.routing.storeAlbums?.length||0)+' STORE · '+
   (route.routing.playerSongPaths?.length||0)+' PLAYER · '+(route.routing.radioSongPaths?.length||0)+' RADIO';
  updatePlaylistHint();
- $('brRouteSave').disabled=!loaded||!serverReady||busy||!changed();
+ $('brRouteSave').textContent=serverReady?'SAVE ALL CHANGES':'SAVE · CONNECTION NEEDED';
+ $('brRouteSave').disabled=busy;
  if(changed())status(serverReady?'UNSAVED CHANGES · SAVE ALL CHANGES to publish.':
   'READ ONLY · Publisher needs the new Music routing deployment before it can save.');
 }
@@ -222,7 +224,12 @@ async function load(force=false){
  finally{busy=false;$('brRouteRefresh').disabled=false;$('brRouteRebuild').disabled=false;updateCount()}
 }
 async function save(){
- if(!loaded||!serverReady||busy)return;
+ if(busy)return;
+ if(!loaded){status('SIGN IN AND PRESS REFRESH TO LOAD THE MASTER CATALOG.');return;}
+ if(!serverReady){
+  status('SAVE IS NOT CONNECTED · The live Back Room Publisher is not using the new playlist routing handler. Your current choices are still on this screen; they were NOT published. Deploy the updated Publisher, then REFRESH.');
+  return;
+ }
  if(!changed()){status('NO CHANGES.');return;}
  const resolvedSelection=resolved();
  if(resolvedSelection.missing.length){
@@ -316,7 +323,12 @@ root.querySelectorAll('[data-route-playlist]').forEach(select=>select.addEventLi
  }
  render();
 }));
-$('brRouteEditPlaylists').addEventListener('click',()=>document.getElementById('brTabMusic')?.click());
+$('brRouteEditPlaylists').addEventListener('click',()=>{
+  setView('radio');
+  const editor=document.getElementById('brRadioPlaylistTools');
+  if(editor){editor.open=true;editor.scrollIntoView({block:'start',behavior:'smooth'});}
+  else status('The shared GitHub playlist editor could not be found. Refresh Back Room.');
+});
 $('brRouteRefresh').addEventListener('click',()=>void load());
 $('brRouteSave').addEventListener('click',()=>void save());
 $('brRouteRebuild').addEventListener('click',()=>void rebuild());
@@ -330,4 +342,7 @@ window.GE_BACKROOM_TAB_SELECTED=tab=>{
 };
 window.GE_BACKROOM_ROUTER_LOAD=()=>{if(token()&&!loaded)void load()};
 setView('all');
+// The Back Room boot callback can execute before this deferred script mounts.
+// Loading here also restores RADIO directly after login on an already-active tab.
+if(token()&&!loaded)void load();
 })();
