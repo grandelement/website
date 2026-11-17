@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
-    <button id="playBtn" aria-label="Play selected music">PLAYER</button>
+    <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn">Next</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
@@ -3649,7 +3649,7 @@ function geInlineMusicSyncTransport(){
   if(geInlineMusicTitle)titleBtn.textContent=geInlineMusicDisplayTitle();
   const playButton=$('playBtn');
   if(playButton){
-    playButton.textContent=geInlineMusicPaused?'PLAY':'PAUSE';
+    playButton.textContent=geInlineMusicPaused?'PLAYER':'PAUSE';
     playButton.setAttribute('aria-label',geInlineMusicPaused?'Resume music':'Pause music');
     playButton.title=geInlineMusicPaused?'Resume music':'Pause music';
     playButton.setAttribute('aria-pressed',String(!geInlineMusicPaused));
@@ -3848,7 +3848,7 @@ window.GEMusicV5Bridge={
   // Do not fall back to GEPlayLibraryTrack: that silently loses the
   // requested playlist queue and is the exact regression being repaired.
   if(typeof frame?.GEPlayLibraryQueue!=='function')
-    return {ok:false,message:'Playlist engine is preparing. Tap PLAY again.'};
+    return {ok:false,message:'Playlist engine is preparing. Tap PLAYER again.'};
   try{
    frame.GESetMusicQueueShuffle?.(state.shuffle);
    const ok=frame.GEPlayLibraryQueue(queue,path,playlistName);
@@ -4488,7 +4488,7 @@ function syncMainTransport(){
     const songLoaded=!!songSource&&!isStationID(songSource);
     const activeSong=!radioSelected&&songLoaded&&!audio.paused&&!audio.ended;
     const resumableSong=!radioSelected&&songLoaded&&audio.paused;
-    playBtn.textContent=activeSong?'PAUSE':resumableSong?'PLAY':'PLAY';
+    playBtn.textContent=activeSong?'PAUSE':'PLAYER';
     playBtn.setAttribute('aria-label',activeSong?'Pause music':resumableSong?'Resume music':'Play music');
     playBtn.title=activeSong?'Pause music':resumableSong?'Resume music':'Play music';
     playBtn.setAttribute('aria-pressed',String(activeSong));
@@ -4518,7 +4518,7 @@ function startMainMusicLibrary(direction='all'){
       typeof engine?.GEPlayLibraryQueue!=='function'){
     gePendingMainMusicDirection=direction;
     music?.preload?.();
-    setStatus('Preparing Grand Element music. Your PLAY request will start when ready.');
+    setStatus('Preparing Grand Element music. Your PLAYER request will start when ready.');
     return false;
   }
   gePendingMainMusicDirection='';
@@ -4527,7 +4527,7 @@ function startMainMusicLibrary(direction='all'){
     if(window.GEGate?.isExpiredLocked?.()){
       window.GEGate.restore?.();
       setStatus('33:33 preview complete. Music access is required to continue.');
-    }else setStatus('The song did not start. Tap PLAY to retry or check your connection.');
+    }else setStatus('The song did not start. Tap PLAYER to retry or check your connection.');
   }
   return !!started;
 }
@@ -4547,12 +4547,12 @@ function startPlayerPlaylist(){
       }).catch(error=>console.warn('PLAYER catalog load failed',error))
         .finally(()=>{geQuickSongCatalogRetry=false;});
     }
-    setStatus('Loading PLAYER songs. Tap PLAY again when ready.');return false;
+    setStatus('Loading PLAYER songs. Tap PLAYER again when ready.');return false;
   }
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
   if(typeof frame?.GEPlayLibraryQueue!=='function'){
-    setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;
+    setStatus('PLAYER is preparing. Tap PLAYER again shortly.');return false;
   }
   const start=shared?(shared.startPath||songs[0]):state.shuffle?songs[Math.floor(Math.random()*songs.length)]:songs[0];
   frame.GESetMusicQueueShuffle?.(shared?false:state.shuffle);
@@ -5061,7 +5061,7 @@ audio.addEventListener('pause',()=>{
   if(state.live && liveState.hasPlayed && !liveState.internalReset){
     liveState.needsFreshEdge=true;
   }
-  if(state.live&&recentUserPause())setLiveStatus('RADIO • paused. Tap PLAY to resume.');
+  if(state.live&&recentUserPause())setLiveStatus('RADIO • paused. Tap RADIO to resume.');
   if(!audio.ended) setStatus(state.live?'RADIO paused':'Paused');
   try{ navigator.mediaSession.playbackState='paused'; }catch(_e){}
   try{if(typeof GE_IOS_AUDIO!=='undefined'&&GE_IOS_AUDIO)eqTapAudio?.pause();}catch(_e){}
@@ -5089,8 +5089,8 @@ audio.addEventListener('error',()=>{
   // error while a source is replaced, especially when resuming from background.
   // Only the real 'ended' event advances the listening queue.
   if(state.currentURL){
-    setStatus('Song connection interrupted. Tap PLAY to retry this same song.');
-    setLiveStatus('PLAYER · this song could not load. Tap PLAY to retry.');
+    setStatus('Song connection interrupted. Tap PLAYER to retry this same song.');
+    setLiveStatus('PLAYER · this song could not load. Tap PLAYER to retry.');
   }
 });
 audio.addEventListener('canplay',()=>{
@@ -8431,7 +8431,7 @@ Vector ${vector}. ${pair[1]}.`;
           audio.pause();
           audio.src=freshLiveStreamURL();
           audio.load();
-          void audio.play().catch(()=>setStatus('Tap PLAY to resume Radio after unlocking.'));
+          void audio.play().catch(()=>setStatus('Tap RADIO to resume Radio after unlocking.'));
         }catch(_e){}
       }
     }
@@ -8837,8 +8837,8 @@ gateTestBtn?.addEventListener('click',()=>{
   if(qrArrival)window.GEQRIntroAudioReady=true;
   if(!state.live&&!state.livePreparing&&!geInlineMusicActive&&!geIncomingShare?.paths?.length&&!geIncomingShare?.error){
     setStatus(state.catalog.length
-      ?(qrArrival?'Radio ready. Tap PLAY or RADIO after the introduction.':
-        'Music ready. Tap PLAY or select a song. Tap RADIO for the station.')
+      ?(qrArrival?'Radio ready. Tap PLAYER or RADIO after the introduction.':
+        'Music ready. Tap PLAYER or select a song. Tap RADIO for the station.')
       :'No music files found. Use Reload Library to check for new music.');
   }
 
