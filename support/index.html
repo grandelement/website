@@ -623,7 +623,8 @@ get("albumDetailTitle").textContent=album.title;
 get("albumDetailYear").textContent=(album.year||"ARCHIVE")+" · GRAND ELEMENT";
 const b=getBio(album);get("albumDetailTagline").textContent=b.tagline||b.energy||"";
 get("albumDetailBio").textContent=b.bio||"Choose the recordings you'd like to own.";
-get("albumBuyAll").textContent="ADD COMPLETE ALBUM · "+money(album.tracks.length)+(albumBonus(album).length?" · BONUS INCLUDED":"");
+get("albumBuyAll").textContent=album.publishedPartial?"COMPLETE ALBUM NOT AVAILABLE":"ADD COMPLETE ALBUM · "+money(album.tracks.length)+(albumBonus(album).length?" · BONUS INCLUDED":"");
+get("albumBuyAll").disabled=!!album.publishedPartial;
 get("albumSelectAll").checked=false;
 const list=get("albumTrackList");list.replaceChildren();
 albumBonus(album).forEach(track=>{
@@ -660,6 +661,7 @@ if(previewMode){
 }
 const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" paid tracks selected · "+money(count===album.tracks.length?count:count*1.5)+(albumBonus(album).length?" · bonus included with complete album":"");get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
 function addFullAlbum(album){
+ if(album.publishedPartial){alert("The complete album is not currently published in the store. Choose available individual tracks.");return}
   state.cart=state.cart.filter(x=>!x.id.startsWith(album.id+"-track-"));
   const bonuses=albumBonus(album).map(track=>track.title);
   const existing=state.cart.find(x=>x.id===album.id);
@@ -674,7 +676,7 @@ get("albumBuyAll").addEventListener("click",()=>{
 });
 get("albumAddSelected").addEventListener("click",()=>{
  if(previewMode){updateAlbumPreviewQueue();closeAlbum();get('gePreviewMeter').scrollIntoView({block:'start',behavior:'smooth'});return}
- const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
+ const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length&&!album.publishedPartial){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
 /* Music V5.9 BUY carries checked paths to the existing Support shopping cart.
    Only this catalog determines album/track IDs and prices. The cart is a
    preview until verified production payments and private delivery are enabled.
@@ -717,7 +719,7 @@ function consumeMusicBuyIntent(data){
  }
  if(!grouped.size)return false;
  for(const {album,tracks} of grouped.values()){
-  if(tracks.size===album.tracks.length){
+  if(tracks.size===album.tracks.length&&!album.publishedPartial){
    // A complete album replaces duplicate single-track cart entries.
    addFullAlbum(album);
    continue;
@@ -778,6 +780,18 @@ fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Catalo
 fetch("../config/site-live.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})),
 fetch("../radio/track-durations.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Track timings unavailable");return r.json()}).catch(()=>({tracks:[]}))
 ]).then(([data,site,durations])=>{
+// FRONT, STORE, PLAYER and RADIO share the published Back Room route.
+const routing=site.music?.catalogRouting||{};
+const visibleAlbums=Array.isArray(routing.storeAlbums)?new Set(routing.storeAlbums.map(normPreview)):null;
+const visibleSongs=Array.isArray(routing.storeSongPaths)?new Set(routing.storeSongPaths.map(path=>{
+ const bits=String(path).split('/'),folder=(bits[2]||'').replace(/^Grand Element - (?:[0-9]{4} - )?/,'');
+ return trackKey(folder,bits.slice(3).join('/'));
+})):null;
+data.music=data.music.filter(album=>!visibleAlbums||visibleAlbums.has(normPreview(album.title))).map(album=>{
+ if(!visibleSongs)return album;
+ const tracks=album.tracks.filter(track=>visibleSongs.has(trackKey(album.title,track.file)));
+ return {...album,tracks,publishedPartial:tracks.length!==album.tracks.length};
+});
 state.catalog=data;state.bios=site.albums?.bios||{};
 (Array.isArray(durations.tracks)?durations.tracks:[]).filter(t=>t.kind==='song'&&t.path&&Number(t.duration_ms)>0).forEach(t=>{
   const key=trackKey(t.album,String(t.path).split('/').pop());previewDurations.set(key,t);
