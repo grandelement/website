@@ -63,7 +63,7 @@ try{
    for(const file of ['radio-base.css','radio-components.css','radio-layout.css'])
      assert(buttonColors.loaded.some(url=>url.includes('/radio/'+file)),
        'Missing consolidated CSS file '+file+' '+JSON.stringify(buttonColors.loaded));
-   const rgba=value=>(value.match(/[\\d.]+/g)||[]).map(Number);
+   const rgba=value=>(value.match(/[\d.]+/g)||[]).map(Number);
    for(const item of buttonColors.transport){
      const [red,green,blue]=rgba(item.text);
      assert(item.visible&&red>=200&&green>=210&&blue>=210,
