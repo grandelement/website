@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.16-player-button-styles-v6';
+const VERSION='2026.11.16-front-auto-fit-player-pause-v7';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -222,6 +222,20 @@ async function staticFile(request){
  const pathname=new URL(request.url).pathname;
  const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
  if(startup){
+  const shell=await caches.open(SHELL_CACHE);
+  // Versioned startup script URLs must not silently use an older cached JS.
+  // Fetch the exact new version online once; keep offline cache fallback.
+  const exact=await shell.match(request,{ignoreSearch:false});
+  if(exact?.ok)return exact;
+  if(self.navigator?.onLine!==false){
+   try{
+    const fresh=await timeoutFetch(request,{cache:'no-store'},2500);
+    if(fresh.ok&&await validAsset(new URL(request.url).pathname,fresh)){
+     await shell.put(request,fresh.clone()).catch(()=>{});
+     return fresh;
+    }
+   }catch(_){}
+  }
   const saved=await cached(request);
   if(saved?.ok)return saved;
  }
