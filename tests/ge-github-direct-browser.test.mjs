@@ -45,6 +45,13 @@ try{
    if(u.startsWith('../config/site-live.json'))return new Response(JSON.stringify(state.initial),{status:200});
    if(u.startsWith('../radio/manifest.json'))return new Response(JSON.stringify(state.manifest),{status:200});
    if(u.startsWith('../playlists/registry.json'))return new Response(JSON.stringify(state.registry),{status:200});
+   if(u==='https://api.github.com/repos/grandelement/website/contents/radio/manifest.json?ref=main'||
+      u==='https://api.github.com/repos/grandelement/website/contents/playlists/registry.json?ref=main'){
+    const data=u.includes('/radio/manifest.json')?state.manifest:state.registry;
+    const bytes=new TextEncoder().encode(JSON.stringify(data));
+    const text=btoa(Array.from(bytes,x=>String.fromCharCode(x)).join(''));
+    return new Response(JSON.stringify({sha:'inventory-sha',content:text}),{status:200});
+   }
    if(u==='https://api.github.com/repos/grandelement/website/contents/config/site-live.json?ref=main'){
     state.tokenHeaderSeen=String(options.headers?.Authorization||'').startsWith('Bearer github_pat_');
     const bytes=new TextEncoder().encode(JSON.stringify(state.remote));
