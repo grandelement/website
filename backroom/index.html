@@ -830,7 +830,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 }
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261116-playlists-v2">
-<link rel="stylesheet" href="./save-center.css?v=20261117-a">
+<link rel="stylesheet" href="./save-center.css?v=20261117-c">
 </head>
 <body>
 <div id="lockScreen">
@@ -885,7 +885,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabFans" type="button" role="tab" data-tab="fans" aria-selected="false">FANS</button>
-  <button id="brTopSave" type="button" aria-label="Save current Back Room screen" aria-controls="brCentralSaveStatus" title="Save this screen using the correct source">SAVE</button>
+  <button id="brTopSave" type="button" aria-label="Save current public settings to GitHub" aria-controls="brCentralSaveStatus" title="Save changes to GitHub; private fan and access settings use the Vault">SAVE TO GITHUB</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false" hidden aria-hidden="true" tabindex="-1" style="display:none!important">PRESETS</button>
   <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false" hidden aria-hidden="true" tabindex="-1">PLAYLISTS</button>
@@ -1048,7 +1048,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div class="brRouteActions">
       <button type="button" id="brRouteRefresh">REFRESH</button>
       <button type="button" id="brRouteRebuild">RELOAD FILES + REBUILD MANIFEST</button>
-      <button type="button" id="brRouteSave" class="primary" disabled>SAVE ALL CHANGES</button>
+      <button type="button" id="brRouteSave" class="primary" hidden disabled>SAVE ALL CHANGES</button>
     </div>
     <p id="brRouteStatus" role="status" aria-live="polite">Sign in, then load the master catalog.</p>
     <div id="brRouteAssignments" class="brRouteAssignments" role="group" aria-label="Assign existing saved playlists to music destinations">
@@ -1478,11 +1478,23 @@ function installBackroomTabs(){
   const moreSummary=document.createElement('summary');
   moreSummary.textContent='MORE TOOLS · WEBSITE, GAMES & SETTINGS';
   moreTools.appendChild(moreSummary);
-  nav.setAttribute('aria-label','Main controls: Radio, Music, Access Codes, Fans');
+  nav.setAttribute('aria-label','Main controls: Radio, Access Codes, Fans, Save');
+  // Place only three primary editors plus the single SAVE control in the
+  // visible bar. Previously SAVE was stranded BEFORE the moved tab buttons.
+  // Move hidden legacy tabs out of the grid without deleting their handlers.
+  const legacyTabMount=document.createElement('div');
+  legacyTabMount.id='brLegacyTabMount';legacyTabMount.hidden=true;
+  legacyTabMount.setAttribute('aria-hidden','true');
+  for(const button of [...nav.querySelectorAll('button[data-tab][hidden]')]){
+    legacyTabMount.appendChild(button);
+  }
+  nav.insertAdjacentElement('beforebegin',legacyTabMount);
   for(const tab of primaryTabs){
     const button=tabButtons.find(item=>item.dataset.tab===tab);
     if(button)nav.appendChild(button);
   }
+  const topSave=$('brTopSave');
+  if(topSave)nav.appendChild(topSave);
   for(const group of secondaryGroups){
     const section=document.createElement('div');section.className='brMoreToolGroup';
     const title=document.createElement('strong');title.textContent=group.label;
@@ -5674,6 +5686,6 @@ $('gatePassword').focus();
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
 <script src="./music-router.js?v=20261116-save-diagnostics-v3"></script>
-<script src="./save-center.js?v=20261117-a"></script>
+<script src="./save-center.js?v=20261117-c"></script>
 </body>
 </html>
