@@ -1,0 +1,173 @@
+/* GE Radio player button style selections, 2026-11-16.
+   2+6: RADIO red double heartbeat + outward rings (verified audio only).
+   1+9 in 6: PLAYER cyan glowing pulse + slow breathing light.
+   8: previous / next / shuffle ice-blue glass.
+   Width, line/border thickness, grid placement and click behavior unchanged. */
+@keyframes gePlayerCyanGlowBreath{
+  0%,100%{
+    filter:brightness(.96) saturate(1);
+    box-shadow:0 0 5px rgba(39,185,255,.35),inset 0 0 6px rgba(164,247,255,.12);
+  }
+  50%{
+    filter:brightness(1.19) saturate(1.16);
+    box-shadow:0 0 17px rgba(50,207,255,.84),
+               0 0 29px rgba(248,72,209,.23),
+               inset 0 0 10px rgba(171,248,255,.3);
+  }
+}
+@keyframes geRadioRedDoubleBeat{
+  0%,10%,26%,42%,70%,100%{opacity:.52;filter:brightness(.88)}
+  15%,33%{opacity:1;filter:brightness(1.44)}
+  19%,38%{opacity:.64;filter:brightness(1.02)}
+}
+@keyframes geRadioRedRingRipple{
+  0%{opacity:.6;transform:scale(1);filter:blur(0)}
+  43%{opacity:0;transform:scale(1.19);filter:blur(1px)}
+  100%{opacity:0;transform:scale(1.19);filter:blur(1px)}
+}
+/* 6 cyan base, 1 electric glow and 9 slow breathing on the PLAYER action.
+   A subtle magenta glow accent borrows the breathing effect without
+   replacing the requested cyan color. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn{
+  background:linear-gradient(180deg,#087f9f 0%,#053b55 100%)!important;
+  background-image:linear-gradient(180deg,#087f9f 0%,#053b55 100%)!important;
+  color:#f4fdff!important;
+  border-color:rgba(133,240,255,.93)!important;
+  animation:gePlayerCyanGlowBreath 3s ease-in-out infinite!important;
+  transform:none!important;
+  will-change:filter,box-shadow;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn:active{
+  filter:brightness(1.35)!important;
+}
+/* 8 ice blue: static glass look for navigation and shuffle.
+   The active Shuffle selection stays visibly marked. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#nextBtn,#shuffleBtn),
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBtn[aria-pressed="true"]{
+  background:linear-gradient(180deg,#42637c,#162c45)!important;
+  background-image:linear-gradient(180deg,#42637c,#162c45)!important;
+  color:#f4faff!important;
+  border-color:rgba(213,241,255,.9)!important;
+  box-shadow:inset 0 1px 7px rgba(225,250,255,.26),
+             0 0 8px rgba(160,223,255,.25)!important;
+  animation:none!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBtn[aria-pressed="true"]{
+  box-shadow:inset 0 0 9px rgba(185,240,255,.38),
+             0 0 12px rgba(152,225,255,.54)!important;
+}
+/* The red RADIO signal NEVER animates as a success indication before
+   .ge-radio-audible is set from verified media progress. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn{
+  position:relative!important;
+  isolation:isolate!important;
+  overflow:visible!important;
+  background:linear-gradient(180deg,#b4203c,#6e122a)!important;
+  background-image:linear-gradient(180deg,#b4203c,#6e122a)!important;
+  border-color:rgba(255,111,144,.91)!important;
+  color:#fff!important;
+  animation:none!important;
+  transform:none!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::before{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:-1px!important;
+  z-index:-1!important;
+  border-radius:inherit!important;
+  pointer-events:none!important;
+  background:linear-gradient(180deg,#f0395d,#c71e42 55%,#89132d)!important;
+  box-shadow:0 0 11px 3px rgba(245,38,82,.53),
+             0 0 25px 6px rgba(213,20,63,.25),
+             inset 0 0 12px rgba(255,169,187,.24)!important;
+  animation:geRadioRedDoubleBeat 2.2s ease-in-out infinite!important;
+  transform:none!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:-4px!important;
+  z-index:-2!important;
+  border:1px solid rgba(255,81,123,.7)!important;
+  border-radius:inherit!important;
+  pointer-events:none!important;
+  background:transparent!important;
+  box-shadow:0 0 8px rgba(255,44,98,.25)!important;
+  animation:geRadioRedRingRipple 2.2s ease-out infinite!important;
+}
+/* Startup/ready cue remains governed by the existing stream state; without
+   verified audio there must not be a new animated "ON AIR" look. */
+
+/* Height hierarchy only. Keep every original column width, button width,
+   gap, border width and outline thickness unchanged. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > button{
+  box-sizing:border-box!important;
+  min-height:clamp(54px,7dvh,68px)!important;
+  height:auto!important;
+  padding-top:7px!important;
+  padding-bottom:7px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row > button,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row > #hudCombined{
+  box-sizing:border-box!important;
+  min-height:36px!important;
+  height:38px!important;
+  max-height:40px!important;
+  padding-top:3px!important;
+  padding-bottom:3px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > :is(button,a){
+  min-height:36px!important;
+  height:39px!important;
+  padding-top:3px!important;
+  padding-bottom:3px!important;
+}
+@media (orientation:portrait) and (max-width:700px){
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
+    grid-template-rows:minmax(60px,auto) minmax(54px,auto)!important;
+    grid-auto-rows:minmax(54px,auto)!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button,
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button[data-ge-symbol]{
+    min-height:54px!important;
+    height:100%!important;
+    max-height:none!important;
+    padding-top:6px!important;
+    padding-bottom:6px!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+    min-height:60px!important;
+    height:60px!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > :is(#shuffleBtn,#liveBtn,#geMusicV5Button){
+    min-height:54px!important;
+    height:54px!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row{
+    grid-template-rows:38px 38px!important;
+    grid-auto-rows:38px!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row > button,
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row > button[data-ge-symbol],
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row > #hudCombined{
+    min-height:38px!important;
+    height:38px!important;
+    max-height:38px!important;
+    padding-top:2px!important;
+    padding-bottom:2px!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > :is(button,a){
+    min-height:38px!important;height:38px!important;
+    padding-top:3px!important;padding-bottom:3px!important;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn,
+  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::before,
+  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after{
+    animation:none!important;filter:none!important;
+  }
+  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after{opacity:.2!important}
+}
