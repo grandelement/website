@@ -468,8 +468,7 @@ async function handlePlayerProfile(request,env,cors){
            new Set(songs).size!==songs.length)
           return json({ok:false,error:'Playlist '+destination+' has missing or invalid song files. Edit the shared playlist and refresh.'},409,cors);
         const albumNames=[...new Set(songs.map(songAlbum))];
-        if(destination==='front')selected.frontAlbums=id==='@all'?albumNames:
-          albumNames.filter(name=>name!=='Singles');
+        if(destination==='front')selected.frontAlbums=albumNames.filter(name=>name!=='Singles');
         if(destination==='store'){selected.storeAlbums=albumNames;selected.storeSongPaths=songs}
         if(destination==='player')selected.playerSongPaths=songs;
         if(destination==='radio')selected.radioSongPaths=songs;
