@@ -122,6 +122,12 @@ try{
  assert.deepEqual(saved.remote.music.publicDJPlaylistNames,config.music.publicDJPlaylistNames);
  assert.deepEqual(saved.remote.welcome,config.welcome);
  assert.equal(saved.requests.some(url=>url.includes('workers.dev')),false);
+ assert.equal(saved.requests.some(url=>url.startsWith('../config/site-live.json')),false,
+  'Opening the Back Room must load the authoritative GitHub config, not stale GitHub Pages');
+ assert.equal(saved.requests.some(url=>url.includes('/contents/radio/manifest.json?ref=main')),true,
+  'The music inventory must refresh automatically on unlock');
+ assert.equal(saved.requests.some(url=>url.includes('/contents/playlists/registry.json?ref=main')),true,
+  'Saved playlist choices must refresh automatically on unlock');
 
  // Lock, reject incorrect passcode, then unlock with the one passcode and no token.
  await page.click('#lockPublisher');
