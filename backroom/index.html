@@ -878,7 +878,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
-  <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false">MUSIC</button>
+  <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false" hidden aria-hidden="true" tabindex="-1" style="display:none!important">MUSIC (MOVED TO RADIO)</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
@@ -1448,7 +1448,7 @@ function installBackroomTabs(){
   const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   // The four owner jobs are always visible. Less-used pages live in one drawer.
-  const primaryTabs=['radio','music','access','fans'];
+  const primaryTabs=['radio','access','fans'];
   const secondaryGroups=[
     {label:'WEBSITE',tabs:['welcome','about','universe']},
     {label:'OTHER SETTINGS',tabs:['games','moon','gate','scores']}
@@ -1575,7 +1575,7 @@ function installBackroomTabs(){
   // Never clone its controls or create a competing playlist store.
   const radioPlaylistMount=$('brRadioPlaylistMount');
   function activate(tab,focus=false){
-    if(tab==='playlists')tab='music';
+    if(tab==='playlists'||tab==='music')tab='radio';
     if(!panels.has(tab))tab='welcome';
     if(tab==='fans'||tab==='access')accessView=tab;
     // ACCESS must always open codes, never silently return to the prior FANS view.
@@ -1620,7 +1620,7 @@ function installBackroomTabs(){
   }
   let initial='radio';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'radio'}catch(_e){}
   if(initial==='home'||initial==='content')initial='welcome';
-  if(initial==='playlists')initial='music';
+  if(initial==='playlists'||initial==='music')initial='radio';
   activate(initial);
   window.GE_BACKROOM_OPEN_ACCESS_VIEW=view=>{if(['radio','access','fans'].includes(view))activate(view)};
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
