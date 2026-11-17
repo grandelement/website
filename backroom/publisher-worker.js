@@ -673,6 +673,77 @@ async function geHandleMerchandise(request,env,cors){
   }
 }
 
+/* One-screen SAVE uses a scoped GitHub patch. Never accept a full stale
+   website snapshot, private Vault data, BLITZ on-air controls or new music
+   routing from this endpoint. Protected by the existing owner session. */
+const GE_PUBLIC_SAVE_PATHS=new Set([
+ 'welcome','about','visual','albums','easySettings','merchandise','games',
+ 'gateTiming','radioMoon','music.startupEnabled','music.firstTrack'
+]);
+function gePublicValue(data,path){
+ if(path.startsWith('music.'))return data?.music?.[path.slice(6)]??null;
+ return data?.[path]??null;
+}
+async function geManagePublicSettings(request,env,cors){
+ if(!(await verifySession(env,bearer(request))))
+  return json({ok:false,error:'Owner sign-in required. Sign in to Back Room.'},401,cors);
+ try{
+  const branch=env.GITHUB_BRANCH||'main',filePath='config/site-live.json';
+  const upstream=await github(env,filePath+'?ref='+encodeURIComponent(branch),{method:'GET'});
+  if(!upstream.ok)throw Error('Cannot load the latest GitHub settings (HTTP '+upstream.status+').');
+  const file=await upstream.json();
+  const current=JSON.parse(decodeGithubText(file.content||''));
+  if(!validConfig(current))throw Error('Live website configuration is incomplete. Nothing was changed.');
+  const snapshot={};
+  for(const path of GE_PUBLIC_SAVE_PATHS)snapshot[path]=gePublicValue(current,path);
+  if(request.method==='GET')return json({ok:true,settings:snapshot},200,cors);
+  if(request.method!=='POST')return json({ok:false,error:'Method not allowed.'},405,cors);
+  const body=await request.json().catch(()=>null);
+  const changes=body?.changes,expected=body?.expected;
+  if(!changes||typeof changes!=='object'||Array.isArray(changes)||
+     !expected||typeof expected!=='object'||Array.isArray(expected))
+    return json({ok:false,error:'Missing scoped save changes and previous values.'},400,cors);
+  const keys=Object.keys(changes);
+  if(!keys.length||keys.length>GE_PUBLIC_SAVE_PATHS.size||
+     keys.some(key=>!GE_PUBLIC_SAVE_PATHS.has(key)||
+       !Object.prototype.hasOwnProperty.call(expected,key)))
+    return json({ok:false,error:'Only selected website settings can be saved.'},400,cors);
+  for(const key of keys){
+    if(JSON.stringify(gePublicValue(current,key))!==JSON.stringify(expected[key]??null))
+      return json({ok:false,error:key+' changed on GitHub. Reload the published settings before saving.'},409,cors);
+  }
+  const next=structuredClone(current);
+  for(const key of keys){
+    const value=changes[key];
+    if(value===null||typeof value!=='object'&&typeof value!=='string'&&typeof value!=='number'&&typeof value!=='boolean')
+      return json({ok:false,error:'Invalid '+key+' value.'},400,cors);
+    if(key.startsWith('music.')){
+      if(!next.music||typeof next.music!=='object')next.music={};
+      next.music[key.slice(6)]=structuredClone(value);
+    }else next[key]=structuredClone(value);
+  }
+  if(!validConfig(next))return json({ok:false,error:'Incomplete website settings. Nothing saved.'},400,cors);
+  next.version=Math.max(1,Number(next.version)||1);
+  next.mode='live';next.publishedAt=new Date().toISOString();
+  const contents=JSON.stringify(next,null,2)+'\n';
+  if(contents.length>250000)return json({ok:false,error:'Public settings exceed the GitHub size limit.'},400,cors);
+  const response=await github(env,filePath,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      message:'Back Room SAVE: publish scoped website settings ('+keys.join(', ')+')',
+      content:utf8B64(contents),sha:file.sha,branch
+    })
+  });
+  const saved=await response.json().catch(()=>({}));
+  if(!response.ok||!saved.commit?.sha){
+    if([409,422].includes(response.status))return json({ok:false,error:'GitHub changed during save. Reload and retry.'},409,cors);
+    throw Error('GitHub rejected website save (HTTP '+response.status+'): '+String(saved.message||'Unknown error'));
+  }
+  const written={};for(const key of keys)written[key]=gePublicValue(next,key);
+  return json({ok:true,commit:String(saved.commit.sha),saved:written},200,cors);
+ }catch(error){return json({ok:false,error:String(error?.message||error).slice(0,260)},502,cors)}
+}
+
 const GE_UPLOAD_LIMIT=60*1024*1024;
 const GE_AUDIO_TYPES={mp3:"audio/mpeg",m4a:"audio/mp4",wav:"audio/wav",ogg:"audio/ogg"};
 // Owner-only PRIVATE R2 upload. Never writes to public GitHub or changes Radio.
@@ -944,6 +1015,9 @@ export default {
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
       return json(upstream.data,upstream.status,cors);
     }
+
+    if(url.pathname==='/manage/public-settings'&&['GET','POST'].includes(request.method))
+      return geManagePublicSettings(request,env,cors);
 
     if(url.pathname==='/manage/merchandise'&&['GET','POST'].includes(request.method))
       return geHandleMerchandise(request,env,cors);
