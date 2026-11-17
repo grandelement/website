@@ -706,12 +706,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   color:#bfebff;background:#061d2e;
   font-size:clamp(12px,3vw,14px);font-weight:800;
 }
-/* The single embedded editor owns public album, song and player controls.
-   Legacy controls remain mounted for compatibility, but cannot mislead the owner. */
-#brCatalogRouting,#brPublicPlayerProfile,#brGeneralPublicAccess,#brMusicRadioMaster,
+/* One owner login and private server-side GitHub connection. */
+#brGeneralPublicAccess{display:none!important}
+#brPublicPlayerLoad,#brPublicPlayerSave{display:none!important}
+#backroomToolbarSettings #brGithubToken,#backroomToolbarSettings #legacyPublishLive{display:none!important}
 #backroomMain .topControls{display:none!important}
-#brDirectPublisherHost{width:100%;max-width:none;min-width:0;margin:8px 0}
-#brDirectPublisherHost[hidden]{display:none!important}
 #brDirectPublisherStatus{font-weight:800;color:#b4e7ff;font-size:13px;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261116-playlists-v2">
@@ -756,6 +755,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
   <button id="brVaultConnection" class="brVaultConnection" type="button" aria-live="polite" data-state="checking" title="Check GE Vault access codes and GitHub playlists">VAULT · RECONNECT</button>
   <div id="brCentralSaveStatus" role="status" aria-live="polite" hidden></div>
+  <div id="brGithubConnection" role="status" aria-live="polite" style="font-size:12px;text-align:center;padding:5px;color:#b6dbf1">GITHUB · CHECKING AFTER SIGN-IN</div>
   <div id="brVaultCounts" role="status" aria-live="polite" style="font-size:11px;text-align:center;margin:3px 0 0;color:#addbea" hidden></div>
 </header>
 
@@ -947,12 +947,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
-  <section id="brDirectPublisherHost" aria-label="Single GitHub public music and player settings editor">
-    <p id="brDirectPublisherStatus" role="status" aria-live="polite">AUTOMATICALLY CONNECTING TO THE LATEST GITHUB SETTINGS…</p>
-    <iframe id="brDirectPublisherFrame" title="Music and website settings · one GitHub save"
-      src="./github-direct.html?embedded=1" loading="eager"
-      style="display:block;width:100%;height:1100px;border:0;border-radius:12px;background:#051524"></iframe>
-  </section>
   <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
     <h2>RADIO / MUSIC · MASTER CATALOG</h2>
     <p class="brRouteHelp">One GitHub song inventory. FRONT controls the public album-cover stack. STORE controls the shop preview. PLAYER controls the music browser. RADIO controls website Radio/Shuffle approvals. The BLITZ on-air program remains under RADIO.</p>
@@ -1349,7 +1343,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="editorHint" id="editorHint">Drag the highlighted item. The center and edge guides show useful alignment points.</div>
 </div>
 
-<script src="./github-bridge.js?v=20261117-unified-v1"></script>
 <script>
 (()=>{
 'use strict';
@@ -1414,10 +1407,6 @@ function installBackroomTabs(){
   // ACCESS subtabs belong directly BELOW main tabs and ABOVE all panel content.
   moreTools.insertAdjacentElement('afterend',accessSubnav);
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';accessSubnav.insertAdjacentElement('afterend',panelHost);
-  // Keep the embedded GitHub editor mounted at one stable position. Moving an iframe
-  // between panels can reload it and erase an unlocked session or unsaved edits.
-  const directMount=$('brDirectPublisherHost');
-  if(directMount)panelHost.insertAdjacentElement('beforebegin',directMount);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
@@ -1513,8 +1502,6 @@ function installBackroomTabs(){
     if(tab==='fans'||tab==='access')accessView=tab;
     // ACCESS must always open codes, never silently return to the prior FANS view.
     const topTab=tab;
-    const directHost=$('brDirectPublisherHost');
-    if(directHost)directHost.hidden=tab!=='website'&&tab!=='radio';
     const sharedPlaylistEditor=$('brDJPlaylistEditor');
     const playlistDestination=tab==='radio'?radioPlaylistMount:panels.get('music');
     if(sharedPlaylistEditor&&playlistDestination&&sharedPlaylistEditor.parentElement!==playlistDestination)
@@ -1602,17 +1589,6 @@ function renderGateTimingSummary(){
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let publisherBase=null;
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
-document.addEventListener('ge-direct-config',event=>{
- const latest=event.detail;
- if(!latest||!Array.isArray(latest.music?.radioMasterSongPaths))return;
- const old=publisherBase;
- publisherBase=clone(latest);
- // Keep pending drafts. Only replace fields when the editor still matches its last baseline.
- if(cfg&&!dirty&&old&&JSON.stringify(cfg)===JSON.stringify(old)){
-  cfg=clone(latest);
-  populate();
- }
-});
 // The only DJ playlist authority is the BLITZ controller. This is a
 // password-free view of its saved playlist names/paths, not another database.
 let geDJSavedPlaylists=[],geDJPlaylistReady=false,geDJVaultConfirmed=false;
@@ -1781,7 +1757,6 @@ async function enterBackroom(){
       return;
     }
     setToken(d.token);serverAuthenticated=true;
-    window.GE_DIRECT_BRIDGE?.unlock(pass);
   }catch(_e){
     $('gateMessage').textContent='Sign-in service unavailable. Access remains locked.';
     return;
@@ -2636,9 +2611,20 @@ window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
    }
  }
  setStatus('SAVING '+paths.join(', ').toUpperCase()+' TO GITHUB…');
- // Direct GitHub owner authorization verifies the committed values on the main branch.
- const result=await window.GE_DIRECT_BRIDGE.patch(changes,expected);
- if(!result.ok||!result.commit)throw Error('GitHub save was not confirmed.');
+ // Server-side GitHub credentials. No device token or second password.
+ const response=await api('/manage/public-settings',{method:'POST',timeoutMs:28000,
+   body:JSON.stringify({changes,expected})});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||result.ok!==true||!result.commit)
+   throw Error(String(result.error||'GitHub did not confirm the save.'));
+ const verification=await api('/manage/public-settings',{method:'GET',timeoutMs:20000});
+ const proof=await verification.json().catch(()=>({}));
+ if(!verification.ok||proof.ok!==true||!proof.settings)
+   throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but readback failed. Do not save again until checked.');
+ for(const path of paths){
+   if(!geGithubSame(proof.settings[path],changes[path]))
+     throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but '+path+' differs. Do not overwrite.');
+ }
  for(const path of paths){
    if(path.startsWith('music.')){
      if(!publisherBase.music)publisherBase.music={};
@@ -5449,6 +5435,26 @@ function improveBackroomLabels(){
     if(rest){const small=document.createElement('small');small.textContent='· '+rest;span.append(small)}
   });
 }
+async function checkServerGithub(){
+ const label=$('brGithubConnection');
+ if(!label||!token())return false;
+ label.textContent='GITHUB · VERIFYING SERVER CONNECTION…';
+ try{
+  const response=await api('/manage/github-health',{method:'GET',timeoutMs:20000});
+  const data=await response.json().catch(()=>({}));
+  if(response.ok&&data.github_ready===true){
+   label.textContent='GITHUB · CONNECTED · READY TO SAVE ON ANY DEVICE';
+   label.style.color='#9cf4cc';return true;
+  }
+  label.textContent='GITHUB NOT CONNECTED · SERVER AUTHORIZATION NEEDS REPAIR'+
+   (data.github_http?' · HTTP '+data.github_http:'')+
+   (data.error?' · '+String(data.error).slice(0,110):'');
+  label.style.color='#ffc0c0';return false;
+ }catch(error){
+  label.textContent='GITHUB CHECK FAILED · '+String(error.message||error).slice(0,130);
+  label.style.color='#ffc0c0';return false;
+ }
+}
 async function bootBackroom(){
   // Migrate the old oversized 115% default once, then honor the slider setting.
   const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
@@ -5460,10 +5466,11 @@ async function bootBackroom(){
   }
   applyText(savedText||90);
   improveBackroomLabels();
-  publisherBase=window.GE_DIRECT_BRIDGE?.latestConfig||await repoLive().catch(()=>null);
+  publisherBase=await repoLive().catch(()=>null);
   cfg=localDraft()||publisherBase;
   if(!cfg)throw Error('No cached draft or published public settings are available');
-  populate();await loadMusic();
+  populate();
+  await Promise.allSettled([loadMusic(),checkServerGithub(),brPublicPlayerLoad()]);
   window.GE_BACKROOM_MASTER_READY=true;
   await brMasterLoadPublished();
   window.GE_BACKROOM_ROUTER_LOAD?.();
