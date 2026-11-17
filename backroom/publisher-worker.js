@@ -484,6 +484,8 @@ async function handlePlayerProfile(request,env,cors){
       if(JSON.stringify(routing.radioSongPaths)!==JSON.stringify(selected.radioSongPaths))
         next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
     }else if(body.action==='save_master'){
+      if(routing.assignments.radio)
+        return json({ok:false,error:'RADIO is assigned to a saved playlist. Change it in Radio / Music, or switch to CUSTOM before editing master approvals.'},409,cors);
       const old=Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[];
       const expected=body.expectedMasterSongPaths;
       if(!Array.isArray(expected)||JSON.stringify(expected)!==JSON.stringify(old))
