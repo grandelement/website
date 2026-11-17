@@ -7,6 +7,7 @@ on:
       - 'backroom/index.html'
       - 'index.html'
       - 'tests/ge-merchandise-publisher.test.mjs'
+      - 'tests/ge-merchandise-visual-browser.test.mjs'
       - '.github/workflows/ge-merchandise-publisher.yml'
   pull_request:
     paths:
@@ -31,6 +32,12 @@ jobs:
         run: node tests/ge-merchandise-publisher.test.mjs
       - name: Verify the existing private service binding
         run: node tests/private-vault-binding.test.mjs
+      - name: Install mobile Chromium test client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Verify live-page CSS settings in a real mobile browser
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-merch-browser.log 2>&1 &
+          node tests/ge-merchandise-visual-browser.test.mjs
   deploy-owner-publisher:
     if: github.event_name != 'pull_request'
     needs: verify
