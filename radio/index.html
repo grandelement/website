@@ -378,6 +378,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 
 
+<script src="../config/music-routing.js?v=20261116-playlists-v1"></script>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -1983,7 +1984,20 @@ async function loadFrozenAutoSongs(){
     const response=await fetch('../config/site-live.json?radio-master='+Date.now(),{cache:'no-store'});
     if(!response.ok)throw Error('GE Radio Master Song List unavailable');
     const data=await response.json();
-    const paths=data?.music?.radioMasterSongPaths;
+    let paths=data?.music?.radioMasterSongPaths;
+    const assignedRadio=String(data?.music?.catalogRouting?.assignments?.radio||'');
+    if(assignedRadio&&assignedRadio!=='@all'&&Array.isArray(paths)){
+      try{
+        const source=await fetch('../playlists/registry.json?radio_assignment='+Date.now(),{cache:'no-store'});
+        if(!source.ok)throw Error('Playlist registry HTTP '+source.status);
+        const registry=await source.json();
+        const matched=window.GEMusicRouting?.resolve({
+          radioSongPaths:paths,assignments:{radio:assignedRadio}
+        },registry);
+        if(matched&&!matched.missing.length)paths=matched.routing.radioSongPaths;
+        else console.warn('RADIO assigned playlist not found; retaining published rotation snapshot');
+      }catch(error){console.warn('RADIO using published playlist snapshot:',error)}
+    }
     if(!Array.isArray(paths)||!paths.length||paths.length>10000)throw Error('Radio Master list invalid');
     const unique=new Set();
     for(const path of paths){
