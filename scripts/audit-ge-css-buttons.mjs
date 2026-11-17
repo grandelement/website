@@ -32,15 +32,18 @@ for(const file of pages){
  reports.push(report);
 }
 const back=read('backroom/index.html'),publisher=read('backroom/publisher-worker.js');
-const save=read('backroom/save-center.js'),css=read('backroom/save-center.css');
+const save=read('backroom/save-center.js'),css=read('backroom/save-center.css'),
+  direct=read('backroom/github-direct.js'),bridge=read('backroom/github-bridge.js');
 const critical={
  navButton:back.includes('id="brTopSave"'),
  navigationHandler:save.includes("button.addEventListener('click',selectedSave)"),
  scopedGithubPublisher:publisher.includes("'/manage/public-settings'")&&
   publisher.includes('GE_PUBLIC_SAVE_PATHS'),
- publicGitHubReadback:back.includes("api('/manage/public-settings'")&&
-  back.includes('GitHub commit'),
- radioRouting:save.includes("trigger('brRouteSave'"),
+ publicGitHubReadback:back.includes('GE_DIRECT_BRIDGE.patch(changes,expected)')&&
+  bridge.includes('GE_DIRECT_PUBLIC_RESULT')&&
+  direct.includes('const check=await githubGet(unlockedToken)'),
+ radioRouting:save.includes("trigger('brRouteSave'")&&
+  bridge.includes("GE_BACKROOM_SAVE")&&back.includes('id="brDirectPublisherFrame"'),
  accessVault:save.includes("trigger(existing?'brAccessSave':'brAccessIssue'"),
  fanVault:save.includes("current==='fans'"),
  merchRoute:publisher.includes("'/manage/merchandise'"),
