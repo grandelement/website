@@ -45,6 +45,9 @@ assert(Array.isArray(approved)&&approved.length>0,'Published Radio Master cannot
 assert.equal(new Set(approved).size,approved.length,'Radio Master duplicates found');
 for(const path of approved)assert(manifest.files.includes(path),'Radio Master song missing: '+path);
 assert(!backroom.includes('id="gateLocal"'),'PUBLIC BACK ROOM BYPASS MUST NOT EXIST');
+assert(!backroom.includes('access_legacy_love_v1'),'Back Room must not special-case a legacy LOVE code');
+assert(!backroom.includes('legacyLoveAudit'),'Back Room must not treat LOVE as a privileged code');
+
 assert(!backroom.includes('openLocalEditor'),'Local editor bypass must be removed');
 assert(backroom.includes('id="gatePassword"'),'Owner password gate missing');
 assert(backroom.includes('id="gateEnter"'),'Owner sign-in missing');
