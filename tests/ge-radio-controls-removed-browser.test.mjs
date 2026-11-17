@@ -55,7 +55,7 @@ try{
    for(const file of ['radio-base.css','radio-components.css','radio-layout.css'])
      assert(buttonColors.loaded.some(url=>url.includes('/radio/'+file)),
        'Missing consolidated CSS file '+file+' '+JSON.stringify(buttonColors.loaded));
-   const rgba=value=>(value.match(/[\\d.]+/g)||[]).map(Number);
+   const rgba=value=>(value.match(/[\d.]+/g)||[]).map(Number);
    // Nov 17 approved style: cyan PLAY and ice-blue PREVIOUS/NEXT glass.
    // Keep this a rendered check so invisible text and stale CSS remain detectable.
    for(const item of buttonColors.transport){
