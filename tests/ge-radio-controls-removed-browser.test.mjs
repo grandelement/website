@@ -55,12 +55,15 @@ try{
    for(const file of ['radio-base.css','radio-components.css','radio-layout.css'])
      assert(buttonColors.loaded.some(url=>url.includes('/radio/'+file)),
        'Missing consolidated CSS file '+file+' '+JSON.stringify(buttonColors.loaded));
-   const rgba=value=>(value.match(/[\\d.]+/g)||[]).map(Number);
+   const rgba=value=>(value.match(/[\d.]+/g)||[]).map(Number);
+   // Nov 17 approved style: cyan PLAY and ice-blue PREVIOUS/NEXT glass.
+   // Keep this a rendered check so invisible text and stale CSS remain detectable.
    for(const item of buttonColors.transport){
-     const [red,green,blue,opacity]=rgba(item.background);
-     assert(item.visible&&red>=190&&green>=195&&blue>=200&&opacity>=.65,
-       'Transport must be silver on all devices: '+JSON.stringify(item));
-     assert(item.image==='none','Old gradient overrides silver transport: '+JSON.stringify(item));
+     const [red,green,blue]=rgba(item.text);
+     assert(item.visible&&red>=200&&green>=210&&blue>=210,
+       'Transport text must remain legible on every device: '+JSON.stringify(item));
+     assert(item.image.includes('linear-gradient'),
+       'Transport must retain the approved cyan/ice-blue glass: '+JSON.stringify(item));
    }
    const [shareRed,shareGreen,shareBlue]=rgba(buttonColors.share.background);
    assert(Math.abs(shareRed-185)<25&&Math.abs(shareGreen-165)<25&&Math.abs(shareBlue-232)<25,
