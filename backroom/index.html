@@ -1808,6 +1808,18 @@ $('backroomTextSize').addEventListener('input',()=>applyText($('backroomTextSize
 
 async function repoLive(){
   const cacheKey='GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1';
+  // The GitHub main branch is the editing authority. Never open with an older
+  // GitHub Pages build if the private Publisher can read the live file.
+  if(token()){
+    try{
+      const live=await api('/manage/public-config',{method:'GET',timeoutMs:18000});
+      const body=await live.json().catch(()=>({}));
+      if(live.ok&&body.ok===true&&body.config&&Array.isArray(body.config.music?.radioMasterSongPaths)){
+        try{localStorage.setItem(cacheKey,JSON.stringify(body.config))}catch(_e){}
+        return body.config;
+      }
+    }catch(_e){}
+  }
   try{
     const r=await fetch('../config/site-live.json?'+Date.now(),{cache:'no-store'});
     if(!r.ok)throw Error('Published settings unavailable');
