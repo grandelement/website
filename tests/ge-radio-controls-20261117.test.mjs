@@ -50,7 +50,7 @@ try{
    if(isMobile){
      const ui=await page.evaluate(()=>{
        const box=el=>{const r=el.getBoundingClientRect(),style=getComputedStyle(el);
-         return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,display:style.display}};
+         return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,display:style.display};
        };
        const tool=document.getElementById('geUtilityRow');
        const elements=[
