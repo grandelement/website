@@ -38,6 +38,19 @@
    target.click();
    return true;
  };
+ const watchFanResult=()=>{
+   const status=$('brFanVaultSaveStatus');
+   if(!status)return;
+   const observer=new MutationObserver(()=>{
+     const content=(status.textContent||'').trim();
+     if(!/SAVED IN GE VAULT|NEW FAN PROFILE SAVED IN GE VAULT|NOT SAVED|FAN PROFILE NOT SAVED|NOT VERIFIED/i.test(content))return;
+     const failed=/NOT SAVED|NOT VERIFIED/i.test(content);
+     show((failed?'NOT SAVED · ':'VAULT VERIFIED · ')+content,failed?'error':'success');
+     observer.disconnect();
+   });
+   observer.observe(status,{childList:true,subtree:true,characterData:true});
+   setTimeout(()=>observer.disconnect(),45000);
+ };
  const selectedSave=()=>{
    const current=tab();
    if(['welcome','about','universe','games','moon','gate'].includes(current)){
@@ -86,14 +99,14 @@
        const target=fanAction('SAVE FAN CODE');
        if(!target){show('No loaded fan code save control. Nothing saved.','error');return}
        if(!confirm('Save this fan’s selected access-code assignment to PRIVATE VAULT?'))return;
-       show('SAVING FAN CODE LINK TO PRIVATE VAULT…');target.click();return;
+       show('SAVING FAN CODE LINK TO PRIVATE VAULT…');watchFanResult();target.click();return;
      }
      const name=$('brFanProfileSearch')?.value.trim()||'';
      if(name){
        const target=fanAction('NEW / SAVE');
        if(!target){show('New fan profile control unavailable. Nothing saved.','error');return}
        if(!confirm('Create a new PRIVATE VAULT fan profile named "'+name.slice(0,80)+'"?'))return;
-       show('CREATING FAN IN PRIVATE VAULT…');target.click();return;
+       show('CREATING FAN IN PRIVATE VAULT…');watchFanResult();target.click();return;
      }
      show('CHOOSE AN EXISTING FAN OR ENTER A NEW NAME BEFORE SAVING. No records changed.','error');
      return;
