@@ -68,6 +68,18 @@ function toggle(kind,value,aria){
  input.addEventListener('change',()=>{if(input.checked)flags[kind].add(value);else flags[kind].delete(value);updateCount()});
  label.append(input);return label;
 }
+function albumGroupToggle(kind,album,songs,word){
+ const label=document.createElement('label');label.className='brRouteAlbumToggle';
+ const box=document.createElement('input');box.type='checkbox';
+ const checked=songs.filter(row=>flags[kind].has(row.path)).length;
+ box.checked=checked===songs.length;box.indeterminate=checked>0&&checked<songs.length;
+ box.setAttribute('aria-label',word+' for all songs on '+album);
+ box.addEventListener('change',()=>{
+  for(const row of songs){if(box.checked)flags[kind].add(row.path);else flags[kind].delete(row.path);}
+  render();
+ });
+ label.append(word+' ',box);return label;
+}
 function render(){
  const list=$('brRouteSongList'),header=$('brRouteStickyHead');
  list.replaceChildren();header.replaceChildren();
@@ -93,6 +105,8 @@ function render(){
    const c=document.createElement('div');c.className='brRouteAlbumToggle';
    c.append('STORE ',toggle('storeAlbums',album,'Show album in store'));head.append(c);
   }
+  if(view==='all'||view==='player')head.append(albumGroupToggle('playerSongPaths',album,songs,'PLAYER'));
+  if(view==='all'||view==='radio')head.append(albumGroupToggle('radioSongPaths',album,songs,'RADIO'));
   group.append(head);
   if(view!=='front')for(const row of songs){
    const line=document.createElement('div');line.className='brRouteSong';line.style.gridTemplateColumns=grid;
