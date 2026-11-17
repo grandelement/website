@@ -53,7 +53,7 @@ try{
      return {ok:true,commit:'123456789abcdef',paths:['welcome']};
    };
    document.getElementById('brRouteSave').addEventListener('click',()=>window.__calls.radio++);
-   document.getElementById('brPublicPlayerSave').addEventListener('click',()=>window.__calls.profile++);
+   document.getElementById('brPublicPlayerSave').addEventListener('click',()=>{window.__calls.profile++;document.getElementById('brPublicPlayerStatus').textContent='CANNOT SAVE · Current published settings have not loaded. Repair the Publisher connection to GitHub, then REFRESH.';});
    document.getElementById('brAccessIssue').addEventListener('click',()=>window.__calls.access++);
    document.getElementById('brSaveFanCode').addEventListener('click',()=>window.__calls.fan++);
  });
@@ -95,6 +95,8 @@ try{
  await page.click('#brTabWebsite');
  await page.click('#brTopSave');
  assert.equal(await page.evaluate(()=>window.__calls.profile),1);
+ await page.waitForFunction(()=>document.getElementById('brCentralSaveStatus').textContent.includes('NOT SAVED · PUBLIC PLAYER PROFILE'));
+ assert.doesNotMatch(await page.$eval('#brCentralSaveStatus',e=>e.textContent),/CONFIRMED/);
  await page.click('#brMoreTools > summary');
  await page.click('#brTabWelcome');
  await page.waitForFunction(()=>document.getElementById('brTopSave')?.textContent==='SAVE TO GITHUB');
