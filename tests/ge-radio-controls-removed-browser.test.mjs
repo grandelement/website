@@ -80,6 +80,19 @@ try{
        'Footer text must be visible on dark controls: '+JSON.stringify(item));
    }
    await page.click('#offlineLaunchBtn');
+   const offlineDiagnostics=await page.evaluate(()=>{
+     const btn=document.getElementById('offlineLaunchBtn');
+     const rect=btn.getBoundingClientRect();
+     const hit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+     const root=document.getElementById('geMusicV5Host')?.shadowRoot;
+     return {buttonRect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+       hitId:hit?.id,hitTag:hit?.tagName,hitClass:hit?.className,
+       buttonLabel:btn.textContent.trim(),open:window.GEMusicV5?.state?.().open,
+       workspace:!!root?.querySelector('.geOfflineWorkspace'),
+       choicesHidden:root?.querySelector('.geOfflineChoices')?.hidden,
+       bodyClasses:document.body.className};
+   });
+   console.log('OFFLINE_CLICK_DIAG '+width+'x'+height+' '+JSON.stringify(offlineDiagnostics));
    await page.waitForFunction(()=>{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
      return !!root?.querySelector('.geOfflineWorkspace')&&!root.querySelector('.geOfflineChoices').hidden;
