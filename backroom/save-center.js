@@ -40,7 +40,7 @@
      observer=new MutationObserver(()=>{
        const content=(status.textContent||'').trim();
        if(!alive||!content||content===original)return;
-       const failed=/NOT SAVED|FAILED|UNAVAILABLE|ERROR|BLOCKED|REFUS|SIGN.IN|NEEDS|CANCELLED|NOT VERIFIED|NO GITHUB/i.test(content);
+       const failed=/CANNOT SAVE|COULD NOT SAVE|NOT SAVED|NOT LOADED|READ ONLY|AUTHORIZATION REJECTED|HTTP 401|HTTP 403|FAILED|UNAVAILABLE|ERROR|BLOCKED|REFUS|SIGN.IN|NEEDS|CANCELLED|NOT VERIFIED|NO GITHUB/i.test(content);
        const success=/PUBLISHED|SAVED|VERIFIED|UPDATED/i.test(content)&&!failed;
        if(failed||success){
          show((success?'CONFIRMED · ':'NOT SAVED · ')+label+' · '+content,failed?'error':'success');
