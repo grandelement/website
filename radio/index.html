@@ -9070,8 +9070,11 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   const state=['ready','downloading','partial','missing'].includes(detail?.state)?detail.state:'checking';
   const percent=Number.isFinite(detail?.percent)?Math.max(0,Math.min(99,Math.round(detail.percent))):0;
   button.dataset.geState=state;
-  button.textContent=state==='ready'?'OFFLINE ✓':
+  const statusText=state==='ready'?'OFFLINE ✓':
    state==='downloading'?'OFFLINE '+percent+'%':'OFFLINE';
+  const visibleLabel=button.querySelector('.ge-radio-icon-label');
+  if(visibleLabel)visibleLabel.textContent=statusText;
+  else button.textContent=statusText;
   const label=state==='ready'?'OFFLINE READY · Radio is saved for Airplane Mode':
    state==='downloading'?'OFFLINE DOWNLOADING '+percent+' percent':
    state==='partial'?'OFFLINE PARTIAL · Update missing files':
