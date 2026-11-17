@@ -47,7 +47,7 @@ try{
     return {
      visible:universe.classList.contains('isActive'),
      toolbar:!!universe.querySelector('.geUniverseToolbar'),
-     lastRemoved:!covers.some(x=>x.dataset.album==='Fundamental Groove'),
+     fundamentalPresent:covers.some(x=>x.dataset.album==='Fundamental Groove'),
      fitted:!!first&&first.width>30&&first.height>30&&
        board.scrollHeight<=board.clientHeight+3,
      attached:covers.every((cover,i)=>i===0||
@@ -56,8 +56,8 @@ try{
      zoomed:board.style.getPropertyValue('--ge-universe-zoom')
     };
    });
-   assert(albums.visible&&!albums.toolbar&&albums.lastRemoved&&albums.fitted&&albums.attached&&albums.singleAbsent&&albums.zoomed==='1',
-     'ALBUMS must fit all connected covers in one view, no Singles or marked controls: '+JSON.stringify(albums));
+   assert(albums.visible&&!albums.toolbar&&albums.fundamentalPresent&&albums.fitted&&albums.attached&&albums.singleAbsent&&albums.zoomed==='1',
+     'ALBUMS must preserve Fundamental Groove, exclude Singles, and fit connected covers without extra controls: '+JSON.stringify(albums));
    const zoom=await page.evaluate(()=>{
     const root=document.querySelector('#geMusicV5Host').shadowRoot;
     const board=root.querySelector('.geUniverseAlbums');
