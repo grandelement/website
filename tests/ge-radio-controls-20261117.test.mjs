@@ -62,6 +62,8 @@ try{
          song:box(document.getElementById('titleBtn')),
          seek:box(document.getElementById('playerSeekWrap')),
          music:box(document.getElementById('musicGroup')),
+         musicRows:getComputedStyle(document.getElementById('musicGroup')).gridTemplateRows,
+         musicChildren:[...document.getElementById('musicGroup').children].map(el=>({id:el.id,display:getComputedStyle(el).display,row:getComputedStyle(el).gridRowStart,height:el.getBoundingClientRect().height})),
          bgQuick:box(document.getElementById('geBgQuickRow')),
          bgPanel:box(document.getElementById('bgGroup')),
          bottom:elements.map(box),allIcons:elements.every(el=>!!el.querySelector('svg.ge-radio-icon')),
