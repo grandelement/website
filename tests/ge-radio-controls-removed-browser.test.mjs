@@ -27,7 +27,7 @@ try{
     const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,width:r.width}};
     const forbidden=['reloadBtn','geDebugOpen','offlineBtn','geOfflineDecision','offlinePanel'];
     return {bad:forbidden.filter(id=>document.getElementById(id)),guestSunVisible,grantedSunVisible:!sun.hidden,offline:rect(offline),sun:rect(sun),support:rect(support),
-      code:!!document.getElementById('accessLaunchBtn'),
+      code:!!document.getElementById('accessLaunchBtn'),codeRect:rect(document.getElementById('accessLaunchBtn')),contact:rect(document.getElementById('contactLaunchBtn')),share:rect(document.getElementById('shareBtn')),
       radio:!!document.getElementById('liveBtn'),
       musicButton:!!document.getElementById('geMusicV5Button')};
    });
@@ -35,10 +35,18 @@ try{
    assert(state.code&&state.radio&&state.musicButton,'Main player controls were lost');
    assert(state.guestSunVisible&&state.grantedSunVisible,'SUN LAB button must remain visible before and after access code');
    assert(state.sun.width>25,'Granted SUN LAB must be visible and tappable');
-   assert(state.offline.right<=state.support.left+2,'OFFLINE must be left of SUPPORT: '+JSON.stringify(state));
-   assert(state.support.right<=state.sun.left+2,'SUPPORT must be left of SUN LAB: '+JSON.stringify(state));
-   assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,'Footer buttons must use equal columns: '+JSON.stringify(state));
-   assert(Math.abs(state.sun.top-state.support.top)<5&&Math.abs(state.offline.top-state.support.top)<5,'All footer controls must stay on one line');
+   if(isMobile){
+     const order=[state.sun,state.offline,state.contact,state.support,state.codeRect,state.share];
+     assert(order.every((rect,i)=>i===0||order[i-1].right<=rect.left+2),
+       'iPhone footer order must be SUN OFFLINE CONTACT BUY CODE SHARE: '+JSON.stringify(state));
+     assert(order.every(rect=>Math.abs(rect.width-order[0].width)<2&&Math.abs(rect.top-order[0].top)<2),
+       'All six icon utilities must be equally sized in one row');
+   }else{
+     assert(state.offline.right<=state.support.left+2,'Desktop OFFLINE precedes SUPPORT');
+     assert(state.support.right<=state.sun.left+2,'Desktop SUPPORT precedes SUN LAB');
+     assert(Math.abs(state.offline.width-state.support.width)<5&&Math.abs(state.support.width-state.sun.width)<5,
+       'Desktop utility widths must remain aligned');
+   }
    // Rendered CSS, not source-string checks: catch invisible button text and
    // stale dark transport controls on both iPhone and desktop.
    const buttonColors=await page.evaluate(()=>{
@@ -57,10 +65,11 @@ try{
        'Missing consolidated CSS file '+file+' '+JSON.stringify(buttonColors.loaded));
    const rgba=value=>(value.match(/[\\d.]+/g)||[]).map(Number);
    for(const item of buttonColors.transport){
-     const [red,green,blue,opacity]=rgba(item.background);
-     assert(item.visible&&red>=190&&green>=195&&blue>=200&&opacity>=.65,
-       'Transport must be silver on all devices: '+JSON.stringify(item));
-     assert(item.image==='none','Old gradient overrides silver transport: '+JSON.stringify(item));
+     const [red,green,blue]=rgba(item.text);
+     assert(item.visible&&red>=200&&green>=210&&blue>=210,
+       'Transport text/icon color must be legible on every device: '+JSON.stringify(item));
+     assert(item.image.includes('linear-gradient'),
+       'Transport must retain approved blue player surfaces: '+JSON.stringify(item));
    }
    const [shareRed,shareGreen,shareBlue]=rgba(buttonColors.share.background);
    assert(Math.abs(shareRed-185)<25&&Math.abs(shareGreen-165)<25&&Math.abs(shareBlue-232)<25,
