@@ -54,6 +54,11 @@ try{
  const health=await result.json();
  assert.equal(health.github_ready,true);
  assert.equal(health.credential_mode,'github_app+fallback');
+ result=await worker.fetch(req('/manage/public-config'),env);
+ assert.equal(result.status,401,'Unauthenticated visitors cannot request the owner editing baseline');
+ result=await worker.fetch(req('/manage/public-config',{headers:auth}),env);
+ assert.equal(result.status,200,'Logged-in Back Room can get the current GitHub main config');
+ assert.equal((await result.json()).config.welcome.title,'OLD');
  result=await worker.fetch(req('/manage/public-settings',{headers:auth}),env);
  assert.equal(result.status,200);
  const initial=await result.json();
