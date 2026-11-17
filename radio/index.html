@@ -2098,13 +2098,12 @@ function rebuildQueue(anchor=state.currentURL){
 }
 function syncModeButtons(){
   const toggle=$('shuffleBtn');
-  // Shuffle and Album are mode choices, not illuminated toggle indicators.
-  setPressed(toggle,false);
+  // Illuminate SHUFFLE only while shuffle playback is actually selected.
+  setPressed(toggle,!!state.shuffle);
   if(toggle){
-    // This button names the NEXT mode, not the currently active mode.
-    toggle.textContent=state.shuffle?'ALBUM':'SHUFFLE';
-    toggle.setAttribute('aria-label',state.shuffle?'Switch to album order':'Switch to shuffle order');
-    toggle.title=state.shuffle?'Currently SHUFFLE; tap for ALBUM':'Currently ALBUM; tap for SHUFFLE';
+    toggle.textContent='SHUFFLE';
+    toggle.setAttribute('aria-label',state.shuffle?'Shuffle on; tap for album order':'Album order; tap to turn on shuffle');
+    toggle.title=state.shuffle?'Shuffle ON · tap for album order':'Album order · tap for shuffle';
   }
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
@@ -5370,6 +5369,7 @@ window.addEventListener('online',()=>{
 
   function syncChecks(){
     if(autoCheckbox)autoCheckbox.checked=autoEnabled;
+    if(combined)combined.classList.toggle('ge-auto-hide-on',autoEnabled);
     if(shipAuto)shipAuto.checked=shipAutoEnabled;
   }
   function show(){
