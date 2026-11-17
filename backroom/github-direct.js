@@ -1,19 +1,148 @@
-/* GE Studios direct GitHub publisher. No Cloudflare calls and no stored credentials.
-   Public music routing and public player profile only. */
+/* GE Studios direct GitHub publisher. No Cloudflare calls.
+   Public music routing and public player profile only.
+   The GitHub fine-grained credential is encrypted on this device with a strong passcode.
+   Never store plaintext credentials or passcodes. */
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
 const API='https://api.github.com/repos/grandelement/website/contents/config/site-live.json';
 const DRAFT_KEY='GE_DIRECT_GITHUB_MUSIC_DRAFT_V1';
+const CREDENTIAL_KEY='GE_DIRECT_GITHUB_ENCRYPTED_CREDENTIAL_V1';
+const CREDENTIAL_KDF_ITERATIONS=600000;
+const CREDENTIAL_CONTEXT=new TextEncoder().encode('GE Studios Direct GitHub Publisher credential v1');
 const ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
 const SCOPE=['sunlab','offline','reload','debug','legacy','iam'];
 const KEYS=['frontAlbums','storeAlbums','storeSongPaths','playerSongPaths','radioSongPaths'];
 let files=[],albums=[],base=null,work=null,assignments={},busy=false,playlistList=[];
+let unlockedToken='',authBusy=false;
 const distinct=items=>[...new Set(items)];
 const sorted=items=>distinct(items).sort();
 const orderedAlbums=items=>distinct(items).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const clone=thing=>JSON.parse(JSON.stringify(thing));
+
+function authenticationMessage(message,kind='warn'){
+ $('authStatus').dataset.kind=kind;$('authStatus').textContent=String(message||'');
+}
+const bytesToBase64=bytes=>btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));
+const base64ToBytes=text=>Uint8Array.from(atob(text),char=>char.charCodeAt(0));
+async function deriveCredentialKey(passcode,salt){
+ const input=await crypto.subtle.importKey('raw',new TextEncoder().encode(passcode),
+  'PBKDF2',false,['deriveKey']);
+ return crypto.subtle.deriveKey({
+  name:'PBKDF2',salt,iterations:CREDENTIAL_KDF_ITERATIONS,hash:'SHA-256'
+ },input,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptCredential(secret,passcode){
+ const salt=crypto.getRandomValues(new Uint8Array(16));
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const key=await deriveCredentialKey(passcode,salt);
+ const cipher=await crypto.subtle.encrypt(
+  {name:'AES-GCM',iv,additionalData:CREDENTIAL_CONTEXT},key,new TextEncoder().encode(secret));
+ return JSON.stringify({version:1,iterations:CREDENTIAL_KDF_ITERATIONS,
+  salt:bytesToBase64(salt),iv:bytesToBase64(iv),
+  ciphertext:bytesToBase64(new Uint8Array(cipher))});
+}
+async function decryptCredential(data,passcode){
+ const record=JSON.parse(data);
+ if(record?.version!==1||record.iterations!==CREDENTIAL_KDF_ITERATIONS)
+  throw Error('Unknown encrypted credential format.');
+ const salt=base64ToBytes(record.salt),iv=base64ToBytes(record.iv),
+  ciphertext=base64ToBytes(record.ciphertext);
+ if(salt.length!==16||iv.length!==12||ciphertext.length<17)
+  throw Error('Invalid encrypted credential.');
+ const key=await deriveCredentialKey(passcode,salt);
+ const decrypted=await crypto.subtle.decrypt({
+  name:'AES-GCM',iv,additionalData:CREDENTIAL_CONTEXT
+ },key,ciphertext);
+ const token=new TextDecoder().decode(decrypted);
+ if(!token.startsWith('github_pat_'))throw Error('Invalid credential.');
+ return token;
+}
+function showAuthentication(){
+ $('editor').hidden=true;$('publisherLock').hidden=false;
+ let connected=false;
+ try{connected=!!localStorage.getItem(CREDENTIAL_KEY)}
+ catch(_){authenticationMessage('Device storage is unavailable. A saved connection requires browser storage.','error')}
+ $('firstSetup').hidden=connected;
+ $('unlockAccess').hidden=!connected;
+ if(connected)$('unlockCode').focus();
+}
+function grantAccess(token){
+ unlockedToken=token;
+ $('publisherLock').hidden=true;$('editor').hidden=false;
+ authenticationMessage('');
+ void load();
+}
+async function setupAccess(){
+ if(authBusy)return;
+ const token=$('setupToken').value.trim();
+ const passcode=$('setupCode').value,confirmation=$('setupConfirm').value;
+ if(!token.startsWith('github_pat_')){
+  authenticationMessage('Enter a fine-grained GitHub connection token. This is only needed once on this device.','error');return;
+ }
+ if(passcode.length<10){
+  authenticationMessage('Choose a passcode with at least 10 characters to protect GitHub publishing.','error');return;
+ }
+ if(passcode!==confirmation){
+  authenticationMessage('The two passcodes do not match.','error');return;
+ }
+ authBusy=true;$('setupButton').disabled=true;
+ authenticationMessage('VERIFYING GITHUB CONNECTION AND ENCRYPTING IT ON THIS DEVICE…');
+ try{
+  await githubGet(token);
+  const encrypted=await encryptCredential(token,passcode);
+  localStorage.setItem(CREDENTIAL_KEY,encrypted);
+  $('setupToken').value='';$('setupCode').value='';$('setupConfirm').value='';
+  grantAccess(token);
+ }catch(error){
+  authenticationMessage('CONNECTION NOT SAVED · '+String(error.message||error),'error');
+  $('setupToken').value='';$('setupCode').value='';$('setupConfirm').value='';
+ }finally{
+  authBusy=false;$('setupButton').disabled=false;
+ }
+}
+async function unlockAccess(){
+ if(authBusy)return;
+ const passcode=$('unlockCode').value;
+ $('unlockCode').value='';
+ if(!passcode){authenticationMessage('ENTER YOUR PASSCODE TO UNLOCK.','error');return}
+ authBusy=true;$('unlockButton').disabled=true;
+ authenticationMessage('UNLOCKING…');
+ try{
+  const encrypted=localStorage.getItem(CREDENTIAL_KEY);
+  if(!encrypted)throw Error('No connection saved on this device.');
+  const token=await decryptCredential(encrypted,passcode);
+  grantAccess(token);
+ }catch(_){
+  authenticationMessage('UNLOCK FAILED · Incorrect passcode or saved connection is unreadable. Nothing was changed.','error');
+ }finally{authBusy=false;$('unlockButton').disabled=false}
+}
+function lockAccess(){
+ unlockedToken='';
+ // Every input remains saved as a local draft, not committed to GitHub.
+ work=null;base=null;files=[];albums=[];assignments={};playlistList=[];
+ $('unlockCode').value='';
+ showAuthentication();
+}
+function forgetConnection(){
+ if(!confirm('Reset this device’s saved GitHub connection? You will need to connect GitHub once again. Your music draft and published GitHub files will NOT be deleted.'))return;
+ unlockedToken='';
+ localStorage.removeItem(CREDENTIAL_KEY);
+ $('setupToken').value='';$('setupCode').value='';$('setupConfirm').value='';
+ showAuthentication();
+ authenticationMessage('SAVED CONNECTION CLEARED FROM THIS DEVICE. Your music draft is preserved.','warn');
+}
+$('setupButton').addEventListener('click',()=>void setupAccess());
+$('unlockButton').addEventListener('click',()=>void unlockAccess());
+$('lockPublisher').addEventListener('click',lockAccess);
+$('forgetDevice').addEventListener('click',forgetConnection);
+for(const [input,button] of [['setupConfirm','setupButton'],['unlockCode','unlockButton']]){
+ $(input).addEventListener('keydown',event=>{
+  if(event.key==='Enter'){event.preventDefault();$(button).click()}
+ });
+}
+
 const albumOf=path=>(String(path).split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim();
 const fileName=path=>String(path).split('/').pop().replace(/\.(?:mp3|m4a|wav|ogg|flac)$/i,'')
  .replace(/^[^_]+_\d+[-_]?/,'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
@@ -196,10 +325,8 @@ function checkSelections(){
 }
 async function save(){
  if(busy||!changed()){status('NO CHANGES TO SAVE.','warn');return}
- const input=$('token'),secret=String(input.value||'').trim();
- if(!secret){status('ENTER THE FINE-GRAINED GITHUB TOKEN FOR THIS SAVE.','error');return}
- // Erase the DOM copy immediately. The secret only remains in this call while GitHub API requests finish.
- input.value='';
+ const secret=unlockedToken;
+ if(!secret){status('LOCKED · Enter the Back Room passcode to save.','error');return}
  if(!confirm('Publish your selected FRONT, STORE, PLAYER, RADIO and Public Player settings to GitHub? This will NOT change the BLITZ DJ queue, private Vault or access codes.'))return;
  busy=true;$('save').disabled=true;$('discard').disabled=true;
  let commit='';
@@ -243,7 +370,7 @@ async function save(){
   status((commit?'COMMIT MADE BUT NOT VERIFIED · ':'NOT SAVED · ')+String(e.message||e)+
    '\nYour selections remain in the local draft.','error');
  }finally{
-  busy=false;input.value='';counts();
+  busy=false;counts();
  }
 }
 $('save').addEventListener('click',()=>void save());
@@ -257,5 +384,5 @@ $('search').addEventListener('input',renderSongs);
 $('playlist').addEventListener('change',()=>{work.playlistId=$('playlist').value;remember();counts()});
 for(const box of $('scopes').querySelectorAll('input[type=checkbox]'))
  box.addEventListener('change',()=>{work.scopes=sorted([...$('scopes').querySelectorAll('input:checked')].map(x=>x.value));remember();counts()});
-void load();
+showAuthentication();
 })();
