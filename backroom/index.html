@@ -711,6 +711,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brCatalogRouting,#brPublicPlayerProfile,#brGeneralPublicAccess,#brMusicRadioMaster,
 #backroomMain .topControls{display:none!important}
 #brDirectPublisherHost{width:100%;max-width:none;min-width:0;margin:8px 0}
+#brDirectPublisherHost[hidden]{display:none!important}
 #brDirectPublisherStatus{font-weight:800;color:#b4e7ff;font-size:13px;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261116-playlists-v2">
@@ -1413,6 +1414,10 @@ function installBackroomTabs(){
   // ACCESS subtabs belong directly BELOW main tabs and ABOVE all panel content.
   moreTools.insertAdjacentElement('afterend',accessSubnav);
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';accessSubnav.insertAdjacentElement('afterend',panelHost);
+  // Keep the embedded GitHub editor mounted at one stable position. Moving an iframe
+  // between panels can reload it and erase an unlocked session or unsaved edits.
+  const directMount=$('brDirectPublisherHost');
+  if(directMount)panelHost.insertAdjacentElement('beforebegin',directMount);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
@@ -1509,8 +1514,7 @@ function installBackroomTabs(){
     // ACCESS must always open codes, never silently return to the prior FANS view.
     const topTab=tab;
     const directHost=$('brDirectPublisherHost');
-    const dest=tab==='website'?panels.get('website'):tab==='radio'?panels.get('radio'):null;
-    if(dest&&directHost&&directHost.parentElement!==dest)dest.prepend(directHost);
+    if(directHost)directHost.hidden=tab!=='website'&&tab!=='radio';
     const sharedPlaylistEditor=$('brDJPlaylistEditor');
     const playlistDestination=tab==='radio'?radioPlaylistMount:panels.get('music');
     if(sharedPlaylistEditor&&playlistDestination&&sharedPlaylistEditor.parentElement!==playlistDestination)
