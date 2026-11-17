@@ -1348,6 +1348,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="editorHint" id="editorHint">Drag the highlighted item. The center and edge guides show useful alignment points.</div>
 </div>
 
+<script src="./github-bridge.js?v=20261117-unified-v1"></script>
 <script>
 (()=>{
 'use strict';
@@ -1597,6 +1598,17 @@ function renderGateTimingSummary(){
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let publisherBase=null;
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
+document.addEventListener('ge-direct-config',event=>{
+ const latest=event.detail;
+ if(!latest||!Array.isArray(latest.music?.radioMasterSongPaths))return;
+ const old=publisherBase;
+ publisherBase=clone(latest);
+ // Keep pending drafts. Only replace fields when the editor still matches its last baseline.
+ if(cfg&&!dirty&&old&&JSON.stringify(cfg)===JSON.stringify(old)){
+  cfg=clone(latest);
+  populate();
+ }
+});
 // The only DJ playlist authority is the BLITZ controller. This is a
 // password-free view of its saved playlist names/paths, not another database.
 let geDJSavedPlaylists=[],geDJPlaylistReady=false,geDJVaultConfirmed=false;
@@ -1765,6 +1777,7 @@ async function enterBackroom(){
       return;
     }
     setToken(d.token);serverAuthenticated=true;
+    window.GE_DIRECT_BRIDGE?.unlock(pass);
   }catch(_e){
     $('gateMessage').textContent='Sign-in service unavailable. Access remains locked.';
     return;
@@ -2619,20 +2632,9 @@ window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
    }
  }
  setStatus('SAVING '+paths.join(', ').toUpperCase()+' TO GITHUB…');
- const res=await api('/manage/public-settings',{
-   method:'POST',timeoutMs:28000,body:JSON.stringify({changes,expected})
- });
- const result=await res.json().catch(()=>({}));
- if(!res.ok||result.ok!==true||!result.commit)
-   throw Error(String(result.error||'GitHub did not confirm the save.'));
- const verifyResponse=await api('/manage/public-settings',{method:'GET',timeoutMs:20000});
- const proof=await verifyResponse.json().catch(()=>({}));
- if(!verifyResponse.ok||proof.ok!==true||!proof.settings)
-   throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but verification read failed. Do not save again until checked.');
- for(const path of paths){
-   if(!geGithubSame(proof.settings[path],changes[path]))
-     throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but '+path+' readback differs. Do not overwrite it.');
- }
+ // Direct GitHub owner authorization verifies the committed values on the main branch.
+ const result=await window.GE_DIRECT_BRIDGE.patch(changes,expected);
+ if(!result.ok||!result.commit)throw Error('GitHub save was not confirmed.');
  for(const path of paths){
    if(path.startsWith('music.')){
      if(!publisherBase.music)publisherBase.music={};
@@ -5454,7 +5456,7 @@ async function bootBackroom(){
   }
   applyText(savedText||90);
   improveBackroomLabels();
-  publisherBase=await repoLive().catch(()=>null);
+  publisherBase=window.GE_DIRECT_BRIDGE?.latestConfig||await repoLive().catch(()=>null);
   cfg=localDraft()||publisherBase;
   if(!cfg)throw Error('No cached draft or published public settings are available');
   populate();await loadMusic();
@@ -5475,7 +5477,8 @@ async function bootBackroom(){
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 // Revalidate an existing owner session automatically; public visitors stay locked.
-if(token())void restorePublisherSession();
+// Require one password at the single Back Room entrance. Avoid restoring only the
+// private session while the direct GitHub editor remains locked.
 $('gatePassword').focus();
 })();
 </script>
