@@ -252,14 +252,15 @@ function renderAll(){
  renderAlbums();renderSongs();renderProfile();counts();
 }
 async function fetchPublished(){
- const query='?ge-direct='+Date.now();
- const [cfgResponse,manifestResponse,playlistResponse]=await Promise.all([
-  fetch('../config/site-live.json'+query,{cache:'no-store'}),
-  fetch('../radio/manifest.json'+query,{cache:'no-store'}),
-  fetch('../playlists/registry.json'+query,{cache:'no-store'})
+ // Never initialize a new editing session from GitHub Pages: that deploy may lag behind GitHub.
+ // Every unlock loads the authoritative main branch with the authenticated owner credential.
+ if(!unlockedToken)throw Error('Enter the Back Room passcode to load current GitHub settings.');
+ const [live,inventory,playlistFile]=await Promise.all([
+  githubGet(unlockedToken),
+  githubReadFile(unlockedToken,'radio/manifest.json'),
+  githubReadFile(unlockedToken,'playlists/registry.json')
  ]);
- if(!cfgResponse.ok||!manifestResponse.ok)throw Error('Public website settings or music manifest unavailable.');
- const config=await cfgResponse.json(),manifest=await manifestResponse.json();
+ const config=live.data,manifest=inventory.data;
  if(!Array.isArray(manifest.files)||!Array.isArray(config.music?.radioMasterSongPaths))
   throw Error('Missing public music inventory or approved Radio songs.');
  files=distinct(manifest.files.filter(p=>/^ge-music\/music\/.+\.(?:mp3|m4a|wav|ogg|flac)$/i.test(p)))
@@ -267,7 +268,7 @@ async function fetchPublished(){
   .sort((a,b)=>ORDER.indexOf(a.album)-ORDER.indexOf(b.album)||a.name.localeCompare(b.name));
  if(!files.length)throw Error('Music inventory empty. Nothing changed.');
  albums=distinct(files.map(row=>row.album)).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
- try{const data=playlistResponse.ok?await playlistResponse.json():null;playlistList=data?.playlists||[]}catch(_){playlistList=[]}
+ playlistList=Array.isArray(playlistFile.data?.playlists)?playlistFile.data.playlists:[];
  $('albumFilter').replaceChildren(new Option('ALL ALBUMS',''),
   ...albums.map(a=>new Option(a,a)));
  return config;
@@ -300,8 +301,11 @@ function encode64(s){
  for(let i=0;i<buf.length;i+=8192)list.push(String.fromCharCode(...buf.subarray(i,i+8192)));
  return btoa(list.join(''));
 }
-async function githubGet(token){
- const response=await fetch(API+'?ref=main',{cache:'no-store',credentials:'omit',
+async function githubReadFile(token,path){
+ if(!['config/site-live.json','radio/manifest.json','playlists/registry.json'].includes(path))
+  throw Error('GitHub source is not an approved public settings file.');
+ const url='https://api.github.com/repos/grandelement/website/contents/'+path+'?ref=main';
+ const response=await fetch(url,{cache:'no-store',credentials:'omit',
   headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'}});
  const data=await response.json().catch(()=>({}));
  if(!response.ok||!data.sha||!data.content)
@@ -309,6 +313,7 @@ async function githubGet(token){
    'GitHub GET rejected (HTTP '+response.status+'). Check token repository and Contents permissions.');
  return {data:JSON.parse(decode64(data.content)),sha:data.sha};
 }
+async function githubGet(token){return githubReadFile(token,'config/site-live.json')}
 function checkSelections(){
  const allowed=new Set(files.map(x=>x.path)),validAlbums=new Set(albums);
  if(!work.radioSongPaths.length)throw Error('Keep at least one RADIO song enabled.');
