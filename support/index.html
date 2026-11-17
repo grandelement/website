@@ -349,6 +349,7 @@ function updatePreviewAlbumControls(){
  const album=state.activeAlbum;
  if(previewMode){
    get('albumBuyAll').textContent='SELECT WHOLE ALBUM FOR PREVIEW';
+   get('albumBuyAll').disabled=false;
    get('albumAddSelected').textContent='KEEP SONGS · BACK TO ALBUMS';
    get('albumAddSelected').disabled=false;
    get('albumDetailBio').textContent='Free 33:33 preview. Check the songs you want; the Soul Comet at the top updates instantly.';
@@ -363,7 +364,8 @@ function updatePreviewAlbumControls(){
    // Preview checks do not silently become paid-cart selections.
    const b=getBio(album);
    get('albumDetailBio').textContent=b.bio||"Choose the recordings you'd like to own.";
-   get('albumBuyAll').textContent='ADD COMPLETE ALBUM · '+money(album.tracks.length)+(albumBonus(album).length?' · BONUS INCLUDED':'');
+   get('albumBuyAll').textContent=album.publishedPartial?'COMPLETE ALBUM NOT AVAILABLE':'ADD COMPLETE ALBUM · '+money(album.tracks.length)+(albumBonus(album).length?' · BONUS INCLUDED':'');
+   get('albumBuyAll').disabled=!!album.publishedPartial;
    get('albumTrackList').querySelectorAll('input[type="checkbox"]').forEach(box=>{
      box.checked=false;box.disabled=false;
      const price=box.closest('.trackrow')?.querySelector('strong');if(price)price.textContent=money(1.5);
