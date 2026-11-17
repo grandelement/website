@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
+import {readFileSync} from 'node:fs';
+
+// Protect the single, user-facing music control's two legal labels.
+// RADIO and private I AM audio have their own separate controls.
+const radio=readFileSync('radio/index.html','utf8');
+assert.match(radio,/id="playBtn"[^>]*>PLAYER<\/button>/);
+assert.match(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAYER':'PAUSE'/);
+assert.match(radio,/playBtn\.textContent=activeSong\?'PAUSE':'PLAYER'/);
+assert.doesNotMatch(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAY'/);
+assert.doesNotMatch(radio,/playBtn\.textContent=activeSong\?'PAUSE':resumableSong\?'PLAY'/);
 
 const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
@@ -34,6 +44,8 @@ try{
     return ret;
    });
    let first=await get();
+   const label=await page.$eval('#playBtn',button=>button.textContent.trim());
+   assert.equal(label,'PLAYER','Idle music control must always say PLAYER');
    console.log('CONTROL_BASE '+width+'x'+height+' '+JSON.stringify(first));
    assert(first.hudAutoHide.width>=27.5&&first.hudAutoHide.height>=27.5,
        'Hide Text checkbox must be 28px on every view: '+JSON.stringify(first.hudAutoHide));
