@@ -5481,8 +5481,9 @@ async function bootBackroom(){
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 // Revalidate an existing owner session automatically; public visitors stay locked.
-// Require one password at the single Back Room entrance. Avoid restoring only the
-// private session while the direct GitHub editor remains locked.
+// Reuse a valid private Vault session; the embedded GitHub publisher remains locked
+// until its encrypted credential is unlocked with the Back Room passcode.
+if(token())void restorePublisherSession();
 $('gatePassword').focus();
 })();
 </script>
