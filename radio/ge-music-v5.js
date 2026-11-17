@@ -1680,7 +1680,7 @@ function renderStandaloneAlbums(){
  const allowed=access?.restricted?new Set(access.allowed):null;
  const names=[...new Set((state.catalogAllTracks||state.tracks).filter(t=>!allowed||allowed.has(t.path)).map(t=>t.album))]
   // FRONT album artwork is independent of PLAYER song availability.
-  .filter(name=>name!=='Singles'&&(!Array.isArray(catalogRouting?.frontAlbums)||catalogRouting.frontAlbums.includes(name)))
+  .filter(name=>Array.isArray(catalogRouting?.frontAlbums)?catalogRouting.frontAlbums.includes(name):name!=='Singles')
   .sort((a,b)=>rank(a)-rank(b));
  board.style.setProperty('--ge-album-count',String(Math.max(1,names.length)));
  for(const name of names){
