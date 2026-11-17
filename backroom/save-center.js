@@ -68,6 +68,8 @@
  };
  const selectedSave=()=>{
    const current=tab();
+   if(current==='website')
+     return trigger('brPublicPlayerSave','PUBLIC PLAYER PROFILE','GITHUB','brPublicPlayerStatus');
    if(['welcome','about','universe','games','moon','gate'].includes(current)){
      if(typeof window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS!=='function'){
        show('Website GitHub publisher did not initialize. Nothing saved.','error');return;
@@ -91,8 +93,6 @@
        return trigger('brPlaylistSave','GE PLAYLIST','GITHUB','brPlaylistStatus');
      if($('brMusicRadioMaster')?.open)
        return trigger('brMasterSave','MASTER SONG APPROVALS','GITHUB','brMasterStatus');
-     if($('brRouteAdvancedPlayer')?.open)
-       return trigger('brPublicPlayerSave','PUBLIC PLAYER PROFILE','GITHUB','brPublicPlayerStatus');
      return trigger('brRouteSave','FRONT / STORE / PLAYER / RADIO MUSIC','GITHUB','brRouteStatus');
    }
    if(current==='access'){
