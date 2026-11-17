@@ -32,16 +32,27 @@ function playerTracksFromCatalog(all){
  return all.filter(track=>allowed.has(track.path));
 }
 async function loadCatalogRouting(){
- let data=null;
+ let published=null;
  try{
   const response=await fetch('../config/site-live.json?music_routing='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('Routing settings unavailable');
-  data=await response.json();
-  try{localStorage.setItem('GE_MUSIC_CATALOG_ROUTING_V1',JSON.stringify(data.music?.catalogRouting||{}))}catch(_){}
+  const data=await response.json();
+  published=data.music?.catalogRouting||null;
+  if(published&&Object.values(published.assignments||{}).some(Boolean)){
+   try{
+    const registryResponse=await fetch('../playlists/registry.json?music_routing='+Date.now(),{cache:'no-store'});
+    if(!registryResponse.ok)throw Error('Playlist registry HTTP '+registryResponse.status);
+    const registry=await registryResponse.json();
+    const resolved=window.GEMusicRouting?.resolve(published,registry);
+    if(resolved?.missing?.length)console.warn('Music routing using saved snapshot; playlist unresolved:',resolved.missing);
+    else if(resolved)published=resolved.routing;
+   }catch(error){console.warn('Music routing using published playlist snapshot:',error)}
+  }
+  try{localStorage.setItem('GE_MUSIC_CATALOG_ROUTING_V1',JSON.stringify(published||{}))}catch(_){}
  }catch(_){
-  try{catalogRouting=JSON.parse(localStorage.getItem('GE_MUSIC_CATALOG_ROUTING_V1')||'null')}catch(_){}
+  try{published=JSON.parse(localStorage.getItem('GE_MUSIC_CATALOG_ROUTING_V1')||'null')}catch(_){}
  }
- if(data)catalogRouting=data.music?.catalogRouting||null;
+ catalogRouting=published;
  if(state.catalogAllTracks?.length){
   state.tracks=playerTracksFromCatalog(state.catalogAllTracks);
   updateMeta();render();
@@ -3544,8 +3555,11 @@ window.GEMusicV5={open,close,openOffline,openCodeEntry,preload:preloadCatalog,sh
   }
   const publicDefault=Array.isArray(window.GEPublicPlayerPlaylistPaths)?
     new Set(window.GEPublicPlayerPlaylistPaths):new Set();
-  const approvedMaster=Array.isArray(window.GEPublicPlayerApprovedPaths)?
-    new Set(window.GEPublicPlayerApprovedPaths):null;
+  // PLAYER is an independent Back Room destination. Do not accidentally
+  // intersect its approved songs with the separate RADIO / Shuffle rotation.
+  const approvedMaster=Array.isArray(catalogRouting?.playerSongPaths)?
+    new Set(catalogRouting.playerSongPaths):
+    (Array.isArray(window.GEPublicPlayerApprovedPaths)?new Set(window.GEPublicPlayerApprovedPaths):null);
   const permitted=state.tracks.filter(t=>
     !LEGACY_ALBUMS.has(t.album)&&t.album!=='Singles'&&
     (!access?.restricted||access.allowed.includes(t.path))&&
