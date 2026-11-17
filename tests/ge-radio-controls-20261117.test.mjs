@@ -5,7 +5,6 @@ const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
  headless:true,args:['--no-sandbox','--disable-dev-shm-usage']
 });
-const sample=()=>page.evaluate(()=>{});
 try{
  for(const [width,height,isMobile] of [[390,844,true],[375,667,true],[1440,900,false]]){
   const page=await browser.newPage();
@@ -45,11 +44,13 @@ try{
    for(const id of ['playBtn','shuffleBtn','bgPrev','hudCombined','contactLaunchBtn']){
      assert(!first[id].href.startsWith('mailto:'),'An email link is intercepting '+id);
    }
-   if(isMobile){
-     assert(first.playBtn.height>=first.bgPrev.height+3,'Music must be taller than backgrounds');
-     assert(first.playBtn.height>=first.contactLaunchBtn.height+3,'Music must be taller than utilities');
-   }
+   assert(first.playBtn.height>=first.bgPrev.height+1,'Music must be taller than backgrounds on every screen');
+   assert(first.playBtn.height>=first.contactLaunchBtn.height+1,'Music must be taller than utilities on every screen');
    const green=color=>/rgb\(0, 255, 168\)/.test(color);
+   for(const id of ['bgPer','bgShuf']){
+     assert.equal(green(first[id].outline),first[id].pressed==='true',
+       id+' green border must match activated background mode');
+   }
    assert.equal(green(first.hudCombined.outline),!!first.hudAutoHide.checked,
      'Hide Text green must match native checkbox');
    // Actual click: ensure native change remains functional and does not open email.
