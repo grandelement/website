@@ -1194,7 +1194,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brAccessAudit" class="backroomInlineStatus" role="status">LIVE SOURCE AUDIT NOT RUN YET.</div>
   <div id="brAccessSaved" class="backroomCodeList" aria-label="Every saved Vault code with direct Edit actions"></div>
 
-  <p class="brAccessNotice" id="brAccessLegacyNotice">The global LOVE code is retired. Assign access to each new or existing Back Room code using the individual checkboxes below. Changes take effect only after SAVE CHANGES and Vault verification.</p>
+  <p class="brAccessNotice" id="brAccessLegacyNotice">Every access code uses its own saved permissions. Changes take effect only after SAVE CHANGES and Vault verification.</p>
   <details class="brSourceDetails">
     <summary>MANAGE CODES</summary>
     <div class="brAccessSecondary">
@@ -1218,7 +1218,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
     <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp">Access is controlled by the individual permissions checked below. LOVE is retired and cannot be issued.</p>
+    <p class="brAccessNotice" id="brAccessCustomHelp">Access is controlled by the individual permissions checked below. All codes use the same saved permission settings.</p>
     <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
     <label><span>FAN / ACCESS NAME · SHOWN AT TOP OF MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
     <p id="brAccessDisplayNameHelp" class="brAccessNotice">Optional. This name appears at the top of Radio Music instead of the access code. If blank, the exact code the guest entered is shown for that browser session. Use the same name as the saved fan when appropriate; fan records are linked by ID, not name alone.</p>
@@ -2969,7 +2969,7 @@ const backroomVaultManagers=(()=>{
   let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
-  let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
+  let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='';
   let accessLastReadError=''; // Never present a failed Vault read as an empty record set.
   // The GitHub registry is the single playlist master for Access Codes.
   // The legacy BLITZ list is a separate radio source, never an access-code master.
@@ -3994,15 +3994,8 @@ const backroomVaultManagers=(()=>{
       host.textContent='VAULT CODE LIST NOT VERIFIED. No code record has been reconstructed.';
       return;
     }
-    const love=codeRows.filter(row=>row.id==='access_legacy_love_v1'||
-      String(row.code_hint||'').toUpperCase()==='LOVE'||
-      /^LOVE(?:\s|·|$)/i.test(String(row.label||'')));
     const playlistNames=accessDJLoaded?accessDJPlaylists.map(p=>p.name).join(', '):'NOT VERIFIED';
-    const loveState=legacyLoveAudit?.state?
-      legacyLoveAudit.state+' ('+(legacyLoveAudit.record_id||'NO RECORD ID')+')':
-      (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED LIST · D1 AUDIT UNAVAILABLE');
-    host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S) · LOVE: '+
-      loveState+
+    host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S)'+
       ' · GITHUB PLAYLISTS: '+(accessDJLoaded?accessDJPlaylists.length:'NOT CONNECTED')+
       ' ('+playlistNames+') · MUSIC CATALOG: '+catalog.length+' TRACK(S).';
   }
@@ -4057,7 +4050,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessReplace').disabled=disabled;
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
-      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match for '+q+'. '+codeRows.length+' saved in Vault. Tap SHOW ALL to see them, or SAVE NEW to create this name.':'No saved access codes. Refresh to migrate existing LOVE into Vault.'));
+      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match for '+q+'. '+codeRows.length+' saved in Vault. Tap SHOW ALL to see them, or SAVE NEW to create this name.':'No saved access codes in the current verified Vault list. Do not recreate missing records without checking D1 first.'));
       renderSavedCodeCards();updateSourceAudit();
       return;
     }
@@ -4092,7 +4085,6 @@ const backroomVaultManagers=(()=>{
       if(!Array.isArray(codes.items))throw Error('Vault returned no code list.');
       codeRows=codes.items;
       accessLastReadError='';
-      legacyLoveAudit=codes.legacy_love||null;
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
@@ -4102,11 +4094,10 @@ const backroomVaultManagers=(()=>{
         // Do not overwrite a new unsaved draft while loading the actual records.
         if(!editingCodeId&&!unsavedName&&selectedCode())showCodeEditor(selectedCodeId);
       }
-      const lovePresent=codeRows.some(row=>row.id==='access_legacy_love_v1');
       accessStatus(codeRows.length===0?
         'VAULT RETURNED ZERO ACCESS CODES · This is a verified empty response, NOT proof older records were deleted. Do not recreate records until the Vault D1 source is checked.':
         'VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
-        ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
+        ' · master '+(codeMaster.checked?'ON':'OFF')+'.');
       return true;
     }catch(err){
       accessLastReadError=String(err.message||err);
@@ -4282,7 +4273,6 @@ const backroomVaultManagers=(()=>{
     const row=selectedCode();
     if(!row||row.id!==editingCodeId)return accessStatus('LOAD THE SAVED CODE BEFORE RESETTING ITS KEY.');
     if(savingCode)return;
-    if(row.id==='access_legacy_love_v1')return accessStatus('LOVE ALREADY USES THE CODE LOVE. NOTHING CHANGED.');
     if(!confirm('Make "'+row.label+'" the actual Radio Gate code? The OLD key will stop working immediately. Permissions, playlists and use counts stay unchanged.'))return;
     savingCode=true;
     const button=$('brAccessReplaceKey');button.disabled=true;
@@ -4344,7 +4334,7 @@ const backroomVaultManagers=(()=>{
   }
   async function toggleMaster(){
     const desired=codeMaster.checked;
-    if(!desired&&!confirm('Disable ALL access codes including LOVE and Radio Gate entry?')){
+    if(!desired&&!confirm('Disable ALL access codes and Radio Gate entry?')){
       codeMaster.checked=true;return;
     }
     codeMaster.disabled=true;
