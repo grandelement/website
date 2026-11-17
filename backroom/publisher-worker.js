@@ -353,6 +353,14 @@ async function handlePlayerProfile(request,env,cors){
       playlistId:String(prior.playlistId||''),
       scopes:Array.isArray(prior.scopes)?prior.scopes.filter(x=>PUBLIC_PLAYER_SCOPE_SET.has(x)):[]
     };
+    const savedRouting=music.catalogRouting&&typeof music.catalogRouting==='object'?music.catalogRouting:{};
+    const routing={
+      frontAlbums:Array.isArray(savedRouting.frontAlbums)?savedRouting.frontAlbums:null,
+      storeAlbums:Array.isArray(savedRouting.storeAlbums)?savedRouting.storeAlbums:null,
+      storeSongPaths:Array.isArray(savedRouting.storeSongPaths)?savedRouting.storeSongPaths:null,
+      playerSongPaths:Array.isArray(savedRouting.playerSongPaths)?savedRouting.playerSongPaths:null,
+      radioSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[]
+    };
     const {registry}=await readGithubPlaylistRegistry(env);
     const playlists=registry.playlists.map(p=>({
       id:String(p.id||''),name:String(p.name||''),visibility:String(p.visibility||'unlisted'),
@@ -360,14 +368,73 @@ async function handlePlayerProfile(request,env,cors){
     }));
     if(request.method==='GET'){
       return json({ok:true,profile:currentProfile,playlists,
-        masterSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[]},200,cors);
+        masterSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[],
+        routing},200,cors);
     }
     if(request.method!=='POST')return json({ok:false,error:'Unsupported method.'},405,cors);
     const body=await request.json().catch(()=>null);
     if(!body||typeof body!=='object')return json({ok:false,error:'Invalid settings.'},400,cors);
     const next=structuredClone(current);
     next.music={...music};
-    if(body.action==='save_master'){
+    if(body.action==='rebuild_manifest'){
+      // Re-scan the committed GitHub tree, never a browser-provided file list.
+      const [treeResponse,manifestResponse]=await Promise.all([
+        github(env,'git/trees/'+encodeURIComponent(branch)+'?recursive=1',{method:'GET'}),
+        github(env,'contents/radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'})
+      ]);
+      if(!treeResponse.ok||!manifestResponse.ok)throw Error('GitHub file inventory unavailable. Manifest unchanged.');
+      const tree=await treeResponse.json(),oldFile=await manifestResponse.json();
+      if(tree.truncated||!Array.isArray(tree.tree))throw Error('Incomplete GitHub tree. Manifest unchanged.');
+      const files=tree.tree.filter(item=>item.type==='blob'&&
+        /^ge-music\/(?:music|clips)\/.+\.(?:mp3|m4a|aac|wav|ogg|flac)$/i.test(item.path||''))
+        .map(item=>item.path).sort();
+      if(!files.length)throw Error('GitHub tree contains no music files. Manifest unchanged.');
+      const old=JSON.parse(decodeGithubText(oldFile.content||''));
+      if(!Array.isArray(old.files))throw Error('Existing manifest is invalid. Manifest unchanged.');
+      const unchanged=JSON.stringify(files)===JSON.stringify([...old.files].sort());
+      if(unchanged)return json({ok:true,unchanged:true,count:files.length,commit:''},200,cors);
+      const nextManifest={...old,files,generatedAt:new Date().toISOString()};
+      const response=await github(env,'contents/radio/manifest.json',{
+        method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:'Back Room: rebuild GE music manifest from GitHub files',
+          content:utf8B64(JSON.stringify(nextManifest,null,2)+'\n'),sha:oldFile.sha,branch})
+      });
+      const saved=await response.json().catch(()=>({}));
+      if(!response.ok)throw Error('Manifest update refused (HTTP '+response.status+'). Nothing else changed.');
+      return json({ok:true,unchanged:false,count:files.length,commit:String(saved.commit?.sha||'')},200,cors);
+    }
+    if(body.action==='save_catalog_routing'){
+      if(!body.expectedRouting||JSON.stringify(body.expectedRouting)!==JSON.stringify(routing))
+        return json({ok:false,error:'Master routing changed elsewhere. RELOAD before saving.'},409,cors);
+      const incoming=body.routing||{};
+      const pathKeys=['storeSongPaths','playerSongPaths','radioSongPaths'];
+      const albumKeys=['frontAlbums','storeAlbums'];
+      for(const key of [...pathKeys,...albumKeys]){
+        if(!Array.isArray(incoming[key])||incoming[key].length>10000||
+            incoming[key].some(value=>typeof value!=='string')||
+            new Set(incoming[key]).size!==incoming[key].length)
+          return json({ok:false,error:'Invalid or duplicate '+key+' choices.'},400,cors);
+      }
+      if(!incoming.radioSongPaths.length)
+        return json({ok:false,error:'Keep at least one RADIO / SHUFFLE song enabled.'},400,cors);
+      const manifestResponse=await github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'});
+      if(!manifestResponse.ok)throw Error('Published manifest unavailable. No changes made.');
+      const manifestFile=await manifestResponse.json();
+      const manifest=JSON.parse(decodeGithubText(manifestFile.content||''));
+      const available=new Set((manifest.files||[]).filter(p=>typeof p==='string'&&playlistSongPath(p)));
+      const albums=new Set([...available].map(p=>
+        (p.split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim()));
+      if(pathKeys.some(key=>incoming[key].some(p=>!playlistSongPath(p)||!available.has(p)))||
+          albumKeys.some(key=>incoming[key].some(n=>!albums.has(n))))
+        return json({ok:false,error:'Album or song not found in current GitHub manifest. REBUILD and RELOAD first.'},409,cors);
+      next.music.catalogRouting={
+        version:1,frontAlbums:incoming.frontAlbums,storeAlbums:incoming.storeAlbums,
+        storeSongPaths:incoming.storeSongPaths,playerSongPaths:incoming.playerSongPaths
+      };
+      next.music.radioMasterSongPaths=incoming.radioSongPaths;
+      if(JSON.stringify(routing.radioSongPaths)!==JSON.stringify(incoming.radioSongPaths))
+        next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
+    }else if(body.action==='save_master'){
       const old=Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[];
       const expected=body.expectedMasterSongPaths;
       if(!Array.isArray(expected)||JSON.stringify(expected)!==JSON.stringify(old))
@@ -403,7 +470,8 @@ async function handlePlayerProfile(request,env,cors){
     const update=await github(env,path,{
       method:'PUT',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        message:body.action==='save_master'?'Back Room: update approved Player Master List':'Back Room: update public Player profile',
+        message:body.action==='save_catalog_routing'?'Back Room: publish unified FRONT STORE PLAYER RADIO music controls':
+          body.action==='save_master'?'Back Room: update approved Player Master List':'Back Room: update public Player profile',
         content:utf8B64(content),sha:file.sha,branch
       })
     });
@@ -414,7 +482,14 @@ async function handlePlayerProfile(request,env,cors){
       throw Error('GitHub refused player save (HTTP '+update.status+'): '+String(result.message||'Unknown error'));
     }
     return json({ok:true,commit:String(result.commit?.sha||''),profile:next.music.publicPlayer||currentProfile,
-      masterSongPaths:next.music.radioMasterSongPaths||[]},200,cors);
+      masterSongPaths:next.music.radioMasterSongPaths||[],
+      routing:body.action==='save_catalog_routing'?{
+        frontAlbums:next.music.catalogRouting.frontAlbums,
+        storeAlbums:next.music.catalogRouting.storeAlbums,
+        storeSongPaths:next.music.catalogRouting.storeSongPaths,
+        playerSongPaths:next.music.catalogRouting.playerSongPaths,
+        radioSongPaths:next.music.radioMasterSongPaths
+      }:routing},200,cors);
   }catch(error){
     return json({ok:false,error:String(error?.message||error)},502,cors);
   }
