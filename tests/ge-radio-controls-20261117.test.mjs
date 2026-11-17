@@ -47,6 +47,40 @@ try{
    const label=await page.$eval('#playBtn',button=>button.textContent.trim());
    assert.equal(label,'PLAYER','Idle music control must always say PLAYER');
    console.log('CONTROL_BASE '+width+'x'+height+' '+JSON.stringify(first));
+   if(isMobile){
+     const footer=await page.evaluate(()=>{
+       const box=el=>{
+         const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+         return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,
+           fontSize:parseFloat(s.fontSize),paddingTop:parseFloat(s.paddingTop),paddingBottom:parseFloat(s.paddingBottom)};
+       };
+       const code=document.getElementById('bottomActions'),tools=document.getElementById('geUtilityRow');
+       return {first:box(code),second:box(tools),
+         firstBtns:['accessLaunchBtn','contactLaunchBtn','shareBtn'].map(id=>box(document.getElementById(id))),
+         secondBtns:[document.getElementById('offlineLaunchBtn'),tools.querySelector('a.bc-btn'),document.getElementById('sunLabBtn')].map(box)};
+     });
+     const near=(a,b,tolerance=1)=>Math.abs(a-b)<=tolerance;
+     console.log('FOOTER_STANDARD '+width+'x'+height+' '+JSON.stringify(footer));
+     assert(near(footer.first.left,footer.second.left)&&near(footer.first.right,footer.second.right),
+       'Footer rows must have matching outside edges: '+JSON.stringify(footer));
+     for(let i=0;i<3;i++){
+       const top=footer.firstBtns[i],bottom=footer.secondBtns[i];
+       assert(near(top.left,bottom.left)&&near(top.width,bottom.width),
+         'Footer column '+(i+1)+' is wider in one row: '+JSON.stringify(footer));
+       assert(near(top.height,bottom.height)&&near(top.height,40),
+         'Footer column '+(i+1)+' must have matching 40px height: '+JSON.stringify(footer));
+       assert(near(top.fontSize,bottom.fontSize),
+         'Footer column '+(i+1)+' must have matching type size: '+JSON.stringify(footer));
+       assert(near(top.paddingTop,bottom.paddingTop)&&near(top.paddingBottom,bottom.paddingBottom),
+         'Footer column '+(i+1)+' must have matching vertical padding: '+JSON.stringify(footer));
+     }
+     const columnGap=arr=>arr[1].left-arr[0].right;
+     assert(near(columnGap(footer.firstBtns),columnGap(footer.secondBtns))&&
+       near(columnGap(footer.firstBtns),6),'Both footer rows need one consistent 6px column gap');
+     for(const row of [footer.firstBtns,footer.secondBtns])
+       assert(row.every(btn=>near(btn.top,row[0].top)&&near(btn.bottom,row[0].bottom)),
+         'Footer controls must share one baseline');
+   }
    assert(first.hudAutoHide.width>=27.5&&first.hudAutoHide.height>=27.5,
        'Hide Text checkbox must be 28px on every view: '+JSON.stringify(first.hudAutoHide));
    assert(first.hudAutoHide.right+3<=first.hudCombined.right,
