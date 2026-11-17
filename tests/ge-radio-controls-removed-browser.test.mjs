@@ -79,6 +79,11 @@ try{
      assert(item.visible&&red>=210&&green>=210&&blue>=210,
        'Footer text must be visible on dark controls: '+JSON.stringify(item));
    }
+   const offlineHitBefore=await page.evaluate(()=>{
+     const button=document.getElementById('offlineLaunchBtn'),r=button.getBoundingClientRect();
+     return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)?.closest?.('button,a')?.id;
+   });
+   if(isMobile)assert.equal(offlineHitBefore,'offlineLaunchBtn','OFFLINE icon must receive the tap without an Arrange overlay');
    await page.click('#offlineLaunchBtn');
    const offlineDiagnostics=await page.evaluate(()=>{
      const btn=document.getElementById('offlineLaunchBtn');
@@ -93,7 +98,7 @@ try{
        bodyClasses:document.body.className};
    });
    console.log('OFFLINE_CLICK_DIAG '+width+'x'+height+' '+JSON.stringify(offlineDiagnostics));
-   if(isMobile)assert.equal(offlineDiagnostics.hitControl,'offlineLaunchBtn','Hidden owner controls cannot intercept OFFLINE icon taps');
+   assert(offlineDiagnostics.open&&!offlineDiagnostics.choicesHidden,'The OFFLINE icon must open the existing Music offline choices');
    await page.waitForFunction(()=>{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
      return !!root?.querySelector('.geOfflineWorkspace')&&!root.querySelector('.geOfflineChoices').hidden;
