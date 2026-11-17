@@ -75,6 +75,9 @@ try{
      assert(ui.song.bottom<ui.seek.top,'Song title belongs above the artwork');
      assert(ui.seek.top<ui.music.top,'Progress bar must sit above lower music controls');
      assert(ui.music.bottom<=ui.bgQuick.top,'Background row must be BELOW music');
+     assert.equal(ui.musicRows,'43px 43px','One compact two-row MUSIC height contract');
+     assert(ui.musicChildren.filter(el=>['prevBtn','playBtn','nextBtn','shuffleBtn','liveBtn','geMusicV5Button'].includes(el.id)).every(el=>Math.abs(el.height-43)<=1),
+       'No button-specific music height overrides may compete: '+JSON.stringify(ui.musicChildren));
      assert(ui.bgQuick.bottom<ui.bottom[0].top,'Background row must be ABOVE utilities');
      assert.equal(ui.bgPanel.display,'none','Background details hidden by default');
      assert(ui.allIcons,'All six utilities must have outlined SVG icons');
