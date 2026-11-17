@@ -58,5 +58,20 @@ jobs:
                !vaultRequests.some(x=>x.http===201))
               throw Error('Public website could not confirm a live Vault fan event via actual mobile Chrome');
             console.log('PASS: real mobile browser sent the public website fan event and got D1 acceptance.');
+            // Check that the newly deployed owner-only merchandise publisher is
+            // reachable from the real website origin but never readable anonymously.
+            const merchProbe=await page.evaluate(async()=>{
+              try{
+                const response=await fetch('https://ge-backroom-publisher.grandelement.workers.dev/manage/merchandise',{
+                  method:'GET',credentials:'omit',cache:'no-store'
+                });
+                const body=await response.json().catch(()=>({}));
+                return {status:response.status,ok:body.ok===true,
+                  protected:typeof body.error==='string'&&/sign.in|owner/i.test(body.error)};
+              }catch(error){return {networkError:String(error?.message||error)}}
+            });
+            console.log('LIVE MERCHANDISE PUBLISHER',JSON.stringify(merchProbe));
+            if(merchProbe.status!==401||!merchProbe.protected)
+              throw Error('Authenticated merchandise publisher endpoint is not confirmed on live Worker');
           }finally{await browser.close();}
           JS
