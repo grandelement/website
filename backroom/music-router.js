@@ -10,6 +10,10 @@ const ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Ses
 const SONG=/^ge-music\/music\/.+\.(?:mp3|m4a|wav|ogg|flac)$/i;
 const PATH_KEYS=['storeSongPaths','playerSongPaths','radioSongPaths'];
 const COLORS=window.GE_ALBUM_COLORS||{};
+const shared=window.GEMusicRouting;
+if(!shared){document.getElementById('brRouteStatus').textContent='Playlist resolver unavailable. Refresh Back Room.';return;}
+const DEST_KEYS={front:['frontAlbums'],store:['storeAlbums','storeSongPaths'],player:['playerSongPaths'],radio:['radioSongPaths']};
+let playlists=[],playlistRevision='',assignments={front:'',store:'',player:'',radio:''};
 let entries=[],names=[],view='all',loaded=false,busy=false,serverReady=false,expected=null,baseSignature='';
 let flags={frontAlbums:new Set(),storeAlbums:new Set(),storeSongPaths:new Set(),playerSongPaths:new Set(),radioSongPaths:new Set()};
 const albumOf=path=>(String(path).split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim()||'Other';
@@ -21,10 +25,17 @@ const songOf=path=>{
 const order=(a,b)=>{let x=ORDER.indexOf(a),y=ORDER.indexOf(b);return (x<0?999:x)-(y<0?999:y)||a.localeCompare(b)};
 const status=message=>{$('brRouteStatus').textContent=String(message)};
 const sorted=key=>[...flags[key]].sort();
+function resolved(){
+ return shared.resolve({
+  ...Object.fromEntries(Object.keys(flags).map(key=>[key,[...flags[key]]])),
+  assignments
+ },{playlists},entries.map(row=>row.path));
+}
+function effective(key){return new Set(resolved().routing[key]||[])}
 const snapshot=()=>JSON.stringify({
  frontAlbums:sorted('frontAlbums'),storeAlbums:sorted('storeAlbums'),
  storeSongPaths:sorted('storeSongPaths'),playerSongPaths:sorted('playerSongPaths'),
- radioSongPaths:sorted('radioSongPaths')
+ radioSongPaths:sorted('radioSongPaths'),assignments
 });
 const changed=()=>snapshot()!==baseSignature;
 const token=()=>{try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_){return ''}};
@@ -40,6 +51,9 @@ async function ownerApi(method,body){
 }
 function useRecord(record){
  const paths=entries.map(row=>row.path);
+ assignments=Object.fromEntries(['front','store','player','radio'].map(key=>[
+  key,String(record?.assignments?.[key]||'')
+ ]));
  flags={
   frontAlbums:new Set(Array.isArray(record?.frontAlbums)?record.frontAlbums:names.filter(name=>name!=='Singles')),
   storeAlbums:new Set(Array.isArray(record?.storeAlbums)?record.storeAlbums:names),
@@ -48,14 +62,43 @@ function useRecord(record){
   radioSongPaths:new Set(Array.isArray(record?.radioSongPaths)?record.radioSongPaths:[])
  };
  baseSignature=snapshot();
+ populatePlaylistChoices();
+}
+function populatePlaylistChoices(){
+ for(const destination of ['front','store','player','radio']){
+  const control=root.querySelector('[data-route-playlist="'+destination+'"]');
+  if(!control)continue;
+  control.replaceChildren(new Option('CUSTOM · CHECKBOXES',''));
+  control.add(new Option(destination==='front'?'ALL ALBUMS':'ALL SONGS','@all'));
+  for(const playlist of playlists){
+   if(!playlist?.id||!playlist?.name)continue;
+   const available=(playlist.songs||[]).filter(path=>entries.some(e=>e.path===path));
+   control.add(new Option(String(playlist.name)+' · '+available.length+' SONGS',playlist.id));
+  }
+  control.value=assignments[destination];
+  if(control.value!==assignments[destination]){
+   control.add(new Option('MISSING PLAYLIST · RELOAD',assignments[destination]));
+   control.value=assignments[destination];
+  }
+ }
+}
+function updatePlaylistHint(){
+ const active=Object.entries(assignments).filter(([,id])=>!!id);
+ $('brRoutePlaylistHint').textContent=active.length?
+  active.map(([dest,id])=>dest.toUpperCase()+': '+(id==='@all'?'ALL SONGS':(playlists.find(p=>p.id===id)?.name||'MISSING PLAYLIST'))).join(' · ')+
+  ' · Checkboxes follow the selected playlist. Choose CUSTOM to edit manually.':
+  'CUSTOM controls selected. Choose a saved playlist to reuse its songs.';
 }
 function updateCount(){
  if(!loaded){
   $('brRouteCounts').textContent='SIGN IN TO LOAD THE MASTER CATALOG';
   $('brRouteSave').disabled=true;return;
  }
- $('brRouteCounts').textContent=entries.length+' FILES · '+flags.frontAlbums.size+' FRONT · '+flags.storeAlbums.size+
-  ' STORE · '+flags.playerSongPaths.size+' PLAYER · '+flags.radioSongPaths.size+' RADIO';
+ const route=resolved();
+ $('brRouteCounts').textContent=entries.length+' FILES · '+(route.routing.frontAlbums?.length||0)+' FRONT · '+
+  (route.routing.storeAlbums?.length||0)+' STORE · '+
+  (route.routing.playerSongPaths?.length||0)+' PLAYER · '+(route.routing.radioSongPaths?.length||0)+' RADIO';
+ updatePlaylistHint();
  $('brRouteSave').disabled=!loaded||!serverReady||busy||!changed();
  if(changed())status(serverReady?'UNSAVED CHANGES · SAVE ALL CHANGES to publish.':
   'READ ONLY · Publisher needs the new Music routing deployment before it can save.');
@@ -63,7 +106,9 @@ function updateCount(){
 function toggle(kind,value,aria){
  const label=document.createElement('label');label.className='brRouteBox';
  label.title=aria+' · '+value;
- const input=document.createElement('input');input.type='checkbox';input.checked=flags[kind].has(value);
+ const input=document.createElement('input');input.type='checkbox';input.checked=effective(kind).has(value);
+ const destination=Object.keys(DEST_KEYS).find(d=>DEST_KEYS[d].includes(kind));
+ input.disabled=!!assignments[destination];
  input.setAttribute('aria-label',aria+' '+value);
  input.addEventListener('change',()=>{if(input.checked)flags[kind].add(value);else flags[kind].delete(value);updateCount()});
  label.append(input);return label;
@@ -71,7 +116,10 @@ function toggle(kind,value,aria){
 function albumGroupToggle(kind,album,songs,word){
  const label=document.createElement('label');label.className='brRouteAlbumToggle';
  const box=document.createElement('input');box.type='checkbox';
- const checked=songs.filter(row=>flags[kind].has(row.path)).length;
+ const selected=effective(kind);
+ const checked=songs.filter(row=>selected.has(row.path)).length;
+ const destination=Object.keys(DEST_KEYS).find(d=>DEST_KEYS[d].includes(kind));
+ box.disabled=!!assignments[destination];
  box.checked=checked===songs.length;box.indeterminate=checked>0&&checked<songs.length;
  box.setAttribute('aria-label',word+' for all songs on '+album);
  box.addEventListener('change',()=>{
@@ -151,12 +199,20 @@ async function load(force=false){
   try{
    const result=await ownerApi('GET');
    if(!Object.prototype.hasOwnProperty.call(result,'routing'))throw Error('Publisher needs deployment of the new Music routing handler.');
-   record=result.routing;expected=JSON.parse(JSON.stringify(record));serverReady=true;
+   if(!Array.isArray(result.playlists)||!result.playlists.every(p=>Array.isArray(p.songs))||
+      typeof result.playlistRevision!=='string')
+    throw Error('The updated playlist-first Publisher must be deployed to enable saving.');
+   record=result.routing;expected=JSON.parse(JSON.stringify(record));
+   playlists=result.playlists;playlistRevision=result.playlistRevision;serverReady=true;
   }catch(error){
    const current=await fetch('../config/site-live.json?router='+Date.now(),{cache:'no-store'});
    if(!current.ok)throw error;
    const cfg=await current.json(),saved=cfg.music?.catalogRouting||{};
    record={...saved,radioSongPaths:cfg.music?.radioMasterSongPaths||[]};
+   try{
+    const response=await fetch('../playlists/registry.json?router='+Date.now(),{cache:'no-store'});
+    if(response.ok){const data=await response.json();playlists=shared.entries(data)}
+   }catch(_){}
    expected=null;serverReady=false;
    status('READ ONLY · '+String(error.message||error)+' · Deploy updated Back Room Publisher to enable SAVE.');
   }
@@ -168,17 +224,23 @@ async function load(force=false){
 async function save(){
  if(!loaded||!serverReady||busy)return;
  if(!changed()){status('NO CHANGES.');return;}
+ const resolvedSelection=resolved();
+ if(resolvedSelection.missing.length){
+  status('NOT SAVED · Missing playlist: '+resolvedSelection.missing.join(', ')+'. Refresh and repair the selection.');return;
+ }
+ const now=resolvedSelection.routing;
  const oldRadio=Array.isArray(expected?.radioSongPaths)?expected.radioSongPaths:[];
- const radioSongPaths=[...oldRadio.filter(path=>flags.radioSongPaths.has(path)),
-  ...sorted('radioSongPaths').filter(path=>!oldRadio.includes(path))];
- const routing={frontAlbums:sorted('frontAlbums'),storeAlbums:sorted('storeAlbums'),
-  storeSongPaths:sorted('storeSongPaths'),playerSongPaths:sorted('playerSongPaths'),
-  radioSongPaths};
+ const radioSongPaths=assignments.radio?[...now.radioSongPaths]:
+  [...oldRadio.filter(path=>flags.radioSongPaths.has(path)),
+   ...sorted('radioSongPaths').filter(path=>!oldRadio.includes(path))];
+ const routing={frontAlbums:[...now.frontAlbums],storeAlbums:[...now.storeAlbums],
+  storeSongPaths:[...now.storeSongPaths],playerSongPaths:[...now.playerSongPaths],
+  radioSongPaths,assignments:{...assignments}};
  if(!routing.radioSongPaths.length){status('NOT SAVED · Retain at least one RADIO track.');return;}
  if(!confirm('PUBLISH FRONT / STORE / PLAYER / RADIO CHECKBOXES?\n\nThis changes public music routing in one GitHub commit. It does not change payments or the live BLITZ DJ queue.'))return;
  busy=true;$('brRouteSave').disabled=true;status('SAVING ALL MUSIC DESTINATIONS…');
  try{
-  const result=await ownerApi('POST',{action:'save_catalog_routing',routing,expectedRouting:expected});
+  const result=await ownerApi('POST',{action:'save_catalog_routing',routing,expectedRouting:expected,playlistRevision});
   if(!result.commit||!result.routing)throw Error('No GitHub commit confirmation.');
   expected=JSON.parse(JSON.stringify(result.routing));useRecord(result.routing);render();
   status('PUBLISHED · '+result.commit.slice(0,12)+' · ALL CHECKBOXES SAVED.');
@@ -213,7 +275,7 @@ async function saveBlitzPlaylist(){
  if(!loaded||busy)return;
  if(!serverReady){status('The new Publisher must be deployed before saving a Radio selection.');return;}
  if(changed()){status('SAVE ALL CHANGES first, so the approved RADIO checkboxes match GitHub.');return;}
- const chosen=sorted('radioSongPaths'),name=$('brRouteDjName').value.trim();
+ const chosen=[...resolved().routing.radioSongPaths],name=$('brRouteDjName').value.trim();
  if(!name||!chosen.length){status('Enter a playlist name and check at least one RADIO song.');return;}
  if(!confirm('SAVE '+chosen.length+' RADIO SONGS IN THE ORIGINAL BLITZ DJ BOOTH AS "'+name+'"?\n\nThis saves a playlist only. It will not change the live radio until you press USE ON RADIO 1.'))return;
  busy=true;$('brRouteDjSave').disabled=true;status('VERIFYING MUSIC FILES AND SAVING BLITZ DJ PLAYLIST…');
@@ -230,6 +292,21 @@ async function saveBlitzPlaylist(){
  finally{busy=false;$('brRouteDjSave').disabled=false;updateCount()}
 }
 $('brRouteDjSave').addEventListener('click',()=>void saveBlitzPlaylist());
+root.querySelectorAll('[data-route-playlist]').forEach(select=>select.addEventListener('change',()=>{
+ const destination=select.dataset.routePlaylist,chosen=select.value;
+ if(chosen===assignments[destination])return;
+ if(!chosen&&assignments[destination]){
+  const previous=resolved().routing;
+  for(const key of DEST_KEYS[destination])flags[key]=new Set(previous[key]||[]);
+ }
+ assignments[destination]=chosen;
+ if(destination==='radio'&&chosen&&chosen!=='@all'){
+  const name=playlists.find(p=>p.id===chosen)?.name;
+  if(name)$('brRouteDjName').value=name;
+ }
+ render();
+}));
+$('brRouteEditPlaylists').addEventListener('click',()=>document.getElementById('brTabMusic')?.click());
 $('brRouteRefresh').addEventListener('click',()=>void load());
 $('brRouteSave').addEventListener('click',()=>void save());
 $('brRouteRebuild').addEventListener('click',()=>void rebuild());
@@ -237,7 +314,10 @@ $('brRouteSearch').addEventListener('input',render);
 $('brRouteAlbum').addEventListener('change',render);
 root.querySelectorAll('[data-route-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.routeView)));
 const prior=window.GE_BACKROOM_TAB_SELECTED;
-window.GE_BACKROOM_TAB_SELECTED=tab=>{prior?.(tab);if(tab==='radio'&&token()&&!loaded)void load()};
+window.GE_BACKROOM_TAB_SELECTED=tab=>{
+ prior?.(tab);
+ if(tab==='radio'&&token()&&(!loaded||!changed()))void load(true);
+};
 window.GE_BACKROOM_ROUTER_LOAD=()=>{if(token()&&!loaded)void load()};
 setView('all');
 })();
