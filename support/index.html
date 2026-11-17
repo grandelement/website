@@ -156,6 +156,7 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 }
 
 </style>
+<script src="../config/music-routing.js?v=20261116-playlists-v1"></script>
 </head>
 <body>
 <header>
@@ -781,9 +782,21 @@ Promise.all([
 fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Catalog unavailable");return r.json()}),
 fetch("../config/site-live.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})),
 fetch("../radio/track-durations.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Track timings unavailable");return r.json()}).catch(()=>({tracks:[]}))
-]).then(([data,site,durations])=>{
+]).then(async ([data,site,durations])=>{
 // FRONT, STORE, PLAYER and RADIO share the published Back Room route.
-const routing=site.music?.catalogRouting||{};
+let routing=site.music?.catalogRouting||{};
+if(Object.values(routing.assignments||{}).some(Boolean)){
+ try{
+  const response=await fetch('../playlists/registry.json?store_route='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('Playlist HTTP '+response.status);
+  const registry=await response.json();
+  const resolved=window.GEMusicRouting?.resolve(routing,registry);
+  if(resolved){
+   if(resolved.missing.length)console.warn('STORE playlist unresolved; using published selection:',resolved.missing);
+   else routing=resolved.routing;
+  }
+ }catch(error){console.warn('STORE using last published playlist snapshot:',error)}
+}
 const visibleAlbums=Array.isArray(routing.storeAlbums)?new Set(routing.storeAlbums.map(normPreview)):null;
 const visibleSongs=Array.isArray(routing.storeSongPaths)?new Set(routing.storeSongPaths.map(path=>{
  const bits=String(path).split('/'),folder=(bits[2]||'').replace(/^Grand Element - (?:[0-9]{4} - )?/,'');
