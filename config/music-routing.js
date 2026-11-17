@@ -28,7 +28,10 @@
    if(!id)continue;
    const paths=selection(id,registry,allPaths);
    if(paths===null){missing.push(destination);continue}
-   if(destination==='front')routing.frontAlbums=[...new Set(paths.map(albumOf))];
+   // Preserve the existing public choice: Singles is hidden from playlist-driven
+   // cover stacks unless the owner expressly chooses ALL or enables it in CUSTOM.
+   if(destination==='front')routing.frontAlbums=[...new Set(paths.map(albumOf))]
+    .filter(name=>id==='@all'||name!=='Singles');
    if(destination==='store'){
     routing.storeAlbums=[...new Set(paths.map(albumOf))];
     routing.storeSongPaths=paths;
