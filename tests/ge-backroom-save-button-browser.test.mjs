@@ -41,7 +41,7 @@ const browser=await puppeteer.launch({
 try{
  const page=await browser.newPage();
  page.on('dialog',dialog=>void dialog.accept());
- await page.setViewport({width:1024,height:800,deviceScaleFactor:1});
+ await page.setViewport({width:1024,height:800,isMobile:true,deviceScaleFactor:2});
  await page.setContent(document,{waitUntil:'domcontentloaded',timeout:15000});
  await page.addScriptTag({content:initialize});
  await page.evaluate(()=>{
