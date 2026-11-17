@@ -516,7 +516,10 @@ document.addEventListener('DOMContentLoaded',function(){
       <!-- Album planets occupy a separate depth track. The permanent Blue Sun
            stays above them and retains its original arrival/message behavior. -->
       <div id="shipAlbumPlanetLayer" aria-hidden="true"></div>
-      <div id="shipPlanetLayer" aria-hidden="true"><img id="shipLogo" alt="Grand Element"></div>
+      <div id="shipPlanetLayer" aria-hidden="true">
+        <div id="shipSunEQHalo"><svg viewBox="0 0 240 240" aria-hidden="true"><g id="shipSunEQHaloBars"></g></svg></div>
+        <img id="shipLogo" alt="Grand Element">
+      </div>
       <div id="shipWarpLayer" aria-hidden="true"></div>
       <div id="shipAtmosphereLayer" aria-hidden="true"></div>
     </div>
@@ -561,6 +564,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
     <button data-proxy="shuffleBtn">Shuffle</button><button data-proxy="liveBtn">LIVE</button>
+    <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
       <input id="shipAutoHide" type="checkbox" aria-label="Automatically hide ship controls">
@@ -596,7 +600,6 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="shipBottomActions">
     <button type="button" data-proxy="contactLaunchBtn" aria-label="Contact Grand Element">CONTACT</button>
     <a href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store">SUPPORT</a>
-    <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button type="button" data-proxy="accessLaunchBtn" aria-label="Enter your Inner Frequency access code">CODE</button>
   </div>
   <div id="shipOwnerActions">
@@ -5540,6 +5543,9 @@ async function registerServiceWorker(){
   const course={x:0,y:0,offSince:0,limitSince:0,nearSince:0,nearBest:Infinity,manualSteerAt:0};
   let arrivalContactShown=false,arrivalDismissed=false,arrivalRevealTimer=0;
   const ARRIVAL_CALM_MS=5000;
+  // Manual Auto Pilot is an actual guided journey. The old near-zero
+  // throttle made the final approach effectively stall before Inner Horizon.
+  const AUTOPILOT_MIN_APPROACH_RATE=.029;
   const telemetryPhrases=[
     ['Radiant density increasing','Soul-core resonance coherent'],
     ['Life-force envelope detected','Inner harmonic field responsive'],
@@ -6202,6 +6208,7 @@ Electron drift ${(seed*2-1).toFixed(2)} ψ · ${stageNotes[depthStage]}`;
     if(arrivalContact){
       if(distance<=30 && arrival>.90 && !arrivalContactShown && !arrivalDismissed){
         arrivalContactShown=true;
+        autopilot=false;autopilotReason='manual';setPressed(autoPilotBtn,false);
         resetArrivalSendState();
         arrivalContact.classList.remove('open');
         document.body.classList.remove('hud-hidden');
@@ -6553,6 +6560,21 @@ Vector ${vector}. ${pair[1]}.`;
   };
   window.GERandomizeSunEQMap=randomizeSunEQMap;
   const eqRingLines=$('shipEQOrbLines'),eqRingStatus=$('shipEQOrbStatus');
+  const shipHaloBars=$('shipSunEQHaloBars');
+  if(shipHaloBars&&!shipHaloBars.childElementCount){
+    const ns='http://www.w3.org/2000/svg';
+    for(let i=0;i<48;i++){
+      const bar=document.createElementNS(ns,'line'),angle=i/48*Math.PI*2-Math.PI/2;
+      const ux=Math.cos(angle),uy=Math.sin(angle);
+      bar.setAttribute('x1',(120+ux*127).toFixed(2));
+      bar.setAttribute('y1',(120+uy*127).toFixed(2));
+      bar.setAttribute('x2',(120+ux*137).toFixed(2));
+      bar.setAttribute('y2',(120+uy*137).toFixed(2));
+      bar.setAttribute('class','ship-sun-eq-bar');
+      shipHaloBars.append(bar);
+    }
+  }
+  const shipHaloLines=shipHaloBars?[...shipHaloBars.children]:[];
   if(eqRingLines&&!eqRingLines.childElementCount){
     const ns='http://www.w3.org/2000/svg';
     for(let i=0;i<64;i++){
@@ -7159,6 +7181,16 @@ Vector ${vector}. ${pair[1]}.`;
         bar.style.opacity=live?String(clamp(.38+level*.62,.38,1)):'.23';
       });
     }
+    // Use the existing measured live spectrum, never a second audio graph or
+    // synthetic playback levels. A faint ring remains visible while paused.
+    for(let i=0;i<shipHaloLines.length;i++){
+      const line=shipHaloLines[i],level=bandLevel(i,shipHaloLines.length);
+      const angle=i/shipHaloLines.length*Math.PI*2-Math.PI/2;
+      const radius=136+Math.pow(level,.7)*31,ux=Math.cos(angle),uy=Math.sin(angle);
+      line.setAttribute('x2',(120+ux*radius).toFixed(2));
+      line.setAttribute('y2',(120+uy*radius).toFixed(2));
+      line.style.strokeOpacity=live?String((.48+level*.52).toFixed(2)):'.22';
+    }
     if(eqRingLines){
       const strokes=[...eqRingLines.children];
       strokes.forEach((line,i)=>{
@@ -7225,7 +7257,11 @@ Vector ${vector}. ${pair[1]}.`;
     // Forward Blue Sun approach is twice as fast; reverse steering is unchanged.
     const rate=.00275*Math.pow(speed,1.2)*warpMultiplier*(approach.throttle>0?2:1);
     const arrivalSlow=(approach.throttle>0 && before<161)?lerp(.10,1,clamp(before/161,0,1)):1;
-    approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*rate*dt*arrivalSlow,.002,1);
+    // Keep normal manual throttle physics. Auto Pilot alone has a minimum
+    // forward approach speed so it reliably reaches the existing arrival trigger.
+    const guided=autopilot&&autopilotReason==='manual'&&!arrivalContactShown&&approach.throttle>0;
+    const forwardRate=guided?Math.max(rate*arrivalSlow,AUTOPILOT_MIN_APPROACH_RATE):rate*arrivalSlow;
+    approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*forwardRate*dt,.002,1);
     updateAlbumPlanets(dt);
     updateApproachUI();updateEQ();
     if(targetingActive)syncFrequencyScanner(dt);
