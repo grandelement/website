@@ -1,0 +1,72 @@
+name: GE Merchandise Publisher Owner Save
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/publisher-worker.js'
+      - 'backroom/index.html'
+      - 'index.html'
+      - 'tests/ge-merchandise-publisher.test.mjs'
+      - '.github/workflows/ge-merchandise-publisher.yml'
+  pull_request:
+    paths:
+      - 'backroom/publisher-worker.js'
+      - 'backroom/index.html'
+      - 'index.html'
+      - 'tests/ge-merchandise-publisher.test.mjs'
+      - '.github/workflows/ge-merchandise-publisher.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify merchant-only GitHub save, readback and preserved music
+        run: node tests/ge-merchandise-publisher.test.mjs
+      - name: Verify the existing private service binding
+        run: node tests/private-vault-binding.test.mjs
+  deploy-owner-publisher:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ge-studios-workers-production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require Cloudflare deployment secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Cloudflare deploy token is missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare account ID is missing"; exit 1; }
+      - name: Deploy existing Back Room Publisher only, retaining its secrets and Vault binding
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          workingDirectory: backroom
+          command: deploy
+      - name: Verify Publisher and private Vault binding
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request
+          req=urllib.request.Request(
+            'https://ge-backroom-publisher.grandelement.workers.dev/health',
+            headers={'Origin':'https://grandelement.com','Accept':'application/json'})
+          with urllib.request.urlopen(req,timeout=20) as response:
+            data=json.load(response)
+          print({k:data.get(k) for k in ('ok','configured','vault_service_bound','vault_reachable','vault_access_codes_ready')})
+          if not all(data.get(k) is True for k in ('ok','configured','vault_service_bound','vault_reachable','vault_access_codes_ready')):
+            raise SystemExit('FAIL: private publisher or Vault binding is not ready')
+          print('PASS: private Back Room publisher deployed and original Vault binding remained connected.')
+          PY
