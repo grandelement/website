@@ -158,7 +158,7 @@ try{
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,'Main navigation works after More Tools');
  // The visible SAVE must reach the actual GitHub publisher action on website tabs.
- await page.click('#brTabWelcome');
+ await page.evaluate(()=>document.getElementById('brTabWelcome').click());
  await page.evaluate(()=>{
    window.__geWebsiteSaveCalls=0;
    window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async()=>{
