@@ -4479,7 +4479,10 @@ const backroomVaultManagers=(()=>{
       const checkedAt='CHECKED '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
       summary.hidden=false;
       summary.textContent=codesText+' · '+playlistText+' · '+checkedAt;
-      vaultIndicator(verified?'CONNECTED':(codesOk||githubOk)?'PARTIAL':'OFFLINE',
+      // The private Vault status must reflect ONLY the real authenticated
+      // Access Codes read. GitHub playlists are a separate source and may fail
+      // independently without making a healthy Vault look disconnected.
+      vaultIndicator(codesOk?'CONNECTED':'OFFLINE',
         codesText+'; '+playlistText+(accessDJError?'; '+accessDJError:''));
       accessStatus(codesText+' · '+playlistText+
         (!codesOk&&accessLastReadError?' · VAULT ERROR: '+accessLastReadError:'')+
