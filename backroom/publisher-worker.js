@@ -368,17 +368,21 @@ async function handlePlayerProfile(request,env,cors){
       storeAlbums:Array.isArray(savedRouting.storeAlbums)?savedRouting.storeAlbums:null,
       storeSongPaths:Array.isArray(savedRouting.storeSongPaths)?savedRouting.storeSongPaths:null,
       playerSongPaths:Array.isArray(savedRouting.playerSongPaths)?savedRouting.playerSongPaths:null,
-      radioSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[]
+      radioSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[],
+      assignments:Object.fromEntries(['front','store','player','radio'].map(key=>[
+        key,typeof savedRouting.assignments?.[key]==='string'?savedRouting.assignments[key]:''
+      ]))
     };
-    const {registry}=await readGithubPlaylistRegistry(env);
+    const {registry,sha:playlistRevision}=await readGithubPlaylistRegistry(env);
     const playlists=registry.playlists.map(p=>({
       id:String(p.id||''),name:String(p.name||''),visibility:String(p.visibility||'unlisted'),
-      songCount:Array.isArray(p.songs)?p.songs.length:0
+      songCount:Array.isArray(p.songs)?p.songs.length:0,
+      songs:Array.isArray(p.songs)?p.songs:[]
     }));
     if(request.method==='GET'){
       return json({ok:true,profile:currentProfile,playlists,
         masterSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[],
-        routing},200,cors);
+        routing,playlistRevision},200,cors);
     }
     if(request.method!=='POST')return json({ok:false,error:'Unsupported method.'},405,cors);
     const body=await request.json().catch(()=>null);
@@ -429,8 +433,16 @@ async function handlePlayerProfile(request,env,cors){
             new Set(incoming[key]).size!==incoming[key].length)
           return json({ok:false,error:'Invalid or duplicate '+key+' choices.'},400,cors);
       }
-      if(!incoming.radioSongPaths.length)
-        return json({ok:false,error:'Keep at least one RADIO / SHUFFLE song enabled.'},400,cors);
+      const assignments={};
+      for(const destination of ['front','store','player','radio']){
+        const id=incoming.assignments?.[destination]||'';
+        if(typeof id!=='string'||id.length>110||
+           (id&&id!=='@all'&&!registry.playlists.some(row=>row.id===id)))
+          return json({ok:false,error:'Unknown saved playlist for '+destination+'. Refresh playlists.'},409,cors);
+        assignments[destination]=id;
+      }
+      if(Object.values(assignments).some(Boolean)&&body.playlistRevision!==playlistRevision)
+        return json({ok:false,error:'Playlists changed since loading. REFRESH before saving destinations.'},409,cors);
       const manifestResponse=await github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'});
       if(!manifestResponse.ok)throw Error('Published manifest unavailable. No changes made.');
       const manifestFile=await manifestResponse.json();
@@ -441,12 +453,35 @@ async function handlePlayerProfile(request,env,cors){
       if(pathKeys.some(key=>incoming[key].some(p=>!playlistSongPath(p)||!available.has(p)))||
           albumKeys.some(key=>incoming[key].some(n=>!albums.has(n))))
         return json({ok:false,error:'Album or song not found in current GitHub manifest. REBUILD and RELOAD first.'},409,cors);
-      next.music.catalogRouting={
-        version:1,frontAlbums:incoming.frontAlbums,storeAlbums:incoming.storeAlbums,
-        storeSongPaths:incoming.storeSongPaths,playerSongPaths:incoming.playerSongPaths
+      const selected={
+        frontAlbums:[...incoming.frontAlbums],storeAlbums:[...incoming.storeAlbums],
+        storeSongPaths:[...incoming.storeSongPaths],playerSongPaths:[...incoming.playerSongPaths],
+        radioSongPaths:[...incoming.radioSongPaths]
       };
-      next.music.radioMasterSongPaths=incoming.radioSongPaths;
-      if(JSON.stringify(routing.radioSongPaths)!==JSON.stringify(incoming.radioSongPaths))
+      const allPaths=[...available].sort();
+      const songAlbum=p=>(p.split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim();
+      for(const [destination,id] of Object.entries(assignments)){
+        if(!id)continue;
+        const playlist=registry.playlists.find(row=>row.id===id);
+        const songs=id==='@all'?allPaths:playlist?.songs;
+        if(!Array.isArray(songs)||!songs.length||songs.some(p=>!available.has(p))||
+           new Set(songs).size!==songs.length)
+          return json({ok:false,error:'Playlist '+destination+' has missing or invalid song files. Edit the shared playlist and refresh.'},409,cors);
+        const albumNames=[...new Set(songs.map(songAlbum))];
+        if(destination==='front')selected.frontAlbums=albumNames;
+        if(destination==='store'){selected.storeAlbums=albumNames;selected.storeSongPaths=songs}
+        if(destination==='player')selected.playerSongPaths=songs;
+        if(destination==='radio')selected.radioSongPaths=songs;
+      }
+      if(!selected.radioSongPaths.length)
+        return json({ok:false,error:'Keep at least one RADIO / SHUFFLE song enabled.'},400,cors);
+      next.music.catalogRouting={
+        version:2,assignments,frontAlbums:selected.frontAlbums,
+        storeAlbums:selected.storeAlbums,storeSongPaths:selected.storeSongPaths,
+        playerSongPaths:selected.playerSongPaths
+      };
+      next.music.radioMasterSongPaths=selected.radioSongPaths;
+      if(JSON.stringify(routing.radioSongPaths)!==JSON.stringify(selected.radioSongPaths))
         next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
     }else if(body.action==='save_master'){
       const old=Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[];
@@ -502,8 +537,9 @@ async function handlePlayerProfile(request,env,cors){
         storeAlbums:next.music.catalogRouting.storeAlbums,
         storeSongPaths:next.music.catalogRouting.storeSongPaths,
         playerSongPaths:next.music.catalogRouting.playerSongPaths,
-        radioSongPaths:next.music.radioMasterSongPaths
-      }:routing},200,cors);
+        radioSongPaths:next.music.radioMasterSongPaths,
+        assignments:next.music.catalogRouting.assignments
+      }:routing,playlistRevision},200,cors);
   }catch(error){
     return json({ok:false,error:String(error?.message||error)},502,cors);
   }
