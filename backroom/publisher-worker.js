@@ -378,9 +378,14 @@ async function handlePlayerProfile(request,env,cors){
     next.music={...music};
     if(body.action==='rebuild_manifest'){
       // Re-scan the committed GitHub tree, never a browser-provided file list.
+      const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
+      const repository=encodeURIComponent(env.GITHUB_REPO||'website');
+      const treeUrl='https://api.github.com/repos/'+owner+'/'+repository+'/git/trees/'+encodeURIComponent(branch)+'?recursive=1';
       const [treeResponse,manifestResponse]=await Promise.all([
-        github(env,'git/trees/'+encodeURIComponent(branch)+'?recursive=1',{method:'GET'}),
-        github(env,'contents/radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'})
+        fetch(treeUrl,{headers:{Accept:'application/vnd.github+json',
+          Authorization:'Bearer '+await githubCredential(env),
+          'User-Agent':'GE-Studios-Backroom-Publisher','X-GitHub-Api-Version':'2022-11-28'}}),
+        github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'})
       ]);
       if(!treeResponse.ok||!manifestResponse.ok)throw Error('GitHub file inventory unavailable. Manifest unchanged.');
       const tree=await treeResponse.json(),oldFile=await manifestResponse.json();
@@ -394,7 +399,7 @@ async function handlePlayerProfile(request,env,cors){
       const unchanged=JSON.stringify(files)===JSON.stringify([...old.files].sort());
       if(unchanged)return json({ok:true,unchanged:true,count:files.length,commit:''},200,cors);
       const nextManifest={...old,files,generatedAt:new Date().toISOString()};
-      const response=await github(env,'contents/radio/manifest.json',{
+      const response=await github(env,'radio/manifest.json',{
         method:'PUT',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({message:'Back Room: rebuild GE music manifest from GitHub files',
           content:utf8B64(JSON.stringify(nextManifest,null,2)+'\n'),sha:oldFile.sha,branch})
