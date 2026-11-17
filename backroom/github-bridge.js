@@ -75,7 +75,16 @@ window.addEventListener('message',event=>{
  }
  }
 });
-frame.addEventListener('load',()=>{ready=true;if(pendingPassword)unlock(pendingPassword)});
+frame.addEventListener('load',()=>{
+ ready=true;
+ post('GE_BACKROOM_HELLO');
+ if(pendingPassword)unlock(pendingPassword);
+});
+// The iframe may finish loading from cache before this script registers a load handler.
+try{if(frame.contentDocument?.readyState==='complete'){
+ ready=true;post('GE_BACKROOM_HELLO');
+}}catch(_){}
+
 if(saveButton)saveButton.addEventListener('click',event=>{
  const tab=document.querySelector('#backroomMain button[data-tab][aria-selected="true"]')?.dataset.tab;
  if(tab!=='radio'&&tab!=='website')return;
