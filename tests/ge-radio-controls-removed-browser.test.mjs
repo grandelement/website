@@ -118,7 +118,7 @@ try{
    assert.deepEqual(offlineUI.labels,['ALL MUSIC','CHECKED SONGS','PLAYLIST','UPDATE MISSING']);
    assert.equal(offlineUI.downloads,0,'No duplicated full-screen DOWNLOAD button');
    assert.equal(offlineUI.dockButtons,1,'Only one MUSIC OFFLINE dock button');
-   assert(offlineUI.actualHeight<100,'OFFLINE must be a compact footer strip');
+   assert(offlineUI.actualHeight>46,'Expanded download controls should remain visible');
    assert(offlineUI.footerVisible&&offlineUI.aboveFooter,'Music playback controls remain usable below OFFLINE');
    assert(offlineUI.musicOpen,'OFFLINE must not replace MUSIC');
    assert.equal(offlineUI.otherDialog,false,'No duplicate global offline dialog');
@@ -129,6 +129,8 @@ try{
      const root=document.getElementById('geMusicV5Host')?.shadowRoot;
      return window.GEMusicV5.state().open&&root.querySelector('.geOfflineChoices').hidden;
    },{timeout:5000});
+   const h=await page.evaluate(()=>document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineWorkspace').getBoundingClientRect().height);
+   assert(h<100,'Closed download strip should be compact');
    await page.evaluate(()=>{
      document.getElementById('geMusicV5Host').shadowRoot.querySelector('.geOfflineDockToggle').click();
    });
