@@ -105,8 +105,9 @@ function render(){
    const c=document.createElement('div');c.className='brRouteAlbumToggle';
    c.append('STORE ',toggle('storeAlbums',album,'Show album in store'));head.append(c);
   }
-  if(view==='all'||view==='player')head.append(albumGroupToggle('playerSongPaths',album,songs,'PLAYER'));
-  if(view==='all'||view==='radio')head.append(albumGroupToggle('radioSongPaths',album,songs,'RADIO'));
+  const albumSongs=entries.filter(row=>row.album===album);
+  if(view==='all'||view==='player')head.append(albumGroupToggle('playerSongPaths',album,albumSongs,'PLAYER'));
+  if(view==='all'||view==='radio')head.append(albumGroupToggle('radioSongPaths',album,albumSongs,'RADIO'));
   group.append(head);
   if(view!=='front')for(const row of songs){
    const line=document.createElement('div');line.className='brRouteSong';line.style.gridTemplateColumns=grid;
