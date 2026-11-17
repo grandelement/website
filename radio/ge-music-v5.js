@@ -2621,23 +2621,28 @@ function breadcrumb(label,back){
  scroller.append(wrapper);
 }
 function chosenSongs(){
- if(state.view==='playlist-order'&&gePlaylistEditMode){
-   const access=musicAccessActive();
-   return access?.restricted?state.tracks.filter(t=>new Set(access.allowed).has(t.path)):state.tracks;
- }
+ const access=musicAccessActive();
+ // Apply the same verified song assignment to every MUSIC list and playlist.
+ // Guest browsing stays unchanged when there is no restricted signed receipt.
+ const limit=tracks=>{
+   if(!access?.restricted)return tracks;
+   const allowed=new Set(access.allowed);
+   return tracks.filter(t=>allowed.has(t.path));
+ };
+ if(state.view==='playlist-order'&&gePlaylistEditMode)return limit(state.tracks);
  if(state.view==='checked'||state.view==='playlist-order'||state.view==='playlist-display'){
    const lookup=new Map(state.tracks.map(t=>[t.path,t]));
-   return [...state.selected].map(path=>lookup.get(path)).filter(Boolean);
+   return limit([...state.selected].map(path=>lookup.get(path)).filter(Boolean));
  }
- if(state.view==='test-purchases')return state.tracks.filter(t=>testPurchasedPaths().has(t.path));
- if(state.view.startsWith('album:'))return state.tracks.filter(t=>t.album===state.view.slice(6));
+ if(state.view==='test-purchases')return limit(state.tracks.filter(t=>testPurchasedPaths().has(t.path)));
+ if(state.view.startsWith('album:'))return limit(state.tracks.filter(t=>t.album===state.view.slice(6)));
  if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
-  const isVault=state.view.startsWith('vault:');
-  const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
-  const lookup=new Map(state.tracks.map(t=>[t.path,t]));
-  return(p?.songs||[]).map(path=>lookup.get(path)).filter(Boolean);
+   const isVault=state.view.startsWith('vault:');
+   const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
+   const lookup=new Map(state.tracks.map(t=>[t.path,t]));
+   return limit((p?.songs||[]).map(path=>lookup.get(path)).filter(Boolean));
  }
- return state.view==='all'||state.view==='browse-songs'?state.tracks:[];
+ return limit(state.view==='all'||state.view==='browse-songs'?state.tracks:[]);
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
