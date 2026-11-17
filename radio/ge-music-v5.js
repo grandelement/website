@@ -1555,7 +1555,8 @@ universeStyle.textContent=`
 .geUniverseAlbums::-webkit-scrollbar{display:none}
 .geUniverseAlbum{position:relative;display:block;flex:0 0 auto;align-self:center;
  width:calc(var(--ge-fit-cover-size,70px) * var(--ge-universe-zoom,1));max-width:100%;
- height:auto;aspect-ratio:1;min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;
+ height:calc(var(--ge-fit-cover-height,70px) * var(--ge-universe-zoom,1));aspect-ratio:auto;
+ min-width:0;min-height:0;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;
  background:rgba(4,14,29,.6);color:#fff;cursor:pointer;touch-action:manipulation}
 .geUniverseAlbum img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;image-rendering:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 /* Aether: soften the bright white core so the first cover transitions
@@ -1592,8 +1593,12 @@ function fitUniverseAlbums(){
  if(!count)return;
  const height=universeBoard.clientHeight||window.innerHeight||800;
  const width=universeBoard.clientWidth||window.innerWidth||390;
- const fitted=Math.max(1,Math.min(width,height/count));
+ const coverHeight=Math.max(1,height/count);
+ const fitted=Math.max(1,Math.min(width,coverHeight));
+ // FRONT albums share the available vertical space with no unused bottom.
+ // On a narrow screen a small selection may crop artwork, never distort it.
  universeBoard.style.setProperty('--ge-fit-cover-size',fitted+'px');
+ universeBoard.style.setProperty('--ge-fit-cover-height',coverHeight+'px');
  setUniverseZoom(universeZoom);
 }
 window.addEventListener('resize',()=>{
