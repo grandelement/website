@@ -40,6 +40,25 @@ try{
  result=await worker.fetch(req('/login',{method:'POST',body:JSON.stringify({password:'TEST'})}),env);
  assert.equal(result.status,200);
  const {token}=await result.json(),auth={Authorization:'Bearer '+token};
+ // The same Back Room password authorizes GitHub, with no device-specific PAT.
+ result=await worker.fetch(req('/manage/github-health'),env);
+ assert.equal(result.status,401,'GitHub connection diagnostics are private');
+ result=await worker.fetch(req('/manage/github-health',{headers:auth}),env);
+ assert.equal(result.status,200,'Server-side GitHub credential should read main');
+ assert.equal((await result.json()).github_ready,true);
+ // A stale/broken GitHub App must fall back to the SECRET stored on the server.
+ const brokenApp={...env,GITHUB_APP_ID:'123',GITHUB_APP_INSTALLATION_ID:'456',
+   GITHUB_APP_PRIVATE_KEY:'invalid-test-pem'};
+ result=await worker.fetch(req('/manage/github-health',{headers:auth}),brokenApp);
+ assert.equal(result.status,200,'Server token fallback should recover broken App credentials');
+ const health=await result.json();
+ assert.equal(health.github_ready,true);
+ assert.equal(health.credential_mode,'github_app+fallback');
+ result=await worker.fetch(req('/manage/public-config'),env);
+ assert.equal(result.status,401,'Unauthenticated visitors cannot request the owner editing baseline');
+ result=await worker.fetch(req('/manage/public-config',{headers:auth}),env);
+ assert.equal(result.status,200,'Logged-in Back Room can get the current GitHub main config');
+ assert.equal((await result.json()).config.welcome.title,'OLD');
  result=await worker.fetch(req('/manage/public-settings',{headers:auth}),env);
  assert.equal(result.status,200);
  const initial=await result.json();

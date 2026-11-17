@@ -253,8 +253,12 @@ async function save(){
  try{
   const result=await ownerApi('POST',{action:'save_catalog_routing',routing,expectedRouting:expected,playlistRevision});
   if(!result.commit||!result.routing)throw Error('No GitHub commit confirmation.');
-  expected=JSON.parse(JSON.stringify(result.routing));useRecord(result.routing);render();
-  status('PUBLISHED · '+result.commit.slice(0,12)+' · ALL CHECKBOXES SAVED.');
+  // Verify actual GitHub content before clearing the owner's unsaved choices.
+  const proof=await ownerApi('GET');
+  if(!proof.routing||JSON.stringify(proof.routing)!==JSON.stringify(result.routing))
+    throw Error('Commit '+result.commit.slice(0,12)+' exists, but GitHub readback differs. Do not retry until reviewed.');
+  expected=JSON.parse(JSON.stringify(proof.routing));useRecord(proof.routing);render();
+  status('GITHUB VERIFIED · '+result.commit.slice(0,12)+' · ALL CHECKBOXES SAVED.');
  }catch(error){status('NOT SAVED · '+String(error.message||error))}
  finally{busy=false;updateCount()}
 }
@@ -275,16 +279,7 @@ async function rebuild(){
 for(const id of ['brRadioStationStatus','brRadioPlaylistTools']){
  const el=$(id);if(el)$('brRouteRadioAux').append(el);
 }
-const oldProfile=$('brPublicPlayerProfile');
-if(oldProfile){
- const advanced=document.createElement('details');
- advanced.id='brRouteAdvancedPlayer';
- const summary=document.createElement('summary');
- summary.textContent='ADVANCED PLAYER FEATURES · NOT THE PLAYLIST SELECTOR';
- advanced.append(summary);
- oldProfile.parentElement.insertBefore(advanced,oldProfile);
- advanced.append(oldProfile);
-}
+// Public Player settings remain in WEBSITE.
 const djRow=document.createElement('div');
 djRow.className='brRouteDjSaveRow';
 djRow.innerHTML='<label for="brRouteDjName">BLITZ PLAYLIST NAME</label>'+

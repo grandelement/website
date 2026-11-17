@@ -120,6 +120,10 @@ async function githubCredential(env){
   if(appTokenCache&&appTokenCache.identity===identity&&appTokenCache.expires>Date.now()+120000){
     return appTokenCache.token;
   }
+  // When the configured GitHub App is broken, the SERVER'S own legacy
+  // GITHUB_TOKEN secret is an optional fallback. Never request a token from
+  // a visitor, and never expose either credential to the browser.
+  try{
   const jwt=await githubAppJwt(env);
   const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(String(env.GITHUB_APP_INSTALLATION_ID))+'/access_tokens',{
     method:'POST',
@@ -135,6 +139,10 @@ async function githubCredential(env){
   if(!response.ok||!data.token)throw new Error('GitHub App authorization failed ('+response.status+'). Check App installation and Contents permission.');
   appTokenCache={identity,token:data.token,expires:Date.parse(data.expires_at)||Date.now()+50*60*1000};
   return data.token;
+  }catch(error){
+    if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
+    throw error;
+  }
 }
 async function github(env,path,init={}){
   const owner=env.GITHUB_OWNER||'grandelement';
@@ -153,9 +161,14 @@ async function github(env,path,init={}){
   // An installation token can be revoked before its nominal expiry.
   // On a GitHub 401, refresh it ONCE; never retry a rejected legacy PAT.
   let response=await send(await githubCredential(env));
-  if(response.status===401&&env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY){
+  if([401,403].includes(response.status)&&env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY){
+    // An App installation token can be stale, revoked or missing repo permission.
+    // Refresh once and then use an existing SERVER-SIDE token if available.
     appTokenCache=null;
-    response=await send(await githubCredential(env));
+    const fresh=await githubCredential(env);
+    response=await send(fresh);
+    if([401,403].includes(response.status)&&env.GITHUB_TOKEN&&fresh!==String(env.GITHUB_TOKEN))
+      response=await send(String(env.GITHUB_TOKEN));
   }
   return response;
 }
@@ -866,6 +879,44 @@ export default {
         return json({ok:false,error:'Incorrect password.'},401,cors);
       }
       return json({ok:true,token:await makeSession(env),expiresHours:12},200,cors);
+    }
+
+
+    if(url.pathname==='/manage/public-config'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      try{
+        const branch=env.GITHUB_BRANCH||'main';
+        const response=await github(env,'config/site-live.json?ref='+encodeURIComponent(branch),{method:'GET'});
+        if(!response.ok)throw Error('GitHub settings read refused (HTTP '+response.status+').');
+        const file=await response.json();
+        const config=JSON.parse(decodeGithubText(file.content||''));
+        if(!validConfig(config))throw Error('Published GitHub configuration is incomplete.');
+        return json({ok:true,config},200,cors);
+      }catch(error){
+        return json({ok:false,error:String(error?.message||error).slice(0,180)},503,cors);
+      }
+    }
+
+    if(url.pathname==='/manage/github-health'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      // Test a real GitHub API read, not only the presence of Worker secrets.
+      // Do not expose credentials, user account data, or repository contents.
+      try{
+        const hasApp=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
+        const hasFallback=!!env.GITHUB_TOKEN;
+        const test=await github(env,'config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main'),{method:'GET'});
+        const ok=test.ok;
+        return json({ok,github_ready:ok,github_http:test.status,
+          server_credential_configured:hasApp||hasFallback,
+          credential_mode:hasApp?'github_app'+(hasFallback?'+fallback':''):hasFallback?'server_token':'missing',
+          action:ok?'ready':'repair GitHub App installation/permissions or the server-side token in the Publisher Worker'},ok?200:503,cors);
+      }catch(error){
+        return json({ok:false,github_ready:false,server_credential_configured:!!(env.GITHUB_TOKEN||
+          (env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY)),
+          error:String(error?.message||error).slice(0,180)},503,cors);
+      }
     }
 
     if(url.pathname==='/session'&&request.method==='GET'){
