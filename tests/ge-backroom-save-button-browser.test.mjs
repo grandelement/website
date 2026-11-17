@@ -15,11 +15,13 @@ const initialize='const $=id=>document.getElementById(id);\n'+back.slice(start,s
 const legacyCss=[...back.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(m=>m[1]).join('\n');
 assert.equal((legacyCss.match(/#backroomMain\s+\.backroomTabs\s*\{/g)||[]).length,0,
   'Historical navigation grid patches must be consolidated.');
-const tabs=['radio','access','fans','welcome','about','universe','games','moon','gate','scores'];
+const tabs=['radio','access','fans','website','welcome','about','universe','games','moon','gate','scores'];
 const children=tabs.map(tab=>{
  const contents=tab==='radio'
    ?'<button id="brRouteSave">SAVE ROUTING</button><p id="brRouteStatus"></p>'+
     '<button id="brPlaylistSave">SAVE PLAYLIST</button><p id="brPlaylistStatus"></p>'
+   :tab==='website'
+    ?'<button id="brPublicPlayerSave">SAVE PROFILE</button><p id="brPublicPlayerStatus"></p>'
    :tab==='access'
    ?'<div id="brAccessEditor"></div><button id="brAccessIssue">SAVE NEW</button>'+
      '<button id="brAccessSave" hidden>SAVE EDIT</button><p id="brAccessStatus"></p>'
@@ -45,12 +47,13 @@ try{
  await page.setContent(document,{waitUntil:'domcontentloaded',timeout:15000});
  await page.addScriptTag({content:initialize});
  await page.evaluate(()=>{
-   window.__calls={github:0,radio:0,access:0,fan:0};
+   window.__calls={github:0,radio:0,profile:0,access:0,fan:0};
    window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async()=>{
      window.__calls.github++;
      return {ok:true,commit:'123456789abcdef',paths:['welcome']};
    };
    document.getElementById('brRouteSave').addEventListener('click',()=>window.__calls.radio++);
+   document.getElementById('brPublicPlayerSave').addEventListener('click',()=>window.__calls.profile++);
    document.getElementById('brAccessIssue').addEventListener('click',()=>window.__calls.access++);
    document.getElementById('brSaveFanCode').addEventListener('click',()=>window.__calls.fan++);
  });
@@ -88,6 +91,10 @@ try{
  await page.evaluate(()=>document.getElementById('brFanActiveProfile').hidden=false);
  await page.click('#brTopSave');
  assert.equal(await page.evaluate(()=>window.__calls.fan),1);
+ await page.click('#brMoreTools > summary');
+ await page.click('#brTabWebsite');
+ await page.click('#brTopSave');
+ assert.equal(await page.evaluate(()=>window.__calls.profile),1);
  await page.click('#brMoreTools > summary');
  await page.click('#brTabWelcome');
  await page.waitForFunction(()=>document.getElementById('brTopSave')?.textContent==='SAVE TO GITHUB');
