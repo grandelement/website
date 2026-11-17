@@ -11,6 +11,7 @@ const KEYS=['frontAlbums','storeAlbums','storeSongPaths','playerSongPaths','radi
 let files=[],albums=[],base=null,work=null,assignments={},busy=false,playlistList=[];
 const distinct=items=>[...new Set(items)];
 const sorted=items=>distinct(items).sort();
+const orderedAlbums=items=>distinct(items).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const clone=thing=>JSON.parse(JSON.stringify(thing));
 const albumOf=path=>(String(path).split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim();
@@ -23,8 +24,8 @@ function snapshot(config){
  const music=config.music||{},routing=music.catalogRouting||{},profile=music.publicPlayer||{};
  const available=files.map(row=>row.path),names=albums;
  return {
-  frontAlbums:sorted(Array.isArray(routing.frontAlbums)?routing.frontAlbums:names.filter(n=>n!=='Singles')),
-  storeAlbums:sorted(Array.isArray(routing.storeAlbums)?routing.storeAlbums:names),
+  frontAlbums:orderedAlbums(Array.isArray(routing.frontAlbums)?routing.frontAlbums:names.filter(n=>n!=='Singles')),
+  storeAlbums:orderedAlbums(Array.isArray(routing.storeAlbums)?routing.storeAlbums:names),
   storeSongPaths:sorted(Array.isArray(routing.storeSongPaths)?routing.storeSongPaths:available),
   playerSongPaths:sorted(Array.isArray(routing.playerSongPaths)?routing.playerSongPaths:available),
   radioSongPaths:sorted(Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[]),
@@ -61,7 +62,7 @@ function counts(){
 }
 function choose(key,value,on){
  const set=new Set(work[key]);if(on)set.add(value);else set.delete(value);
- work[key]=sorted([...set]);remember();counts();
+ work[key]=key.endsWith('Albums')?orderedAlbums([...set]):sorted([...set]);remember();counts();
 }
 function box(key,value,display){
  const label=document.createElement('label');
@@ -186,7 +187,9 @@ function checkSelections(){
   if(work[k].some(x=>!allowed.has(x)))throw Error('Unknown song in '+k+'. Please reload.');
  for(const k of ['frontAlbums','storeAlbums'])
   if(work[k].some(x=>!validAlbums.has(x)))throw Error('Unknown album in '+k+'. Please reload.');
- if(!SCOPE.every(x=>typeof x==='string')||work.scopes.some(x=>!SCOPE.includes(x)))
+ if(work.playlistId&&!playlistList.some(p=>p.id===work.playlistId&&Array.isArray(p.songs)&&p.songs.length))
+  throw Error('The selected public playlist is missing or empty. Reload its registry before saving.');
+ if(work.scopes.some(x=>!SCOPE.includes(x)))
   throw Error('Invalid player permission.');
  if(Object.values(work.assignments).some(Boolean)&&
     KEYS.some(k=>!same(work[k],base[k])))throw Error('Playlist assignment is active. Use the assigned playlist editor; direct save will not override it.');
