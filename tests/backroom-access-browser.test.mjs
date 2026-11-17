@@ -118,11 +118,16 @@ try{
  // Real browser regression for the four prominent jobs and the collapsed tools.
  const initialNavigation=await page.evaluate(()=>({
    main:[...document.querySelectorAll('#backroomTabs button[data-tab]:not([hidden])')].map(b=>b.textContent.trim()),
+   controls:[...document.querySelectorAll('#backroomTabs > button:not([hidden])')].map(b=>b.textContent.trim()),
+   saveVisible:getComputedStyle(document.getElementById('brTopSave')).display!=='none',
    moreClosed:!document.getElementById('brMoreTools')?.open,
    fansVisible:getComputedStyle(document.getElementById('brTabFans')).display!=='none'
  }));
- assert.deepEqual(initialNavigation.main,['RADIO','MUSIC','ACCESS CODES','FANS'],
-   'Radio, Music, Access Codes and Fans must be the only main navigation buttons');
+ assert.deepEqual(initialNavigation.main,['RADIO','ACCESS CODES','FANS'],
+   'Radio contains the consolidated Music editor; Access Codes and Fans are separate');
+ assert.deepEqual(initialNavigation.controls,['RADIO','ACCESS CODES','FANS','SAVE'],
+   'SAVE must be in the fourth navigation position, beside FANS');
+ assert.equal(initialNavigation.saveVisible,true);
  assert.equal(initialNavigation.moreClosed,true,'Secondary controls stay collapsed by default');
  assert.equal(initialNavigation.fansVisible,true,'Fans must be a direct main navigation button');
  await page.click('#brTabFans');
@@ -152,7 +157,20 @@ try{
  assert.equal(await page.$eval('#brMoreTools',el=>el.open),false,'More Tools collapses after selection');
  await page.click('#brTabAccess');
  assert.equal(await page.$eval('#brPanel-access',el=>el.hidden),false,'Main navigation works after More Tools');
- console.log('PASS: four priority buttons, separate Fans/Codes, one collapsed More Tools, website navigation');
+ // The visible SAVE must reach the actual GitHub publisher action on website tabs.
+ await page.click('#brTabWelcome');
+ await page.evaluate(()=>{
+   window.__geWebsiteSaveCalls=0;
+   window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async()=>{
+     window.__geWebsiteSaveCalls++;
+     return {ok:true,commit:'fixture-commit-1234',paths:['welcome']};
+   };
+ });
+ await page.click('#brTopSave');
+ await page.waitForFunction(()=>document.getElementById('brCentralSaveStatus')?.textContent.includes('GITHUB VERIFIED'),{timeout:10000});
+ assert.equal(await page.evaluate(()=>window.__geWebsiteSaveCalls),1);
+ await page.click('#brTabAccess');
+ console.log('PASS: RADIO ACCESS FANS SAVE, collapsed More Tools and one GitHub website action');
  await page.click('#brTabFans');
  const readsBefore={...sourceReads};
  await page.click('#brVaultReconnect');
