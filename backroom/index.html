@@ -830,6 +830,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 }
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261116-playlists-v2">
+<link rel="stylesheet" href="./save-center.css?v=20261117-a">
 </head>
 <body>
 <div id="lockScreen">
@@ -869,6 +870,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
   <button id="brVaultConnection" class="brVaultConnection" type="button" aria-live="polite" data-state="checking" title="Check GE Vault access codes and GitHub playlists">VAULT · RECONNECT</button>
+  <div id="brCentralSaveStatus" role="status" aria-live="polite" hidden></div>
   <div id="brVaultCounts" role="status" aria-live="polite" style="font-size:11px;text-align:center;margin:3px 0 0;color:#addbea" hidden></div>
 </header>
 
@@ -883,6 +885,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabFans" type="button" role="tab" data-tab="fans" aria-selected="false">FANS</button>
+  <button id="brTopSave" type="button" aria-label="Save current Back Room screen" aria-controls="brCentralSaveStatus" title="Save this screen using the correct source">SAVE</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false" hidden aria-hidden="true" tabindex="-1" style="display:none!important">PRESETS</button>
   <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false" hidden aria-hidden="true" tabindex="-1">PLAYLISTS</button>
@@ -2674,6 +2677,62 @@ async function geGithubCommit(prepare,message){
   return {commit:done.commit.sha};
  }finally{if(control)control.value='';} // Never retain personal access tokens.
 }
+/* Central SAVE action: compare each public field to the owner's loaded
+   baseline, patch ONLY edited keys through the signed Cloudflare publisher,
+   then verify the exact values by re-reading GitHub. Existing master radio,
+   station, playlists, Vault and music routing stay untouched. */
+window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
+ if(!serverAuthenticated||!token())throw Error('Back Room owner login required. Sign in again.');
+ if(!publisherBase)throw Error('The published website baseline did not load. Reopen Back Room before saving.');
+ collect();
+ const paths=GE_GITHUB_PUBLIC_FIELDS.filter(key=>!geGithubSame(cfg[key],publisherBase[key]));
+ for(const name of ['startupEnabled','firstTrack']){
+   if(!geGithubSame(cfg.music?.[name]??null,publisherBase.music?.[name]??null))
+     paths.push('music.'+name);
+ }
+ if(!paths.length){
+   setStatus('GITHUB · ALL WEBSITE SETTINGS ARE ALREADY SAVED.');
+   return {ok:true,unchanged:true};
+ }
+ if(!confirm('SAVE THESE WEBSITE SETTINGS TO GITHUB?\n\n'+paths.join(', ').toUpperCase()+
+   '\n\nPrivate fan records, access codes, original BLITZ DJ and live radio queue will not change.'))
+   return {ok:false,cancelled:true};
+ const changes={},expected={};
+ for(const path of paths){
+   if(path.startsWith('music.')){
+     changes[path]=clone(cfg.music[path.slice(6)]??null);
+     expected[path]=clone(publisherBase.music?.[path.slice(6)]??null);
+   }else{
+     changes[path]=clone(cfg[path]??null);
+     expected[path]=clone(publisherBase[path]??null);
+   }
+ }
+ setStatus('SAVING '+paths.join(', ').toUpperCase()+' TO GITHUB…');
+ const res=await api('/manage/public-settings',{
+   method:'POST',timeoutMs:28000,body:JSON.stringify({changes,expected})
+ });
+ const result=await res.json().catch(()=>({}));
+ if(!res.ok||result.ok!==true||!result.commit)
+   throw Error(String(result.error||'GitHub did not confirm the save.'));
+ const verifyResponse=await api('/manage/public-settings',{method:'GET',timeoutMs:20000});
+ const proof=await verifyResponse.json().catch(()=>({}));
+ if(!verifyResponse.ok||proof.ok!==true||!proof.settings)
+   throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but verification read failed. Do not save again until checked.');
+ for(const path of paths){
+   if(!geGithubSame(proof.settings[path],changes[path]))
+     throw Error('GitHub commit '+result.commit.slice(0,12)+' made, but '+path+' readback differs. Do not overwrite it.');
+ }
+ for(const path of paths){
+   if(path.startsWith('music.')){
+     if(!publisherBase.music)publisherBase.music={};
+     publisherBase.music[path.slice(6)]=clone(changes[path]);
+   }else publisherBase[path]=clone(changes[path]);
+ }
+ try{localStorage.setItem(WORK_KEY,JSON.stringify(cfg))}catch(_e){}
+ dirty=false;setStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+
+   ' · '+paths.join(', ').toUpperCase()+' · Website Pages deployment follows.');
+ return {ok:true,commit:result.commit,paths};
+};
 async function publishGithub(){
  const btn=$('publishLive');if(btn.disabled)return;
  collect();
@@ -5615,5 +5674,6 @@ $('gatePassword').focus();
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
 <script src="./music-router.js?v=20261116-save-diagnostics-v3"></script>
+<script src="./save-center.js?v=20261117-a"></script>
 </body>
 </html>
