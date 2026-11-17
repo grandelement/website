@@ -216,7 +216,11 @@ async function load(force=false){
     if(response.ok){const data=await response.json();playlists=shared.entries(data)}
    }catch(_){}
    expected=null;serverReady=false;
-   status('READ ONLY · '+String(error.message||error)+' · Deploy updated Back Room Publisher to enable SAVE.');
+   const detail=String(error.message||error);
+   status(/GitHub|HTTP 401|HTTP 403/i.test(detail)
+     ?'GITHUB CONNECTION FAILED · '+detail+
+       ' · The private Vault can still be connected. Verify the Publisher GitHub App installation and Contents permission before saving.'
+     :'READ ONLY · '+detail+' · Verify the Back Room Publisher connection before saving.');
   }
   useRecord(record);loaded=true;render();
   if(serverReady)status('READY · '+entries.length+' MUSIC FILES · ONE PUBLISHED MASTER.');
@@ -227,7 +231,7 @@ async function save(){
  if(busy)return;
  if(!loaded){status('SIGN IN AND PRESS REFRESH TO LOAD THE MASTER CATALOG.');return;}
  if(!serverReady){
-  status('SAVE IS NOT CONNECTED · The live Back Room Publisher is not using the new playlist routing handler. Your current choices are still on this screen; they were NOT published. Deploy the updated Publisher, then REFRESH.');
+  status('NOT SAVED · Radio music publishing is not connected. Your choices are only on this screen. Check the GitHub authorization message above, then REFRESH.');
   return;
  }
  if(!changed()){status('NO CHANGES.');return;}

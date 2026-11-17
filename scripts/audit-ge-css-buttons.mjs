@@ -47,7 +47,7 @@ const critical={
  originalBlitz:back.includes("geDJApi('/control/playlists'"),
  cssFileLoaded:back.includes('save-center.css'),
  jsFileLoaded:back.includes('save-center.js'),
- newStyleScoped:css.includes('#backroomMain .backroomTabs #brTopSave')
+ newStyleScoped:css.includes('#backroomMain #backroomTabs > #brTopSave') && css.includes('grid-template-columns:repeat(4,minmax(0,1fr))')
 };
 const result={reports,critical};
 console.log('GE SITE CSS / BUTTON AUDIT',JSON.stringify(result,null,2));
