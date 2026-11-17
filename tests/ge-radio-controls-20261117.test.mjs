@@ -51,6 +51,31 @@ try{
      return {row1,row2,first:rect(document.getElementById('bottomActions')),second:rect(document.getElementById('geUtilityRow')),label:document.getElementById('playBtn').textContent.trim()};
    });
    console.log('FOOTER_GEOMETRY '+width+'x'+height+' '+JSON.stringify(footer));
+   const vertical=await page.evaluate(()=>{
+     const box=id=>{
+       const r=document.getElementById(id)?.getBoundingClientRect();
+       return r?{top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}:null;
+     };
+     const logo=document.querySelector('header .logo-wrap')?.getBoundingClientRect();
+     const music=box('musicGroup'),backgrounds=box('bgGroup');
+     const copyright=document.getElementById('radioCopyright')?.getBoundingClientRect();
+     return {viewport:innerHeight,logo:logo?{top:logo.top,bottom:logo.bottom,height:logo.height}:null,
+       music,backgrounds,gap:backgrounds.top-music.bottom,footer:box('geUtilityRow'),
+       copyrightBottom:copyright?.bottom,canScroll:document.documentElement.scrollHeight>innerHeight};
+   });
+   console.log('RADIO_VERTICAL '+width+'x'+height+' '+JSON.stringify(vertical));
+   if(isMobile){
+     assert(vertical.logo?.top>=20&&vertical.logo?.height>=115,
+       'Leave safe Blue Sun / EQ room at the top: '+JSON.stringify(vertical));
+     assert(vertical.gap>=28,
+       'Protect a visible middle gap between MUSIC and BACKGROUNDS: '+JSON.stringify(vertical));
+     assert(first.playBtn.height<=41&&first.playBtn.height>=39,
+       'Use balanced 40px portrait MUSIC buttons: '+JSON.stringify(first.playBtn));
+     assert(first.bgPrev.height<=36&&first.bgPrev.height>=33,
+       'Background controls must be smaller than MUSIC: '+JSON.stringify(first.bgPrev));
+     assert(vertical.footer.bottom<=vertical.viewport-30||vertical.canScroll,
+       'Bottom actions cannot be clipped; allow vertical scrolling on short screens: '+JSON.stringify(vertical));
+   }
    assert.equal(footer.label,'PLAYER','Idle music button must read PLAYER');
    const close=(a,b,tolerance=2)=>Math.abs(a-b)<=tolerance;
    if(isMobile){
