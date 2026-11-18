@@ -2730,7 +2730,8 @@ async function saveToGithubFromButton(button){
     setStatus(message);
   }finally{button.disabled=false;}
 }
-$('brTopSave').addEventListener('click',()=>void saveToGithubFromButton($('brTopSave')));
+// Main SAVE is owned exclusively by save-center.js, which dispatches to the selected record.
+// Do not attach another listener here: it can show an unrelated GitHub result.
 $('publishLive').onclick=()=>void saveToGithubFromButton($('publishLive'));
 $('gateSaveDraft').addEventListener('click',saveDraft);
 $('gatePublishLive').addEventListener('click',()=>void saveToGithubFromButton($('gatePublishLive')));
@@ -5295,9 +5296,9 @@ const backroomVaultManagers=(()=>{
     const current=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
     if(!authReady())vaultIndicator('SIGN IN','The Vault requires your private owner session.');
     openTab(current);
-    // Connect on Back Room open as well, not just when the user finds PLAYLISTS.
-    if(authReady()&&current!=='playlists'&&current!=='access')
-      void refreshPlaylists();
+    // Verify the actual Vault access-code list AND GitHub playlist list at login.
+    // Previously only playlists loaded on RADIO, leaving Vault stuck at CHECKING.
+    if(authReady())void reconnectAllSources();
   }
   return{init};
 })();
@@ -5472,7 +5473,7 @@ async function checkServerGithub(){
   const response=await api('/manage/github-health',{method:'GET',timeoutMs:20000});
   const data=await response.json().catch(()=>({}));
   if(response.ok&&data.github_ready===true){
-   label.textContent='GITHUB · CONNECTED · READY TO SAVE ON ANY DEVICE';
+   label.textContent='GITHUB · SETTINGS READ VERIFIED · SAVE WRITE NOT YET TESTED';
    label.style.color='#9cf4cc';return true;
   }
   label.textContent='GITHUB NOT CONNECTED · SERVER AUTHORIZATION NEEDS REPAIR'+
@@ -5629,6 +5630,6 @@ $('gatePassword').focus();
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
 <script src="./music-router.js?v=20261116-save-diagnostics-v3"></script>
-<script src="./save-center.js?v=20261117-c"></script>
+<script src="./save-center.js?v=20261118-verified-save-v2"></script>
 </body>
 </html>
