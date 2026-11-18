@@ -2711,7 +2711,27 @@ async function publishViaCloudflare(){
   catch(e){setStatus(String(e.message||e))}
   finally{$('publishLive').disabled=false}
 }
-$('publishLive').onclick=publishGithub;
+// One visible, authenticated GitHub save path. Never use the retired
+// browser-side personal access token or silently save only to this device.
+async function saveToGithubFromButton(button){
+  if(button.disabled)return;
+  button.disabled=true;
+  const status=$('brCentralSaveStatus');
+  status.hidden=false;
+  status.textContent='SAVING TO GITHUB…';
+  try{
+    const result=await window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS();
+    status.textContent=result?.cancelled?'GITHUB SAVE CANCELLED':
+      result?.unchanged?'GITHUB · NO NEW WEBSITE CHANGES':
+      'GITHUB SAVE VERIFIED · '+String(result.commit).slice(0,12);
+  }catch(error){
+    const message='GITHUB SAVE FAILED · '+String(error?.message||error);
+    status.textContent=message;
+    setStatus(message);
+  }finally{button.disabled=false;}
+}
+$('brTopSave').addEventListener('click',()=>void saveToGithubFromButton($('brTopSave')));
+$('publishLive').onclick=()=>void saveToGithubFromButton($('publishLive'));
 $('gateSaveDraft').addEventListener('click',saveDraft);
 $('gatePublishLive').addEventListener('click',()=>void publishGithub());
 $('legacyPublishLive').onclick=publishViaCloudflare;
