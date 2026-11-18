@@ -90,13 +90,13 @@
      show('CHECKING WEBSITE CHANGES BEFORE GITHUB SAVE…');
      Promise.resolve(window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS()).then(result=>{
        if(result?.cancelled)show('SAVE CANCELLED · No settings changed.');
-       else if(result?.unchanged)show('ALREADY SAVED · Website settings match the loaded GitHub version.','success');
+       else if(result?.unchanged)show('NO WEBSITE CHANGES · No GitHub write was needed or attempted.','info');
        else if(result?.ok){
          show('GITHUB VERIFIED · '+result.commit.slice(0,12)+' · '+result.paths.join(', ').toUpperCase()+
            '. No private Vault records or live DJ queue changed.','success');
          const github=$('brGithubConnection');
          if(github){github.textContent='GITHUB · WRITE VERIFIED · COMMIT '+result.commit.slice(0,12);github.style.color='#9cf4cc';}
-       }
+       }else show('SAVE NOT VERIFIED · Publisher returned no confirmed GitHub commit.','error');
      }).catch(error=>show('NOT SAVED · '+String(error.message||error),'error'))
        .finally(()=>{busy=false;button.disabled=false});
      return;
