@@ -118,7 +118,8 @@ async function shell({refresh=false}={}){
    }),new Promise(done=>setTimeout(done,16000))]);
   }
   reg=await navigator.serviceWorker.getRegistration('./')||reg;
-  const worker=reg.waiting||reg.active||navigator.serviceWorker.controller;
+  // Check the active Radio worker first, not an update still waiting to activate.
+  const worker=reg.active||navigator.serviceWorker.controller||reg.waiting;
   if(!worker)return {ready:false,missing:['Offline startup inactive']};
   const status=await new Promise(done=>{
    const chan=new MessageChannel();
@@ -129,7 +130,10 @@ async function shell({refresh=false}={}){
    try{worker.postMessage({type:'GE_RADIO_SHELL_STATUS'},[chan.port2])}
    catch(_){settle({ready:false,missing:['Offline startup check failed']})}
   });
-  if(status?.version!==VERSION)return {ready:false,missing:['Radio app update required']};
+  // Manager and service worker have independent release versions. The worker
+  // verifies its own cached shell; matching their version strings is incorrect.
+  if(status?.type!=='GE_RADIO_SHELL_STATUS'||typeof status.version!=='string'||!status.version)
+   return {ready:false,missing:['Offline startup response invalid']};
   return {ready:status?.ready===true,missing:status?.missing||[]};
  }catch(_){return {ready:false,missing:['Offline startup check failed']}}
 }
