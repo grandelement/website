@@ -18,7 +18,7 @@ try{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const win=root.querySelector('.window');
   const scroll=root.querySelector('.scroll');
-  const visible=node=>node&&getComputedStyle(node).display!=='none'&&node.getBoundingClientRect().width>0;
+  const visible=node=>{if(!node)return false;const style=getComputedStyle(node),r=node.getBoundingClientRect();return style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>0.01&&r.width>3&&r.height>3;};
   const rows=[...root.querySelectorAll('.scroll .song')];
   const headings=[...root.querySelectorAll('.scroll .albumBrowseHeading')];
   const first=headings[0];
@@ -40,6 +40,33 @@ try{
   };
  });
  assert((await inspect()).albums,'MUSIC must open in ALBUMS cover view');
+ // AETHER uses the same full-album browser as Fire and every other album.
+ // Its twelve existing MP3 paths must never be silently reduced by a stale
+ // Back Room assignment, a legacy script, or a competing CSS overlay.
+ await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host').shadowRoot;
+  const album=root.querySelector('.geUniverseAlbum[data-album="Aether"]');
+  if(!album)throw Error('Aether cover not found');
+  album.click();
+ });
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Aether');
+ const aether=await inspect();
+ const expectedAether=['The Journey I','The Journey II','The Journey III','Gravity',
+  'Free Energy','Prana','Nexus','Polaris','Conduit','Peace','Aether','Starlight'];
+ assert.deepEqual(aether.songs,expectedAether,'AETHER must display all 12 existing recordings in source order, even with duplicate filename numbers');
+ const aetherScroll=await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host').shadowRoot;
+  const list=root.querySelector('.scroll'),rows=[...list.querySelectorAll('.song')];
+  list.scrollTop=list.scrollHeight;
+  const last=rows.at(-1)?.getBoundingClientRect(),viewport=list.getBoundingClientRect();
+  return {overflow:getComputedStyle(list).overflowY,scrollHeight:list.scrollHeight,
+   clientHeight:list.clientHeight,lastVisible:!!last&&last.top>=viewport.top-2&&last.bottom<=viewport.bottom+4,
+   lastLabel:rows.at(-1)?.querySelector('.songLabel')?.textContent};
+ });
+ assert(['auto','scroll'].includes(aetherScroll.overflow),'Album song list needs its own scroll area');
+ assert(aetherScroll.lastVisible,'Final AETHER track Starlight must be reachable by scrolling: '+JSON.stringify(aetherScroll));
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailBack').click());
+ await page.waitForFunction(()=>!!document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.geStandaloneAlbumUniverse.isActive'));
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const album=root.querySelector('.geUniverseAlbum[data-album="Fire"]');
@@ -60,25 +87,25 @@ try{
  const before=listing.count;
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  const row=root.querySelector('.scroll .song');
-  row.querySelector('.geSongAdd').click();
+  root.querySelector('.scroll .song .songTitlePlay').click();
  });
  const selected=await inspect();
- assert.equal(selected.count,before+1,'Tap + must keep working playlist selection');
- assert.equal(selected.visibleBoxes,0,'Selection should use a left-side mark, not a checkbox box');
+ assert.equal(selected.count,before+1,'Tap a song title to select it into the working playlist');
+ assert.equal(selected.visibleBoxes,0,'Compact song browser never exposes redundant checkboxes');
  const marked=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  const marked=root.querySelector('.scroll .song.selectedSong .geSongAdd');
-  return {text:marked?.textContent||'',visible:marked&&getComputedStyle(marked).display!=='none'};
+  const node=root.querySelector('.scroll .song.selectedSong .geSongTitleGlow');
+  return {present:!!node,background:node?getComputedStyle(node).backgroundColor:''};
  });
- assert(marked.visible&&marked.text==='✓','Selected row needs visible left checkmark');
+ assert(marked.present&&marked.background!=='rgba(0, 0, 0, 0)',
+  'Selected song title must have its visible highlighted state');
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  root.querySelector('.scroll .song.selectedSong .geSongAdd').click();
+  root.querySelector('.scroll .song.selectedSong .songTitlePlay').click();
  });
  const cleared=await inspect();
- assert.equal(cleared.count,before,'Unchecking must remove selection');
- assert.equal(cleared.visibleBoxes,0,'Checkbox must disappear after deselection');
+ assert.equal(cleared.count,before,'Unselecting by title restores the original selection');
+ assert.equal(cleared.visibleBoxes,0,'Compact track list must remain free of redundant checkboxes');
  await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailSongs').click());
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelectorAll('.albumBrowseHeading').length>2);
  const all=await inspect();
