@@ -32,23 +32,34 @@
    if(target.disabled){show(label+' is busy or needs a connection. Nothing was saved.','error');return false;}
    show('SAVE REQUESTED · '+label+' → '+source+'. Check confirmation below before leaving this screen.');
    const status=$(statusId);
-   // Capture status events from the original record-specific publisher. Never
-   // replace a refusal or pending write with a fake global success message.
+   // Capture final status from the ORIGINAL record save. This central button
+   // cannot claim a GitHub commit unless that publisher verifies it.
    let observer=null,alive=true;
    if(status){
      const original=status.textContent;
      observer=new MutationObserver(()=>{
        const content=(status.textContent||'').trim();
        if(!alive||!content||content===original)return;
+       const noChange=/^NO CHANGES\.?$|^ALREADY SAVED\b|^GITHUB · ALL WEBSITE SETTINGS ARE ALREADY SAVED/i.test(content);
        const failed=/CANNOT SAVE|COULD NOT SAVE|NOT SAVED|NOT LOADED|READ ONLY|AUTHORIZATION REJECTED|HTTP 401|HTTP 403|FAILED|UNAVAILABLE|ERROR|BLOCKED|REFUS|SIGN.IN|NEEDS|CANCELLED|NOT VERIFIED|NO GITHUB/i.test(content);
-       const success=/PUBLISHED|SAVED|VERIFIED|UPDATED/i.test(content)&&!failed;
-       if(failed||success){
-         show((success?'CONFIRMED · ':'NOT SAVED · ')+label+' · '+content,failed?'error':'success');
+       const success=/PUBLISHED|SAVED|VERIFIED|UPDATED/i.test(content)&&!failed&&!noChange;
+       if(failed||success||noChange){
+         show(noChange?'NO CHANGES TO SAVE · '+label:
+           (success?'CONFIRMED · ':'NOT SAVED · ')+label+' · '+content,
+           failed?'error':success?'success':'info');
+         if(success&&source==='GITHUB'&&/GITHUB VERIFIED|SAVED.*GITHUB|GITHUB COMMIT/i.test(content)){
+           const github=$('brGithubConnection');
+           if(github){github.textContent='GITHUB · WRITE VERIFIED · '+content.slice(0,115);github.style.color='#9cf4cc';}
+         }
          observer.disconnect();alive=false;
        }
      });
      observer.observe(status,{childList:true,subtree:true,characterData:true});
-     setTimeout(()=>{observer?.disconnect();alive=false},45000);
+     setTimeout(()=>{
+       if(!alive)return;
+       observer?.disconnect();alive=false;
+       show('SAVE NOT VERIFIED · '+label+' · No final confirmation was received. Check the original section before trying again.','error');
+     },45000);
    }
    target.click();
    return true;
@@ -80,8 +91,12 @@
      Promise.resolve(window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS()).then(result=>{
        if(result?.cancelled)show('SAVE CANCELLED · No settings changed.');
        else if(result?.unchanged)show('ALREADY SAVED · Website settings match the loaded GitHub version.','success');
-       else if(result?.ok)show('GITHUB VERIFIED · '+result.commit.slice(0,12)+' · '+result.paths.join(', ').toUpperCase()+
-         '. No private Vault records or live DJ queue changed.','success');
+       else if(result?.ok){
+         show('GITHUB VERIFIED · '+result.commit.slice(0,12)+' · '+result.paths.join(', ').toUpperCase()+
+           '. No private Vault records or live DJ queue changed.','success');
+         const github=$('brGithubConnection');
+         if(github){github.textContent='GITHUB · WRITE VERIFIED · COMMIT '+result.commit.slice(0,12);github.style.color='#9cf4cc';}
+       }
      }).catch(error=>show('NOT SAVED · '+String(error.message||error),'error'))
        .finally(()=>{busy=false;button.disabled=false});
      return;
