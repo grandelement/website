@@ -40,6 +40,33 @@ try{
   };
  });
  assert((await inspect()).albums,'MUSIC must open in ALBUMS cover view');
+ // AETHER uses the same full-album browser as Fire and every other album.
+ // Its twelve existing MP3 paths must never be silently reduced by a stale
+ // Back Room assignment, a legacy script, or a competing CSS overlay.
+ await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host').shadowRoot;
+  const album=root.querySelector('.geUniverseAlbum[data-album="Aether"]');
+  if(!album)throw Error('Aether cover not found');
+  album.click();
+ });
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Aether');
+ const aether=await inspect();
+ const expectedAether=['The Journey I','The Journey II','The Journey III','Gravity',
+  'Free Energy','Prana','Nexus','Polaris','Conduit','Peace','Aether','Starlight'];
+ assert.deepEqual(aether.songs,expectedAether,'AETHER must display all 12 existing recordings in source order, even with duplicate filename numbers');
+ const aetherScroll=await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host').shadowRoot;
+  const list=root.querySelector('.scroll'),rows=[...list.querySelectorAll('.song')];
+  list.scrollTop=list.scrollHeight;
+  const last=rows.at(-1)?.getBoundingClientRect(),viewport=list.getBoundingClientRect();
+  return {overflow:getComputedStyle(list).overflowY,scrollHeight:list.scrollHeight,
+   clientHeight:list.clientHeight,lastVisible:!!last&&last.top>=viewport.top-2&&last.bottom<=viewport.bottom+4,
+   lastLabel:rows.at(-1)?.querySelector('.songLabel')?.textContent};
+ });
+ assert(['auto','scroll'].includes(aetherScroll.overflow),'Album song list needs its own scroll area');
+ assert(aetherScroll.lastVisible,'Final AETHER track Starlight must be reachable by scrolling: '+JSON.stringify(aetherScroll));
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailBack').click());
+ await page.waitForFunction(()=>!!document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.geStandaloneAlbumUniverse.isActive'));
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const album=root.querySelector('.geUniverseAlbum[data-album="Fire"]');
