@@ -18,7 +18,7 @@ try{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const win=root.querySelector('.window');
   const scroll=root.querySelector('.scroll');
-  const visible=node=>node&&getComputedStyle(node).display!=='none'&&node.getBoundingClientRect().width>0;
+  const visible=node=>{if(!node)return false;const style=getComputedStyle(node),r=node.getBoundingClientRect();return style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>0.01&&r.width>3&&r.height>3;};
   const rows=[...root.querySelectorAll('.scroll .song')];
   const headings=[...root.querySelectorAll('.scroll .albumBrowseHeading')];
   const first=headings[0];
@@ -87,25 +87,25 @@ try{
  const before=listing.count;
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  const row=root.querySelector('.scroll .song');
-  row.querySelector('.geSongAdd').click();
+  root.querySelector('.scroll .song .songTitlePlay').click();
  });
  const selected=await inspect();
- assert.equal(selected.count,before+1,'Tap + must keep working playlist selection');
- assert.equal(selected.visibleBoxes,0,'Selection should use a left-side mark, not a checkbox box');
+ assert.equal(selected.count,before+1,'Tap a song title to select it into the working playlist');
+ assert.equal(selected.visibleBoxes,0,'Compact song browser never exposes redundant checkboxes');
  const marked=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  const marked=root.querySelector('.scroll .song.selectedSong .geSongAdd');
-  return {text:marked?.textContent||'',visible:marked&&getComputedStyle(marked).display!=='none'};
+  const node=root.querySelector('.scroll .song.selectedSong .geSongTitleGlow');
+  return {present:!!node,background:node?getComputedStyle(node).backgroundColor:''};
  });
- assert(marked.visible&&marked.text==='✓','Selected row needs visible left checkmark');
+ assert(marked.present&&marked.background!=='rgba(0, 0, 0, 0)',
+  'Selected song title must have its visible highlighted state');
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  root.querySelector('.scroll .song.selectedSong .geSongAdd').click();
+  root.querySelector('.scroll .song.selectedSong .songTitlePlay').click();
  });
  const cleared=await inspect();
- assert.equal(cleared.count,before,'Unchecking must remove selection');
- assert.equal(cleared.visibleBoxes,0,'Checkbox must disappear after deselection');
+ assert.equal(cleared.count,before,'Unselecting by title restores the original selection');
+ assert.equal(cleared.visibleBoxes,0,'Compact track list must remain free of redundant checkboxes');
  await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailSongs').click());
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelectorAll('.albumBrowseHeading').length>2);
  const all=await inspect();
