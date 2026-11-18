@@ -59,7 +59,7 @@ try{
   'Pinch zoom must enlarge and scroll all the real album covers: '+JSON.stringify(pinch));
  assert.ok(Math.abs(pinch.restored-pinch.before)<3,'Pinching inward restores the complete connected album view');
  assert.ok(albumEntry.albums.includes('Fire'));
- assert.ok(!albumEntry.albums.includes('Fundamental Groove'),'Marked final cover must be hidden only in the universe');
+ assert.ok(albumEntry.albums.includes('Fundamental Groove'),'Fundamental Groove remains visible in the universe by owner decision');
  // Radio keeps its original OFFLINE shortcut; this screen must not duplicate it.
  await page.evaluate(()=>{
   const root=document.getElementById('geMusicV5Host').shadowRoot;
