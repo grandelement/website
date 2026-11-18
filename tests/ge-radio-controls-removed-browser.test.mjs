@@ -31,6 +31,7 @@ try{
       radio:!!document.getElementById('liveBtn'),
       musicButton:!!document.getElementById('geMusicV5Button')};
    });
+   console.log('RADIO_UTILITY_GEOMETRY '+width+'x'+height+' '+JSON.stringify(state));
    assert.deepEqual(state.bad,[],'Old Radio controls returned: '+JSON.stringify(state));
    assert(state.code&&state.radio&&state.musicButton,'Main player controls were lost');
    assert(state.guestSunVisible&&state.grantedSunVisible,'SUN LAB button must remain visible before and after access code');
