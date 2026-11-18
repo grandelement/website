@@ -6,6 +6,12 @@ import puppeteer from 'puppeteer-core';
 // four-button fixture. That fixture missed SAVE being stranded before FANS.
 const back=readFileSync('backroom/index.html','utf8');
 const center=readFileSync('backroom/save-center.js','utf8');
+// Regression: a second inline SAVE listener once reported a conflicting
+// no-change result while the actual Radio/Access save was still running.
+assert.doesNotMatch(back,/\$\('brTopSave'\)\.addEventListener\('click'/,
+  'The central Save control must have exactly one owner: save-center.js.');
+assert.match(back,/if\(authReady\(\)\)void reconnectAllSources\(\)/,
+  'Back Room sign-in must automatically verify Vault and GitHub playlists.');
 const css=readFileSync('backroom/save-center.css','utf8');
 const nav=(back.match(/<nav id="backroomTabs"[^>]*>[\s\S]*?<\/nav>/)||[])[0];
 const start=back.indexOf('function installBackroomTabs(){');
