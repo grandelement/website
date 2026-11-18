@@ -1772,6 +1772,26 @@ function details(path){
  return{path,album,title:cleanTitle||title||file,number:m?Number(m[1]):999};
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
+// AETHER source filenames use three 01 prefixes and skip 09. Preserve
+// durable audio/Vault paths, but show the twelve existing recordings in
+// the artist's current catalog sequence rather than sorting by duplicate
+// filename numbers or accidental title collation.
+const aetherAlbumOrder=['The Journey I','The Journey II','The Journey III',
+ 'Gravity','Free Energy','Prana','Nexus','Polaris','Conduit','Peace','Aether','Starlight'];
+const aetherAlbumRank=new Map(aetherAlbumOrder.map((title,index)=>[title.toLowerCase(),index]));
+function musicTrackCompare(a,b){
+ const albums=rank(a.album)-rank(b.album)||a.album.localeCompare(b.album);
+ if(albums)return albums;
+ if(a.album==='Aether'&&b.album==='Aether'){
+  const ia=aetherAlbumRank.get(a.title.toLowerCase()),ib=aetherAlbumRank.get(b.title.toLowerCase());
+  if(ia!==undefined||ib!==undefined){
+   const delta=(ia??999)-(ib??999);
+   if(delta)return delta;
+  }
+ }
+ return a.number-b.number||a.title.localeCompare(b.title);
+}
+
 function say(s){state.notice=s;notice.textContent=s||''}
 function showCatalogSource(source,count){
  // Internal catalog information is never published in the visitor interface.
@@ -1850,7 +1870,7 @@ async function fetchCatalog(options={}){
  const all=[];
  const publishCatalog=(paths,final=false)=>{
   const inventory=[...new Set(paths)].map(details);
-  inventory.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
+  inventory.sort((a,b)=>musicTrackCompare(a,b));
   state.catalogAllTracks=inventory;
   const unique=playerTracksFromCatalog(inventory);
   state.tracks=unique;state.loaded=inventory.length>0;state.loading=!state.loaded&&!final;
@@ -3537,7 +3557,7 @@ window.GEMusicV5={open,close,openOffline,openCodeEntry,preload:preloadCatalog,sh
  acceptRadioCatalog:(urls)=>{
   const paths=[...new Set((Array.isArray(urls)?urls:[]).map(canonical).filter(Boolean))];
   if(!paths.length)throw Error('Radio supplied no playable songs');
-  const unique=paths.map(details).sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
+  const unique=paths.map(details).sort((a,b)=>musicTrackCompare(a,b));
   state.catalogAllTracks=unique;state.tracks=playerTracksFromCatalog(unique);state.loaded=true;state.loading=false;
   updateMeta();render();
   showCatalogSource('RADIO SHARED CATALOG',state.tracks.length);
