@@ -5,6 +5,7 @@ import {runInNewContext} from 'node:vm';
 
 const source=readFileSync('radio/offline-manager.js','utf8');
 const sw=readFileSync('radio/sw.js','utf8');
+const workerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1];
 const music=readFileSync('radio/ge-music-v5.js','utf8');
 const html=readFileSync('radio/index.html','utf8');
 const radioLayoutCSS=readFileSync('radio/radio-layout.css','utf8');
@@ -53,7 +54,7 @@ function makeHarness({safari=false}={}){
  const worker={
   postMessage(data,ports){
    if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
-    type:data.type,ready:true,missing:[],version:'2026.11.16-offline-dock-viewport-v8'
+    type:data.type,ready:true,missing:[],version:workerVersion
    });
   }
  };
@@ -101,12 +102,22 @@ function makeHarness({safari=false}={}){
   count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
   storage:values,
   primeCatalog:async()=>{
-   const shell=await cacheAPI.open('ge-radio-shell-2026.11.16-offline-dock-viewport-v8');
+   const shell=await cacheAPI.open('ge-radio-shell-'+workerVersion);
    await shell.put(new URL('./manifest.json',BASE).href,
     new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
   }
  };
 }
+test('real worker version is allowed to differ from the downloader build',async()=>{
+ const managerVersion=/const VERSION='([^']+)'/.exec(source)?.[1];
+ assert.ok(workerVersion&&managerVersion);
+ assert.notEqual(workerVersion,managerVersion,'Versions must be managed independently to exercise the regression');
+ const h=makeHarness({safari:true});
+ h.succeedPrana();
+ const result=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(result.error,undefined,'Different service-worker version must not reject a valid shell');
+ assert.equal(result.ready,true);
+});
 test('download retains previous songs; partial failure repairs only missing media',async()=>{
  const h=makeHarness();
  const events=[];
@@ -253,9 +264,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-viewport-v8/);
- assert.match(html,/sw\.js\?v=20261116-css-core-v2/);
- assert.match(sw,/const VERSION='2026\.11\.16-css-core-v2'/);
- assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261117-offline-manager-v9/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
+ assert.match(html,/sw\.js\?v=20261117-verified-shell-v8/);
+ assert.ok(workerVersion,'Service worker advertises a version');
+ assert.match(source,/const VERSION='2026\.11\.17-offline-manager-v9'/);
 });
