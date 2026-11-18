@@ -47,6 +47,70 @@ try{
    const label=await page.$eval('#playBtn',button=>button.textContent.trim());
    assert.equal(label,'PLAYER','Idle music control must always say PLAYER');
    console.log('CONTROL_BASE '+width+'x'+height+' '+JSON.stringify(first));
+   if(isMobile){
+     const ui=await page.evaluate(()=>{
+       const box=el=>{const r=el.getBoundingClientRect(),style=getComputedStyle(el);
+         return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,display:style.display};
+       };
+       const tool=document.getElementById('geUtilityRow');
+       const elements=[
+         document.getElementById('sunLabBtn'),document.getElementById('offlineLaunchBtn'),
+         document.getElementById('contactLaunchBtn'),tool.querySelector('a.bc-btn'),
+         document.getElementById('accessLaunchBtn'),document.getElementById('shareBtn')
+       ];
+       return {sun:box(document.querySelector('header .logo-wrap')),
+         song:box(document.getElementById('titleBtn')),
+         seek:box(document.getElementById('playerSeekWrap')),
+         music:box(document.getElementById('musicGroup')),
+         musicRows:getComputedStyle(document.getElementById('musicGroup')).gridTemplateRows,
+         musicChildren:[...document.getElementById('musicGroup').children].map(el=>({id:el.id,display:getComputedStyle(el).display,row:getComputedStyle(el).gridRowStart,height:el.getBoundingClientRect().height})),
+         bgQuick:box(document.getElementById('geBgQuickRow')),
+         bgPanel:box(document.getElementById('bgGroup')),
+         bottom:elements.map(box),allIcons:elements.every(el=>!!el.querySelector('svg.ge-radio-icon')),
+         viewport:innerHeight,scroll:document.documentElement.scrollHeight};
+     });
+     console.log('ICON_DOCK '+width+'x'+height+' '+JSON.stringify(ui));
+     const near=(a,b,d=1)=>Math.abs(a-b)<=d;
+     assert(ui.sun.top>=14,'Sun EQ needs top clearance');
+     assert(ui.song.bottom<ui.seek.top,'Song title belongs above the artwork');
+     assert(ui.seek.top<ui.music.top,'Progress bar must sit above lower music controls');
+     assert(ui.music.bottom<=ui.bgQuick.top,'Background row must be BELOW music');
+     assert.equal(ui.musicRows,'43px 43px','One compact two-row MUSIC height contract');
+     assert(ui.musicChildren.filter(el=>['prevBtn','playBtn','nextBtn','shuffleBtn','liveBtn','geMusicV5Button'].includes(el.id)).every(el=>Math.abs(el.height-43)<=1),
+       'No button-specific music height overrides may compete: '+JSON.stringify(ui.musicChildren));
+     assert(ui.bgQuick.bottom<ui.bottom[0].top,'Background row must be ABOVE utilities');
+     assert.equal(ui.bgPanel.display,'none','Background details hidden by default');
+     assert(ui.allIcons,'All six utilities must have outlined SVG icons');
+     for(let i=0;i<6;i++){
+       const a=ui.bottom[i],firstBtn=ui.bottom[0];
+       assert(near(a.top,firstBtn.top)&&near(a.height,firstBtn.height),
+         'Six buttons must share one aligned row: '+JSON.stringify(ui));
+       assert(near(a.height,42),'Six icons must share 42px height');
+       if(i)assert(a.left>=ui.bottom[i-1].right-1,'Wrong button order: '+JSON.stringify(ui));
+     }
+     assert(ui.bottom[5].right<=width,'Bottom row must stay inside phone width');
+     assert(ui.bottom[0].top<ui.viewport-15||ui.scroll>ui.viewport,'Bottom row must remain reachable');
+     if(height>=740)assert(ui.seek.top-ui.song.bottom>=50,
+       'Keep at least 50px of center art visible: '+JSON.stringify(ui));
+     await page.evaluate(()=>{
+       window.__geQuickObserved={prev:0,next:0};
+       document.getElementById('bgPrev').addEventListener('click',()=>window.__geQuickObserved.prev++,true);
+       document.getElementById('bgNext').addEventListener('click',()=>window.__geQuickObserved.next++,true);
+     });
+     await page.click('#geBgQuickPrev');
+     await page.click('#geBgQuickNext');
+     const counts=await page.evaluate(()=>window.__geQuickObserved);
+     assert.equal(counts.prev,1,'Previous icon should call existing background control');
+     assert.equal(counts.next,1,'Next icon should call existing background control');
+     await page.click('#geBgQuickOptions');
+     const panel=await page.evaluate(()=>({
+       expanded:document.getElementById('geBgQuickOptions').getAttribute('aria-expanded'),
+       display:getComputedStyle(document.getElementById('bgGroup')).display
+     }));
+     assert.equal(panel.expanded,'true');
+     assert.notEqual(panel.display,'none','Background options must open existing settings');
+     first=await get();
+   }
    assert(first.hudAutoHide.width>=27.5&&first.hudAutoHide.height>=27.5,
        'Hide Text checkbox must be 28px on every view: '+JSON.stringify(first.hudAutoHide));
    assert(first.hudAutoHide.right+3<=first.hudCombined.right,
