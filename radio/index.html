@@ -8663,6 +8663,32 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
   window.GEQRIntroTest={website:()=>open('../qr/'),radio:()=>open('../qr/radio/'),close:shut};
 })();
 
+// iOS Sun Lab fallback: ensure vertical finger drags move the settings even
+// when Safari's page-level gesture suppression disables native scrolling.
+// Ignore sliders and buttons so adjustment and Save/Close remain functional.
+(function enableSunLabTouchScroll(){
+ const panel=document.getElementById('sunLabPanel');
+ if(!panel)return;
+ let lastY=null,active=false;
+ panel.addEventListener('touchstart',event=>{
+  const target=event.target;
+  active=panel.classList.contains('show')&&event.touches.length===1&&
+   !target.closest('input,button,select,textarea,[contenteditable="true"]');
+  lastY=active?event.touches[0].clientY:null;
+ },{passive:true});
+ panel.addEventListener('touchmove',event=>{
+  if(!active||lastY===null||event.touches.length!==1)return;
+  const y=event.touches[0].clientY;
+  const delta=lastY-y;
+  lastY=y;
+  if(panel.scrollHeight<=panel.clientHeight+1)return;
+  panel.scrollTop+=delta;
+  if(event.cancelable)event.preventDefault();
+  event.stopPropagation();
+ },{passive:false});
+ for(const type of ['touchend','touchcancel'])panel.addEventListener(type,()=>{active=false;lastY=null},{passive:true});
+})();
+
 // Native iPhone portrait must not rubber-band the entire Radio dashboard.
  // Preserve scrolling inside pickers/drawers; prevent only background page drag.
 document.addEventListener('touchmove',function(event){
