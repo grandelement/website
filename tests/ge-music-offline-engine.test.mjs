@@ -264,9 +264,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261116-offline-dock-viewport-v8/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261117-offline-manager-v9/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=20261116-offline-dock-viewport-v8/);
  assert.match(html,/sw\.js\?v=20261116-css-core-v2/);
  assert.ok(workerVersion,'Service worker advertises a version');
- assert.match(source,/const VERSION='2026\.11\.16-offline-dock-viewport-v8'/);
+ assert.match(source,/const VERSION='2026\.11\.17-offline-manager-v9'/);
 });
