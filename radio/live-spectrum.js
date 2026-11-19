@@ -24,11 +24,11 @@ function localSong(){
 function start(){
   if(graphReady)return true;
   if(setupPending)return false;
-  const audio=element(),Audio=AC();
-  if(!audio||!Audio||!localSong())return false;
+  const audio=element(),AudioContextCtor=AC();
+  if(!audio||!AudioContextCtor||!localSong())return false;
   setupPending=true;
   try{
-    context=new Audio();
+    context=new AudioContextCtor();
     analyser=context.createAnalyser();
     analyser.fftSize=FFT_SIZE;
     analyser.smoothingTimeConstant=.25;
