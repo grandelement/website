@@ -17,6 +17,8 @@ assert.match(sw,/\.\/live-spectrum\.js/);
 assert.match(fft,/createAnalyser/);
 assert.match(fft,/getByteFrequencyData/);
 assert.match(fft,/createMediaElementSource\(audio\)/);
+assert.match(fft,/getElementById\('player'\)/,'analyser must sample the real Radio player');
+assert.doesNotMatch(fft,/getElementById\('audio'\)/,'never sample the preview-only audio element');
 assert.match(fft,/source\.connect\(context\.destination\)/);
 assert.doesNotMatch(fft,/new\s+Audio\s*\(/);
 assert.doesNotMatch(fft,/offline-spectrum|eq-snapshot|sine|Math\.random/);
