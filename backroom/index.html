@@ -5367,9 +5367,13 @@ async function checkServerGithub(){
    label.textContent='GITHUB · SETTINGS READ VERIFIED · SAVE WRITE NOT YET TESTED';
    label.style.color='#9cf4cc';return true;
   }
-  label.textContent='GITHUB NOT CONNECTED · SERVER AUTHORIZATION NEEDS REPAIR'+
-   (data.github_http?' · HTTP '+data.github_http:'')+
-   (data.error?' · '+String(data.error).slice(0,110):'');
+  const authMode=String(data.credential_mode||'unknown');
+  label.textContent=authMode==='server_token'&&data.github_http===401
+   ?'GITHUB BLOCKED · EXISTING PERSONAL ACCESS TOKEN REJECTED (HTTP 401). INSTALL THE SERVER-SIDE GITHUB APP; SAVES ARE NOT WORKING.'
+   :'GITHUB NOT CONNECTED · SERVER AUTHORIZATION NEEDS REPAIR'+
+     (authMode!=='unknown'?' · MODE '+authMode.toUpperCase():'')+
+     (data.github_http?' · HTTP '+data.github_http:'')+
+     (data.error?' · '+String(data.error).slice(0,110):'');
   label.style.color='#ffc0c0';return false;
  }catch(error){
   label.textContent='GITHUB CHECK FAILED · '+String(error.message||error).slice(0,130);
