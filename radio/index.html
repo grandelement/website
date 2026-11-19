@@ -199,7 +199,7 @@ window.addEventListener('unhandledrejection',function(e){
 
 
 
-<link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
+<link rel="stylesheet" href="../ge-accessibility.css?v=20261119-calm-controls-v1">
 <link rel="stylesheet" href="./radio-components.css?v=20261119-radio48-one-cue-v1" data-ge-css="components">
 
 
@@ -2128,7 +2128,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
-  // RADIO remains visible during startup; red heartbeat requires verified progress.
+  // RADIO stays visible; only the one-time intro cue beats. Audible proof is separate.
   updateRadioStartupCue?.();
 }
 function rememberRecent(url){
@@ -4508,7 +4508,7 @@ $('nextBtn').addEventListener('click',()=>nextTrack(true));
 const playBtn=$('playBtn'),playerSeek=$('playerSeek');
 function radioTransportConfirmed(){
   // Safari's audio.paused=false includes a pending silent Icecast request.
-  // Only advancing media time proves live Radio connectivity/heartbeat.
+  // Only advancing media time proves an audible Radio connection.
   return !!((state.live||state.livePreparing) && !audio.paused && !audio.muted &&
     (radio2.active?observedRadio2Progress:observedRadio1Progress));
 }
@@ -4963,7 +4963,7 @@ audio.addEventListener('canplay',()=>{
 });
 // Safari sometimes advances an Icecast player's currentTime without sending
 // reliable "timeupdate" events. Sample that SAME native player's clock as a
-// fallback. A static clock or an HTTP 200 alone never triggers a red heartbeat.
+// fallback. A static clock or HTTP 200 never proves audible connection.
 function confirmRadio1ForwardTime(t){
   if(!state.live||audio.paused||audio.muted||radio2.active||radio2.loading||
      !Number.isFinite(t))return;
