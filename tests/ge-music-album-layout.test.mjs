@@ -54,6 +54,7 @@ try{
  const expectedAether=['The Journey I','The Journey II','The Journey III','Gravity',
   'Free Energy','Prana','Nexus','Polaris','Conduit','Peace','Aether','Starlight'];
  assert.deepEqual(aether.songs,expectedAether,'AETHER must display all 12 existing recordings in source order, even with duplicate filename numbers');
+ assert.equal(new Set(aether.songs).size,12,'AETHER must not duplicate any Journey or omit a distinct recording');
  const aetherScroll=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const list=root.querySelector('.scroll'),rows=[...list.querySelectorAll('.song')];
