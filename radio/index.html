@@ -200,7 +200,7 @@ window.addEventListener('unhandledrejection',function(e){
 
 
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
-<link rel="stylesheet" href="./radio-components.css?v=20261119-radio47-original-fix-v1" data-ge-css="components">
+<link rel="stylesheet" href="./radio-components.css?v=20261119-radio48-one-cue-v1" data-ge-css="components">
 
 
 
@@ -2420,15 +2420,21 @@ function updateRadioStartupCue(){
   // Ready to tap is not the same as verified audible playback. Keep Radio
   // visibly available on a network-connected page without auto-streaming.
   // The separate signal-ready/audible classes still require real audio proof.
-  const tapReady=!document.body.classList.contains('ge-radio-pulse-ack')&&!state.live&&!state.livePreparing&&
-    navigator.onLine!==false&&liveStreamConfigured();
+  const acknowledged=document.body.classList.contains('ge-radio-pulse-ack');
+  const stationConfigured=navigator.onLine!==false&&liveStreamConfigured();
+  // Before the first actual RADIO tap, use one gentle readiness cue even
+  // when the browser has auto-started audio. Readiness does not prove sound.
+  const firstVisitCue=!acknowledged&&stationConfigured;
+  const tapReady=!acknowledged&&!state.live&&!state.livePreparing&&stationConfigured;
+  document.body.dataset.geRadioIndicator=firstVisitCue?'cue':
+    connected?'on':(state.live||state.livePreparing)?'connecting':'off';
   document.body.classList.toggle('ge-radio-tap-ready',tapReady);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
   document.body.classList.toggle('ge-radio-audible',connected);
   document.body.classList.toggle('ge-radio-verified',connected);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
-    button.classList.toggle('radio-start-cue',tapReady);
+    button.classList.toggle('radio-start-cue',firstVisitCue);
     button.textContent=(state.live||state.livePreparing)?'STOP':'RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
@@ -4635,6 +4641,9 @@ playerSeek?.addEventListener('input',()=>{
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
+  // The FIRST listener tap acknowledges the intro cue, even if autoplay
+  // already turned Radio ON and this tap is a STOP. Never pulse again here.
+  document.body.classList.add('ge-radio-pulse-ack');
   // RADIO is a true start/stop control, including while connecting.
   if(state.live||state.livePreparing){
     exitLiveMode('RADIO STOPPED');
@@ -4646,9 +4655,6 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
-  // Acknowledge the initial heartbeat on the first RADIO tap in this visit.
-  // Subsequent ON and OFF states use steady colors, never another heartbeat.
-  document.body.classList.add('ge-radio-pulse-ack');
   audio.muted=false;audio.defaultMuted=false;
   updateRadioStartupCue();
   if(browserWakeOnRadioTap())return;
@@ -9181,8 +9187,9 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 <link rel="stylesheet" href="./radio-layout.css?v=20261117-icon-dock-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261116-ship-horizon-v1" data-ge-css="ship-repair">
-<link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio47-onoff-v1" data-ge-css="player-button-effects">
+<link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio48-deconflict-v1" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-radio47-fill-v1" data-ge-css="sun-lab-transparency">
+<link rel="stylesheet" href="./radio-indicator.css?v=20261119-radio48-one-cue-v1" data-ge-css="radio-indicator">
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
