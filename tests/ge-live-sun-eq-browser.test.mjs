@@ -8,7 +8,7 @@ const browser=await puppeteer.launch({
 });
 const page=await browser.newPage();
 const runtime=[];
-page.on('pageerror',error=>runtime.push(error.message));
+page.on('pageerror',error=>runtime.push(error.stack||error.message));
 try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
@@ -47,11 +47,20 @@ try{
      return {
        count:rays.length,
        opacity:Number(getComputedStyle(document.getElementById('sunEQAura')).opacity),
-       shape:rays.slice(0,45).map(r=>r.getAttribute('x2')+'|'+r.getAttribute('y2')+'|'+r.style.opacity).join(';')
+       shape:rays.slice(0,45).map(r=>r.getAttribute('x2')+'|'+r.getAttribute('y2')+'|'+r.style.opacity).join(';'),
+       currentStatus:document.getElementById('sunEQSourceStatus')?.textContent,
+       shipReady:!!window.GEShip,
+       audioLive:!!window.GEGetLiveSpectrum?.(),
+       styleInline:document.getElementById('sunEQAura')?.style.opacity
      };
    }));
    await new Promise(resolve=>setTimeout(resolve,190));
  }
+ console.log('WATERFALL_DIAGNOSTICS '+JSON.stringify({
+   frames:radialFrames.map(({count,opacity,currentStatus,shipReady,audioLive,styleInline})=>
+     ({count,opacity,currentStatus,shipReady,audioLive,styleInline})),
+   errors:runtime.slice(0,5)
+ }));
  assert(radialFrames.every(f=>f.count===72),'Waterfall needs 72 real-frequency radial spokes');
  assert(radialFrames.some(f=>f.opacity>.95),'measured music should make Waterfall visible');
  assert(new Set(radialFrames.map(f=>f.shape)).size>=2,'Waterfall spoke lengths must change with real music');
