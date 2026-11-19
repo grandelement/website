@@ -44,6 +44,35 @@ try{
     return ret;
    });
    let first=await get();
+
+   // Corrected palette and station-ready heartbeat on phone and desktop.
+   const visuals=await page.evaluate(()=>{
+     const style=id=>getComputedStyle(document.getElementById(id));
+     return {
+       prev:style('prevBtn').backgroundImage,
+       player:style('playBtn').backgroundImage,
+       next:style('nextBtn').backgroundImage,
+       music:style('geMusicV5Button').backgroundImage,
+       radioAnimation:style('liveBtn').animationDuration,
+       tapReady:document.body.classList.contains('ge-radio-tap-ready'),
+       verified:document.body.classList.contains('ge-radio-audible'),
+       radioLabel:document.getElementById('liveBtn').textContent.trim(),
+       online:navigator.onLine,
+       auraFilter:style('sunEQAura').filter
+     };
+   });
+   assert.equal(visuals.player,visuals.prev,'PLAYER should match Previous blue glass');
+   assert.equal(visuals.player,visuals.next,'PLAYER should match Next blue glass');
+   assert.match(visuals.player,/rgba?\\(53, 101, 142, 0\\.75\\)/,'Transport buttons need 25% transparent backgrounds');
+   assert.match(visuals.music,/rgba?\\(22, 94, 171, 0\\.75\\)/,'MUSIC must inherit the old bright PLAYER blue at 75% opacity');
+   assert.match(visuals.auraFilter,/brightness\\(2\\.8\\)/,'Sun Lab effects must have global visibility boost');
+   if(visuals.radioLabel==='RADIO'&&visuals.online){
+     assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
+     assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle');
+     assert.equal(visuals.verified,false,'Ready-to-tap must not falsely claim audio playback');
+   }
+   console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
+
    const label=await page.$eval('#playBtn',button=>button.textContent.trim());
    assert.equal(label,'PLAYER','Idle music control must always say PLAYER');
    console.log('CONTROL_BASE '+width+'x'+height+' '+JSON.stringify(first));
