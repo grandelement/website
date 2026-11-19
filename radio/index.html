@@ -3215,7 +3215,7 @@ function exitLiveMode(message='RADIO ended.'){
   state.live=false;
   state.livePreparing=false;
   liveState.hadVerifiedStream=false;
-  document.body.classList.remove('ge-radio-pulse-ack','ge-radio-verified');
+  document.body.classList.remove('ge-radio-verified');
   window.GELiveVideo?.stop?.();
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
@@ -4636,6 +4636,7 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   // RADIO is a true start/stop control, including while connecting.
+  document.body.classList.add('ge-radio-pulse-ack');
   if(state.live||state.livePreparing){
     exitLiveMode('RADIO STOPPED');
     requestUserPause();
@@ -9233,5 +9234,21 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 
 
+<style id="ge-radio-no-repeat-flash">
+/* First RADIO press permanently acknowledges the visual cue for this page visit. */
+body.ge-radio-pulse-ack #musicGroup #liveBtn,
+body.ge-radio-pulse-ack #shipStage [data-proxy="liveBtn"],
+body.ge-radio-pulse-ack #musicGroup #liveBtn::before,
+body.ge-radio-pulse-ack #musicGroup #liveBtn::after,
+body.ge-radio-pulse-ack #shipStage [data-proxy="liveBtn"]::before,
+body.ge-radio-pulse-ack #shipStage [data-proxy="liveBtn"]::after {
+  animation: none !important;
+  transition: background-color .34s ease, border-color .34s ease, color .3s ease, box-shadow .42s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.ge-radio-pulse-ack #musicGroup #liveBtn,
+  body.ge-radio-pulse-ack #shipStage [data-proxy="liveBtn"] { transition: none !important; }
+}
+</style>
 </body>
 </html>
