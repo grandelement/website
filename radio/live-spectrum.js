@@ -15,7 +15,7 @@ let geIOSLiveOptIn=GE_IOS_PREVIEW;
 let context=null,analyser=null,source=null,sourceKind='none',lastError='',lastSignal=0;
 let track=null,graphReady=false,setupPending=false;
 let bins=new Uint8Array(256),rawBins=new Uint8Array(FFT_SIZE/2);
-const element=()=>document.getElementById('audio');
+const element=()=>document.getElementById('player');
 const AC=()=>window.AudioContext||window.webkitAudioContext;
 function localSong(){
   const audio=element();
