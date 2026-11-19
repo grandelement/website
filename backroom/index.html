@@ -5364,8 +5364,19 @@ async function checkServerGithub(){
   const response=await api('/manage/github-health',{method:'GET',timeoutMs:20000});
   const data=await response.json().catch(()=>({}));
   if(response.ok&&data.github_ready===true){
-   label.textContent='GITHUB · SETTINGS READ VERIFIED · SAVE WRITE NOT YET TESTED';
-   label.style.color='#9cf4cc';return true;
+   if(data.app_read_verified===true){
+    if(data.legacy_token_configured===true){
+     label.textContent='GITHUB APP VERIFIED WITHOUT PERSONAL TOKEN · LEGACY TOKEN STILL PRESENT · TEST A REAL SAVE BEFORE REMOVAL';
+     label.style.color='#ffe19c';
+    }else{
+     label.textContent='GITHUB APP · RENEWABLE CONNECTION VERIFIED · SAVE WRITE NOT YET TESTED';
+     label.style.color='#9cf4cc';
+    }
+   }else{
+    label.textContent='GITHUB USING LEGACY AUTHORIZATION · RENEWABLE GITHUB APP NOT VERIFIED · SAVES MAY STOP WHEN TOKEN EXPIRES';
+    label.style.color='#ffc0c0';
+   }
+   return true;
   }
   const authMode=String(data.credential_mode||'unknown');
   label.textContent=authMode==='server_token'&&data.github_http===401
