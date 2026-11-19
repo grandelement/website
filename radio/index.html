@@ -2420,7 +2420,7 @@ function updateRadioStartupCue(){
   // Ready to tap is not the same as verified audible playback. Keep Radio
   // visibly available on a network-connected page without auto-streaming.
   // The separate signal-ready/audible classes still require real audio proof.
-  const tapReady=!state.live&&!state.livePreparing&&
+  const tapReady=!document.body.classList.contains('ge-radio-pulse-ack')&&!state.live&&!state.livePreparing&&
     navigator.onLine!==false&&liveStreamConfigured();
   document.body.classList.toggle('ge-radio-tap-ready',tapReady);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
@@ -2428,7 +2428,7 @@ function updateRadioStartupCue(){
   document.body.classList.toggle('ge-radio-verified',connected);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
-    button.classList.toggle('radio-start-cue',signalReady&&!connected);
+    button.classList.toggle('radio-start-cue',tapReady);
     button.textContent=(state.live||state.livePreparing)?'STOP':'RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
@@ -3215,7 +3215,7 @@ function exitLiveMode(message='RADIO ended.'){
   state.live=false;
   state.livePreparing=false;
   liveState.hadVerifiedStream=false;
-  document.body.classList.remove('ge-radio-pulse-ack','ge-radio-verified');
+  document.body.classList.remove('ge-radio-verified');
   window.GELiveVideo?.stop?.();
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
@@ -4646,8 +4646,8 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
-  // One acknowledgment per page visit. Once the signal is verified, the
-  // button stays solid red even if playback is deliberately paused.
+  // Acknowledge the initial heartbeat on the first RADIO tap in this visit.
+  // Subsequent ON and OFF states use steady colors, never another heartbeat.
   document.body.classList.add('ge-radio-pulse-ack');
   audio.muted=false;audio.defaultMuted=false;
   updateRadioStartupCue();
@@ -9181,8 +9181,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 <link rel="stylesheet" href="./radio-layout.css?v=20261117-icon-dock-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261116-ship-horizon-v1" data-ge-css="ship-repair">
-<link rel="stylesheet" href="./player-button-effects.css?v=20261119-sun-eq-signal-v2" data-ge-css="player-button-effects">
-<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-v1" data-ge-css="sun-lab-transparency">
+<link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio47-onoff-v1" data-ge-css="player-button-effects">
+<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-radio47-fill-v1" data-ge-css="sun-lab-transparency">
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
