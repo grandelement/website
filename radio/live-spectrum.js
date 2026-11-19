@@ -5,6 +5,12 @@
 (()=>{
 'use strict';
 const FFT_SIZE=2048;
+// Safari can reroute native media audio when attached to an AudioContext.
+// Enable it only in an explicitly requested iPhone preview. Normal iPhone
+// Radio listening stays untouched until this is validated on a real device.
+const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
+  (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const GE_IOS_PREVIEW=new URLSearchParams(location.search).get('eq_preview')==='1';
 let context=null,analyser=null,source=null,sourceKind='none',lastError='',lastSignal=0;
 let track=null,graphReady=false,setupPending=false;
 let bins=new Uint8Array(256),rawBins=new Uint8Array(FFT_SIZE/2);
@@ -90,6 +96,10 @@ function start(){
   }finally{setupPending=false}
 }
 function arm(){
+  if(GE_IS_IOS&&!GE_IOS_PREVIEW){
+    lastError='iPhone preview disabled to protect native audio';
+    return false;
+  }
   if(!localSong())return false;
   if(!start())return false;
   if(context?.state==='suspended'){
@@ -125,7 +135,8 @@ function read(){
 }
 function status(){
   return {mode:sourceKind,context:context?.state||'off',
-    live:!!lastSignal&&performance.now()-lastSignal<1500,error:lastError};
+    live:!!lastSignal&&performance.now()-lastSignal<1500,
+    iosPreview:GE_IOS_PREVIEW,error:lastError};
 }
 const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#sunLabBtn,#shipSunLabBtn';
 document.addEventListener('click',event=>{
