@@ -57,6 +57,22 @@ try{
  await page.evaluate(()=>document.getElementById('audio').pause());
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
  assert.equal(stopped,null,'paused playback must not show live signal');
+ // Mobile opt-in contract: default iPhone session never touches the audio graph.
+ const iosUA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+ const iosPage=await browser.newPage();
+ await iosPage.setUserAgent(iosUA);
+ await iosPage.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
+ await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ const locked=await iosPage.evaluate(()=>({arm:window.GELiveAudioEQ.arm(),status:window.GELiveAudioEQ.status()}));
+ assert.equal(locked.arm,false,'ordinary iPhone session must not reroute native audio');
+ assert.equal(locked.status.mode,'none','ordinary iPhone session has no Web Audio graph');
+ await iosPage.goto('http://127.0.0.1:8765/radio/?eq_preview=1',{waitUntil:'domcontentloaded',timeout:45000});
+ await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ const preview=await iosPage.evaluate(()=>({arm:window.GELiveAudioEQ.arm(),status:window.GELiveAudioEQ.status()}));
+ assert.equal(preview.arm,true,'iPhone explicit preview must allow the real FFT');
+ assert.equal(preview.status.iosPreview,true);
+ await iosPage.close();
+ console.log('PASS iPhone preview safety gate: native session untouched without ?eq_preview=1');
  console.log('PASS live MP3 FFT:',JSON.stringify({
    mode:active.mode,
    duration:Number((readings.at(-1).time-readings[0].time).toFixed(2)),
