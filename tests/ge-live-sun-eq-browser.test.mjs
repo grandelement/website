@@ -22,7 +22,7 @@ try{
  assert.equal(Number(idle.opacity),0.075,'fixed Sun rays must be nearly invisible with no FFT');
  assert(idle.brightness<=165,'Sun EQ must not default to forced 320 brightness');
  // A real same-origin recorded song, not an oscillator/mock source or a song map.
- const song='/ge-music/music/Grand%20Element%20-%202005%20-%20Fundamental%20Groove/Fundamental%20Groove_01_Intro.mp3';
+ const song='/ge-music/music/Grand%20Element%20-%202010%20-%20Intergy/Intergy_03_Amuse.mp3';
  const active=await page.evaluate(async url=>{
    const audio=document.getElementById('audio');
    audio.pause();
@@ -37,6 +37,13 @@ try{
    const s=window.GELiveAudioEQ?.status?.();
    const audio=document.getElementById('audio');
    return !!sample&&s?.live===true&&audio?.currentTime>.3;
+ },{timeout:30000,polling:200});
+ // Verify at the screenshot's actual 12-second timestamp, not a silent intro.
+ await page.evaluate(()=>{document.getElementById('audio').currentTime=12;});
+ await page.waitForFunction(()=>{
+   const a=document.getElementById('audio');
+   const bins=window.GEGetLiveSpectrum?.();
+   return a.currentTime>=12&&!!bins&&bins.some(v=>v>1);
  },{timeout:30000,polling:200});
  // Waterfall is the default iPhone-looking radial mode in the user screenshot.
  // Verify real FFT moves the actual spokes before switching to Spectrum.
