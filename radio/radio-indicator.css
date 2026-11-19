@@ -1,0 +1,92 @@
+/* GE Studios Radio: SINGLE authoritative visual state machine.
+   JS writes body[data-ge-radio-indicator] = cue | connecting | on | off.
+   cue = configured/online introductory availability signal, NOT proof that
+   an audible stream connected. It ends on the FIRST Radio tap per page visit.
+   The player, ship proxy and user-selected MUSIC transparency share one palette.
+   No animations on verified playback or after the first tap. No pseudo fills.
+*/
+html.ge-radio-ui[class][class] body[class][class] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+  position:relative!important;
+  isolation:isolate!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+  transform:none!important;
+  overflow:visible!important;
+  contain:none!important;
+  outline-offset:2px;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  color:#fff!important;
+  text-shadow:none!important;
+  filter:none!important;
+  animation:none!important;
+  transition:background-color .42s cubic-bezier(.22,.61,.36,1),
+    border-color .42s cubic-bezier(.22,.61,.36,1),
+    box-shadow .46s cubic-bezier(.22,.61,.36,1),
+    color .35s ease!important;
+}
+html.ge-radio-ui[class][class] body[class][class] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"])::before,
+html.ge-radio-ui[class][class] body[class][class] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"])::after{
+  content:none!important;
+  display:none!important;
+  animation:none!important;
+  box-shadow:none!important;
+}
+/* OFF: a subdued RED (not navy, transparent text, or a flashing indicator). */
+html.ge-radio-ui[class][class] body[class][class][data-ge-radio-indicator="off"] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+  background-color:rgba(88,24,40,var(--ge-music-button-alpha,.5))!important;
+  background-image:none!important;
+  border-color:rgba(200,111,128,.64)!important;
+  box-shadow:inset 0 0 5px rgba(240,135,151,.06)!important;
+  color:#f9e7eb!important;
+}
+/* CONNECTING: no false claim of an already audible station; stay steady. */
+html.ge-radio-ui[class][class] body[class][class][data-ge-radio-indicator="connecting"] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+  background-color:rgba(146,42,60,var(--ge-music-button-alpha,.5))!important;
+  background-image:none!important;
+  border-color:rgba(222,130,151,.75)!important;
+  box-shadow:0 0 6px rgba(213,61,88,.13)!important;
+}
+/* ON: bright RED but completely steady, including PAUSE and reconnects. */
+html.ge-radio-ui[class][class] body[class][class][data-ge-radio-indicator="on"] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+  background-color:rgba(224,39,72,var(--ge-music-button-alpha,.5))!important;
+  background-image:none!important;
+  border-color:rgba(255,146,173,.93)!important;
+  box-shadow:0 0 10px rgba(235,56,90,.30),inset 0 0 8px rgba(255,198,211,.10)!important;
+}
+/* INTRO: two gentle glow rises, rather than repetitive hard flashes.
+   A slow ~2.8s cycle is more comfortable than the old 1.08s blink.
+   Animate only shadow, not opacity of the icon/text or button dimensions. */
+@keyframes geRadioIntroSoftHeartbeat{
+  0%,8%,49%,100%{
+    box-shadow:0 0 5px rgba(216,47,83,.12),inset 0 0 5px rgba(255,184,202,.05);
+  }
+  17%{
+    box-shadow:0 0 12px rgba(229,68,105,.32),0 0 20px rgba(216,51,89,.10),
+      inset 0 0 8px rgba(255,191,207,.09);
+  }
+  25%{
+    box-shadow:0 0 6px rgba(216,47,83,.14),inset 0 0 5px rgba(255,184,202,.05);
+  }
+  35%{
+    box-shadow:0 0 14px rgba(234,73,108,.38),0 0 23px rgba(216,51,89,.12),
+      inset 0 0 9px rgba(255,191,207,.10);
+  }
+}
+html.ge-radio-ui[class][class] body[class][class][data-ge-radio-indicator="cue"] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+  background-color:rgba(187,37,69,var(--ge-music-button-alpha,.5))!important;
+  background-image:none!important;
+  border-color:rgba(244,121,153,.87)!important;
+  color:#fff!important;
+  animation:geRadioIntroSoftHeartbeat 2.8s ease-in-out infinite!important;
+}
+/* Reduced motion is non-animated. Preserve strong readable button contrast. */
+@media(prefers-reduced-motion:reduce){
+  html.ge-radio-ui[class][class] body[class][class] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+    animation:none!important;transition:none!important;
+  }
+  html.ge-radio-ui[class][class] body[class][class][data-ge-radio-indicator="cue"] :is(#musicGroup > #liveBtn,#shipStage button[data-proxy="liveBtn"]){
+    box-shadow:0 0 8px rgba(235,61,92,.2)!important;
+  }
+}
