@@ -11,10 +11,21 @@ assert.match(radio,/playBtn\.textContent=activeSong\?'PAUSE':'PLAYER'/);
 assert.doesNotMatch(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAY'/);
 assert.doesNotMatch(radio,/playBtn\.textContent=activeSong\?'PAUSE':resumableSong\?'PLAY'/);
 // Radio 47: the first ready cue is acknowledged once per page visit.
-assert.match(radio,/const tapReady=!document\.body\.classList\.contains\('ge-radio-pulse-ack'\)/);
+assert(radio.includes('const firstVisitCue=!acknowledged&&stationConfigured;'),'Startup cue must be independent of autoplay');
 assert.match(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/);
 assert.doesNotMatch(radio,/document\.body\.classList\.remove\('ge-radio-pulse-ack'/);
 
+
+const indicatorCSS=readFileSync('radio/radio-indicator.css','utf8');
+assert(indicatorCSS.includes('@keyframes geRadioIntroSoftHeartbeat'),'One intro animation must exist');
+assert(indicatorCSS.includes('[data-ge-radio-indicator="on"]'),'Solid ON style must exist');
+assert(indicatorCSS.includes('[data-ge-radio-indicator="off"]'),'Solid OFF style must exist');
+for(const file of ['radio/radio-base.css','radio/radio-components.css','radio/player-button-effects.css','radio/sun-lab-transparency.css']){
+ const old=readFileSync(file,'utf8');
+ for(const name of ['geRadioStartupCue','geRadioFastLubDub20261119','geRadioRedDimmerLubDub','geRadioSingleArrivalPulse']){
+   assert(!old.includes(name),'Competing old RADIO heartbeat remains in '+file+': '+name);
+ }
+}
 
 const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
@@ -124,12 +135,15 @@ try{
    const radio47Beat=await page.evaluate(()=>{
      const el=document.getElementById('liveBtn');
      document.body.classList.add('ge-radio-pulse-ack','ge-radio-audible');
+     document.body.dataset.geRadioIndicator='on';
      el.setAttribute('aria-pressed','true');
      const on={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
      document.body.classList.remove('ge-radio-audible');
+     document.body.dataset.geRadioIndicator='off';
      el.setAttribute('aria-pressed','false');
      const off={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
      document.body.classList.remove('ge-radio-pulse-ack');
+     document.body.removeAttribute('data-ge-radio-indicator');
      return {on,off};
    });
    assert.equal(radio47Beat.on.animation,'none','ON must stay steadily lit after the first tap');
@@ -161,6 +175,7 @@ try{
        music:style('geMusicV5Button').backgroundImage,
        radioAnimation:style('liveBtn').animationDuration,
        radioAnimationName:style('liveBtn').animationName,
+       indicatorState:document.body.dataset.geRadioIndicator,
        reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
        tapReady:document.body.classList.contains('ge-radio-tap-ready'),
        verified:document.body.classList.contains('ge-radio-audible'),
@@ -176,8 +191,8 @@ try{
    assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.5\)/,'MUSIC keeps vivid blue but defaults to 50% background opacity');
    assert.doesNotMatch(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab must not force the old 2.8x brightness in any mode');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
-     assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
-     if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle. '+JSON.stringify(visuals));
+     assert.equal(visuals.indicatorState,'cue','Before first tap the gentle intro cue appears');
+     if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'2.8s','Only the comfortable introductory heartbeat may animate. '+JSON.stringify(visuals));
      assert.equal(visuals.verified,false,'Ready-to-tap must not falsely claim audio playback');
    }
    console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
