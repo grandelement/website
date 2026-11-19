@@ -30,6 +30,39 @@ try{
     document.body.classList.add('view-player');
     if(innerWidth<700)document.body.classList.add('portrait-player');
    });
+   // Sun Lab transparency has three independent persistent, real CSS controls.
+   const transparency=await page.evaluate(()=>{
+     const ids=['geAlphaSun','geAlphaMusic','geAlphaOther'];
+     const set=(id,value)=>{
+       const el=document.getElementById(id);if(!el)throw new Error('Missing transparency slider '+id);
+       el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));
+     };
+     set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     const style=id=>getComputedStyle(document.getElementById(id));
+     const initial={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
+       others:style('geBgQuickPrev').backgroundColor};
+     const toggle=document.getElementById('geSunLabTransparencyToggle');
+     toggle.click();
+     const opens=toggle.getAttribute('aria-expanded')==='true'&&
+       !document.getElementById('geSunLabTransparencyFields').hidden;
+     set('geAlphaSun',20);set('geAlphaMusic',65);set('geAlphaOther',80);
+     const changed={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
+       others:style('geBgQuickPrev').backgroundColor,
+       saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')};
+     toggle.click();
+     set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     return {initial,changed,opens,closed:document.getElementById('geSunLabTransparencyFields').hidden};
+   });
+   assert(transparency.opens&&transparency.closed,'Transparency drawer must open and close');
+   assert.equal(transparency.initial.sun,'1','Blue Sun remains opaque by default');
+   assert.match(transparency.initial.music,/rgba\\(53, 101, 142, 0\\.5\\)/,'Music buttons should start 50% transparent');
+   assert.match(transparency.initial.others,/rgba\\(12, 44, 72, 0\\.5\\)/,'Other buttons should start 50% transparent');
+   assert.equal(transparency.changed.sun,'0.8','Sun slider must change artwork opacity without fading EQ rays');
+   assert.match(transparency.changed.music,/rgba\\(53, 101, 142, 0\\.35\\)/,'Music slider must adjust painted alpha');
+   assert.match(transparency.changed.others,/rgba\\(12, 44, 72, 0\\.2\\)/,'Other slider must adjust painted alpha');
+   assert.deepEqual(transparency.changed.saved,{sun:20,music:65,other:80},'Three transparency values must save separately');
+   console.log('SUNLAB_TRANSPARENCY '+width+'x'+height+' '+JSON.stringify(transparency));
+
    const get=()=>page.evaluate(()=>{
     const ids=['prevBtn','playBtn','nextBtn','shuffleBtn','bgPer','bgShuf','bgPrev','hudCombined','hudAutoHide','contactLaunchBtn','accessLaunchBtn','shareBtn'];
     const ret={};
