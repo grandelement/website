@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V12_SUNLAB_ALPHA_20261119';
+const SITE_SHELL='GE_SITE_SHELL_V13_CALM_BUTTONS_20261119';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -15,6 +15,7 @@ const REQUIRED_OFFLINE_FILES=[
   './radio/radio-base.css',
   './radio/radio-components.css',
   './radio/sun-lab-transparency.css',
+  './radio/radio-indicator.css',
   './radio/sun-lab-transparency.js',
   './radio/radio-layout.css',
   './ge-offline-library.js',
