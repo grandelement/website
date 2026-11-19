@@ -54,6 +54,8 @@ try{
        next:style('nextBtn').backgroundImage,
        music:style('geMusicV5Button').backgroundImage,
        radioAnimation:style('liveBtn').animationDuration,
+       radioAnimationName:style('liveBtn').animationName,
+       reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
        tapReady:document.body.classList.contains('ge-radio-tap-ready'),
        verified:document.body.classList.contains('ge-radio-audible'),
        radioLabel:document.getElementById('liveBtn').textContent.trim(),
@@ -61,6 +63,7 @@ try{
        auraFilter:style('sunEQAura').filter
      };
    });
+   console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
    assert.equal(visuals.player,visuals.prev,'PLAYER should match Previous blue glass');
    assert.equal(visuals.player,visuals.next,'PLAYER should match Next blue glass');
    assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.75\)/,'Transport buttons need 25% transparent backgrounds');
@@ -68,7 +71,7 @@ try{
    assert.match(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab effects must have global visibility boost');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
      assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
-     assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle');
+     if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle. '+JSON.stringify(visuals));
      assert.equal(visuals.verified,false,'Ready-to-tap must not falsely claim audio playback');
    }
    console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
