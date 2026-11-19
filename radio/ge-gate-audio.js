@@ -5,6 +5,7 @@
   if(!main)return;
   const AudioContextType=window.AudioContext||window.webkitAudioContext;
   let ctx=null,source=null,master=null,wet=null,dry=null,hasReverb=false;
+  let spectrumAnalyser=null,spectrumRaw=null,spectrumError='';
   let scheduled=null,blocked=false,lastError='',pendingResume=null;
   const clamp=value=>Math.max(0,Math.min(1,Number(value)||0));
   const gateLocked=()=>!!window.GEGate?.isExpiredLocked?.();
@@ -71,6 +72,25 @@
         const elementSource=created.createMediaElementSource(main);
         elementSource.connect(dryBus);
         if(reverbInput)elementSource.connect(reverbInput);
+        // Sun EQ reads a silent fork of this SAME player source. Creating a
+        // second MediaElementAudioSource would fail and could silence Safari.
+        try{
+          const measured=created.createAnalyser();
+          measured.fftSize=2048;
+          measured.minDecibels=-95;
+          measured.maxDecibels=-24;
+          measured.smoothingTimeConstant=.25;
+          const silent=created.createGain();silent.gain.value=0;
+          elementSource.connect(measured);
+          measured.connect(silent);
+          silent.connect(created.destination);
+          spectrumAnalyser=measured;
+          spectrumRaw=new Uint8Array(measured.frequencyBinCount);
+          spectrumError='';
+        }catch(error){
+          // Gate must still work if audio measurements are unsupported.
+          spectrumError=String(error?.message||error);
+        }
         ctx=created;source=elementSource;master=output;dry=dryBus;
         wet=wetBus;hasReverb=reverbReady;
       }catch(error){
@@ -191,10 +211,20 @@
     }
   },true);
 
+  function spectrumFrame(){
+    if(!ctx||ctx.state!=='running'||!spectrumAnalyser||!spectrumRaw||
+       main.paused||main.ended||document.hidden)return null;
+    try{
+      spectrumAnalyser.getByteFrequencyData(spectrumRaw);
+      return {bins:spectrumRaw,fftSize:spectrumAnalyser.fftSize,sampleRate:ctx.sampleRate};
+    }catch(error){spectrumError=String(error?.message||error);return null;}
+  }
   window.GEAudioGain={
     arm,scheduleGate,scheduleFade,syncProgress,setImmediate,resetReverb,stopAll,restore,
+    getSpectrumFrame:spectrumFrame,
     getStatus:()=>({
       active:!!master,contextState:ctx?.state||'uninitialized',
+      spectrumReady:!!spectrumAnalyser,spectrumError,
       reverb:hasReverb,scheduled,lastError
     })
   };
