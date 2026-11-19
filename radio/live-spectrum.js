@@ -98,7 +98,7 @@ function status(){
   return {mode:sourceKind,context:context?.state||'off',
     live:!!lastSignal&&performance.now()-lastSignal<1500,error:lastError};
 }
-const triggers='#liveBtn,#playBtn,#shipPlayBtn,#shipRadioBtn,#sunLabBtn,#shipSunLabBtn';
+const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#sunLabBtn,#shipSunLabBtn';
 document.addEventListener('click',event=>{
   if(event.target?.closest?.(triggers))arm();
 },true);
