@@ -47,7 +47,7 @@ try{
     if(innerWidth<700)document.body.classList.add('portrait-player');
    });
    // Sun Lab transparency has three independent persistent, real CSS controls.
-   const transparency=await page.evaluate(()=>{
+   const transparency=await page.evaluate(async()=>{
      const ids=['geAlphaSun','geAlphaMusic','geAlphaOther'];
      const set=(id,value)=>{
        const el=document.getElementById(id);if(!el)throw new Error('Missing transparency slider '+id);
@@ -62,11 +62,13 @@ try{
      const opens=toggle.getAttribute('aria-expanded')==='true'&&
        !document.getElementById('geSunLabTransparencyFields').hidden;
      set('geAlphaSun',20);set('geAlphaMusic',65);set('geAlphaOther',80);
+     await new Promise(resolve=>setTimeout(resolve,560)); // Let calm color fades settle.
      const changed={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
        others:style('geBgQuickPrev').backgroundColor,
        saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')};
      toggle.click();
      set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     await new Promise(resolve=>setTimeout(resolve,560));
      return {initial,changed,opens,closed:document.getElementById('geSunLabTransparencyFields').hidden};
    });
    console.log('TRANSPARENCY_DEBUG '+width+'x'+height+' '+JSON.stringify(transparency));
@@ -104,9 +106,10 @@ try{
 
 
    // Radio 47: actual near-invisible fills at 99%, no opaque fake layer.
-   const radio47Fade=await page.evaluate(()=>{
+   const radio47Fade=await page.evaluate(async()=>{
      const set=(id,v)=>{const x=document.getElementById(id);x.value=String(v);x.dispatchEvent(new Event('input',{bubbles:true}));};
      set('geAlphaMusic',75);set('geAlphaOther',99);
+     await new Promise(resolve=>setTimeout(resolve,560));
      const style=id=>getComputedStyle(document.getElementById(id));
      const result={
        musicBlue:style('geMusicV5Button').backgroundImage,
@@ -119,6 +122,7 @@ try{
        saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')
      };
      set('geAlphaMusic',50);set('geAlphaOther',50);
+     await new Promise(resolve=>setTimeout(resolve,560));
      return result;
    });
    assert(radio47Fade.musicBlue.includes('rgba(22, 94, 171, 0.25)'),'MUSIC must remain blue at 75% transparency');
@@ -132,15 +136,17 @@ try{
 
    // Heartbeat ends after first press. A simulated visual state tests CSS
    // without starting a real remote audio stream during layout regression.
-   const radio47Beat=await page.evaluate(()=>{
+   const radio47Beat=await page.evaluate(async()=>{
      const el=document.getElementById('liveBtn');
      document.body.classList.add('ge-radio-pulse-ack','ge-radio-audible');
      document.body.dataset.geRadioIndicator='on';
      el.setAttribute('aria-pressed','true');
+     await new Promise(resolve=>setTimeout(resolve,560));
      const on={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
      document.body.classList.remove('ge-radio-audible');
      document.body.dataset.geRadioIndicator='off';
      el.setAttribute('aria-pressed','false');
+     await new Promise(resolve=>setTimeout(resolve,560));
      const off={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
      document.body.classList.remove('ge-radio-pulse-ack');
      document.body.removeAttribute('data-ge-radio-indicator');
