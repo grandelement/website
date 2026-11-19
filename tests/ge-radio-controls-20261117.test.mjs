@@ -53,6 +53,15 @@ try{
      set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
      return {initial,changed,opens,closed:document.getElementById('geSunLabTransparencyFields').hidden};
    });
+   console.log('TRANSPARENCY_DEBUG '+width+'x'+height+' '+JSON.stringify(transparency));
+   const transparencyStyles=await page.evaluate(()=>({
+     loaded:[...document.styleSheets].filter(x=>x.href?.includes('sun-lab-transparency')).map(x=>({href:x.href,rules:x.cssRules?.length})),
+     link:document.querySelector('[data-ge-css="sun-lab-transparency"]')?.href,
+     rootMusic:getComputedStyle(document.documentElement).getPropertyValue('--ge-music-button-alpha'),
+     classes:[...document.body.classList],
+     musicMatches:document.getElementById('playBtn').matches('html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn)')
+   }));
+   console.log('TRANSPARENCY_STYLES '+JSON.stringify(transparencyStyles));
    assert(transparency.opens&&transparency.closed,'Transparency drawer must open and close');
    assert.equal(transparency.initial.sun,'1','Blue Sun remains opaque by default');
    assert.match(transparency.initial.music,/rgba\\(53, 101, 142, 0\\.5\\)/,'Music buttons should start 50% transparent');
