@@ -30,6 +30,63 @@ try{
     document.body.classList.add('view-player');
     if(innerWidth<700)document.body.classList.add('portrait-player');
    });
+   // Sun Lab transparency has three independent persistent, real CSS controls.
+   const transparency=await page.evaluate(()=>{
+     const ids=['geAlphaSun','geAlphaMusic','geAlphaOther'];
+     const set=(id,value)=>{
+       const el=document.getElementById(id);if(!el)throw new Error('Missing transparency slider '+id);
+       el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));
+     };
+     set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     const style=id=>getComputedStyle(document.getElementById(id));
+     const initial={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
+       others:style('geBgQuickPrev').backgroundColor};
+     const toggle=document.getElementById('geSunLabTransparencyToggle');
+     toggle.click();
+     const opens=toggle.getAttribute('aria-expanded')==='true'&&
+       !document.getElementById('geSunLabTransparencyFields').hidden;
+     set('geAlphaSun',20);set('geAlphaMusic',65);set('geAlphaOther',80);
+     const changed={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
+       others:style('geBgQuickPrev').backgroundColor,
+       saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')};
+     toggle.click();
+     set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     return {initial,changed,opens,closed:document.getElementById('geSunLabTransparencyFields').hidden};
+   });
+   console.log('TRANSPARENCY_DEBUG '+width+'x'+height+' '+JSON.stringify(transparency));
+   const transparencyStyles=await page.evaluate(()=>({
+     loaded:[...document.styleSheets].filter(x=>x.href?.includes('sun-lab-transparency')).map(x=>({href:x.href,rules:x.cssRules?.length})),
+     link:document.querySelector('[data-ge-css="sun-lab-transparency"]')?.href,
+     rootMusic:getComputedStyle(document.documentElement).getPropertyValue('--ge-music-button-alpha'),
+     classes:[...document.body.classList],
+     musicMatches:document.getElementById('playBtn').matches('html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn)')
+   }));
+   console.log('TRANSPARENCY_STYLES '+JSON.stringify(transparencyStyles));
+   assert(transparency.opens&&transparency.closed,'Transparency drawer must open and close');
+   assert.equal(transparency.initial.sun,'1','Blue Sun remains opaque by default');
+   assert.match(transparency.initial.music,/rgba\(53, 101, 142, 0\.5\)/,'Music buttons should start 50% transparent');
+   assert.match(transparency.initial.others,/rgba\(12, 44, 72, 0\.5\)/,'Other buttons should start 50% transparent');
+   assert.equal(transparency.changed.sun,'0.8','Sun slider must change artwork opacity without fading EQ rays');
+   assert.match(transparency.changed.music,/rgba\(53, 101, 142, 0\.35\)/,'Music slider must adjust painted alpha');
+   assert.match(transparency.changed.others,/rgba\(12, 44, 72, 0\.2\)/,'Other slider must adjust painted alpha');
+   assert.deepEqual(transparency.changed.saved,{sun:20,music:65,other:80},'Three transparency values must save separately');
+   console.log('SUNLAB_TRANSPARENCY '+width+'x'+height+' '+JSON.stringify(transparency));
+   const otherGroupCoverage=await page.evaluate(()=>{
+     const result={};
+     for(const id of ['geBgQuickPrev','bgPrev','contactLaunchBtn','accessLaunchBtn','shareBtn','sunLabBtn','offlineLaunchBtn','titleBtn']){
+       const el=document.getElementById(id);if(!el)continue;
+       const cs=getComputedStyle(el);
+       result[id]={background:cs.backgroundColor,image:cs.backgroundImage};
+     }
+     return result;
+   });
+   console.log('SUNLAB_OTHER_BUTTONS '+width+'x'+height+' '+JSON.stringify(otherGroupCoverage));
+   for(const [id,paint] of Object.entries(otherGroupCoverage))
+     assert.match(paint.background,/rgba\([0-9]+, [0-9]+, [0-9]+, 0\.5\)/,
+       id+' should use 50% transparent background paint: '+JSON.stringify(paint));
+
+
+
    const get=()=>page.evaluate(()=>{
     const ids=['prevBtn','playBtn','nextBtn','shuffleBtn','bgPer','bgShuf','bgPrev','hudCombined','hudAutoHide','contactLaunchBtn','accessLaunchBtn','shareBtn'];
     const ret={};
@@ -66,8 +123,8 @@ try{
    console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
    assert.equal(visuals.player,visuals.prev,'PLAYER should match Previous blue glass');
    assert.equal(visuals.player,visuals.next,'PLAYER should match Next blue glass');
-   assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.75\)/,'Transport buttons need 25% transparent backgrounds');
-   assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.75\)/,'MUSIC must inherit the old bright PLAYER blue at 75% opacity');
+   assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.5\)/,'Transport buttons should default to 50% transparent backgrounds');
+   assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.5\)/,'MUSIC keeps vivid blue but defaults to 50% background opacity');
    assert.match(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab effects must have global visibility boost');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
      assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
