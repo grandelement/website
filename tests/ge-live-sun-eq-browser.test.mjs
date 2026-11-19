@@ -13,7 +13,14 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
- assert.equal((await page.$$('button[data-sun-mode]')).length,8,'eight effects must exist');
+ assert.equal((await page.$('button[data-sun-mode]')).length,8,'eight effects must exist');
+ await page.waitForFunction(()=>document.getElementById('sunEQAura')?.style.opacity==='.075',{timeout:8000});
+ const idle=await page.evaluate(()=>({
+   opacity:document.getElementById('sunEQAura').style.opacity,
+   brightness:JSON.parse(localStorage.getItem('GE_SUN_LAB_V7')||'{}').brightness
+ }));
+ assert.equal(idle.opacity,'.075','fixed Sun rays must be nearly invisible with no FFT');
+ assert(idle.brightness<=165,'Sun EQ must not default to forced 320 brightness');
  // A real same-origin recorded song, not an oscillator/mock source or a song map.
  const song='/ge-music/music/Grand%20Element%20-%202005%20-%20Fundamental%20Groove/Fundamental%20Groove_01_Intro.mp3';
  const active=await page.evaluate(async url=>{
@@ -57,6 +64,7 @@ try{
  await page.evaluate(()=>document.getElementById('audio').pause());
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
  assert.equal(stopped,null,'paused playback must not show live signal');
+ await page.waitForFunction(()=>document.getElementById('sunEQAura')?.style.opacity==='.075',{timeout:5000});
  // Mobile opt-in contract: default iPhone session never touches the audio graph.
  const iosUA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
  const iosPage=await browser.newPage();
@@ -66,6 +74,16 @@ try{
  const locked=await iosPage.evaluate(()=>({arm:window.GELiveAudioEQ.arm(),status:window.GELiveAudioEQ.status()}));
  assert.equal(locked.arm,false,'ordinary iPhone session must not reroute native audio');
  assert.equal(locked.status.mode,'none','ordinary iPhone session has no Web Audio graph');
+ const toggle=await iosPage.evaluate(()=>({
+   hidden:document.getElementById('geSunEQEnable')?.hidden,
+   text:document.getElementById('geSunEQEnable')?.textContent
+ }));
+ assert.equal(toggle.hidden,false,'iPhone must show an accessible one-tap live EQ control');
+ assert.match(toggle.text,/ENABLE LIVE EQ/);
+ await iosPage.evaluate(()=>document.getElementById('geSunEQEnable').click());
+ const opted=await iosPage.evaluate(()=>window.GELiveAudioEQ.status());
+ assert.equal(opted.iosEnabled,true,'iPhone opt-in must activate the real analyzer');
+ assert.notEqual(opted.mode,'none','iPhone opt-in must attach to the native audio element');
  await iosPage.goto('http://127.0.0.1:8765/radio/?eq_preview=1',{waitUntil:'domcontentloaded',timeout:45000});
  await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
  const preview=await iosPage.evaluate(()=>({arm:window.GELiveAudioEQ.arm(),status:window.GELiveAudioEQ.status()}));
