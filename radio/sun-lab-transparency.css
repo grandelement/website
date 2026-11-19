@@ -1,0 +1,82 @@
+/* Three user controls in Sun Lab: background opacity only for buttons.
+   0% transparent = opaque; 100% = transparent. Text and icons stay solid.
+   This module loads after the established Radio button styles, so no
+   animation, player state, EQ renderer or audio logic needs replacement. */
+:root{
+ --ge-sun-art-opacity:1;
+ --ge-music-button-alpha:.5;
+ --ge-other-button-alpha:.5;
+}
+/* Only the sun artwork fades; audio-reactive rays/fog remain independently visible. */
+html.ge-radio-ui body #geLogo,
+html.ge-radio-ui body #shipLogo{
+ opacity:var(--ge-sun-art-opacity,1)!important;
+}
+
+/* Music group: maintain the existing distinctive transport, MUSIC, Shuffle
+   and RADIO colors while making only their painted backgrounds adjustable. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+ background:linear-gradient(180deg,rgba(53,101,142,var(--ge-music-button-alpha)),rgba(20,47,83,var(--ge-music-button-alpha)))!important;
+ background-color:transparent!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #geMusicV5Button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #geMusicV5Button:hover{
+ background:linear-gradient(180deg,rgba(22,94,171,var(--ge-music-button-alpha)),rgba(6,56,106,var(--ge-music-button-alpha)))!important;
+ background-color:transparent!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #shuffleBtn[aria-pressed="false"]{
+ background:linear-gradient(180deg,rgba(53,101,142,var(--ge-music-button-alpha)),rgba(20,47,83,var(--ge-music-button-alpha)))!important;
+ background-color:transparent!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #shuffleBtn[aria-pressed="true"]{
+ background:rgba(9,92,77,var(--ge-music-button-alpha))!important;
+ background-image:none!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #liveBtn{
+ background:linear-gradient(180deg,rgba(241,37,80,var(--ge-music-button-alpha)),rgba(167,15,49,var(--ge-music-button-alpha)))!important;
+ background-color:transparent!important;
+}
+
+/* All remaining public Radio controls share the third slider. Keep their
+   text, icons, selection outlines, and accessible tap areas fully opaque. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #geBgQuickRow > button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #bgGroup button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #bottomActions > button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #geUtilityRow > button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #geUtilityRow > a.bc-btn,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #titleBtn,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #gePlaylistQuickToggle{
+ background:rgba(12,44,72,var(--ge-other-button-alpha))!important;
+ background-image:none!important;
+}
+/* Preserve the distinct visible green selection of background modes. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #bgGroup button[aria-pressed="true"],
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #geBgQuickOptions[aria-pressed="true"]{
+ background:rgba(9,92,77,var(--ge-other-button-alpha))!important;
+ background-image:none!important;
+}
+/* A small always-available button above the effect rows. */
+#geSunLabTransparency{
+ display:block!important;
+ padding:5px 3px 8px;
+ border-bottom:1px solid rgba(130,203,247,.25);
+ text-align:left;
+}
+#geSunLabTransparencyToggle{
+ width:100%;
+ min-height:37px;
+ display:block;
+ border:1px solid rgba(115,201,247,.72);
+ border-radius:9px;
+ background:rgba(15,53,86,.95);
+ color:#effaff;
+ font:800 13px system-ui,sans-serif;
+ letter-spacing:.04em;
+}
+#geSunLabTransparencyFields[hidden]{display:none!important}
+#geSunLabTransparencyFields{display:grid;gap:8px;padding:9px 4px 6px}
+.ge-alpha-row{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:3px;align-items:center}
+.ge-alpha-row label{font:750 12px system-ui,sans-serif;color:#e6f6ff}
+.ge-alpha-row output{font:700 12px system-ui,sans-serif;color:#bce9ff;min-width:35px;text-align:right}
+.ge-alpha-row input[type="range"]{grid-column:1/-1;width:100%;min-height:28px;accent-color:#56bfff;touch-action:pan-x}
+#geSunLabTransparencyHelp{font:11px system-ui,sans-serif;color:#b9dcf4;margin:1px 0 0}
