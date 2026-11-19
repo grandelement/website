@@ -6654,8 +6654,13 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
+    if(audio.paused||audio.ended)return null;
+    // Prefer the spectrum sampled directly from the actually audible player.
+    // Neither the Radio mode flag nor iframe detection may override real FFT.
+    const actual=window.GELiveAudioEQ?.read?.();
+    if(actual)return actual;
     if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource())
-      return window.GELiveAudioEQ?.read?.()||null;
+      return null;
     if(localSpectrumSource())return window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime)||null;
     if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
     if(!eqAnalyser||!eqData)return null;
@@ -7257,7 +7262,15 @@ Vector ${vector}. ${pair[1]}.`;
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
     const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
-    if(inlinePlaying){
+    // Source-of-truth priority: measured PCM from the audible native player.
+    // A stale iframe / Radio mode flag previously suppressed this real signal,
+    // leaving the rays fixed even when the browser FFT had strong energy.
+    const currentBins=!audio.paused&&!audio.ended?window.GELiveAudioEQ?.read?.():null;
+    if(currentBins&&currentBins.some(bin=>bin>1)){
+      eqData=currentBins;
+      live=true;
+      eqLastSignalAt=performance.now();
+    }else if(inlinePlaying){
       const bins=inlineSpectrumData();
       if(bins){
         eqData=bins;
