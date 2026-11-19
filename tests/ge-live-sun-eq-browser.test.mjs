@@ -13,7 +13,7 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
- assert.equal((await page.$('button[data-sun-mode]')).length,8,'eight effects must exist');
+ assert.equal(await page.evaluate(()=>document.querySelectorAll('button[data-sun-mode]').length),8,'eight effects must exist');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:8000});
  const idle=await page.evaluate(()=>({
    opacity:getComputedStyle(document.getElementById('sunEQAura')).opacity,
