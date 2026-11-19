@@ -108,8 +108,8 @@ try{
    console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));
    assert.equal(visuals.player,visuals.prev,'PLAYER should match Previous blue glass');
    assert.equal(visuals.player,visuals.next,'PLAYER should match Next blue glass');
-   assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.75\)/,'Transport buttons need 25% transparent backgrounds');
-   assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.75\)/,'MUSIC must inherit the old bright PLAYER blue at 75% opacity');
+   assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.5\)/,'Transport buttons should default to 50% transparent backgrounds');
+   assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.5\)/,'MUSIC keeps vivid blue but defaults to 50% background opacity');
    assert.match(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab effects must have global visibility boost');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
      assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
