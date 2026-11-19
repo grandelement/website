@@ -31,6 +31,9 @@ try{
    const audio=document.getElementById('audio');
    return !!sample&&s?.live===true&&audio?.currentTime>.3;
  },{timeout:30000,polling:200});
+ // Change an actual visual mode, then verify its geometry responds.
+ await page.evaluate(()=>document.querySelector('[data-sun-mode="spectrum"]')?.click());
+ await page.waitForFunction(()=>document.querySelector('#sunEQAura')?.children.length===110,{timeout:5000});
  const readings=[];
  for(let i=0;i<9;i++){
    const datum=await page.evaluate(()=>{
@@ -39,7 +42,9 @@ try{
      return {time:a.currentTime,paused:a.paused,
        status:window.GELiveAudioEQ.status(),
        energy:Array.from(bins).reduce((n,x)=>n+x,0),
-       first:Array.from(bins).slice(0,32)};
+       first:Array.from(bins).slice(0,32),
+       rings:Array.from(document.querySelector('#sunEQAura')?.children||[]).slice(0,30)
+         .map(r=>r.style.getPropertyValue('--spectrum-width')).join(',')};
    });
    readings.push(datum);
    await new Promise(resolve=>setTimeout(resolve,250));
@@ -47,6 +52,7 @@ try{
  assert(readings.at(-1).time-readings[0].time>1,'real audio playback must advance');
  assert(readings.some(row=>row.energy>0),'actual frequency energy must be present');
  assert(new Set(readings.map(row=>row.energy)).size>=2,'frequency energy must change with the recording');
+ assert(new Set(readings.map(row=>row.rings)).size>=2,'visible Spectrum rings must change while real music plays');
  // Pause cuts energy. Never fake a moving EQ after playback ends.
  await page.evaluate(()=>document.getElementById('audio').pause());
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
@@ -55,6 +61,7 @@ try{
    mode:active.mode,
    duration:Number((readings.at(-1).time-readings[0].time).toFixed(2)),
    distinctEnergies:new Set(readings.map(row=>row.energy)).size,
+   distinctVisualFrames:new Set(readings.map(row=>row.rings)).size,
    energyRange:[Math.min(...readings.map(row=>row.energy)),Math.max(...readings.map(row=>row.energy))],
    runtimeErrors:runtime.slice(0,5)
  }));
