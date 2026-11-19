@@ -138,6 +138,8 @@ try{
    // without starting a real remote audio stream during layout regression.
    const radio47Beat=await page.evaluate(async()=>{
      const el=document.getElementById('liveBtn');
+     const originalIndicator=document.body.dataset.geRadioIndicator;
+     const originallyAudible=document.body.classList.contains('ge-radio-audible');
      document.body.classList.add('ge-radio-pulse-ack','ge-radio-audible');
      document.body.dataset.geRadioIndicator='on';
      el.setAttribute('aria-pressed','true');
@@ -149,7 +151,9 @@ try{
      await new Promise(resolve=>setTimeout(resolve,560));
      const off={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
      document.body.classList.remove('ge-radio-pulse-ack');
-     document.body.removeAttribute('data-ge-radio-indicator');
+     document.body.classList.toggle('ge-radio-audible',originallyAudible);
+     if(originalIndicator)document.body.dataset.geRadioIndicator=originalIndicator;
+     else document.body.removeAttribute('data-ge-radio-indicator');
      return {on,off};
    });
    assert.equal(radio47Beat.on.animation,'none','ON must stay steadily lit after the first tap');
