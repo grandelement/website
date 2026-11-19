@@ -4,10 +4,10 @@
    destination. Never use a second HTMLAudioElement or alter the station URL. */
 (()=>{
 'use strict';
-const FFT_SIZE=512;
+const FFT_SIZE=2048;
 let context=null,analyser=null,source=null,sourceKind='none',lastError='',lastSignal=0;
 let track=null,graphReady=false,setupPending=false;
-let bins=new Uint8Array(FFT_SIZE/2);
+let bins=new Uint8Array(256),rawBins=new Uint8Array(FFT_SIZE/2);
 const element=()=>document.getElementById('audio');
 const AC=()=>window.AudioContext||window.webkitAudioContext;
 function localSong(){
@@ -32,7 +32,9 @@ function start(){
     analyser=context.createAnalyser();
     analyser.fftSize=FFT_SIZE;
     analyser.smoothingTimeConstant=.25;
-    bins=new Uint8Array(analyser.frequencyBinCount);
+    analyser.minDecibels=-95;
+    analyser.maxDecibels=-24;
+    rawBins=new Uint8Array(analyser.frequencyBinCount);
     // Chromium and Firefox can inspect media output without rerouting speakers.
     // Capture streams sometimes expose no track before playback begins.
     const capture=audio.captureStream||audio.mozCaptureStream;
@@ -88,7 +90,20 @@ function read(){
   if(!audio||audio.paused||audio.ended||document.hidden||!localSong()||
     !graphReady||!analyser||context?.state!=='running')return null;
   try{
-    analyser.getByteFrequencyData(bins);
+    analyser.getByteFrequencyData(rawBins);
+    // The visualizers expect real low/mid/high groups, not linear Hz bins.
+    // Remap the current FFT into 256 logarithmic frequency bands (32 Hz-16 kHz).
+    const resolution=context.sampleRate/FFT_SIZE;
+    const ceiling=Math.min(16000,context.sampleRate/2);
+    for(let i=0;i<bins.length;i++){
+      const low=32*Math.pow(ceiling/32,i/bins.length);
+      const high=32*Math.pow(ceiling/32,(i+1)/bins.length);
+      const a=Math.min(rawBins.length-1,Math.max(0,Math.floor(low/resolution)));
+      const b=Math.min(rawBins.length,Math.max(a+1,Math.ceil(high/resolution)));
+      let total=0,peak=0;
+      for(let k=a;k<b;k++){const v=rawBins[k];total+=v;peak=Math.max(peak,v);}
+      bins[i]=Math.round(total/(b-a)*.65+peak*.35);
+    }
     const strong=bins.some(value=>value>1);
     if(strong)lastSignal=performance.now();
     return strong?bins:null;
