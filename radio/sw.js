@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.19-live-spectrum-v1';
+const VERSION='2026.11.19-transparency-eq-v2';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -12,6 +12,7 @@ const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
 const REQUIRED=[
  './radio-base.css','./radio-components.css','./radio-layout.css',
   './ship-control-repair.css','./player-button-effects.css','./player-mobile-fit.css',
+  './sun-lab-transparency.css','./sun-lab-transparency.js',
  './offline-home.html',
  './ge-music-v5.js','./offline-manager.js','./offline-spectrum.js','./live-spectrum.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
