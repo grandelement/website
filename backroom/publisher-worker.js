@@ -104,11 +104,11 @@ async function githubAppJwt(env){
   // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
   // WebCrypto accepts PKCS#8. Wrap PKCS#1 in a PKCS#8 PrivateKeyInfo
   // without changing or exporting the owner's private key.
-  const pkcs1=/^-----BEGIN RSA PRIVATE KEY-----([\\s\\S]*?)-----END RSA PRIVATE KEY-----$/;
-  const pkcs8=/^-----BEGIN PRIVATE KEY-----([\\s\\S]*?)-----END PRIVATE KEY-----$/;
+  const pkcs1=/^-----BEGIN RSA PRIVATE KEY-----([\s\S]*?)-----END RSA PRIVATE KEY-----$/;
+  const pkcs8=/^-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----$/;
   const match=pem.match(pkcs1)||pem.match(pkcs8);
   if(!match)throw new Error('Unsupported GitHub App private key PEM format.');
-  const body=match[1].replace(/\\s/g,'');
+  const body=match[1].replace(/\s/g,'');
   const raw=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
   const derLength=n=>{
     if(n<128)return Uint8Array.of(n);
