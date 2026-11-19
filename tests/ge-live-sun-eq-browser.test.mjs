@@ -26,9 +26,10 @@ try{
  },song);
  assert.equal(active.mode==='capture'||active.mode==='media-element',true,'native player analyzer must initialize');
  await page.waitForFunction(()=>{
+   const sample=window.GELiveAudioEQ?.read?.();
    const s=window.GELiveAudioEQ?.status?.();
    const audio=document.getElementById('audio');
-   return s?.live===true&&audio?.currentTime>.3;
+   return !!sample&&s?.live===true&&audio?.currentTime>.3;
  },{timeout:30000,polling:200});
  const readings=[];
  for(let i=0;i<9;i++){
@@ -60,7 +61,7 @@ try{
 }catch(error){
  const diagnostics=await page.evaluate(()=>{
    const a=document.getElementById('audio'),s=window.GELiveAudioEQ?.status?.();
-   return {url:location.href,time:a?.currentTime,src:a?.src,ready:a?.readyState,error:a?.error?.message,status:s,
+   return {url:location.href,time:a?.currentTime,paused:a?.paused,muted:a?.muted,volume:a?.volume,hidden:document.hidden,src:a?.src,ready:a?.readyState,error:a?.error?.message,status:s,
      sunStatus:document.getElementById('sunEQSourceStatus')?.textContent};
  }).catch(()=>null);
  throw Error(error.message+' | '+JSON.stringify({diagnostics,runtime:runtime.slice(0,5)}));
