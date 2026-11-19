@@ -71,6 +71,17 @@ try{
    assert.match(transparency.changed.others,/rgba\(12, 44, 72, 0\.2\)/,'Other slider must adjust painted alpha');
    assert.deepEqual(transparency.changed.saved,{sun:20,music:65,other:80},'Three transparency values must save separately');
    console.log('SUNLAB_TRANSPARENCY '+width+'x'+height+' '+JSON.stringify(transparency));
+   const otherGroupCoverage=await page.evaluate(()=>{
+     const result={};
+     for(const id of ['geBgQuickPrev','bgPrev','contactLaunchBtn','accessLaunchBtn','shareBtn','sunLabBtn','offlineLaunchBtn','titleBtn']){
+       const el=document.getElementById(id);if(!el)continue;
+       const cs=getComputedStyle(el);
+       result[id]={background:cs.backgroundColor,image:cs.backgroundImage};
+     }
+     return result;
+   });
+   console.log('SUNLAB_OTHER_BUTTONS '+width+'x'+height+' '+JSON.stringify(otherGroupCoverage));
+
 
    const get=()=>page.evaluate(()=>{
     const ids=['prevBtn','playBtn','nextBtn','shuffleBtn','bgPer','bgShuf','bgPrev','hudCombined','hudAutoHide','contactLaunchBtn','accessLaunchBtn','shareBtn'];
