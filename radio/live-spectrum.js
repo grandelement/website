@@ -11,6 +11,7 @@ const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const GE_IOS_PREVIEW=new URLSearchParams(location.search).get('eq_preview')==='1';
+let geIOSLiveOptIn=GE_IOS_PREVIEW;
 let context=null,analyser=null,source=null,sourceKind='none',lastError='',lastSignal=0;
 let track=null,graphReady=false,setupPending=false;
 let bins=new Uint8Array(256),rawBins=new Uint8Array(FFT_SIZE/2);
@@ -96,8 +97,8 @@ function start(){
   }finally{setupPending=false}
 }
 function arm(){
-  if(GE_IS_IOS&&!GE_IOS_PREVIEW){
-    lastError='iPhone preview disabled to protect native audio';
+  if(GE_IS_IOS&&!geIOSLiveOptIn){
+    lastError='Tap ENABLE LIVE EQ in Sun Lab to activate on iPhone';
     return false;
   }
   if(!localSong())return false;
@@ -136,17 +137,34 @@ function read(){
 function status(){
   return {mode:sourceKind,context:context?.state||'off',
     live:!!lastSignal&&performance.now()-lastSignal<1500,
-    iosPreview:GE_IOS_PREVIEW,error:lastError};
+    iosPreview:GE_IOS_PREVIEW,iosEnabled:!GE_IS_IOS||geIOSLiveOptIn,error:lastError};
+}
+function showEnableControl(){
+  const button=document.getElementById('geSunEQEnable');
+  if(!button)return;
+  button.hidden=!GE_IS_IOS;
+  if(!GE_IS_IOS)return;
+  button.textContent=geIOSLiveOptIn?'RECONNECT LIVE EQ':'ENABLE LIVE EQ';
+  button.setAttribute('aria-label',geIOSLiveOptIn?
+    'Reconnect real time iPhone audio analyzer':'Enable real time iPhone music visualizer');
+}
+function enable(){
+  geIOSLiveOptIn=true;
+  lastError='';
+  showEnableControl();
+  return arm();
 }
 const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#sunLabBtn,#shipSunLabBtn';
 document.addEventListener('click',event=>{
+  if(event.target?.closest?.('#geSunEQEnable')){enable();return;}
   if(event.target?.closest?.(triggers))arm();
 },true);
+showEnableControl();
 const audio=element();
 audio?.addEventListener('playing',()=>{if(localSong())arm();});
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&!element()?.paused&&localSong())arm();
 });
 // An opt-in rescue for Safari if user returns from lock screen.
-window.GELiveAudioEQ={arm,read,status};
+window.GELiveAudioEQ={arm,enable,read,status};
 })();
