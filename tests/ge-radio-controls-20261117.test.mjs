@@ -110,11 +110,11 @@ try{
      set('geAlphaMusic',50);set('geAlphaOther',50);
      return result;
    });
-   assert.match(radio47Fade.musicBlue,/rgba\\(22, 94, 171, 0\\.25\\)/,'MUSIC must remain blue at 75% transparency');
-   assert.match(radio47Fade.player,/rgba\\(53, 101, 142, 0\\.25\\)/,'PLAYER must react to 75% transparency');
-   assert.match(radio47Fade.bottom,/rgba\\(185, 165, 232, 0\\.01\\)/,'Bottom button fill must be 99% transparent');
-   assert.match(radio47Fade.background,/rgba\\(12, 44, 72, 0\\.01\\)/,'Background button fill must be 99% transparent');
-   assert.match(radio47Fade.panel,/rgba\\(4, 20, 35, 0\\.01\\)/,'Bottom group panel must also fade at 99%');
+   assert(radio47Fade.musicBlue.includes('rgba(22, 94, 171, 0.25)'),'MUSIC must remain blue at 75% transparency');
+   assert(radio47Fade.player.includes('rgba(53, 101, 142, 0.25)'),'PLAYER must react to 75% transparency');
+   assert(radio47Fade.bottom.includes('rgba(185, 165, 232, 0.01)'),'Bottom button fill must be 99% transparent');
+   assert(radio47Fade.background.includes('rgba(12, 44, 72, 0.01)'),'Background button fill must be 99% transparent');
+   assert(radio47Fade.panel.includes('rgba(4, 20, 35, 0.01)'),'Bottom group panel must also fade at 99%');
    assert.equal(radio47Fade.opacity,'1','Text/icons must not be faded with parent opacity');
    assert.equal(radio47Fade.saved.music,75,'User choice must be saved');
    assert.equal(radio47Fade.saved.other,99,'User choice must be saved');
