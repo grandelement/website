@@ -24,7 +24,7 @@ try{
  // A real same-origin recorded song, not an oscillator/mock source or a song map.
  const song='/ge-music/music/Grand%20Element%20-%202010%20-%20Intergy/Intergy_03_Amuse.mp3';
  const active=await page.evaluate(async url=>{
-   const audio=document.getElementById('audio');
+   const audio=document.getElementById('player');
    audio.pause();
    audio.src=url; audio.load();
    window.GELiveAudioEQ.arm();
@@ -35,7 +35,7 @@ try{
  await page.waitForFunction(()=>{
    const sample=window.GELiveAudioEQ?.read?.();
    const s=window.GELiveAudioEQ?.status?.();
-   const audio=document.getElementById('audio');
+   const audio=document.getElementById('player');
    return !!sample&&s?.live===true&&audio?.currentTime>.3;
  },{timeout:30000,polling:200});
  // Monitor the user's exact Amuse recording while it plays naturally.
@@ -43,7 +43,7 @@ try{
  const audioTimeline=[];
  for(let i=0;i<12;i++){
    audioTimeline.push(await page.evaluate(()=>{
-     const a=document.getElementById('audio');
+     const a=document.getElementById('player');
      const native=window.GELiveAudioEQ?.read?.();
      const main=window.GEGetLiveSpectrum?.();
      return {t:Math.round(a.currentTime*10)/10,
@@ -88,7 +88,7 @@ try{
  const readings=[];
  for(let i=0;i<9;i++){
    const datum=await page.evaluate(()=>{
-     const a=document.getElementById('audio');
+     const a=document.getElementById('player');
      const bins=window.GELiveAudioEQ.read()||[];
      return {time:a.currentTime,paused:a.paused,
        status:window.GELiveAudioEQ.status(),
@@ -105,7 +105,7 @@ try{
  assert(new Set(readings.map(row=>row.energy)).size>=2,'frequency energy must change with the recording');
  assert(new Set(readings.map(row=>row.rings)).size>=2,'visible Spectrum rings must change while real music plays');
  // Pause cuts energy. Never fake a moving EQ after playback ends.
- await page.evaluate(()=>document.getElementById('audio').pause());
+ await page.evaluate(()=>document.getElementById('player').pause());
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
  assert.equal(stopped,null,'paused playback must not show live signal');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:5000});
@@ -129,11 +129,11 @@ try{
  assert.equal(opted.iosEnabled,true,'iPhone opt-in must activate the real analyzer');
  assert.notEqual(opted.mode,'none','iPhone opt-in must attach to the native audio element');
  await iosPage.evaluate(async url=>{
-   const a=document.getElementById('audio');a.src=url;a.load();
+   const a=document.getElementById('player');a.src=url;a.load();
    await a.play();
  },song);
  await iosPage.waitForFunction(()=>{
-   const audio=document.getElementById('audio');
+   const audio=document.getElementById('player');
    return !!window.GELiveAudioEQ.read()&&audio.currentTime>.25;
  },{timeout:30000,polling:200});
  assert.equal((await iosPage.evaluate(()=>window.GELiveAudioEQ.status())).live,true,
@@ -155,7 +155,7 @@ try{
  }));
 }catch(error){
  const diagnostics=await page.evaluate(()=>{
-   const a=document.getElementById('audio'),s=window.GELiveAudioEQ?.status?.();
+   const a=document.getElementById('player'),s=window.GELiveAudioEQ?.status?.();
    return {url:location.href,time:a?.currentTime,paused:a?.paused,muted:a?.muted,volume:a?.volume,hidden:document.hidden,src:a?.src,ready:a?.readyState,error:a?.error?.message,status:s,
      sunStatus:document.getElementById('sunEQSourceStatus')?.textContent};
  }).catch(()=>null);
