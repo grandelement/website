@@ -21,7 +21,8 @@ Cloudflare secrets:
 3. Create the App, generate its private key, and install it **only** on `grandelement/website`. Record the **App ID** and **installation ID** (from the installation settings URL).
 4. In the Cloudflare dashboard, open Worker **ge-backroom-publisher → Settings → Variables and Secrets**. Add three encrypted secrets: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, and `GITHUB_APP_PRIVATE_KEY`. Paste the entire PEM key into the private-key secret. Do not put the key in GitHub, chat, or browser code.
 5. Deploy the updated Worker source from this repository. **A GitHub commit does not deploy the Worker.**
-6. Test **PUBLISH LIVE** and **Save Preset** from Back Room. Confirm both commits in GitHub. Only then remove the old `GITHUB_TOKEN` Cloudflare secret and revoke its personal access token in GitHub.
+6. Sign in to the canonical Back Room and perform one real, reversible public-setting change using **SAVE TO GITHUB**. Verify a new commit SHA and an authenticated readback of the saved field. Test Radio Music and GitHub playlists separately. Do not treat GitHub READ access or Vault connectivity as proof of a successful write.
+7. Only after the App succeeds with **no legacy PAT fallback** remove the old `GITHUB_TOKEN` Cloudflare secret and revoke its obsolete personal access tokens in GitHub. Never remove Vault access-code tokens or encryption keys as part of this migration.
 
 The Worker automatically requests short-lived installation tokens. The GitHub App's private key can still be revoked or rotated, so maintain a trusted successor and a secure credential recovery plan. Do not remove the existing token before the new App passes live testing.
 
