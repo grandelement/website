@@ -45,6 +45,20 @@ function start(){
           source=context.createMediaStreamSource(track);
           sourceKind='capture';
           source.connect(analyser);
+          // captureStream replaces its audio track when the synchronized
+          // station advances to another MP3. Rebind the ANALYSIS fork only;
+          // native audible playback is never stopped or reloaded.
+          const rebind=()=>{
+            if(sourceKind!=='capture'||!track?.getAudioTracks().length)return;
+            try{
+              const next=context.createMediaStreamSource(track);
+              source.disconnect();
+              source=next;
+              source.connect(analyser);
+              lastSignal=0;
+            }catch(error){lastError=String(error?.name||error)}
+          };
+          track.addEventListener('addtrack',rebind);
           const silent=context.createGain();
           silent.gain.value=0;
           analyser.connect(silent);
