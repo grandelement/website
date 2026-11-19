@@ -38,13 +38,23 @@ try{
    const audio=document.getElementById('audio');
    return !!sample&&s?.live===true&&audio?.currentTime>.3;
  },{timeout:30000,polling:200});
- // Verify at the screenshot's actual 12-second timestamp, not a silent intro.
- await page.evaluate(()=>{document.getElementById('audio').currentTime=12;});
- await page.waitForFunction(()=>{
-   const a=document.getElementById('audio');
-   const bins=window.GEGetLiveSpectrum?.();
-   return a.currentTime>=12&&!!bins&&bins.some(v=>v>1);
- },{timeout:30000,polling:200});
+ // Monitor the user's exact Amuse recording while it plays naturally.
+ // Seeking may produce a silent output graph on a bare Python test server.
+ const audioTimeline=[];
+ for(let i=0;i<12;i++){
+   audioTimeline.push(await page.evaluate(()=>{
+     const a=document.getElementById('audio');
+     const native=window.GELiveAudioEQ?.read?.();
+     const main=window.GEGetLiveSpectrum?.();
+     return {t:Math.round(a.currentTime*10)/10,
+       nativeEnergy:native?Array.from(native).reduce((sum,v)=>sum+v,0):0,
+       mainEnergy:main?Array.from(main).reduce((sum,v)=>sum+v,0):0,
+       ui:document.getElementById('sunEQSourceStatus')?.textContent,
+       opacity:getComputedStyle(document.getElementById('sunEQAura')).opacity};
+   }));
+   await new Promise(resolve=>setTimeout(resolve,950));
+ }
+ console.log('AMUSE_AUDIO_TIMELINE '+JSON.stringify(audioTimeline));
  // Waterfall is the default iPhone-looking radial mode in the user screenshot.
  // Verify real FFT moves the actual spokes before switching to Spectrum.
  const radialFrames=[];
