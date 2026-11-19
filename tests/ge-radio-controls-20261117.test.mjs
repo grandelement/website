@@ -10,6 +10,11 @@ assert.match(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAYER':'PAUSE
 assert.match(radio,/playBtn\.textContent=activeSong\?'PAUSE':'PLAYER'/);
 assert.doesNotMatch(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAY'/);
 assert.doesNotMatch(radio,/playBtn\.textContent=activeSong\?'PAUSE':resumableSong\?'PLAY'/);
+// Radio 47: the first ready cue is acknowledged once per page visit.
+assert.match(radio,/const tapReady=!document\.body\.classList\.contains\('ge-radio-pulse-ack'\)/);
+assert.match(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/);
+assert.doesNotMatch(radio,/document\.body\.classList\.remove\('ge-radio-pulse-ack'/);
+
 
 const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
@@ -86,6 +91,50 @@ try{
        id+' should use 50% transparent background paint: '+JSON.stringify(paint));
 
 
+
+   // Radio 47: actual near-invisible fills at 99%, no opaque fake layer.
+   const radio47Fade=await page.evaluate(()=>{
+     const set=(id,v)=>{const x=document.getElementById(id);x.value=String(v);x.dispatchEvent(new Event('input',{bubbles:true}));};
+     set('geAlphaMusic',75);set('geAlphaOther',99);
+     const style=id=>getComputedStyle(document.getElementById(id));
+     const result={
+       musicBlue:style('geMusicV5Button').backgroundImage,
+       player:style('playBtn').backgroundImage,
+       bottom:style('shareBtn').backgroundColor,
+       background:style('geBgQuickPrev').backgroundColor,
+       panel:style('bgGroup').backgroundColor,
+       text:style('shareBtn').color,
+       opacity:style('shareBtn').opacity,
+       saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')
+     };
+     set('geAlphaMusic',50);set('geAlphaOther',50);
+     return result;
+   });
+   assert.match(radio47Fade.musicBlue,/rgba\\(22, 94, 171, 0\\.25\\)/,'MUSIC must remain blue at 75% transparency');
+   assert.match(radio47Fade.player,/rgba\\(53, 101, 142, 0\\.25\\)/,'PLAYER must react to 75% transparency');
+   assert.match(radio47Fade.bottom,/rgba\\(185, 165, 232, 0\\.01\\)/,'Bottom button fill must be 99% transparent');
+   assert.match(radio47Fade.background,/rgba\\(12, 44, 72, 0\\.01\\)/,'Background button fill must be 99% transparent');
+   assert.match(radio47Fade.panel,/rgba\\(4, 20, 35, 0\\.01\\)/,'Bottom group panel must also fade at 99%');
+   assert.equal(radio47Fade.opacity,'1','Text/icons must not be faded with parent opacity');
+   assert.equal(radio47Fade.saved.music,75,'User choice must be saved');
+   assert.equal(radio47Fade.saved.other,99,'User choice must be saved');
+
+   // Heartbeat ends after first press. A simulated visual state tests CSS
+   // without starting a real remote audio stream during layout regression.
+   const radio47Beat=await page.evaluate(()=>{
+     const el=document.getElementById('liveBtn');
+     document.body.classList.add('ge-radio-pulse-ack','ge-radio-audible');
+     el.setAttribute('aria-pressed','true');
+     const on={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
+     document.body.classList.remove('ge-radio-audible');
+     el.setAttribute('aria-pressed','false');
+     const off={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
+     document.body.classList.remove('ge-radio-pulse-ack');
+     return {on,off};
+   });
+   assert.equal(radio47Beat.on.animation,'none','ON must stay steadily lit after the first tap');
+   assert.equal(radio47Beat.off.animation,'none','OFF must remain quiet without another heartbeat');
+   assert.notEqual(radio47Beat.on.color,radio47Beat.off.color,'ON/OFF must be distinct');
 
    const get=()=>page.evaluate(()=>{
     const ids=['prevBtn','playBtn','nextBtn','shuffleBtn','bgPer','bgShuf','bgPrev','hudCombined','hudAutoHide','contactLaunchBtn','accessLaunchBtn','shareBtn'];
