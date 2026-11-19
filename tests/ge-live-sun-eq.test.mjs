@@ -22,5 +22,11 @@ assert.doesNotMatch(fft,/new\s+Audio\s*\(/);
 assert.doesNotMatch(fft,/offline-spectrum|eq-snapshot|sine|Math\.random/);
 assert.match(fft,/url\.origin===location\.origin/);
 assert.match(radio,/if\(GE_STATIC_RADIO_PRIMARY\|\|!GE_IOS_AUDIO/); // BLITZ polling remains blocked for the Bangers clock
+assert.match(radio,/id="geSunEQEnable"/);
+assert.match(fft,/function enable\(\)/);
+assert.match(fft,/geIOSLiveOptIn/);
+assert.match(radio,/SUN_LAB_BALANCE_KEY/);
+assert.match(radio,/sunEQAura\.style\.opacity=live\?'1':'.075'/);
+assert.doesNotMatch(radio,/upgradeSunLabVisibility\(\);/);
 assert.match(sw,/ge-radio-media-v4/);
 console.log('PASS: native-player real FFT and eight stored effects, no song map or duplicate media element.');
