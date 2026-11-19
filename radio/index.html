@@ -880,6 +880,9 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
+    <button id="geSunEQEnable" type="button" class="sunlab-mini" hidden
+      style="margin:5px auto 9px;padding:9px 16px;min-height:40px;max-width:100%;border:1px solid #5dbbde;border-radius:9px;color:#eefaff;background:#10476a;font-weight:800"
+      aria-label="Enable real time audio visualizer on iPhone">ENABLE LIVE EQ</button>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
@@ -5800,8 +5803,8 @@ async function registerServiceWorker(){
 
   const SUN_LAB_KEY='GE_SUN_LAB_V7';
   const SUN_LAB_DEFAULTS=Object.freeze({
-    waveType:'mirrorflip',distance:55,thickness:55,contrast:40,dynamics:140,glow:0,mist:0,
-    blueDepth:40,outerFade:50,tipWhite:56,brightness:320,hue:0,hueMix:0,altHue:68,
+    waveType:'mirrorflip',distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
+    blueDepth:40,outerFade:50,tipWhite:56,brightness:145,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
@@ -5831,18 +5834,18 @@ async function registerServiceWorker(){
   };
   const SUN_MODE_DEFAULTS={
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
-    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:182,dynamics:32,brightness:320,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
+    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:90,dynamics:105,brightness:160,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:300,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:320,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:140,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:155,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
-    glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:220,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:220,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
+    glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:140,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:140,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
-    waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:320,bass:55,mid:100,treble:120,compression:38,smoothing:30},
+    waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:140,bass:75,mid:115,treble:120,compression:25,smoothing:20},
     // Four additional authentic-frequency-reactive visual presets.
-    pulse:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-160,thickness:215,dynamics:340,brightness:320,bass:190,mid:85,treble:50,compression:0,smoothing:6,hue:0},
-    ripples:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:true,cascadeSpeed:28,distance:120,thickness:25,contrast:115,dynamics:210,mist:18,brightness:320,bass:145,mid:115,treble:45},
-    orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:230,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:320,bass:70,mid:165,treble:180,compression:30,smoothing:28},
-    aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:210,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:210,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
+    pulse:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-160,thickness:105,dynamics:210,brightness:160,bass:190,mid:85,treble:50,compression:0,smoothing:6,hue:0},
+    ripples:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:true,cascadeSpeed:28,distance:120,thickness:25,contrast:115,dynamics:190,mist:18,brightness:145,bass:145,mid:115,treble:45},
+    orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
+    aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:145,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:145,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
   };
   let sunLab={...SUN_MODE_DEFAULTS.waterfall};
   let sunLabEditMode=null;
@@ -5854,23 +5857,24 @@ async function registerServiceWorker(){
   function loadSunModeProfiles(){try{const raw=localStorage.getItem(SUN_MODE_KEY);const parsed=raw?JSON.parse(raw):{};if(parsed&&typeof parsed==='object')sunModeProfiles=parsed;}catch(_e){sunModeProfiles={};}}
   function saveSunModeProfiles(){try{localStorage.setItem(SUN_MODE_KEY,JSON.stringify(sunModeProfiles));}catch(_e){}}
 
-  // One-time brightness upgrade for existing iPhones: preserve all color,
-  // distance and speed settings, but raise the chosen effects to maximum
-  // visibility. Later manual brightness edits are respected.
-  const SUN_LAB_VISIBILITY_UPGRADE='GE_SUN_LAB_VISIBILITY_MAX_20261119';
-  const visibilityMaxForMode=mode=>['spectrum','orbit'].includes(mode)?{brightness:320,spectrumGain:300}:
-    ['glow','aurora'].includes(mode)?{innerGlowStrength:220,outerGlowStrength:220}:{brightness:320};
-  function upgradeSunLabVisibility(){
-    try{if(localStorage.getItem(SUN_LAB_VISIBILITY_UPGRADE)==='1')return;}catch(_e){}
-    for(const mode of Object.keys(SUN_MODE_WAVE)){
-      sunModeProfiles[mode]={...(sunModeProfiles[mode]||{}),...visibilityMaxForMode(mode)};
-    }
-    const savedMode=(()=>{try{return localStorage.getItem(SUN_MODE_SELECTED_KEY);}catch(_e){return null}})();
-    const activeMode=savedMode&&SUN_MODE_WAVE[savedMode]?savedMode:
-      Object.keys(SUN_MODE_WAVE).find(mode=>SUN_MODE_WAVE[mode]===sunLab.waveType)||'waterfall';
-    sunLab={...sunLab,...visibilityMaxForMode(activeMode)};
+  // Older updates forced maximum brightness. Balance previously saved modes once,
+  // preserving songs, downloads, colors, distances and other listener data.
+  const SUN_LAB_BALANCE_KEY='GE_SUN_EQ_BRIGHTNESS_BALANCED_20261119_V1';
+  function balanceSunLabVisibility(){
+    try{if(localStorage.getItem(SUN_LAB_BALANCE_KEY)==='1')return;}catch(_e){}
+    const capProfile=profile=>{
+      const out={...profile};
+      for(const [name,max] of Object.entries({
+        brightness:165,thickness:105,spectrumGain:155,
+        innerGlowStrength:150,outerGlowStrength:150
+      }))if(Number.isFinite(Number(out[name]))&&Number(out[name])>max)out[name]=max;
+      return out;
+    };
+    for(const mode of Object.keys(sunModeProfiles))
+      if(SUN_MODE_WAVE[mode])sunModeProfiles[mode]=capProfile(sunModeProfiles[mode]);
+    sunLab=capProfile(sunLab);
     saveSunModeProfiles();saveSunLab();
-    try{localStorage.setItem(SUN_LAB_VISIBILITY_UPGRADE,'1');}catch(_e){}
+    try{localStorage.setItem(SUN_LAB_BALANCE_KEY,'1');}catch(_e){}
   }
 
   function saveCurrentSunMode(){if(!sunLabEditMode)return;sunModeProfiles[sunLabEditMode]={...sunLab};saveSunModeProfiles();}
@@ -6053,7 +6057,7 @@ async function registerServiceWorker(){
       });
     }
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
-    loadSunLab();loadSunModeProfiles();upgradeSunLabVisibility();
+    loadSunLab();loadSunModeProfiles();balanceSunLabVisibility();
     if(!hadSavedSun){
       sunLabEditMode='waterfall';
       sunLab={...SUN_MODE_DEFAULTS.waterfall};
@@ -6965,13 +6969,15 @@ Vector ${vector}. ${pair[1]}.`;
     if(!sunEQAura||!sunEQFog)return;
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
+    // Hide fixed bars unless genuine live FFT data exists.
+    sunEQAura.style.opacity=live?'1':'.075';
     const now=performance.now();
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
 
     if(waveType==='spectrum'){updateSpectrumSun(live,now);return;}
     if(waveType==='glow'){updateGlowSun(live,now);return;}
-    if(sunEQFog)sunEQFog.style.opacity='1';
+    if(sunEQFog)sunEQFog.style.opacity=live?'.9':'.04';
 
     const playing=!audio.paused&&!audio.ended;
     const rings=[...sunEQAura.children];
@@ -7011,7 +7017,7 @@ Vector ${vector}. ${pair[1]}.`;
       mirrorflip:{travel:.96,width:1.10,blur:.14,fog:.44,residue:.68,carry:.84}
     }[waveType]||{travel:1,width:1,blur:1,fog:1,residue:1,carry:.86};
 
-    let impact=.05;
+    let impact=0;
     if(live&&len){
       let lowSum=0,lowN=0;
       const cap=Math.max(3,Math.floor(len*.10));
@@ -7024,7 +7030,7 @@ Vector ${vector}. ${pair[1]}.`;
     const impactSpan=Math.max(.055,sunEQImpactPeak-sunEQImpactFloor);
     let compressedImpact=clamp((impactRaw-sunEQImpactFloor)/impactSpan,0,1);
     compressedImpact=lerp(impactRaw,compressedImpact,clamp(.30+compression*.62,0,.92));
-    compressedImpact=clamp(.02+(compressedImpact-.02)*(dynamicsMul*1.18),0,1);
+    compressedImpact=live?clamp(.02+(compressedImpact-.02)*(dynamicsMul*1.18),0,1):0;
     sunEQPulseFlow[0]=Math.max(compressedImpact,sunEQPulseFlow[0]*(.50+.18*(1-wavePreset.residue)));
     for(let i=1;i<SUN_EQ_RINGS;i++) sunEQPulseFlow[i]=Math.max(sunEQPulseFlow[i]*(.84+.05*wavePreset.residue),sunEQPulseFlow[i-1]*wavePreset.carry);
 
@@ -7047,7 +7053,7 @@ Vector ${vector}. ${pair[1]}.`;
       const span=Math.max(.055,sunEQPeak[i]-sunEQFloor[i]);
       const normalized=clamp((raw-sunEQFloor[i])/span,0,1);
       target=lerp(raw,normalized,clamp(.30+compression*.64,0,.93));
-      target=clamp(.02+(target-.02)*(dynamicsMul*1.24),0,1);
+      target=live?clamp(.02+(target-.02)*(dynamicsMul*1.24),0,1):0;
 
       const prev=sunEQLevels[i]||.02;
       const rate=target>prev?(.76-.14*wavePreset.residue):(.05+.035*wavePreset.residue);
@@ -7055,7 +7061,7 @@ Vector ${vector}. ${pair[1]}.`;
       const band=Math.pow(clamp((level-.02)*(2.10*contrastMul),0,1),.80);
       const wave=Math.pow(clamp((sunEQPulseFlow[i]-.02)*(2.05*contrastMul),0,1),.88);
       const carry=i?Math.pow(clamp((sunEQPulseFlow[i-1]-.02)*(1.95*contrastMul),0,1),1.05)*(.22+.18*wavePreset.residue):0;
-      const energy=clamp((band*.82+wave*.88+carry)*dynamicsMul,0,1);
+      const energy=live?clamp((band*.82+wave*.88+carry)*dynamicsMul,0,1):0;
       const base=isBarWave(waveType)?1.0:(waveType==='plasma' ? (.58+effectReach*.28+i*.030) : (Number(rings[i]?.dataset.base)||1.006+i*.0135));
       const travel=((.0014+i*.00055)+Math.pow(energy,1.15)*(i<4?.042:.034))*effectReach*wavePreset.travel;
       const width=(3.4+Math.pow(energy,1.06)*7.6)*thickMul*wavePreset.width;
@@ -7113,9 +7119,9 @@ Vector ${vector}. ${pair[1]}.`;
         const band=sampleBandValue(sunEQLevels,sampleNorm)||avg;
         const flow=sampleBandValue(sunEQPulseFlow,sampleNorm)||avg;
         const bandPos=sampleNorm;
-        const energy=clamp(Math.pow(clamp((band-.02)*(1.9*contrastMul),0,1),.86)*.78 + Math.pow(clamp((flow-.02)*(1.82*contrastMul),0,1),.90)*.82,0,1);
+        const energy=live?clamp(Math.pow(clamp((band-.02)*(1.9*contrastMul),0,1),.86)*.78 + Math.pow(clamp((flow-.02)*(1.82*contrastMul),0,1),.90)*.82,0,1):0;
         rayEnergy[i]=energy;
-        const length=(3.6 + Math.pow(energy,1.03)*(8.0 + Math.max(distMul,0)*5.8))*wavePreset.travel;
+        const length=(1.8 + Math.pow(energy,.82)*(15.5 + Math.max(distMul,0)*7.2))*wavePreset.travel;
         const theta=(pct*360+angleOffset)*Math.PI/180;
         const inner=baseRadius + radiusPush;
         const outer=inner + length;
@@ -7135,10 +7141,10 @@ Vector ${vector}. ${pair[1]}.`;
         line.setAttribute('y1',y1.toFixed(3));
         line.setAttribute('x2',x2.toFixed(3));
         line.setAttribute('y2',y2.toFixed(3));
-        line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.70+energy*.30).toFixed(3)+')');
-        line.setAttribute('stroke-width',(1.15+thickMul*2.3+energy*1.8).toFixed(2));
+        line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.25+energy*.62).toFixed(3)+')');
+        line.setAttribute('stroke-width',(0.58+thickMul*1.15+energy*1.65).toFixed(2));
         line.style.filter='blur('+((glowMul*3.8)+energy*0.8).toFixed(2)+'px)';
-        const rawLineOpacity = radialOn ? clamp(.62 + brightnessMul*.09 + energy*.29,.62,1) : 0;
+        const rawLineOpacity = radialOn ? (live?clamp(.08 + Math.pow(energy,.8)*.77,.08,.85):.04) : 0;
         line.style.opacity = String(glowOnly ? rawLineOpacity*0.10 : rawLineOpacity);
       });
 
@@ -7187,9 +7193,9 @@ Vector ${vector}. ${pair[1]}.`;
             line.setAttribute('x2',x2.toFixed(3));
             line.setAttribute('y2',y2.toFixed(3));
             line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.68 + e*0.32*fade).toFixed(3)+')');
-            line.setAttribute('stroke-width',(0.85 + thickMul*1.2 + e*1.2).toFixed(2));
+            line.setAttribute('stroke-width',(0.56 + thickMul*.7 + e*1.35).toFixed(2));
             line.style.filter='blur('+((glowMul*1.8)+(mistMul*2.2)+e*0.5).toFixed(2)+'px)';
-            const cascadeOpacity=clamp(.50 + e*.48*fade,.50,1);
+            const cascadeOpacity=live?clamp(.025 + e*.76*fade,.025,.79):.02;
             line.style.opacity = String(glowOnly ? cascadeOpacity*0.10 : cascadeOpacity);
           }
         }
@@ -7285,6 +7291,8 @@ Vector ${vector}. ${pair[1]}.`;
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
+      else if(GE_IOS_AUDIO&&!window.GELiveAudioEQ?.status?.()?.iosEnabled)
+        eqMessage('MUSIC EQ · OFF · TAP ENABLE LIVE EQ');
       else if(inlinePlaying)eqMessage('MUSIC EQ · SAVED FREQUENCIES NOT AVAILABLE');
       else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
