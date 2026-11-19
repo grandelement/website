@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.19-radio48-one-soft-cue-v1';
+const VERSION='2026.11.19-radio48-calm-music-v2';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
