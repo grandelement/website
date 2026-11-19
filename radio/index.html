@@ -2401,6 +2401,12 @@ function updateRadioStartupCue(){
   // ReadyState/canplay may fire for an audio response that never plays.
   // No connection color until this native player actually advances.
   const signalReady=connected;
+  // Ready to tap is not the same as verified audible playback. Keep Radio
+  // visibly available on a network-connected page without auto-streaming.
+  // The separate signal-ready/audible classes still require real audio proof.
+  const tapReady=!state.live&&!state.livePreparing&&
+    navigator.onLine!==false&&liveStreamConfigured();
+  document.body.classList.toggle('ge-radio-tap-ready',tapReady);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
   document.body.classList.toggle('ge-radio-audible',connected);
   document.body.classList.toggle('ge-radio-verified',connected);
@@ -2418,6 +2424,8 @@ function updateRadioStartupCue(){
     shipPlayButton.setAttribute('aria-label',audio.paused?'Play':'Pause');
   }
 }
+window.addEventListener('online',updateRadioStartupCue);
+window.addEventListener('offline',updateRadioStartupCue);
 function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
 }
@@ -5780,7 +5788,7 @@ async function registerServiceWorker(){
   const SUN_LAB_KEY='GE_SUN_LAB_V7';
   const SUN_LAB_DEFAULTS=Object.freeze({
     waveType:'mirrorflip',distance:55,thickness:55,contrast:40,dynamics:140,glow:0,mist:0,
-    blueDepth:40,outerFade:50,tipWhite:56,brightness:150,hue:0,hueMix:0,altHue:68,
+    blueDepth:40,outerFade:50,tipWhite:56,brightness:320,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
@@ -5800,13 +5808,13 @@ async function registerServiceWorker(){
   };
   const SUN_MODE_DEFAULTS={
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
-    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:182,dynamics:32,brightness:150,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
+    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:182,dynamics:32,brightness:320,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:100,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:150,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:300,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:320,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
-    glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:150,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:185,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
+    glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:220,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:220,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
-    waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:150,bass:55,mid:100,treble:120,compression:38,smoothing:30}
+    waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:320,bass:55,mid:100,treble:120,compression:38,smoothing:30}
   };
   let sunLab={...SUN_MODE_DEFAULTS.waterfall};
   let sunLabEditMode=null;
@@ -5817,6 +5825,24 @@ async function registerServiceWorker(){
   function saveSunLab(){try{localStorage.setItem(SUN_LAB_KEY,JSON.stringify(sunLab));}catch(_e){}}
   function loadSunModeProfiles(){try{const raw=localStorage.getItem(SUN_MODE_KEY);const parsed=raw?JSON.parse(raw):{};if(parsed&&typeof parsed==='object')sunModeProfiles=parsed;}catch(_e){sunModeProfiles={};}}
   function saveSunModeProfiles(){try{localStorage.setItem(SUN_MODE_KEY,JSON.stringify(sunModeProfiles));}catch(_e){}}
+
+  // One-time brightness upgrade for existing iPhones: preserve all color,
+  // distance and speed settings, but raise the chosen effects to maximum
+  // visibility. Later manual brightness edits are respected.
+  const SUN_LAB_VISIBILITY_UPGRADE='GE_SUN_LAB_VISIBILITY_MAX_20261119';
+  const visibilityMaxForMode=mode=>mode==='spectrum'?{brightness:320,spectrumGain:300}:
+    mode==='glow'?{innerGlowStrength:220,outerGlowStrength:220}:{brightness:320};
+  function upgradeSunLabVisibility(){
+    try{if(localStorage.getItem(SUN_LAB_VISIBILITY_UPGRADE)==='1')return;}catch(_e){}
+    for(const mode of Object.keys(SUN_MODE_WAVE)){
+      sunModeProfiles[mode]={...(sunModeProfiles[mode]||{}),...visibilityMaxForMode(mode)};
+    }
+    const activeMode=Object.keys(SUN_MODE_WAVE).find(mode=>SUN_MODE_WAVE[mode]===sunLab.waveType)||'waterfall';
+    sunLab={...sunLab,...visibilityMaxForMode(activeMode)};
+    saveSunModeProfiles();saveSunLab();
+    try{localStorage.setItem(SUN_LAB_VISIBILITY_UPGRADE,'1');}catch(_e){}
+  }
+
   function saveCurrentSunMode(){if(!sunLabEditMode)return;sunModeProfiles[sunLabEditMode]={...sunLab};saveSunModeProfiles();}
   function modeLabel(mode){return ({plasma:'Plasma',spectrum:'Spectrum',glow:'Glow',waterfall:'Waterfall'})[mode]||mode;}
   function setSunModeVisibility(mode){
@@ -5995,7 +6021,7 @@ async function registerServiceWorker(){
       });
     }
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
-    loadSunLab();loadSunModeProfiles();
+    loadSunLab();loadSunModeProfiles();upgradeSunLabVisibility();
     if(!hadSavedSun){
       sunLabEditMode='waterfall';
       sunLab={...SUN_MODE_DEFAULTS.waterfall};
@@ -6786,7 +6812,8 @@ Vector ${vector}. ${pair[1]}.`;
     ];
     const base=hslRgb(214,.95,.48);
     const mix=clamp(sunNum('bandColorMix',70)/100,0,1);
-    const brightness=.18+energy*.82;
+    // Strong visible colors even when the spectrum has no active signal.
+    const brightness=.72+energy*.28;
     const rgb=band.map((v,i)=>Math.round((base[i]*(1-mix)+v*mix)*brightness));
     return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
   }
@@ -6846,9 +6873,9 @@ Vector ${vector}. ${pair[1]}.`;
       const b=sunSpectrumBandHistory[i]||{low:e,mid:e,high:e};
       const position=Math.min(SUN_SPECTRUM_RINGS-1,i+phase);
       const scale=innerScale+position*spacing;
-      const light=clamp(9+e*76,8,88);
+      const light=clamp(58+e*34,58,96);
       const sat=clamp(88+e*12,82,100);
-      const alpha=clamp(.22+e*.76,.22,.98);
+      const alpha=clamp(.76+e*.24,.76,1);
       const originalBlue=`hsla(${clamp(214+sunNum('hue',1)*.35,170,260).toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`;
       const bandColor=spectrumBandColor(b,e);
       ring.style.setProperty('--spectrum-scale',scale.toFixed(4));
@@ -6875,10 +6902,10 @@ Vector ${vector}. ${pair[1]}.`;
 
     const innerScale=1.00+innerReach*.24+raw*.035;
     const outerScale=1.02+outerReach*.48+raw*.055;
-    const innerAlpha=clamp(innerStrength*(.28+raw*.55),.03,.88);
-    const outerAlpha=clamp(outerStrength*(.16+raw*.42),.02,.70);
-    const innerBlur=4+innerReach*16;
-    const outerBlur=12+outerReach*42;
+    const innerAlpha=clamp(innerStrength*(.76+raw*.24),.30,1);
+    const outerAlpha=clamp(outerStrength*(.68+raw*.32),.26,1);
+    const innerBlur=3+innerReach*11;
+    const outerBlur=8+outerReach*26;
 
     inner.style.transform=`translate(-50%,-50%) scale(${(innerScale*pulse).toFixed(4)})`;
     inner.style.background=`radial-gradient(circle,hsla(${innerHue},100%,74%,${(innerAlpha*.58).toFixed(3)}) 0%,hsla(${innerHue},100%,61%,${(innerAlpha*.30).toFixed(3)}) 48%,transparent 76%)`;
@@ -6989,7 +7016,7 @@ Vector ${vector}. ${pair[1]}.`;
       const base=isBarWave(waveType)?1.0:(waveType==='plasma' ? (.58+effectReach*.28+i*.030) : (Number(rings[i]?.dataset.base)||1.006+i*.0135));
       const travel=((.0014+i*.00055)+Math.pow(energy,1.15)*(i<4?.042:.034))*effectReach*wavePreset.travel;
       const width=(3.4+Math.pow(energy,1.06)*7.6)*thickMul*wavePreset.width;
-      const opacity=clamp(.01+Math.pow(energy,1.06)*(.56+.34*contrastMul),.01,.97);
+      const opacity=clamp(.38+Math.pow(energy,1.06)*(.50+.12*contrastMul),.38,1);
 
       const distanceLight=Math.pow(bandPos,1.06)*clamp(outerFadeMul,0.0,1.8);
       const whiteGate=clamp((energy-.88)/.12,0,1)*clamp((bandPos-.55)/.45,0,1);
@@ -6999,14 +7026,14 @@ Vector ${vector}. ${pair[1]}.`;
       const hueLerp=clamp(hueMix*(0.16 + energy*.84 + bandPos*.22),0,1);
       const hue=lerp(baseHue,secondaryHue,hueLerp);
       const sat=clamp(72 + blueDepthMul*18 + energy*12, 58, 100);
-      const lightCore=clamp(30 + brightnessMul*18 + energy*(22 + brightnessMul*16) + distanceLight*8, 18, 90);
+      const lightCore=clamp(52 + brightnessMul*12 + energy*(22 + brightnessMul*13) + distanceLight*8, 52, 96);
       const light=lerp(lightCore, 95, whiteMix);
 
       if(!isBarWave(waveType)){
         rings[i]?.style.setProperty('--ring-scale',(base+travel).toFixed(4));
         rings[i]?.style.setProperty('--ring-width',width.toFixed(2)+'px');
         const ringVisibleOpacity=glowOnly?Math.min(0.045,0.010+energy*0.030):opacity;
-        const ringAlpha=glowOnly?(0.08+energy*0.16):(0.32+energy*0.66);
+        const ringAlpha=glowOnly?(0.08+energy*0.16):(0.76+energy*0.24);
         rings[i]?.style.setProperty('--ring-opacity',String(ringVisibleOpacity));
         rings[i]?.style.setProperty('--ring-color','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+ringAlpha.toFixed(3)+')');
         rings[i]?.style.setProperty('--ring-blur',((glowMul*5.6)+(energy*2.2))*wavePreset.blur+'px');
@@ -7059,16 +7086,16 @@ Vector ${vector}. ${pair[1]}.`;
         const hueLerp=clamp(hueMix*(0.16 + energy*.88 + bandPos*.26),0,1);
         const hue=lerp(baseHue,secondaryHue,hueLerp);
         const sat=clamp(70 + blueDepthMul*20 + energy*14, 58, 100);
-        const lightCore=clamp(28 + brightnessMul*16 + energy*(20 + brightnessMul*24) + bandPos*10, 16, 90);
+        const lightCore=clamp(58 + brightnessMul*10 + energy*(20 + brightnessMul*20) + bandPos*10, 58, 96);
         const light=lerp(lightCore,96,whiten);
         line.setAttribute('x1',x1.toFixed(3));
         line.setAttribute('y1',y1.toFixed(3));
         line.setAttribute('x2',x2.toFixed(3));
         line.setAttribute('y2',y2.toFixed(3));
-        line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.18+energy*.82).toFixed(3)+')');
+        line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.70+energy*.30).toFixed(3)+')');
         line.setAttribute('stroke-width',(1.15+thickMul*2.3+energy*1.8).toFixed(2));
         line.style.filter='blur('+((glowMul*3.8)+energy*0.8).toFixed(2)+'px)';
-        const rawLineOpacity = radialOn ? clamp(.12 + brightnessMul*.10 + energy*(.84 + brightnessMul*.20),.12,1) : 0;
+        const rawLineOpacity = radialOn ? clamp(.62 + brightnessMul*.09 + energy*.29,.62,1) : 0;
         line.style.opacity = String(glowOnly ? rawLineOpacity*0.10 : rawLineOpacity);
       });
 
@@ -7110,16 +7137,16 @@ Vector ${vector}. ${pair[1]}.`;
             const hueLerp=clamp(hueMix*(0.14 + e*.86 + bandPos*.24),0,1);
             const hue=lerp(baseHue,secondaryHue,hueLerp);
             const sat=clamp(72 + blueDepthMul*18 + e*12, 58, 100);
-            const lightCore=clamp(22 + brightnessMul*13 + e*(24 + brightnessMul*20) - j*2.6, 14, 92);
+            const lightCore=clamp(55 + brightnessMul*10 + e*(24 + brightnessMul*16) - j*1.7, 48, 96);
             const light=lerp(lightCore,96,whiten*fade);
             line.setAttribute('x1',x1.toFixed(3));
             line.setAttribute('y1',y1.toFixed(3));
             line.setAttribute('x2',x2.toFixed(3));
             line.setAttribute('y2',y2.toFixed(3));
-            line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.06 + e*0.52*fade).toFixed(3)+')');
+            line.setAttribute('stroke','hsla('+hue.toFixed(1)+','+sat.toFixed(1)+'%,'+light.toFixed(1)+'%,'+(0.68 + e*0.32*fade).toFixed(3)+')');
             line.setAttribute('stroke-width',(0.85 + thickMul*1.2 + e*1.2).toFixed(2));
             line.style.filter='blur('+((glowMul*1.8)+(mistMul*2.2)+e*0.5).toFixed(2)+'px)';
-            const cascadeOpacity=clamp(0.03 + e*0.75*fade,0.03,0.85);
+            const cascadeOpacity=clamp(.50 + e*.48*fade,.50,1);
             line.style.opacity = String(glowOnly ? cascadeOpacity*0.10 : cascadeOpacity);
           }
         }
@@ -7146,7 +7173,7 @@ Vector ${vector}. ${pair[1]}.`;
       const left=50+Math.cos(angle)*radius;
       const top=50+Math.sin(angle)*radius;
       const scale=(sizeBase*(.86+energy*(.74+mistMul*.46))*breathe).toFixed(3);
-      const opacity=clamp((.004+Math.pow(energy,1.22)*(.12+.24*mistMul)+Math.sin(t*.46+phase)*.022)*fogStrength,.004,.58);
+      const opacity=clamp((.08+Math.pow(energy,1.22)*(.18+.30*mistMul)+Math.sin(t*.46+phase)*.014)*fogStrength,.035,.82);
       const width=(15+energy*(18+22*effectReach))*fogStrength;
       const height=(5+energy*(9+14*mistMul))*fogStrength;
       blob.style.left=left.toFixed(3)+'%';
@@ -9071,7 +9098,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 <link rel="stylesheet" href="./radio-layout.css?v=20261117-icon-dock-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261116-ship-horizon-v1" data-ge-css="ship-repair">
-<link rel="stylesheet" href="./player-button-effects.css?v=20261117-icon-dock-v2" data-ge-css="player-button-effects">
+<link rel="stylesheet" href="./player-button-effects.css?v=20261119-ready-heartbeat-glass-sun-max-v1" data-ge-css="player-button-effects">
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
