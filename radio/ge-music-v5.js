@@ -77,6 +77,18 @@ button,input{font:inherit}
 .header{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:linear-gradient(110deg,#004caa,#0c89ec,#023b74);border-bottom:1px solid #64dfff}
 .brand{font-weight:900;letter-spacing:.05em;font-size:15px}.build{display:block;color:#e7f9ff;font-size:10px;font-weight:700;opacity:.9}
 button{display:inline-flex;justify-content:center;align-items:center;text-align:center;border:1px solid #4c9ac8;border-radius:9px;color:#ebfaff;background:#0e314e;min-height:39px;padding:8px 10px;font-weight:750;cursor:pointer;touch-action:manipulation}
+/* MUSIC is a Shadow DOM workspace, so shared page-level fades cannot reach it.
+   Match the quiet site control selection timing without changing any action. */
+@media(prefers-reduced-motion:no-preference){
+ :where(button,[role="button"]){
+  transition:background-color .34s cubic-bezier(.22,.61,.36,1),
+    border-color .34s cubic-bezier(.22,.61,.36,1),
+    color .30s ease-in-out,
+    box-shadow .42s cubic-bezier(.22,.61,.36,1),
+    opacity .34s ease-in-out;
+ }
+}
+@media(prefers-reduced-motion:reduce){:where(button,[role="button"]){transition:none!important}}
 button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
 button:disabled{opacity:.5;cursor:not-allowed}
 .close{background:#001a33;border:1px solid #c6f3ff;min-width:82px}

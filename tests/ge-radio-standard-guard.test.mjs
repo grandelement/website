@@ -125,21 +125,26 @@ requireText(radio,/GEPlayLibraryQueue\(queue,path,playlistName\)/,'Radio must ha
 requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show current queue');
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
-// Owner revision 2026-10-30: BLITZ Radio 1 exclusively, auto-attempt on
-// arrival, visible neutral RADIO control until real forward audio progress.
-const pulseStyle=radioComponentsCSS; // Radio pulse rules now belong to the maintained CSS module.
+// Owner revision 2026-11-19: ONE introductory ready cue; ON/OFF never pulse.
+// The canonical state stylesheet replaces contradictory historical pulse rules.
+const pulseStyle=read('radio/radio-indicator.css');
 for(const text of [
- '@keyframes geRadioRedDimmerLubDub',
- 'animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important',
- 'opacity:1!important;pointer-events:auto!important',
- 'background:rgba(9,30,49,.55)!important',
- 'border-color:rgba(97,185,233,.47)!important',
- 'prefers-reduced-motion:reduce',
- 'width:max-content!important',
- 'overflow-wrap:anywhere!important',
- 'body #liveStatus,body #liveStatus.show',
- 'display:none!important'
-])assert.ok(pulseStyle.includes(text),'REGRESSION: missing approved RADIO behavior '+text);
+ '@keyframes geRadioIntroSoftHeartbeat',
+ '2.8s ease-in-out infinite!important',
+ 'data-ge-radio-indicator="cue"',
+ 'data-ge-radio-indicator="on"',
+ 'data-ge-radio-indicator="off"',
+ 'data-ge-radio-indicator="connecting"',
+ 'prefers-reduced-motion:reduce'
+])assert.ok(pulseStyle.includes(text),'REGRESSION: missing Radio cue / ON-OFF state '+text);
+for(const file of [radioBaseCSS,radioComponentsCSS,read('radio/player-button-effects.css'),read('radio/sun-lab-transparency.css')]){
+ for(const oldName of ['geRadioStartupCue','geRadioFastLubDub20261119','geRadioRedDimmerLubDub','geRadioSingleArrivalPulse']){
+  assert.ok(!file.includes(oldName),'REGRESSION: competing legacy heartbeat remains '+oldName);
+ }
+}
+for(const text of ['width:max-content!important','overflow-wrap:anywhere!important','body #liveStatus,body #liveStatus.show']){
+ assert.ok(radioComponentsCSS.includes(text),'REGRESSION: connection diagnostics were removed '+text);
+}
 requireText(radio,/const GE_RADIO2_DISABLED=true/,'Radio 2 must remain disabled for all public listeners');
 const radioBackend=read('radio-backend/start-radio.sh');
 const spectrumServer=read('radio-backend/spectrum-server.py');
@@ -200,7 +205,8 @@ requireText(radio,/Owner revision: ATTEMPT AUDIBLE Radio 1 playback immediately 
 requireText(radio,/audio\.muted=false;\s*audio\.defaultMuted=false;[\s\S]*?audio\.src=freshLiveStreamURL\(\)/,'Initial Radio 1 stream must be unmuted');
 requireText(radio,/const connected=!!\(playing&&!audio\.muted\)/,'RADIO heartbeat must not reflect muted signal probes');
 requireText(radio,/audio\.paused\|\|audio\.muted/,'Native PLAY must unlock a still-muted stream');
-requireText(radioCSS,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
+requireText(radio,/document\.body\.dataset\.geRadioIndicator=firstVisitCue/,'State machine for cue / ON / CONNECTING / OFF removed');
+requireText(pulseStyle,/\[data-ge-radio-indicator="on"\]/,'Steady red connected Radio button removed');
 requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
 requireText(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Only a genuinely stalled active Radio 1 stream may restart');
 requireText(radio,/function activateRadioOnUserGesture\(\)/,'First iPhone RADIO tap must unlock native playback synchronously');
@@ -290,4 +296,4 @@ new Script(player.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1]||'',{filenam
 requireText(sw,/const MEDIA_CACHE='ge-radio-media-v4'/,'Do not erase or rename cached listener audio');
 requireText(sw,/ge-radio-shell-\$\{VERSION\}/,'Service Worker UI cache rotation missing');
 assert.ok(read('GE_RADIO_PROTECTED_STANDARD.md').includes('## Mandatory Music interface'),'Protected standard document missing');
-console.log('PASS GE RADIO PROTECTED STANDARD: BLITZ Radio1 only, visible neutral retry, auto-attempt, progress-verified red heartbeat, music, Safari, Gate and cache');
+console.log('PASS GE RADIO PROTECTED STANDARD: one calm first-tap cue, solid ON/OFF, protected Radio/Music/Gate/Safari/cache');

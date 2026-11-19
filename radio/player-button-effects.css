@@ -1,5 +1,5 @@
 /* GE Radio player button style selections, 2026-11-16.
-   2+6: RADIO red double heartbeat + outward rings (verified audio only).
+   RADIO connection-state colors and intro cue belong to radio-indicator.css.
    1+9 in 6: PLAYER cyan glowing pulse + slow breathing light.
    8: previous / next / shuffle ice-blue glass.
    Width, line/border thickness, grid placement and click behavior unchanged. */
@@ -15,16 +15,7 @@
                inset 0 0 10px rgba(171,248,255,.3);
   }
 }
-@keyframes geRadioRedDoubleBeat{
-  0%,10%,26%,42%,70%,100%{opacity:.52;filter:brightness(.88)}
-  15%,33%{opacity:1;filter:brightness(1.44)}
-  19%,38%{opacity:.64;filter:brightness(1.02)}
-}
-@keyframes geRadioRedRingRipple{
-  0%{opacity:.6;transform:scale(1);filter:blur(0)}
-  43%{opacity:0;transform:scale(1.19);filter:blur(1px)}
-  100%{opacity:0;transform:scale(1.19);filter:blur(1px)}
-}
+/* Legacy RADIO heartbeat 1 removed. The one source is radio-indicator.css. */
 /* 6 cyan base, 1 electric glow and 9 slow breathing on the PLAYER action.
    A subtle magenta glow accent borrows the breathing effect without
    replacing the requested cyan color. */
@@ -60,52 +51,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBt
   box-shadow:0 0 18px rgba(0,255,168,.20) inset!important;
   animation:none!important;
 }
-/* The red RADIO signal NEVER animates as a success indication before
-   .ge-radio-audible is set from verified media progress. */
-html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn{
-  position:relative!important;
-  isolation:isolate!important;
-  overflow:visible!important;
-  background:linear-gradient(180deg,#b4203c,#6e122a)!important;
-  background-image:linear-gradient(180deg,#b4203c,#6e122a)!important;
-  border-color:rgba(255,111,144,.91)!important;
-  color:#fff!important;
-  animation:none!important;
-  transform:none!important;
-}
-html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::before,
-html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible.ge-radio-pulse-ack #musicGroup > #liveBtn::before{
-  content:""!important;
-  display:block!important;
-  position:absolute!important;
-  inset:-1px!important;
-  z-index:-1!important;
-  border-radius:inherit!important;
-  pointer-events:none!important;
-  background:linear-gradient(180deg,#f0395d,#c71e42 55%,#89132d)!important;
-  box-shadow:0 0 11px 3px rgba(245,38,82,.53),
-             0 0 25px 6px rgba(213,20,63,.25),
-             inset 0 0 12px rgba(255,169,187,.24)!important;
-  animation:geRadioRedDoubleBeat 2.2s ease-in-out infinite!important;
-  transform:none!important;
-}
-html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after,
-html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible.ge-radio-pulse-ack #musicGroup > #liveBtn::after{
-  content:""!important;
-  display:block!important;
-  position:absolute!important;
-  inset:-4px!important;
-  z-index:-2!important;
-  border:1px solid rgba(255,81,123,.7)!important;
-  border-radius:inherit!important;
-  pointer-events:none!important;
-  background:transparent!important;
-  box-shadow:0 0 8px rgba(255,44,98,.25)!important;
-  animation:geRadioRedRingRipple 2.2s ease-out infinite!important;
-}
-/* Startup/ready cue remains governed by the existing stream state; without
-   verified audio there must not be a new animated "ON AIR" look. */
-
+/* Legacy RADIO heartbeat 2 removed. The one source is radio-indicator.css. */
 @media (min-width:701px){
 /* Height hierarchy only. Keep every original column width, button width,
    gap, border width and outline thickness unchanged. */
@@ -133,12 +79,9 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > :is(but
 }
 }
 @media (prefers-reduced-motion:reduce){
-  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn,
-  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::before,
-  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after{
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn{
     animation:none!important;filter:none!important;
   }
-  html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup > #liveBtn::after{opacity:.2!important}
 }
 
 
@@ -177,43 +120,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > button:
   color:#f4faff!important;
 }
 
-/* Correct RADIO heartbeat: ready-to-tap is a visible red state even
-   before audio starts. Proven audible/signal states use the same rapid
-   real heartbeat; a configured network connection is not proof of audio.
-   No 6.7-second gap and no shifting or expanding button. */
-@keyframes geRadioFastLubDub20261119{
-  0%,7%,26%,43%,100%{
-    filter:brightness(1);
-    box-shadow:inset 0 0 7px rgba(255,168,186,.16),0 0 7px rgba(235,32,70,.26);
-  }
-  13%{
-    filter:brightness(1.65);
-    box-shadow:inset 0 0 12px rgba(255,205,216,.45),0 0 21px rgba(255,38,78,.78),0 0 30px rgba(231,22,69,.35);
-  }
-  32%{
-    filter:brightness(1.9);
-    box-shadow:inset 0 0 13px rgba(255,221,230,.52),0 0 24px rgba(255,41,84,.88),0 0 34px rgba(231,22,69,.42);
-  }
-}
-html.ge-radio-ui body.view-player:not(.iam-studio-open):is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
-html.ge-radio-ui body:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
-  opacity:1!important;
-  background:linear-gradient(180deg,rgba(241,37,80,.79),rgba(167,15,49,.79))!important;
-  background-image:linear-gradient(180deg,rgba(241,37,80,.79),rgba(167,15,49,.79))!important;
-  border-color:rgba(255,127,157,.96)!important;
-  color:#fff!important;
-  text-shadow:none!important;
-  animation:geRadioFastLubDub20261119 1.08s ease-in-out infinite!important;
-  overflow:visible!important;
-  contain:none!important;
-  transform:none!important;
-}
-html.ge-radio-ui body.view-player:not(.iam-studio-open):is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn::before,
-html.ge-radio-ui body.view-player:not(.iam-studio-open):is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn::after,
-html.ge-radio-ui body:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]::before,
-html.ge-radio-ui body:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]::after{
-  content:none!important;display:none!important;animation:none!important;
-}
+/* Legacy RADIO heartbeat 3 removed. The one source is radio-indicator.css. */
 /* The user can still see the controls and effect colors on a bright phone.
    Keep EQ measurement sourced from real audio, not invented animation. */
 /* Measured music controls the aura's opacity; do not override it with
@@ -234,15 +141,7 @@ html.ge-radio-ui body #sunLabPanel #geSunEQEnable[hidden]{display:none!important
 html.ge-radio-ui body #sunLabPanel.show #geSunEQEnable:not([hidden]){
   display:block!important;
 }
-@media(prefers-reduced-motion:reduce){
- html.ge-radio-ui body.view-player:not(.iam-studio-open):is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
- html.ge-radio-ui body:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
-  animation:none!important;
-  box-shadow:0 0 12px rgba(255,41,84,.45)!important;
- }
-}
-
-
+/* Legacy RADIO heartbeat 4 removed. The one source is radio-indicator.css. */
 /* Portrait Radio layout has a more-specific old PLAYER blue rule.
    Override that rule explicitly so PLAYER matches Previous/Next on iPhone. */
 html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
@@ -278,58 +177,7 @@ html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGrou
 }
 
 
-/* The old inactive-RADIO selectors intentionally have stronger :not()
-   specificity. The distinct online/tap-ready state must beat those rules
-   so the fast red beat is actually rendered before pressing RADIO. */
-html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
-html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
-  background:linear-gradient(180deg,rgba(241,37,80,.79),rgba(167,15,49,.79))!important;
-  background-image:linear-gradient(180deg,rgba(241,37,80,.79),rgba(167,15,49,.79))!important;
-  border-color:rgba(255,127,157,.96)!important;
-  color:#fff!important;
-  opacity:1!important;
-  animation:geRadioFastLubDub20261119 1.08s ease-in-out infinite!important;
-  box-shadow:0 0 12px rgba(255,41,84,.40)!important;
-}
-html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn::before,
-html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn::after,
-html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]::before,
-html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]::after{
-  content:none!important;display:none!important;animation:none!important;
-}
-@media(prefers-reduced-motion:reduce){
- html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
- html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
-  animation:none!important;
- }
-}
-
-
-/* Animate a typed intensity variable rather than filter/box-shadow directly:
-   legacy !important glow properties would otherwise freeze the heartbeat. */
-@property --ge-radio-heart-intensity{
- syntax:'<number>';
- inherits:false;
- initial-value:1;
-}
-@keyframes geRadioFastLubDub20261119{
- 0%,8%,24%,44%,100%{--ge-radio-heart-intensity:1}
- 13%{--ge-radio-heart-intensity:1.65}
- 31%{--ge-radio-heart-intensity:2.05}
- 37%{--ge-radio-heart-intensity:1.12}
-}
-html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
-html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
- filter:brightness(var(--ge-radio-heart-intensity,1))!important;
-}
-@media(prefers-reduced-motion:reduce){
- html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #musicGroup > #liveBtn,
- html.ge-radio-ui[class] body[class]:is(.ge-radio-tap-ready,.ge-radio-signal-ready,.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
-  filter:brightness(1.25)!important;
- }
-}
-
-
+/* Legacy RADIO heartbeat 5 removed. The one source is radio-indicator.css. */
 /* Desktop Previous/Next have the same specificity conflict as portrait.
    Enforce one identical glass color across all three transport keys. */
 html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){

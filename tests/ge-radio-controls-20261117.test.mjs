@@ -10,6 +10,22 @@ assert.match(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAYER':'PAUSE
 assert.match(radio,/playBtn\.textContent=activeSong\?'PAUSE':'PLAYER'/);
 assert.doesNotMatch(radio,/playButton\.textContent=geInlineMusicPaused\?'PLAY'/);
 assert.doesNotMatch(radio,/playBtn\.textContent=activeSong\?'PAUSE':resumableSong\?'PLAY'/);
+// Radio 47: the first ready cue is acknowledged once per page visit.
+assert(radio.includes('const firstVisitCue=!acknowledged&&stationConfigured;'),'Startup cue must be independent of autoplay');
+assert.match(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/);
+assert.doesNotMatch(radio,/document\.body\.classList\.remove\('ge-radio-pulse-ack'/);
+
+
+const indicatorCSS=readFileSync('radio/radio-indicator.css','utf8');
+assert(indicatorCSS.includes('@keyframes geRadioIntroSoftHeartbeat'),'One intro animation must exist');
+assert(indicatorCSS.includes('[data-ge-radio-indicator="on"]'),'Solid ON style must exist');
+assert(indicatorCSS.includes('[data-ge-radio-indicator="off"]'),'Solid OFF style must exist');
+for(const file of ['radio/radio-base.css','radio/radio-components.css','radio/player-button-effects.css','radio/sun-lab-transparency.css']){
+ const old=readFileSync(file,'utf8');
+ for(const name of ['geRadioStartupCue','geRadioFastLubDub20261119','geRadioRedDimmerLubDub','geRadioSingleArrivalPulse']){
+   assert(!old.includes(name),'Competing old RADIO heartbeat remains in '+file+': '+name);
+ }
+}
 
 const browser=await puppeteer.launch({
  executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',
@@ -31,7 +47,7 @@ try{
     if(innerWidth<700)document.body.classList.add('portrait-player');
    });
    // Sun Lab transparency has three independent persistent, real CSS controls.
-   const transparency=await page.evaluate(()=>{
+   const transparency=await page.evaluate(async()=>{
      const ids=['geAlphaSun','geAlphaMusic','geAlphaOther'];
      const set=(id,value)=>{
        const el=document.getElementById(id);if(!el)throw new Error('Missing transparency slider '+id);
@@ -46,11 +62,13 @@ try{
      const opens=toggle.getAttribute('aria-expanded')==='true'&&
        !document.getElementById('geSunLabTransparencyFields').hidden;
      set('geAlphaSun',20);set('geAlphaMusic',65);set('geAlphaOther',80);
+     await new Promise(resolve=>setTimeout(resolve,560)); // Let calm color fades settle.
      const changed={sun:style('geLogo').opacity,music:style('playBtn').backgroundImage,
        others:style('geBgQuickPrev').backgroundColor,
        saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')};
      toggle.click();
      set('geAlphaSun',0);set('geAlphaMusic',50);set('geAlphaOther',50);
+     await new Promise(resolve=>setTimeout(resolve,560));
      return {initial,changed,opens,closed:document.getElementById('geSunLabTransparencyFields').hidden};
    });
    console.log('TRANSPARENCY_DEBUG '+width+'x'+height+' '+JSON.stringify(transparency));
@@ -87,6 +105,61 @@ try{
 
 
 
+   // Radio 47: actual near-invisible fills at 99%, no opaque fake layer.
+   const radio47Fade=await page.evaluate(async()=>{
+     const set=(id,v)=>{const x=document.getElementById(id);x.value=String(v);x.dispatchEvent(new Event('input',{bubbles:true}));};
+     set('geAlphaMusic',75);set('geAlphaOther',99);
+     await new Promise(resolve=>setTimeout(resolve,560));
+     const style=id=>getComputedStyle(document.getElementById(id));
+     const result={
+       musicBlue:style('geMusicV5Button').backgroundImage,
+       player:style('playBtn').backgroundImage,
+       bottom:style('shareBtn').backgroundColor,
+       background:style('geBgQuickPrev').backgroundColor,
+       panel:style('bgGroup').backgroundColor,
+       text:style('shareBtn').color,
+       opacity:style('shareBtn').opacity,
+       saved:JSON.parse(localStorage.getItem('GE_RADIO_TRANSPARENCY_V1')||'null')
+     };
+     set('geAlphaMusic',50);set('geAlphaOther',50);
+     await new Promise(resolve=>setTimeout(resolve,560));
+     return result;
+   });
+   assert(radio47Fade.musicBlue.includes('rgba(22, 94, 171, 0.25)'),'MUSIC must remain blue at 75% transparency');
+   assert(radio47Fade.player.includes('rgba(53, 101, 142, 0.25)'),'PLAYER must react to 75% transparency');
+   assert(radio47Fade.bottom.includes('rgba(185, 165, 232, 0.01)'),'Bottom button fill must be 99% transparent');
+   assert(radio47Fade.background.includes('rgba(12, 44, 72, 0.01)'),'Background button fill must be 99% transparent');
+   assert(radio47Fade.panel.includes('rgba(4, 20, 35, 0.01)'),'Bottom group panel must also fade at 99%');
+   assert.equal(radio47Fade.opacity,'1','Text/icons must not be faded with parent opacity');
+   assert.equal(radio47Fade.saved.music,75,'User choice must be saved');
+   assert.equal(radio47Fade.saved.other,99,'User choice must be saved');
+
+   // Heartbeat ends after first press. A simulated visual state tests CSS
+   // without starting a real remote audio stream during layout regression.
+   const radio47Beat=await page.evaluate(async()=>{
+     const el=document.getElementById('liveBtn');
+     const originalIndicator=document.body.dataset.geRadioIndicator;
+     const originallyAudible=document.body.classList.contains('ge-radio-audible');
+     document.body.classList.add('ge-radio-pulse-ack','ge-radio-audible');
+     document.body.dataset.geRadioIndicator='on';
+     el.setAttribute('aria-pressed','true');
+     await new Promise(resolve=>setTimeout(resolve,560));
+     const on={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
+     document.body.classList.remove('ge-radio-audible');
+     document.body.dataset.geRadioIndicator='off';
+     el.setAttribute('aria-pressed','false');
+     await new Promise(resolve=>setTimeout(resolve,560));
+     const off={animation:getComputedStyle(el).animationName,color:getComputedStyle(el).color};
+     document.body.classList.remove('ge-radio-pulse-ack');
+     document.body.classList.toggle('ge-radio-audible',originallyAudible);
+     if(originalIndicator)document.body.dataset.geRadioIndicator=originalIndicator;
+     else document.body.removeAttribute('data-ge-radio-indicator');
+     return {on,off};
+   });
+   assert.equal(radio47Beat.on.animation,'none','ON must stay steadily lit after the first tap');
+   assert.equal(radio47Beat.off.animation,'none','OFF must remain quiet without another heartbeat');
+   assert.notEqual(radio47Beat.on.color,radio47Beat.off.color,'ON/OFF must be distinct');
+
    const get=()=>page.evaluate(()=>{
     const ids=['prevBtn','playBtn','nextBtn','shuffleBtn','bgPer','bgShuf','bgPrev','hudCombined','hudAutoHide','contactLaunchBtn','accessLaunchBtn','shareBtn'];
     const ret={};
@@ -112,6 +185,7 @@ try{
        music:style('geMusicV5Button').backgroundImage,
        radioAnimation:style('liveBtn').animationDuration,
        radioAnimationName:style('liveBtn').animationName,
+       indicatorState:document.body.dataset.geRadioIndicator,
        reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
        tapReady:document.body.classList.contains('ge-radio-tap-ready'),
        verified:document.body.classList.contains('ge-radio-audible'),
@@ -127,8 +201,8 @@ try{
    assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.5\)/,'MUSIC keeps vivid blue but defaults to 50% background opacity');
    assert.doesNotMatch(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab must not force the old 2.8x brightness in any mode');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
-     assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
-     if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle. '+JSON.stringify(visuals));
+     assert.equal(visuals.indicatorState,'cue','Before first tap the gentle intro cue appears');
+     if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'2.8s','Only the comfortable introductory heartbeat may animate. '+JSON.stringify(visuals));
      assert.equal(visuals.verified,false,'Ready-to-tap must not falsely claim audio playback');
    }
    console.log('RADIO_VISUALS '+width+'x'+height+' '+JSON.stringify(visuals));

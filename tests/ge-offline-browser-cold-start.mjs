@@ -234,6 +234,13 @@ try{
  assert.ok(prepared.stations>0&&prepared.stationTotal===prepared.stations);
  assert.equal(prepared.saved,1);
  await page.waitForFunction(()=>document.getElementById('offlineLaunchBtn')?.dataset.geState==='ready',{timeout:20000});
+ // Visual selection fades are intentional. Verify the final READY green
+ // after CSS transition completion rather than sampling halfway through.
+ await page.waitForFunction(()=>{
+  const btn=document.getElementById('offlineLaunchBtn');
+  return btn?.dataset.geState==='ready'&&
+   /18, 108, 71/.test(getComputedStyle(btn).backgroundColor);
+ },{timeout:4000});
  const onlineBadge=await page.evaluate(()=>{
   const btn=document.getElementById('offlineLaunchBtn');
   return {state:btn.dataset.geState,color:getComputedStyle(btn).backgroundColor,
