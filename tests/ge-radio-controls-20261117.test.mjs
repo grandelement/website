@@ -125,7 +125,7 @@ try{
    assert.equal(visuals.player,visuals.next,'PLAYER should match Next blue glass');
    assert.match(visuals.player,/rgba?\(53, 101, 142, 0\.5\)/,'Transport buttons should default to 50% transparent backgrounds');
    assert.match(visuals.music,/rgba?\(22, 94, 171, 0\.5\)/,'MUSIC keeps vivid blue but defaults to 50% background opacity');
-   assert.match(visuals.auraFilter,/brightness\(2\.8\)/,'Sun Lab effects must have global visibility boost');
+   assert.match(visuals.auraFilter,/brightness\(1\.08\)/,'Sun Lab must no longer force overpowering 2.8x brightness');
    if(visuals.radioLabel==='RADIO'&&visuals.online){
      assert(visuals.tapReady,'Ready-to-tap RADIO should have the visible red indicator');
      if(!visuals.reducedMotion)assert.equal(visuals.radioAnimation,'1.08s','RADIO heartbeat must follow a 1.08-second cycle. '+JSON.stringify(visuals));
