@@ -101,8 +101,27 @@ async function githubAppJwt(env){
   const appId=String(env.GITHUB_APP_ID||'').trim();
   const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
   if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
-  const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
-  const bytes=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
+  // WebCrypto accepts PKCS#8. Wrap PKCS#1 in a PKCS#8 PrivateKeyInfo
+  // without changing or exporting the owner's private key.
+  const pkcs1=/^-----BEGIN RSA PRIVATE KEY-----([\\s\\S]*?)-----END RSA PRIVATE KEY-----$/;
+  const pkcs8=/^-----BEGIN PRIVATE KEY-----([\\s\\S]*?)-----END PRIVATE KEY-----$/;
+  const match=pem.match(pkcs1)||pem.match(pkcs8);
+  if(!match)throw new Error('Unsupported GitHub App private key PEM format.');
+  const body=match[1].replace(/\\s/g,'');
+  const raw=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  const derLength=n=>{
+    if(n<128)return Uint8Array.of(n);
+    const bytes=[];
+    while(n>0){bytes.unshift(n&255);n=Math.floor(n/256);}
+    return Uint8Array.of(0x80|bytes.length,...bytes);
+  };
+  const der=(tag,content)=>Uint8Array.of(tag,...derLength(content.length),...content);
+  const bytes=pem.match(pkcs1)?der(0x30,Uint8Array.of(
+    0x02,0x01,0x00,
+    0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0x00,
+    ...der(0x04,raw)
+  )):raw;
   const key=await crypto.subtle.importKey('pkcs8',bytes,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   const now=Math.floor(Date.now()/1000);
   const header=b64url(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})));
