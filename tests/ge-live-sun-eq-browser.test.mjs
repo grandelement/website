@@ -31,7 +31,7 @@ try{
    await audio.play();
    return {src:audio.currentSrc,mode:window.GELiveAudioEQ.status().mode};
  },song);
- assert.equal(active.mode==='capture'||active.mode==='media-element',true,'native player analyzer must initialize');
+ assert.equal(active.mode,'gate-shared','EQ must use the actual Gate Web Audio source, not a second graph');
  await page.waitForFunction(()=>{
    const sample=window.GELiveAudioEQ?.read?.();
    const s=window.GELiveAudioEQ?.status?.();
