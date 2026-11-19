@@ -906,12 +906,31 @@ export default {
       try{
         const hasApp=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
         const hasFallback=!!env.GITHUB_TOKEN;
-        const test=await github(env,'config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main'),{method:'GET'});
+        const path='config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main');
+        const test=await github(env,path,{method:'GET'});
         const ok=test.ok;
+        // A successful generic read can be rescued by the expiring legacy PAT.
+        // Explicitly verify the App using an isolated environment without it.
+        let appReadVerified=false,appReadHttp=null;
+        if(hasApp){
+          try{
+            const appOnly=await github({...env,GITHUB_TOKEN:undefined},path,{method:'GET'});
+            appReadVerified=appOnly.ok;
+            appReadHttp=appOnly.status;
+          }catch(_error){
+            // Do not send secret keys, JWTs or GitHub response bodies to browser.
+            appReadVerified=false;
+          }
+        }
         return json({ok,github_ready:ok,github_http:test.status,
           server_credential_configured:hasApp||hasFallback,
           credential_mode:hasApp?'github_app'+(hasFallback?'+fallback':''):hasFallback?'server_token':'missing',
-          action:ok?'ready':'repair GitHub App installation/permissions or the server-side token in the Publisher Worker'},ok?200:503,cors);
+          app_read_verified:appReadVerified,app_read_http:appReadHttp,
+          legacy_token_configured:hasFallback,
+          action:!ok?'repair GitHub publisher authorization':
+            !appReadVerified?'install or repair GitHub App; legacy token is not a permanent solution':
+            hasFallback?'test a real App-only write/readback before removing the legacy token':
+            'renewable GitHub App read verified; verify a real write/readback'},ok?200:503,cors);
       }catch(error){
         return json({ok:false,github_ready:false,server_credential_configured:!!(env.GITHUB_TOKEN||
           (env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY)),
