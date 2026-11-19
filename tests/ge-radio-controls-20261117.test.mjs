@@ -64,11 +64,11 @@ try{
    console.log('TRANSPARENCY_STYLES '+JSON.stringify(transparencyStyles));
    assert(transparency.opens&&transparency.closed,'Transparency drawer must open and close');
    assert.equal(transparency.initial.sun,'1','Blue Sun remains opaque by default');
-   assert.match(transparency.initial.music,/rgba\\(53, 101, 142, 0\\.5\\)/,'Music buttons should start 50% transparent');
-   assert.match(transparency.initial.others,/rgba\\(12, 44, 72, 0\\.5\\)/,'Other buttons should start 50% transparent');
+   assert.match(transparency.initial.music,/rgba\(53, 101, 142, 0\.5\)/,'Music buttons should start 50% transparent');
+   assert.match(transparency.initial.others,/rgba\(12, 44, 72, 0\.5\)/,'Other buttons should start 50% transparent');
    assert.equal(transparency.changed.sun,'0.8','Sun slider must change artwork opacity without fading EQ rays');
-   assert.match(transparency.changed.music,/rgba\\(53, 101, 142, 0\\.35\\)/,'Music slider must adjust painted alpha');
-   assert.match(transparency.changed.others,/rgba\\(12, 44, 72, 0\\.2\\)/,'Other slider must adjust painted alpha');
+   assert.match(transparency.changed.music,/rgba\(53, 101, 142, 0\.35\)/,'Music slider must adjust painted alpha');
+   assert.match(transparency.changed.others,/rgba\(12, 44, 72, 0\.2\)/,'Other slider must adjust painted alpha');
    assert.deepEqual(transparency.changed.saved,{sun:20,music:65,other:80},'Three transparency values must save separately');
    console.log('SUNLAB_TRANSPARENCY '+width+'x'+height+' '+JSON.stringify(transparency));
 
