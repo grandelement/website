@@ -38,6 +38,24 @@ try{
    const audio=document.getElementById('audio');
    return !!sample&&s?.live===true&&audio?.currentTime>.3;
  },{timeout:30000,polling:200});
+ // Waterfall is the default iPhone-looking radial mode in the user screenshot.
+ // Verify real FFT moves the actual spokes before switching to Spectrum.
+ const radialFrames=[];
+ for(let i=0;i<5;i++){
+   radialFrames.push(await page.evaluate(()=>{
+     const rays=[...document.querySelectorAll('#sunEQAura .sun-eq-radial-group .sun-eq-ray')];
+     return {
+       count:rays.length,
+       opacity:Number(getComputedStyle(document.getElementById('sunEQAura')).opacity),
+       shape:rays.slice(0,45).map(r=>r.getAttribute('x2')+'|'+r.getAttribute('y2')+'|'+r.style.opacity).join(';')
+     };
+   }));
+   await new Promise(resolve=>setTimeout(resolve,190));
+ }
+ assert(radialFrames.every(f=>f.count===72),'Waterfall needs 72 real-frequency radial spokes');
+ assert(radialFrames.some(f=>f.opacity>.95),'measured music should make Waterfall visible');
+ assert(new Set(radialFrames.map(f=>f.shape)).size>=2,'Waterfall spoke lengths must change with real music');
+ console.log('PASS Waterfall spokes: '+new Set(radialFrames.map(f=>f.shape)).size+' distinct actual music frames');
  // Change an actual visual mode, then verify its geometry responds.
  await page.evaluate(()=>document.querySelector('[data-sun-mode="spectrum"]')?.click());
  await page.waitForFunction(()=>document.querySelector('#sunEQAura')?.children.length===110,{timeout:5000});
@@ -84,6 +102,16 @@ try{
  const opted=await iosPage.evaluate(()=>window.GELiveAudioEQ.status());
  assert.equal(opted.iosEnabled,true,'iPhone opt-in must activate the real analyzer');
  assert.notEqual(opted.mode,'none','iPhone opt-in must attach to the native audio element');
+ await iosPage.evaluate(async url=>{
+   const a=document.getElementById('audio');a.src=url;a.load();
+   await a.play();
+ },song);
+ await iosPage.waitForFunction(()=>{
+   const audio=document.getElementById('audio');
+   return !!window.GELiveAudioEQ.read()&&audio.currentTime>.25;
+ },{timeout:30000,polling:200});
+ assert.equal((await iosPage.evaluate(()=>window.GELiveAudioEQ.status())).live,true,
+   'opted-in iPhone user agent must report real MP3 FFT energy');
  await iosPage.goto('http://127.0.0.1:8765/radio/?eq_preview=1',{waitUntil:'domcontentloaded',timeout:45000});
  await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
  const preview=await iosPage.evaluate(()=>({arm:window.GELiveAudioEQ.arm(),status:window.GELiveAudioEQ.status()}));
