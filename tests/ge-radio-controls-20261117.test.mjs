@@ -82,7 +82,7 @@ try{
    });
    console.log('SUNLAB_OTHER_BUTTONS '+width+'x'+height+' '+JSON.stringify(otherGroupCoverage));
    for(const [id,paint] of Object.entries(otherGroupCoverage))
-     assert.match(paint.background,/rgba\\([0-9]+, [0-9]+, [0-9]+, 0\\.5\\)/,
+     assert.match(paint.background,/rgba\([0-9]+, [0-9]+, [0-9]+, 0\.5\)/,
        id+' should use 50% transparent background paint: '+JSON.stringify(paint));
 
 
