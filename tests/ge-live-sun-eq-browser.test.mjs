@@ -14,9 +14,9 @@ try{
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
  assert.equal((await page.$('button[data-sun-mode]')).length,8,'eight effects must exist');
- await page.waitForFunction(()=>Number(document.getElementById('sunEQAura')?.style.opacity)===0.075,{timeout:8000});
+ await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:8000});
  const idle=await page.evaluate(()=>({
-   opacity:document.getElementById('sunEQAura').style.opacity,
+   opacity:getComputedStyle(document.getElementById('sunEQAura')).opacity,
    brightness:JSON.parse(localStorage.getItem('GE_SUN_LAB_V7')||'{}').brightness
  }));
  assert.equal(Number(idle.opacity),0.075,'fixed Sun rays must be nearly invisible with no FFT');
@@ -64,7 +64,7 @@ try{
  await page.evaluate(()=>document.getElementById('audio').pause());
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
  assert.equal(stopped,null,'paused playback must not show live signal');
- await page.waitForFunction(()=>Number(document.getElementById('sunEQAura')?.style.opacity)===0.075,{timeout:5000});
+ await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:5000});
  // Mobile opt-in contract: default iPhone session never touches the audio graph.
  const iosUA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
  const iosPage=await browser.newPage();
