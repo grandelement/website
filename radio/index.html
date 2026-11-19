@@ -7381,7 +7381,7 @@ Vector ${vector}. ${pair[1]}.`;
     const forwardRate=guided?Math.max(rate*arrivalSlow,AUTOPILOT_MIN_APPROACH_RATE):rate*arrivalSlow;
     approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*forwardRate*dt,.002,1);
     updateAlbumPlanets(dt);
-    updateApproachUI();updateEQ();
+    updateApproachUI();
     if(targetingActive)syncFrequencyScanner(dt);
     if(!approach.nextPing)approach.nextPing=t+rand(18000,42000);
     if(t>=approach.nextPing){if(targetingActive)syncFrequencyScanner(dt);updateRadarBlips();approach.nextPing=t+rand(50000,135000);}
@@ -7808,7 +7808,26 @@ Vector ${vector}. ${pair[1]}.`;
   }
   syncArrivalOptions();autoGrowArrival();
   if(analysisText)analysisText.textContent='Passive scan active.';
-  updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
+  // The music visualizer MUST have its own animation loop. If a planet/Ship
+  // UI callback fails, Sun EQ still samples the current audio and animates.
+  let lastGEAudioFrame=0,lastGEAudioWarning=0;
+  function animateGEAudio(ts){
+    if(!document.hidden&&ts-lastGEAudioFrame>=32){
+      lastGEAudioFrame=ts;
+      try{updateEQ();}
+      catch(error){
+        if(ts-lastGEAudioWarning>12000){
+          lastGEAudioWarning=ts;
+          console.warn('GE Sun EQ render will retry next frame',error);
+        }
+      }
+    }
+    requestAnimationFrame(animateGEAudio);
+  }
+  updateApproachUI();updateRadarBlips();
+  requestAnimationFrame(animateGEAudio);
+  requestAnimationFrame(animationFrame);
+  applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
 
 /* INNER GATE CONTROLLER
