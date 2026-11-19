@@ -116,7 +116,10 @@ async function githubCredential(env){
     if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
     throw new Error('GitHub publishing credentials are not configured.');
   }
-  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID);
+  // Cache identity includes a non-reversible digest of the App private key.
+  // When the owner rotates the key, never reuse a token minted by the old key.
+  const keyFingerprint=Array.from(await sha256(String(env.GITHUB_APP_PRIVATE_KEY))).map(n=>n.toString(16).padStart(2,'0')).join('');
+  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID)+':'+keyFingerprint;
   if(appTokenCache&&appTokenCache.identity===identity&&appTokenCache.expires>Date.now()+120000){
     return appTokenCache.token;
   }
