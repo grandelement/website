@@ -1403,6 +1403,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser > .selectionBar .selectionActions{order:3!important;min-width:0!important;flex:1 1 0!important}
 .window.geAlbumDetailClean > .scroll .albumCollectionHeading{display:flex!important;visibility:visible!important;opacity:1!important;justify-content:center!important;min-height:44px!important;padding:7px 5px!important;margin:0 auto 6px!important}
 .window.geAlbumDetailClean > .scroll .albumDetailTitle{display:block!important;visibility:visible!important;opacity:1!important;text-align:center!important;font-size:clamp(23px,6.5vw,34px)!important;font-weight:900!important;color:white!important}
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle{width:100%!important;min-height:44px!important;margin:0!important;padding:4px 6px!important;background:transparent!important;border:0!important;box-shadow:none!important;cursor:pointer!important;touch-action:manipulation}
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle:focus-visible{outline:2px solid #b9eeff!important;outline-offset:2px}
 /* OFFLINE is always findable. If locked{display:flex!important;flex-wrap:wrap!important;gap:5px!important;padding:4px 9px!important}
 
 
@@ -2639,6 +2641,24 @@ function chosenSongs(){
  }
  return state.view==='all'||state.view==='browse-songs'?state.tracks:[];
 }
+// A title tap changes every accessible track on that album in one action.
+function selectableAlbumTracks(album){
+ const access=musicAccessActive();
+ const allowed=access?.restricted?new Set(access.allowed):null;
+ return state.tracks.filter(track=>track.album===album&&(!allowed||allowed.has(track.path)));
+}
+function toggleAlbumTracks(album){
+ const tracks=selectableAlbumTracks(album);
+ if(!tracks.length){say('No available songs on '+album);return;}
+ const allSelected=tracks.every(track=>state.selected.has(track.path));
+ for(const track of tracks){
+  if(allSelected)state.selected.delete(track.path);
+  else state.selected.add(track.path);
+ }
+ if(!allSelected)state.lastSelectedAlbum=album;
+ saveSelected();
+ render();
+}
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
  const paths=tracks.map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
@@ -2987,7 +3007,7 @@ function render(){
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
         heading.setAttribute('aria-label','Select all songs on '+track.album);
-        heading.addEventListener('click',()=>{const tracks=state.tracks.filter(t=>t.album===track.album);const all=tracks.every(t=>state.selected.has(t.path));for(const t of tracks)all?state.selected.delete(t.path):state.selected.add(t.path);if(!all)state.lastSelectedAlbum=track.album;saveSelected();render()});
+        heading.addEventListener('click',()=>toggleAlbumTracks(track.album));
         section.append(heading);
         scroller.append(section);
       }
@@ -2996,7 +3016,15 @@ function render(){
   }else if(state.view.startsWith('album:')){
     const name=state.view.slice(6);
     const bar=elem('div','albumCollectionHeading');
-    bar.append(elem('strong','albumDetailTitle',name));
+    const albumTitle=elem('button','albumDetailTitle',name);
+    albumTitle.type='button';
+    const selectable=selectableAlbumTracks(name);
+    const allSelected=selectable.length>0&&selectable.every(track=>state.selected.has(track.path));
+    albumTitle.setAttribute('aria-pressed',String(allSelected));
+    albumTitle.setAttribute('aria-label',(allSelected?'Deselect':'Select')+' all songs on '+name);
+    albumTitle.title=(allSelected?'Deselect':'Select')+' all songs on '+name;
+    albumTitle.addEventListener('click',()=>toggleAlbumTracks(name));
+    bar.append(albumTitle);
     scroller.append(bar);
   }
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
