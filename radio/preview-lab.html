@@ -1067,6 +1067,12 @@ async function startTrack(t){
  else audio.removeAttribute('crossorigin');
  const requestedURL=geAudioSourceURL(t);
  audio.src=requestedURL;audio.preload='auto';audio.muted=false;
+ // The album's own Gate already owns this audio element. Arm its existing
+ // shared Web Audio graph from the original PLAY gesture for real FFT.
+ // Do not attach another source or use stored per-song spectrum snapshots.
+ if(new URL(requestedURL,location.href).origin===location.origin){
+   try{window.GEAudioGain?.arm?.();}catch(_e){}
+ }
  geRadioEmbedNotify('ge-radio-music-playback-requested',{path:cleanMusicPath(t.path),sourceHost:new URL(requestedURL).host});
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.
