@@ -28,11 +28,14 @@ function init(){
  actions.append(starter,advanced);box.append(actions);
  const status=document.createElement('p');status.id='geSunCompactStatus';status.setAttribute('role','status');status.textContent='Movement requires live audio spectrum data.';box.append(status);
  grid.before(box);
- const originalRows=[...grid.children].filter(el=>el.id!=='geSunLabTransparency'&&el.id!=='spectrumMeter');
- const advancedArea=document.createElement('div');advancedArea.id='geSunAdvanced';advancedArea.hidden=true;
- for(const el of originalRows)advancedArea.append(el);
- grid.append(advancedArea);
- advanced.addEventListener('click',()=>{advancedArea.hidden=!advancedArea.hidden;advanced.setAttribute('aria-expanded',String(!advancedArea.hidden));advanced.textContent=advancedArea.hidden?'ADVANCED SETTINGS ▾':'ADVANCED SETTINGS ▴';});
+ // Preserve the original Sun Lab control DOM and mode selectors.
+ // Reparenting these rows breaks the existing EQ mode UI and visualizer wiring.
+ advanced.addEventListener('click',()=>{
+   const expanded=advanced.getAttribute('aria-expanded')!=='true';
+   advanced.setAttribute('aria-expanded',String(expanded));
+   advanced.textContent=expanded?'ADVANCED SETTINGS ▴':'ADVANCED SETTINGS ▾';
+   grid.hidden=!expanded;
+ });
  const aura=$('sunEQAura')||document.querySelector('.sun-eq-aura');
  let position=0;try{position=Number(localStorage.getItem(KEY)||0)||0;}catch(_){}
  function applyPosition(v){position=v; if(aura)aura.dataset.gePosition=String(v);try{localStorage.setItem(KEY,String(v));}catch(_){}}
