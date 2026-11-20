@@ -1,0 +1,50 @@
+name: GE live site health monitor
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/ge-live-health.mjs'
+      - '.github/workflows/ge-live-health.yml'
+permissions:
+  contents: read
+  issues: write
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser testing dependency
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Test live desktop and mobile pages
+        id: health
+        continue-on-error: true
+        run: node tests/ge-live-health.mjs > ge-health-report.json 2>&1
+      - name: Publish report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ge-live-health-report
+          path: ge-health-report.json
+      - name: Create or update failure issue
+        if: steps.health.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='GE live site health check failed'
+          body="$(cat ge-health-report.json)"
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "\$body"
+          else
+            gh issue create --title "$title" --body "\$body"
+          fi
+      - name: Mark failed check
+        if: steps.health.outcome == 'failure'
+        run: exit 1
