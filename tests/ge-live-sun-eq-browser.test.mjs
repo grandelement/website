@@ -184,6 +184,10 @@ try{
  const opted=await iosPage.evaluate(()=>window.GELiveAudioEQ.status());
  assert.equal(opted.iosEnabled,true,'iPhone opt-in must activate the real analyzer');
  assert.notEqual(opted.mode,'none','iPhone opt-in must attach to the native audio element');
+ await iosPage.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
+ await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ assert.equal(await iosPage.evaluate(()=>window.GELiveAudioEQ.status().iosEnabled),true,
+  'iPhone live-EQ opt-in must remain enabled after reload');
  await iosPage.evaluate(async url=>{
    const a=document.getElementById('player');a.src=url;a.load();
    await a.play();
