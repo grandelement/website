@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
-</head>
+<link rel="stylesheet" href="./sun-lab-compact.css?v=20261120-v1"></head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
 /* Set the saved player/Ship mode before layout. The full controller takes over later. */
@@ -7111,7 +7111,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(barMode && rays.length){
       const angleOffset=-90;
       const baseRadius=50.4;
-      const radiusPush=clamp((distMul-.55)*22,-22,18);
+      const radiusPush=clamp(Number(sunEQAura.dataset.gePosition||0),-30,30);
       const radialOn=sunLab.radialOn!==false;
       const cascadeOn=!!sunLab.cascadeOn;
       const cascadeSpeed=clamp(sunNum('cascadeSpeed',58)/100,0,1);
@@ -7126,8 +7126,8 @@ Vector ${vector}. ${pair[1]}.`;
           const mirrored = pct<=.5 ? pct*2 : (1-pct)*2;
           sampleNorm = waveType==='mirrorflip' ? 1-mirrored : mirrored;
         }
-        const band=sampleBandValue(sunEQLevels,sampleNorm)||avg;
-        const flow=sampleBandValue(sunEQPulseFlow,sampleNorm)||avg;
+        const band=sunEQLevels.length?sampleBandValue(sunEQLevels,sampleNorm):avg;
+        const flow=sunEQPulseFlow.length?sampleBandValue(sunEQPulseFlow,sampleNorm):avg;
         const bandPos=sampleNorm;
         const energy=live?clamp(Math.pow(clamp((band-.02)*(1.9*contrastMul),0,1),.86)*.78 + Math.pow(clamp((flow-.02)*(1.82*contrastMul),0,1),.90)*.82,0,1):0;
         rayEnergy[i]=energy;
@@ -9231,6 +9231,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
  });
 })();
 </script>
+<script defer src="./sun-lab-compact.js?v=20261119-v1"></script>
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
 <script defer src="./live-spectrum.js?v=20261119-live-fft-v2"></script>
 <script defer src="./offline-spectrum.js?v=20261115-v1"></script>
