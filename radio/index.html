@@ -6960,7 +6960,8 @@ Vector ${vector}. ${pair[1]}.`;
     const outer=sunEQAura.querySelector('.sun-glow-outer');
     if(!inner||!outer)return;
     const raw=currentAudioEnergy(live);
-    const pulse=.86+Math.pow(clamp(raw*1.65,0,1),.72)*.38;
+    // Change radius perceptibly with live transients; leave color independent.
+    const pulse=.74+Math.pow(clamp(raw*1.8,0,1),.75)*.64;
     const innerReach=clamp(sunNum('innerGlowReach',18)/100,0,1);
     const outerReach=clamp(sunNum('outerGlowReach',42)/100,0,1);
     const innerStrength=clamp(sunNum('innerGlowStrength',150)/220,0,1);
@@ -6968,10 +6969,10 @@ Vector ${vector}. ${pair[1]}.`;
     const innerHue=((sunNum('innerGlowHue',205)%360)+360)%360;
     const outerHue=((sunNum('outerGlowHue',188)%360)+360)%360;
 
-    const innerScale=1.00+innerReach*.24+raw*.035;
-    const outerScale=1.02+outerReach*.48+raw*.055;
-    const innerAlpha=clamp(innerStrength*(.76+raw*.24),.30,1);
-    const outerAlpha=clamp(outerStrength*(.68+raw*.32),.26,1);
+    const innerScale=1.00+innerReach*.24+raw*.12;
+    const outerScale=1.02+outerReach*.48+raw*.18;
+    const innerAlpha=clamp(innerStrength*(.18+raw*.88),.06,1);
+    const outerAlpha=clamp(outerStrength*(.12+raw*.92),.05,1);
     const innerBlur=3+innerReach*11;
     const outerBlur=8+outerReach*26;
 
@@ -7326,6 +7327,17 @@ Vector ${vector}. ${pair[1]}.`;
         if(live)eqLastSignalAt=performance.now();
       }catch(_e){}
     }
+    // Visual transient processor is driven exclusively by measured live FFT;
+    // this never changes the audible track, volume, or Gate.
+    if(live&&eqData?.length&&window.GESunPulseEngine?.process){
+      eqData=window.GESunPulseEngine.process(eqData,{
+        pulseDepth:sunLab.pulseDepth,
+        pulseSensitivity:sunLab.pulseSensitivity,
+        pulseAttack:sunLab.pulseAttack,
+        pulseRelease:sunLab.pulseRelease,
+        pulseNoiseFloor:sunLab.pulseNoiseFloor
+      },performance.now())||eqData;
+    }else if(!live)window.GESunPulseEngine?.reset?.();
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
