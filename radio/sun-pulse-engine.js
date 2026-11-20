@@ -30,13 +30,13 @@ function process(raw,opts={},time=performance.now()){
   for(let i=0;i<n;i++){
     const v=clamp(raw[i]/255);
     // Track continuous loudness slowly but follow quiet passages promptly.
-    const f=floor[i] += (v-floor[i])*(v<floor[i]?.07:.007);
+    const f=floor[i] += (v-floor[i])*(v<floor[i]?.07:.012);
     const excess=Math.max(0,v-f-noise*.35);
     peak[i]=Math.max(excess,peak[i]*Math.pow(.988,elapsed),.045);
     const relative=clamp(excess/peak[i]);
     // A rising edge responds to a new drum strike, not to overall brightness.
     const onset=clamp(Math.max(0,v-previous[i])*sensitivity*9);
-    const beat=clamp(Math.max(relative*.52,onset));
+    const beat=clamp(Math.max(relative*.16,onset));
     const contrast=clamp((beat-noise)*sensitivity);
     const shape=Math.pow(contrast,1+depth*1.15);
     const target=clamp(v*(1-depth)*.85+shape*depth);
