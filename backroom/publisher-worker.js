@@ -147,18 +147,42 @@ async function githubCredential(env){
   // a visitor, and never expose either credential to the browser.
   try{
   const jwt=await githubAppJwt(env);
-  const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(String(env.GITHUB_APP_INSTALLATION_ID))+'/access_tokens',{
-    method:'POST',
-    headers:{
-      'Accept':'application/vnd.github+json',
-      'Authorization':'Bearer '+jwt,
-      'X-GitHub-Api-Version':'2022-11-28',
-      'User-Agent':'GE-Studios-Backroom-Publisher'
-    },
-    body:JSON.stringify({repositories:[env.GITHUB_REPO||'website'],permissions:{contents:'write'}})
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.token)throw new Error('GitHub App authorization failed ('+response.status+'). Check App installation and Contents permission.');
+  const headers={
+    'Accept':'application/vnd.github+json',
+    'Authorization':'Bearer '+jwt,
+    'X-GitHub-Api-Version':'2022-11-28',
+    'User-Agent':'GE-Studios-Backroom-Publisher'
+  };
+  const issueToken=async installationId=>{
+    const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(installationId)+'/access_tokens',{
+      method:'POST',headers,
+      body:JSON.stringify({repositories:[env.GITHUB_REPO||'website'],permissions:{contents:'write'}})
+    });
+    return {response,data:await response.json().catch(()=>({}))};
+  };
+  // An App installation ID may become stale after reinstalling the same App.
+  // On an issuance failure, verify the App's current installation for THIS repo
+  // using the App JWT. Never try an unrelated account or expose the JWT.
+  let installationId=String(env.GITHUB_APP_INSTALLATION_ID||'').trim();
+  let {response,data}=await issueToken(installationId);
+  if(!response.ok||!data.token){
+    const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
+    const repo=encodeURIComponent(env.GITHUB_REPO||'website');
+    const lookup=await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/installation',{
+      method:'GET',headers
+    });
+    if(lookup.ok){
+      const installation=await lookup.json().catch(()=>({}));
+      const discovered=String(installation.id||'');
+      const sameApp=String(installation.app_id||'')===String(env.GITHUB_APP_ID);
+      if(discovered&&sameApp&&discovered!==installationId){
+        ({response,data}=await issueToken(discovered));
+        if(response.ok&&data.token)installationId=discovered;
+      }
+    }
+  }
+  if(!response.ok||!data.token)
+    throw new Error('GitHub App installation token request failed (HTTP '+response.status+'). The App must have Contents write access to grandelement/website.');
   appTokenCache={identity,token:data.token,expires:Date.parse(data.expires_at)||Date.now()+50*60*1000};
   return data.token;
   }catch(error){
@@ -933,21 +957,22 @@ export default {
         const ok=test.ok;
         // A successful generic read can be rescued by the expiring legacy PAT.
         // Explicitly verify the App using an isolated environment without it.
-        let appReadVerified=false,appReadHttp=null;
+        let appReadVerified=false,appReadHttp=null,appReadError='';
         if(hasApp){
           try{
             const appOnly=await github({...env,GITHUB_TOKEN:undefined},path,{method:'GET'});
             appReadVerified=appOnly.ok;
             appReadHttp=appOnly.status;
-          }catch(_error){
-            // Do not send secret keys, JWTs or GitHub response bodies to browser.
+          }catch(error){
+            // Credential errors from our own code contain no secrets or tokens.
             appReadVerified=false;
+            appReadError=String(error?.message||'GitHub App authorization failed').slice(0,160);
           }
         }
         return json({ok,github_ready:ok,github_http:test.status,
           server_credential_configured:hasApp||hasFallback,
           credential_mode:hasApp?'github_app'+(hasFallback?'+fallback':''):hasFallback?'server_token':'missing',
-          app_read_verified:appReadVerified,app_read_http:appReadHttp,
+          app_read_verified:appReadVerified,app_read_http:appReadHttp,app_read_error:appReadError,
           legacy_token_configured:hasFallback,
           action:!ok?'repair GitHub publisher authorization':
             !appReadVerified?'install or repair GitHub App; legacy token is not a permanent solution':
@@ -957,6 +982,65 @@ export default {
         return json({ok:false,github_ready:false,server_credential_configured:!!(env.GITHUB_TOKEN||
           (env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY)),
           error:String(error?.message||error).slice(0,180)},503,cors);
+      }
+    }
+
+    // Authenticated, App-only end-to-end write and readback proof.
+    // Uses an isolated canary file, never live settings, playlists, or Vault.
+    if(url.pathname==='/manage/github-write-verify'&&request.method==='POST'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      const appEnv={...env,GITHUB_TOKEN:undefined};
+      const branch=appEnv.GITHUB_BRANCH||'main';
+      const path='config/backroom-github-connection-check.json';
+      const refPath=path+'?ref='+encodeURIComponent(branch);
+      let stage='canary_read';
+      try{
+        const existing=await github(appEnv,refPath,{method:'GET'});
+        if(!existing.ok&&existing.status!==404)
+          return json({ok:false,stage:'canary_read',github_http:existing.status,
+            error:'GitHub App cannot read its verification file.'},503,cors);
+        let oldSha='';
+        if(existing.ok){
+          const file=await existing.json();
+          oldSha=String(file.sha||'');
+          const previous=JSON.parse(decodeGithubText(file.content||'')); 
+          const checkedAt=String(previous.checkedAt||'');
+          const age=Date.now()-Date.parse(checkedAt);
+          // One real write per day is enough; don't launch an entire website
+          // deployment on every owner login. Readback still runs each login.
+          if(previous.version===1&&Number.isFinite(age)&&age>=0&&age<86400000)
+            return json({ok:true,app_only:true,readback_verified:true,
+              previous:true,checkedAt,file_sha:oldSha},200,cors);
+        }
+        stage='canary_write';
+        const marker=crypto.randomUUID();
+        const checkedAt=new Date().toISOString();
+        const payload=JSON.stringify({version:1,checkedAt,marker},null,2)+'\n';
+        const body={message:'Verify Back Room GitHub App write and readback',
+          content:utf8B64(payload),branch};
+        if(oldSha)body.sha=oldSha;
+        const update=await github(appEnv,path,{
+          method:'PUT',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(body)
+        });
+        if(!update.ok)
+          return json({ok:false,stage,github_http:update.status,
+            error:'GitHub App could not create or update verification file.'},503,cors);
+        const saved=await update.json().catch(()=>({}));
+        stage='canary_readback';
+        const readback=await github(appEnv,refPath,{method:'GET'});
+        if(!readback.ok)
+          return json({ok:false,stage,github_http:readback.status,
+            error:'Write completed, but GitHub could not confirm readback.'},503,cors);
+        const file=await readback.json().catch(()=>({}));
+        if(decodeGithubText(file.content||'')!==payload)
+          return json({ok:false,stage,error:'GitHub readback differs from written verification.'},503,cors);
+        return json({ok:true,app_only:true,readback_verified:true,
+          commit:String(saved.commit?.sha||''),checkedAt},200,cors);
+      }catch(error){
+        return json({ok:false,stage,
+          error:String(error?.message||'GitHub App write verification failed').slice(0,160)},503,cors);
       }
     }
 
