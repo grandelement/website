@@ -4236,7 +4236,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
-    if(!isStationID(url))void window.GEOfflineSpectrum?.prepare?.(url);
+    // Live FFT is measured from the audible player; no saved song analysis.
     if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     window.GELoudness?.applyURL?.(url,350);
     fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
@@ -6563,14 +6563,6 @@ Vector ${vector}. ${pair[1]}.`;
       eqMessage(equipped?'MUSIC EQ · REAL-TIME AUDIO':'MUSIC EQ · LIVE ANALYZER UNAVAILABLE');
       return equipped;
     }
-    if(localSpectrumSource()){
-      const url=state.currentURL||audio.currentSrc;
-      void window.GEOfflineSpectrum?.prepare?.(url);
-      const bins=window.GEOfflineSpectrum?.read?.(url,audio.currentTime);
-      if(bins){eqData=bins;eqLastSignalAt=performance.now();eqMessage('MUSIC EQ · LOCAL SONG FREQUENCIES');return true}
-      eqMessage('MUSIC EQ · PREPARING LOCAL SONG ANALYSIS');
-      return false;
-    }
     // iPhone Safari/PWA has a single reliable native music session. A SECOND
     // (even silent) HTMLAudioElement can steal the audible output, producing
     // "playing live" while the phone makes no sound. Never start EQ tap on iOS.
@@ -6659,6 +6651,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
+    if(geInlineMusicActive)return inlineSpectrumData();
     if(audio.paused||audio.ended)return null;
     // Prefer the spectrum sampled directly from the actually audible player.
     // Neither the Radio mode flag nor iframe detection may override real FFT.
@@ -6666,7 +6659,6 @@ Vector ${vector}. ${pair[1]}.`;
     if(actual)return actual;
     if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource())
       return null;
-    if(localSpectrumSource())return window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime)||null;
     if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
@@ -7247,21 +7239,30 @@ Vector ${vector}. ${pair[1]}.`;
   }
   // Reuse existing frequency snapshots for Music played in the protected
   // same-origin iframe. Never create a second audio player on iPhone.
-  let inlineSpectrumPath='',inlineSpectrumRetryAt=0;
+  // MUSIC and Radio use different native audio elements. The MUSIC iframe
+  // already has a Gate Web Audio graph attached to its real transport.
+  // Read that graph's current PCM FFT directly; never cache song frequency maps.
+  const geMusicFFT=new Uint8Array(256);
   function inlineSpectrumData(){
-    if(!geInlineMusicActive||!geInlineMusicCurrentPath)return null;
-    const transport=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+    if(!geInlineMusicActive||geInlineMusicPaused)return null;
+    const frame=geInlineMusicFrame?.contentWindow;
+    const transport=frame?.GEGetMusicTransport?.();
     if(!transport||transport.paused||transport.ended)return null;
-    const path=canonicalSongPath(geInlineMusicCurrentPath);
-    if(!path)return null;
-    const url=new URL('../'+path,location.href).href;
-    const now=performance.now();
-    if(path!==inlineSpectrumPath){inlineSpectrumPath=path;inlineSpectrumRetryAt=0;}
-    if(now>=inlineSpectrumRetryAt){
-      inlineSpectrumRetryAt=now+15000;
-      void window.GEOfflineSpectrum?.prepare?.(url);
+    const spectrum=frame?.GEAudioGain?.getSpectrumFrame?.();
+    if(!spectrum?.bins?.length)return null;
+    const raw=spectrum.bins;
+    const resolution=(spectrum.sampleRate||44100)/(spectrum.fftSize||2048);
+    const ceiling=Math.min(16000,(spectrum.sampleRate||44100)/2);
+    for(let i=0;i<geMusicFFT.length;i++){
+      const loHz=32*Math.pow(ceiling/32,i/geMusicFFT.length);
+      const hiHz=32*Math.pow(ceiling/32,(i+1)/geMusicFFT.length);
+      const lo=Math.min(raw.length-1,Math.max(0,Math.floor(loHz/resolution)));
+      const hi=Math.min(raw.length,Math.max(lo+1,Math.ceil(hiHz/resolution)));
+      let total=0,peak=0;
+      for(let j=lo;j<hi;j++){total+=raw[j];peak=Math.max(peak,raw[j]);}
+      geMusicFFT[i]=Math.round((total/(hi-lo))*.65+peak*.35);
     }
-    return window.GEOfflineSpectrum?.read?.(url,transport.currentTime)||null;
+    return geMusicFFT.some(bin=>bin>1)?geMusicFFT:null;
   }
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
@@ -7311,7 +7312,7 @@ Vector ${vector}. ${pair[1]}.`;
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
       else if(GE_IOS_AUDIO&&!window.GELiveAudioEQ?.status?.()?.iosEnabled)
         eqMessage('MUSIC EQ · OFF · TAP ENABLE LIVE EQ');
-      else if(inlinePlaying)eqMessage('MUSIC EQ · SAVED FREQUENCIES NOT AVAILABLE');
+      else if(inlinePlaying)eqMessage('MUSIC EQ · LIVE MUSIC AUDIO SIGNAL UNAVAILABLE');
       else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
     }
