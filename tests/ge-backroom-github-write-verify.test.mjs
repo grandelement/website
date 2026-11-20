@@ -26,6 +26,7 @@ globalThis.fetch=async(url,init={})=>{
   oldIdAttempts++;
   return Response.json({message:'Not Found'},{status:404});
  }
+ if(u==='https://api.github.com/app')return Response.json({id:5831659});
  if(u.endsWith('/repos/grandelement/website/installation')){
   lookupCount++;
   return Response.json({id:222,app_id:5831659});
@@ -87,6 +88,43 @@ try{
  assert.equal(lookupCount,1,'Use JWT to discover current repo installation');
  assert.equal(newIdAttempts,1,'Recovered installation must issue an App-only token');
  console.log('PASS: stale GitHub installation ID auto-recovers; owner-only App write, readback, and throttling verified.');
+ const badPrivateKey=generateKeyPairSync('rsa',{modulusLength:2048}).privateKey.export({format:'pem',type:'pkcs1'}).toString();
+ globalThis.fetch=async(url)=>{
+  const u=String(url);
+  if(u.includes('/access_tokens'))return Response.json({message:'Bad credentials'},{status:401});
+  if(u==='https://api.github.com/app')return Response.json({message:'Bad credentials'},{status:401});
+  throw Error('Unexpected request during rejected JWT diagnosis: '+u);
+ };
+ const brokenEnv={...env,GITHUB_APP_PRIVATE_KEY:badPrivateKey};
+ response=await worker.fetch(req('/manage/github-health',{headers:authorization}),brokenEnv);
+ assert.equal(response.status,503,'Rejected App JWT must not report GitHub ready');
+ const diagnostic=await response.json();
+ assert.match(diagnostic.error,/GitHub rejected the signed App JWT \(HTTP 401\)/,
+  'Expose the failing identity stage without exposing a secret');
+ console.log('PASS: GitHub 401 is identified as a rejected App JWT, not an assumed Contents permission issue.');
+
+ let dedicatedCount=0,adminCount=0;
+ const vaultEnv={...env,
+  VAULT_ACCESS_CODES_TOKEN:'stale-dedicated-bridge',
+  VAULT_ADMIN_TOKEN:'current-full-admin-token',
+  GE_VAULT:{fetch:async request=>{
+   const auth=request.headers.get('Authorization');
+   if(auth==='Bearer stale-dedicated-bridge'){
+    dedicatedCount++;return Response.json({ok:false,error:'Unauthorized'},{status:401});
+   }
+   if(auth==='Bearer current-full-admin-token'){
+    adminCount++;return Response.json({ok:true,items:[],master_enabled:true});
+   }
+   throw Error('Unknown Vault bridge credential');
+  }}
+ };
+ response=await worker.fetch(req('/manage/access-codes',{headers:authorization}),vaultEnv);
+ assert.equal(response.status,200,'Vault must try the configured full admin token after stale dedicated access token');
+ const vault=await response.json();
+ assert.equal(vault.ok,true);assert.deepEqual(vault.items,[]);
+ assert.equal(dedicatedCount,1);assert.equal(adminCount,1);
+ console.log('PASS: Vault falls back to existing authorized admin bridge when dedicated access token is rejected.');
+
 }finally{
  globalThis.fetch=originalFetch;
 }
