@@ -3099,6 +3099,8 @@ const backroomVaultManagers=(()=>{
         if(!response.ok||!data?.ok){
           const error=Error(detail);
           error.vaultResponseReceived=true;
+          error.vaultHttp=response.status;
+          error.vaultData=data;
           if(response.status===401||response.status===403)
             vaultIndicator('AUTH BLOCKED','Private Vault bridge credentials rejected (HTTP '+response.status+'). '+detail);
           else if(transient)
@@ -4266,8 +4268,32 @@ const backroomVaultManagers=(()=>{
     savingCode=true;button.disabled=true;$('brAccessQuickSave').disabled=true;
     accessStatus(isEdit?'Saving permissions to GE Vault…':'Issuing new code in GE Vault…');
     try{
-      const data=await vaultAction('/manage/access-codes',
-        {...payload,action:isEdit?'edit':'issue',...(isEdit?{id:editingCodeId}:{})});
+      let data;
+      try{
+        data=await vaultAction('/manage/access-codes',
+          {...payload,action:isEdit?'edit':'issue',...(isEdit?{id:editingCodeId}:{})});
+      }catch(error){
+        // Owner typed an existing SECRET with a different saved label.
+        // Resolve by the Vault's verified code hash, not an assumed label.
+        // Never create a duplicate, revive a revoked record or silently
+        // overwrite an unrelated code's saved scope assignments.
+        const duplicate=!isEdit&&error?.vaultHttp===409&&
+          error?.vaultData?.code_exists===true;
+        if(!duplicate)throw error;
+        const found=codeRows.find(row=>String(row.id)===
+          String(error.vaultData.existing_id||''));
+        if(!found||found.revoked)
+          throw Error('This access code is already saved but not editable. Reconnect and review saved codes. Nothing was changed.');
+        if(!confirm('The code you entered is already saved as "'+found.label+
+          '". Update that saved record with the permissions now checked? Usage history and its key stay unchanged.')){
+          selectedCodeId=found.id;renderAccessCodes();
+          throw Error('Existing code found. No changes made. Load the saved code to review.');
+        }
+        data=await vaultAction('/manage/access-codes',
+          {...payload,action:'edit',id:found.id});
+        editingCodeId=found.id;
+        isEdit=true;
+      }
       const codeId=data.id||editingCodeId;
       if(!codeId||(!isEdit&&!data.code))throw Error('Vault did not confirm a saved code and its one-time secret.');
       if(!isEdit){
