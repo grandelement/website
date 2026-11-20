@@ -879,6 +879,10 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
+    <div class="sunlab-share-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0">
+      <button id="sunLabCopyPhoneLink" type="button" class="sunlab-mini" title="Transfer the eight saved EQ effects to your other device">SEND EQ TO PHONE</button>
+      <span id="sunLabShareStatus" role="status" style="font-size:11px;color:#9de5fe"></span>
+    </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
     <button id="geSunEQEnable" type="button" class="sunlab-mini" hidden
       style="margin:5px auto 9px;padding:9px 16px;min-height:40px;max-width:100%;border:1px solid #5dbbde;border-radius:9px;color:#eefaff;background:#10476a;font-weight:800"
@@ -905,7 +909,12 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
       <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
       <div class="sunlab-row"><label for="slContrast">Contrast</label><output id="slContrastVal"></output><input id="slContrast" type="range" min="0" max="280" step="1" value="40"><small>Widens the light-versus-dark difference so hits stand out more clearly.</small></div>
-      <div class="sunlab-row"><label for="slDynamics">Dynamics</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Expands the difference between quiet and peak movement after automatic band balancing.</small></div>
+      <div class="sunlab-row"><label for="slDynamics">Dynamics Gain</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Overall movement gain. Use Pulse Depth to change quiet-versus-loud beats.</small></div>
+      <div class="sunlab-row"><label for="slPulseDepth">Pulse Depth</label><output id="slPulseDepthVal"></output><input id="slPulseDepth" type="range" min="0" max="100" step="1" value="82"><small>0 = dimmer; 100 = pronounced beat flashes</small></div>
+      <div class="sunlab-row"><label for="slPulseSensitivity">Beat Sensitivity</label><output id="slPulseSensitivityVal"></output><input id="slPulseSensitivity" type="range" min="0" max="100" step="1" value="70"><small>How strongly to respond to quieter changes in the music</small></div>
+      <div class="sunlab-row"><label for="slPulseAttack">Pulse Attack</label><output id="slPulseAttackVal"></output><input id="slPulseAttack" type="range" min="0" max="100" step="1" value="85"><small>How quickly each new beat turns the light on</small></div>
+      <div class="sunlab-row"><label for="slPulseRelease">Pulse Release</label><output id="slPulseReleaseVal"></output><input id="slPulseRelease" type="range" min="0" max="100" step="1" value="72"><small>How quickly each beat fades back toward darkness</small></div>
+      <div class="sunlab-row"><label for="slPulseNoiseFloor">Pulse Noise Floor</label><output id="slPulseNoiseFloorVal"></output><input id="slPulseNoiseFloor" type="range" min="0" max="100" step="1" value="12"><small>Ignore steady background energy and retain musical pulses</small></div>
       <div class="sunlab-row"><label for="slGlow">Glow / Blur</label><output id="slGlowVal"></output><input id="slGlow" type="range" min="0" max="150" step="1" value="0"><small>Lower this to remove the haze and expose the raw bars.</small></div>
       <div class="sunlab-row"><label for="slMist">Mist / Residue</label><output id="slMistVal"></output><input id="slMist" type="range" min="0" max="220" step="1" value="0"><small>Adds smoky carry-over so each pulse leaves a lingering atmospheric trail.</small></div>
       <div class="sunlab-row"><label for="slBlueDepth">Blue Depth</label><output id="slBlueDepthVal"></output><input id="slBlueDepth" type="range" min="0" max="260" step="1" value="40"><small>Pushes the base color deeper into blue before the brighter tip colors appear.</small></div>
@@ -965,6 +974,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
 <script src="./ge-gate-audio.js?v=20261119-shared-live-fft-v2"></script>
+<script src="./sun-pulse-engine.js?v=20261120-pulse-v1"></script>
 <script>
 'use strict';
 
@@ -5575,7 +5585,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261119-sun-eq-signal-v2',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261120-pulse-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -5811,6 +5821,7 @@ async function registerServiceWorker(){
     waveType:'mirrorflip',distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
     blueDepth:40,outerFade:50,tipWhite:56,brightness:145,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
+    pulseDepth:82,pulseSensitivity:70,pulseAttack:85,pulseRelease:72,pulseNoiseFloor:12,
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
@@ -5891,7 +5902,10 @@ async function registerServiceWorker(){
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
     if(hint)hint.textContent=mode?modeLabel(mode)+' controls':'Tap an effect to edit it.';
     const publicOnly=window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed();
-    const ids=new Set(mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[]);
+    const baseControls=mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[];
+    const pulseControls=mode?(publicOnly?['slPulseDepth']:
+      ['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']):[];
+    const ids=new Set([...baseControls,...pulseControls]);
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
@@ -5967,6 +5981,11 @@ async function registerServiceWorker(){
     bindSunLabControl('slThickness','thickness');
     bindSunLabControl('slContrast','contrast');
     bindSunLabControl('slDynamics','dynamics');
+    bindSunLabControl('slPulseDepth','pulseDepth');
+    bindSunLabControl('slPulseSensitivity','pulseSensitivity');
+    bindSunLabControl('slPulseAttack','pulseAttack');
+    bindSunLabControl('slPulseRelease','pulseRelease');
+    bindSunLabControl('slPulseNoiseFloor','pulseNoiseFloor');
     bindSunLabControl('slGlow','glow');
     bindSunLabControl('slMist','mist');
     bindSunLabControl('slBlueDepth','blueDepth');
@@ -9232,7 +9251,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
  });
 })();
 </script>
-<script defer src="./sun-lab-compact.js?v=20261119-v1"></script>
+<script defer src="./sun-lab-compact.js?v=20261120-pulse-controls-v1"></script>
+<script defer src="./sun-eq-profile-share.js?v=20261120-transfer-v1"></script>
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
 <script defer src="./live-spectrum.js?v=20261119-live-fft-v2"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
