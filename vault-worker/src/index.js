@@ -2438,7 +2438,8 @@ async function accessAdminChange(request,env){
     // Code hashes are unique: never replace the secret or assignment of an
     // existing access code with a different person's typed value.
     const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
-    if(collision)return json({ok:false,error:"This access code already exists. Enter a different code."},409);
+    if(collision)return json({ok:false,code_exists:true,existing_id:collision.id,
+      error:"This access code already exists. Update the saved record instead of duplicating it."},409);
     const hint=accessNormalizeCode(code).slice(-4);
     const activate=body.activate_now!==false;
     const activatedAt=activate?t:null;
