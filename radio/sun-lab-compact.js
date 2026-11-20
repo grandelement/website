@@ -28,8 +28,12 @@ function init(){
  actions.append(starter,advanced);box.append(actions);
  const status=document.createElement('p');status.id='geSunCompactStatus';status.setAttribute('role','status');status.textContent='Movement requires live audio spectrum data.';box.append(status);
  grid.before(box);
- // Preserve the original Sun Lab control DOM and mode selectors.
- // Reparenting these rows breaks the existing EQ mode UI and visualizer wiring.
+ // Phone: start with the five readable controls. Desktop keeps all original
+ // advanced sliders visible, so precision editing remains practical.
+ const onPhone=window.matchMedia?.('(max-width:720px)').matches??false;
+ grid.hidden=onPhone;
+ if(!onPhone){advanced.setAttribute('aria-expanded','true');advanced.textContent='ADVANCED SETTINGS ▴';}
+ // Preserve original DOM and original effect profiles. Never reparent rows.
  advanced.addEventListener('click',()=>{
    const expanded=advanced.getAttribute('aria-expanded')!=='true';
    advanced.setAttribute('aria-expanded',String(expanded));
