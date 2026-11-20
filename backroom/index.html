@@ -3076,28 +3076,41 @@ const backroomVaultManagers=(()=>{
       throw Error('Owner sign-in required. Your data has not been deleted.');
     }
     const opt=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
-    // Read requests retry one transient Cloudflare/network failure; writes never
-    // auto-repeat because a duplicate code or playlist could be created.
+    // Reads may retry one temporary connectivity failure. Never retry a
+    // write, because that can duplicate a code or playlist.
     const attempts=body===null?2:1;
     for(let attempt=0;attempt<attempts;attempt++){
       try{
         const response=await api(path,opt);
         const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
-        if(response.status===401){
+        const detail=String(data?.error||('Vault request failed (HTTP '+response.status+').'));
+        // Distinguish an expired Publisher login from an independently
+        // rejected Vault bridge token. Never silently erase a valid sign-in.
+        if(response.status===401&&/sign in|session expired|owner sign-in|back room sign-in/i.test(detail)){
           serverAuthenticated=false;setToken('');needsPublisherLogin();
-          throw Error('Publisher session expired. Sign in again to continue.');
+          const error=Error('Publisher session expired. Sign in again to continue.');
+          error.vaultResponseReceived=true;throw error;
         }
-        if((response.status===429||response.status>=500)&&attempt+1<attempts){
+        const transient=response.status===429||response.status>=500;
+        if(transient&&attempt+1<attempts){
           await new Promise(resolve=>setTimeout(resolve,300));
           continue;
         }
         if(!response.ok||!data?.ok){
-          vaultIndicator('OFFLINE',String(data?.error||'HTTP '+response.status));
-          throw Error(data?.error||('Vault request failed ('+response.status+').'));
+          const error=Error(detail);
+          error.vaultResponseReceived=true;
+          if(response.status===401||response.status===403)
+            vaultIndicator('AUTH BLOCKED','Private Vault bridge credentials rejected (HTTP '+response.status+'). '+detail);
+          else if(transient)
+            vaultIndicator('OFFLINE',detail);
+          else
+            vaultIndicator('CONNECTED','Vault is reachable. Save rejected (HTTP '+response.status+'): '+detail);
+          throw error;
         }
         vaultIndicator('CONNECTED');
         return data;
       }catch(error){
+        if(error?.vaultResponseReceived)throw error;
         if(attempt+1<attempts&&!/sign in|session expired/i.test(String(error.message||error))){
           await new Promise(resolve=>setTimeout(resolve,300));continue;
         }
@@ -4216,6 +4229,10 @@ const backroomVaultManagers=(()=>{
     ])];
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
     const normalizedRequested=label.toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
+    if(!editingCodeId&&normalizedRequested==='LOVE'){
+      $('brAccessLabel').focus();
+      throw Error('LOVE is a retired shared code and cannot be reused. Choose LOVE2 or another private code. Nothing has been changed.');
+    }
     if(!/^[A-Z0-9]{4,64}$/.test(normalizedRequested)||!/^[a-zA-Z0-9 -]{4,100}$/.test(label)){
       $('brAccessLabel').focus();
       throw Error('Use a code name with 4 to 64 letters or numbers. Spaces are allowed.');
