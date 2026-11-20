@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'backroom/publisher-worker.js'
+      - 'tests/ge-backroom-github-write-verify.test.mjs'
       - 'backroom/wrangler.toml'
       - '.github/workflows/backroom-publisher-auto-deploy.yml'
   workflow_dispatch:
@@ -25,6 +26,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Block broken GitHub App publisher deployments
+        run: |
+          node --check backroom/publisher-worker.js
+          node tests/ge-github-app-pem.test.mjs
+          node tests/ge-backroom-github-write-verify.test.mjs
       - name: Check Cloudflare deploy credentials
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
