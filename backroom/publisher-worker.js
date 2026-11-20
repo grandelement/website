@@ -165,24 +165,47 @@ async function githubCredential(env){
   // using the App JWT. Never try an unrelated account or expose the JWT.
   let installationId=String(env.GITHUB_APP_INSTALLATION_ID||'').trim();
   let {response,data}=await issueToken(installationId);
+  let jwtHttp=null,installationHttp=null,appMatches=null;
   if(!response.ok||!data.token){
     const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
     const repo=encodeURIComponent(env.GITHUB_REPO||'website');
+    // This endpoint accepts an App JWT, not an installation access token.
+    // Its HTTP status independently diagnoses whether the uploaded PEM and
+    // configured App ID actually authenticate with GitHub.
+    const appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
+    jwtHttp=appCheck.status;
+    const appDetails=appCheck.ok?await appCheck.json().catch(()=>({})):{};
+    const appIdentityMatches=appCheck.ok&&String(appDetails.id||'')===String(env.GITHUB_APP_ID);
+    if(appCheck.ok&&!appIdentityMatches)
+      throw new Error('GitHub App identity mismatch: configured App ID does not identify the signed key.');
+    if(jwtHttp===401)
+      throw new Error('GitHub rejected the signed App JWT (HTTP 401). The Cloudflare GitHub App ID/private key pair is not accepted by GitHub. Check that the key is still active for that exact App.');
+    if(!appCheck.ok)
+      throw new Error('GitHub App JWT identity check failed (HTTP '+jwtHttp+'). No GitHub write was attempted.');
     const lookup=await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/installation',{
       method:'GET',headers
     });
+    installationHttp=lookup.status;
     if(lookup.ok){
       const installation=await lookup.json().catch(()=>({}));
       const discovered=String(installation.id||'');
-      const sameApp=String(installation.app_id||'')===String(env.GITHUB_APP_ID);
-      if(discovered&&sameApp&&discovered!==installationId){
+      appMatches=String(installation.app_id||'')===String(env.GITHUB_APP_ID);
+      if(discovered&&appMatches&&discovered!==installationId){
         ({response,data}=await issueToken(discovered));
         if(response.ok&&data.token)installationId=discovered;
       }
     }
   }
-  if(!response.ok||!data.token)
-    throw new Error('GitHub App installation token request failed (HTTP '+response.status+'). The App must have Contents write access to grandelement/website.');
+  if(!response.ok||!data.token){
+    const diagnostic=installationHttp===404?
+      'The authenticated App is not installed for grandelement/website.':
+      appMatches===false?'The repository installation belongs to a different GitHub App.':
+      installationHttp===200?'The App JWT is valid, but the installation token request was rejected. Check installation permissions and active installation.':
+      'GitHub refused the installation token request.';
+    throw new Error('GitHub App authentication failed (token HTTP '+response.status+
+      ', App JWT HTTP '+String(jwtHttp??'not checked')+
+      ', repo installation HTTP '+String(installationHttp??'not checked')+'). '+diagnostic);
+  }
   appTokenCache={identity,token:data.token,expires:Date.parse(data.expires_at)||Date.now()+50*60*1000};
   return data.token;
   }catch(error){
@@ -328,35 +351,44 @@ async function deletePreset(env,id){
 /* Owner-only GE Vault bridge. The Vault admin token never reaches the browser.
    No code/playlist record is written to public GitHub or site-live.json. */
 async function geVaultBridge(env,path,method='GET',body=null){
-  // Access Codes have a dedicated least-privilege bridge secret. Legacy
-  // admin fallback exists for publishers that were configured previously.
-  // GitHub remains the exclusive GE playlist master.
+  // Prefer the dedicated Access Codes bridge credential. An existing full
+  // Vault admin credential is an authorized fallback if that credential was
+  // rotated independently on the Vault and Publisher Workers.
   const accessPath=path==='/v1/admin/access-codes';
-  const secret=String((accessPath&&env.VAULT_ACCESS_CODES_TOKEN)||env.VAULT_ADMIN_TOKEN||'').trim();
+  const dedicated=String(env.VAULT_ACCESS_CODES_TOKEN||'').trim();
+  const admin=String(env.VAULT_ADMIN_TOKEN||'').trim();
+  const secret=accessPath&&dedicated?dedicated:admin;
   if(!secret)return {status:503,data:{ok:false,error:accessPath?
-    'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
-    'GE Vault connection is not configured on the Back Room publisher.'}};
+    'Access Codes bridge credential is missing on Publisher.':
+    'GE Vault admin credential is missing on Publisher.'}};
   const url='https://vault.grandelement.com'+path;
-  const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'manual'};
-  if(body!==null)init.body=JSON.stringify(body);
-  try{
-    // Production uses the Wrangler service binding. This bypasses the public
-    // Cloudflare edge and calls the SAME Vault Worker (same D1 database) directly.
-    // The public URL remains only a development/test fallback when not bound.
+  const invoke=async credential=>{
+    const init={method,headers:{'Authorization':'Bearer '+credential,
+      'Content-Type':'application/json','Accept':'application/json'},redirect:'manual'};
+    if(body!==null)init.body=JSON.stringify(body);
     const response=env.GE_VAULT?.fetch
       ?await env.GE_VAULT.fetch(new Request(url,init))
       :await fetch(url,init);
-    const data=await response.json().catch(()=>({ok:false,error:'GE Vault returned a non-JSON response (HTTP '+response.status+').'}));
-    return{status:response.status,data};
+    const data=await response.json().catch(()=>({ok:false,
+      error:'GE Vault returned a non-JSON response (HTTP '+response.status+').'}));
+    return {status:response.status,data};
+  };
+  try{
+    let result=await invoke(secret);
+    // The full admin token was supported before the dedicated bridge was
+    // introduced. Retry ONLY an access-code auth failure, and only when the
+    // two independently configured credentials differ. A business validation
+    // failure (400/409) must never be retried.
+    if(accessPath&&result.status===401&&admin&&admin!==secret)
+      result=await invoke(admin);
+    return result;
   }catch(error){
-    // Log only the failure class, never secret headers or access-code values.
     console.error('GE Vault bridge failure',String(error?.name||'Error'));
     return {status:502,data:{ok:false,error:env.GE_VAULT?.fetch?
       'Private GE Vault service binding failed. Check Vault Worker health and binding deployment.':
       'GE Vault could not be reached. Private GE_VAULT binding is missing on the Back Room Worker.'}};
   }
 }
-
 
 // GitHub-only published/unlisted playlist registry. This path does not call
 // GE Vault, D1 or any Cloudflare data store. Authentication is the existing
