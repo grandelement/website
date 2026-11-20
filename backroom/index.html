@@ -5359,36 +5359,46 @@ function improveBackroomLabels(){
 async function checkServerGithub(){
  const label=$('brGithubConnection');
  if(!label||!token())return false;
- label.textContent='GITHUB · VERIFYING SERVER CONNECTION…';
+ label.textContent='GITHUB APP · VERIFYING…';
+ label.style.color='#b6dbf1';
  try{
   const response=await api('/manage/github-health',{method:'GET',timeoutMs:20000});
   const data=await response.json().catch(()=>({}));
-  if(response.ok&&data.github_ready===true){
-   if(data.app_read_verified===true){
-    if(data.legacy_token_configured===true){
-     label.textContent='GITHUB APP VERIFIED WITHOUT PERSONAL TOKEN · LEGACY TOKEN STILL PRESENT · TEST A REAL SAVE BEFORE REMOVAL';
-     label.style.color='#ffe19c';
-    }else{
-     label.textContent='GITHUB APP · RENEWABLE CONNECTION VERIFIED · SAVE WRITE NOT YET TESTED';
-     label.style.color='#9cf4cc';
-    }
-   }else{
-    label.textContent='GITHUB USING LEGACY AUTHORIZATION · RENEWABLE GITHUB APP NOT VERIFIED · SAVES MAY STOP WHEN TOKEN EXPIRES';
-    label.style.color='#ffc0c0';
+  if(response.ok&&data.github_ready===true&&data.app_read_verified===true){
+   // READ access alone has repeatedly produced a false "fixed" status.
+   // The signed-in owner's server performs a REAL, isolated GitHub App-only
+   // canary commit and readback. It never touches actual site or Vault data.
+   label.textContent='GITHUB APP · READ VERIFIED · CHECKING REAL WRITE…';
+   const writeResponse=await api('/manage/github-write-verify',{
+    method:'POST',body:'{}',timeoutMs:30000
+   });
+   const write=await writeResponse.json().catch(()=>({}));
+   if(writeResponse.ok&&write.ok===true&&write.app_only===true&&write.readback_verified===true){
+    label.textContent=write.previous===true
+     ?'GITHUB APP · PRIOR REAL WRITE VERIFIED · READBACK CONFIRMED'
+     :'GITHUB APP · REAL WRITE AND READBACK VERIFIED · COMMIT '+String(write.commit||'').slice(0,10);
+    label.style.color='#9cf4cc';
+    return true;
    }
-   return true;
+   label.textContent='GITHUB APP WRITE FAILED · '+String(write.stage||'unknown').toUpperCase()+
+    (write.github_http?' · HTTP '+write.github_http:'')+
+    (write.error?' · '+String(write.error).slice(0,135):'');
+   label.style.color='#ffc0c0';
+   return false;
   }
-  const authMode=String(data.credential_mode||'unknown');
-  label.textContent=authMode==='server_token'&&data.github_http===401
-   ?'GITHUB BLOCKED · EXISTING PERSONAL ACCESS TOKEN REJECTED (HTTP 401). INSTALL THE SERVER-SIDE GITHUB APP; SAVES ARE NOT WORKING.'
-   :'GITHUB NOT CONNECTED · SERVER AUTHORIZATION NEEDS REPAIR'+
-     (authMode!=='unknown'?' · MODE '+authMode.toUpperCase():'')+
-     (data.github_http?' · HTTP '+data.github_http:'')+
-     (data.error?' · '+String(data.error).slice(0,110):'');
-  label.style.color='#ffc0c0';return false;
+  const mode=String(data.credential_mode||'unknown');
+  label.textContent='GITHUB APP NOT VERIFIED'+
+   (data.app_read_http?' · HTTP '+data.app_read_http:'')+
+   (data.github_http?' · GITHUB HTTP '+data.github_http:'')+
+   (data.app_read_error?' · '+String(data.app_read_error).slice(0,145):'')+
+   (data.error?' · '+String(data.error).slice(0,145):'')+
+   (mode.includes('fallback')?' · LEGACY PERSONAL TOKEN CANNOT PROVE APP ACCESS':'');
+  label.style.color='#ffc0c0';
+  return false;
  }catch(error){
-  label.textContent='GITHUB CHECK FAILED · '+String(error.message||error).slice(0,130);
-  label.style.color='#ffc0c0';return false;
+  label.textContent='GITHUB VERIFY FAILED · '+String(error?.message||error).slice(0,150);
+  label.style.color='#ffc0c0';
+  return false;
  }
 }
 async function bootBackroom(){
