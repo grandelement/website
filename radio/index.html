@@ -1108,7 +1108,7 @@ function setStatus(text){
   if(/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback|Checking latest music library before offline download…|Grand Element Radio · checking)$/i.test(value))return;
   if(statusEl.textContent!==value)statusEl.textContent=value;
 }
-function setPressed(button,on){ if(button) button.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+function setPressed(button,on){ if(!button)return; const next=on?'true':'false'; if(button.getAttribute('aria-pressed')!==next)button.setAttribute('aria-pressed',next); }
 function absolute(path){ return new URL(path, location.href).href; }
 function fileName(url){ return decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || ''); }
 function stripExtension(name){ return String(name||'').replace(/\.[a-z0-9]+$/i,''); }
@@ -2429,7 +2429,8 @@ function updateRadioStartupCue(){
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
-    button.textContent=(state.live||state.livePreparing)?'STOP':'RADIO';
+    const nextLabel=(state.live||state.livePreparing)?'STOP':'RADIO';
+    if(button.textContent!==nextLabel)button.textContent=nextLabel;
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
