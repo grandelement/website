@@ -2340,8 +2340,7 @@ async function ensureAccessCodeTables(env){
     )`
   ];
   await env.VAULT_DB.batch(statements.map(statement=>env.VAULT_DB.prepare(statement)));
-  // D1 created these tables in an atomic batch. This query must succeed
-  // before LOVE is ever imported or any code is created.
+  // D1 created these tables in an atomic batch. Verify the schema before any code is issued.
   for(const query of required)await env.VAULT_DB.prepare(query).first();
   return true;
 }
