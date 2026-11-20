@@ -13,6 +13,19 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ await page.waitForFunction(()=>!!document.getElementById('geSunCompact')&&
+   !!window.GESunEQShare?.exportURL,{timeout:15000});
+ assert.equal(await page.evaluate(()=>document.getElementById('sunLabGrid').hidden),true,
+   'Phone Sun Lab must start with compact controls, not dozens of sliders');
+ assert.equal(await page.evaluate(()=>!!document.getElementById('sunLabCopyPhoneLink')),true,
+   'Desktop-to-phone EQ sharing must be visible');
+ const desktop=await browser.newPage();
+ await desktop.setViewport({width:1100,height:850});
+ await desktop.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
+ await desktop.waitForFunction(()=>!!document.getElementById('geSunCompact'),{timeout:15000});
+ assert.equal(await desktop.evaluate(()=>document.getElementById('sunLabGrid').hidden),false,
+   'Desktop should keep the full Sun Lab editor available');
+ await desktop.close();
  assert.equal(await page.evaluate(()=>document.querySelectorAll('button[data-sun-mode]').length),8,'eight effects must exist');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:8000});
  const idle=await page.evaluate(()=>({
