@@ -348,7 +348,7 @@ body.ge-site-music-embedded #geSitePreviewRemaining{display:block;text-align:cen
   </section>
 </div>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
-<script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
+<script src="./ge-gate-audio.js?v=20261120-shared-music-fft-v1"></script>
 <script>
 /* Former 33-second samples, merchandise queue and Soul Comet are preserved
    in preview-merch-legacy.html. Their feature flag is OFF in this player. */
@@ -516,6 +516,7 @@ function save(force=false){
 function valid(t){if(!t||t.kind!=='song'||(t.duration_ms!=null&&(!Number.isFinite(Number(t.duration_ms))||Number(t.duration_ms)<0)))return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){
+ if(!t)return 'Grand Element Music'; // The embedded audio may start before metadata arrives.
  // The Radio/album player retains Album • Track • Song, with a single
  // dot separating each field. MUSIC's song-only list is a separate view.
  const album=String(t.album||'Archive').trim();
@@ -1067,6 +1068,12 @@ async function startTrack(t){
  else audio.removeAttribute('crossorigin');
  const requestedURL=geAudioSourceURL(t);
  audio.src=requestedURL;audio.preload='auto';audio.muted=false;
+ // The album's own Gate already owns this audio element. Arm its existing
+ // shared Web Audio graph from the original PLAY gesture for real FFT.
+ // Do not attach another source or use stored per-song spectrum snapshots.
+ if(new URL(requestedURL,location.href).origin===location.origin){
+   try{window.GEAudioGain?.arm?.();}catch(_e){}
+ }
  geRadioEmbedNotify('ge-radio-music-playback-requested',{path:cleanMusicPath(t.path),sourceHost:new URL(requestedURL).host});
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.

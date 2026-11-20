@@ -13,6 +13,19 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:2});
  await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ await page.waitForFunction(()=>!!document.getElementById('geSunCompact')&&
+   !!window.GESunEQShare?.exportURL,{timeout:15000});
+ assert.equal(await page.evaluate(()=>document.getElementById('sunLabGrid').hidden),true,
+   'Phone Sun Lab must start with compact controls, not dozens of sliders');
+ assert.equal(await page.evaluate(()=>!!document.getElementById('sunLabCopyPhoneLink')),true,
+   'Desktop-to-phone EQ sharing must be visible');
+ const desktop=await browser.newPage();
+ await desktop.setViewport({width:1100,height:850});
+ await desktop.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
+ await desktop.waitForFunction(()=>!!document.getElementById('geSunCompact'),{timeout:15000});
+ assert.equal(await desktop.evaluate(()=>document.getElementById('sunLabGrid').hidden),false,
+   'Desktop should keep the full Sun Lab editor available');
+ await desktop.close();
  assert.equal(await page.evaluate(()=>document.querySelectorAll('button[data-sun-mode]').length),8,'eight effects must exist');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:8000});
  const idle=await page.evaluate(()=>({
@@ -109,6 +122,49 @@ try{
  const stopped=await page.evaluate(()=>window.GELiveAudioEQ.read());
  assert.equal(stopped,null,'paused playback must not show live signal');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:5000});
+ // Test the separate MUSIC player as it is mounted in the Radio iframe.
+ // This must use its own real transport and Gate-shared FFT, not song snapshots.
+ await page.evaluate(()=>{if(typeof geInlineMusicInit==='function')geInlineMusicInit();});
+ await page.waitForFunction(()=>!!document.getElementById('geInlineMusicFrame')
+   ?.contentWindow?.GEGetMusicTransport,{timeout:25000});
+ const musicMode=await page.evaluate(async url=>{
+   const frame=document.getElementById('geInlineMusicFrame')?.contentWindow;
+   const a=frame?.GEGetMusicTransport?.();
+   if(!a)throw Error('MUSIC transport missing');
+   window.GEInlineMusic.beforePlay('Intergy · Amuse');
+   a.pause(); a.crossOrigin='anonymous'; a.src=url; a.preload='auto';
+   frame.GEAudioGain.arm();
+   await a.play();
+   return frame.GEAudioGain.getStatus();
+ },song);
+ assert(musicMode?.spectrumReady,'MUSIC must create a live spectrum fork on its own audio element');
+ await page.waitForFunction(()=>{
+   const frame=document.getElementById('geInlineMusicFrame')?.contentWindow;
+   const a=frame?.GEGetMusicTransport?.();
+   const bins=window.GEGetLiveSpectrum?.();
+   return !a?.paused&&a.currentTime>.3&&bins?.some(v=>v>1)&&
+     document.getElementById('sunEQSourceStatus')?.textContent?.includes('LIVE AUDIO SIGNAL');
+ },{timeout:30000,polling:200});
+ const musicFrames=[];
+ for(let i=0;i<7;i++){
+   musicFrames.push(await page.evaluate(()=>{
+     const frame=document.getElementById('geInlineMusicFrame').contentWindow;
+     const raw=frame.GEAudioGain.getSpectrumFrame()?.bins||[];
+     const output=window.GEGetLiveSpectrum?.()||[];
+     const energy=data=>Array.from(data).reduce((sum,v)=>sum+v,0);
+     return {t:frame.GEGetMusicTransport().currentTime,
+       raw:energy(raw),live:energy(output),
+       shape:[...document.querySelectorAll('#sunEQAura>*')].slice(0,20)
+         .map(r=>r.style.getPropertyValue('--spectrum-width')).join(',')};
+   }));
+   await new Promise(resolve=>setTimeout(resolve,230));
+ }
+ assert(musicFrames.every(x=>x.raw>0&&x.live>0),'MUSIC must deliver actual PCM FFT to Radio');
+ assert(new Set(musicFrames.map(x=>x.live)).size>=2,'MUSIC EQ must fluctuate with real recording');
+ assert(new Set(musicFrames.map(x=>x.shape)).size>=2,'MUSIC Sun rays must respond to the live FFT');
+ console.log('PASS separate MUSIC audio live FFT, '+new Set(musicFrames.map(x=>x.shape)).size+' changing visual frames');
+ await page.evaluate(()=>document.getElementById('geInlineMusicFrame')
+   ?.contentWindow?.GEGetMusicTransport?.().pause());
  // Mobile opt-in contract: default iPhone session never touches the audio graph.
  const iosUA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
  const iosPage=await browser.newPage();
@@ -128,6 +184,10 @@ try{
  const opted=await iosPage.evaluate(()=>window.GELiveAudioEQ.status());
  assert.equal(opted.iosEnabled,true,'iPhone opt-in must activate the real analyzer');
  assert.notEqual(opted.mode,'none','iPhone opt-in must attach to the native audio element');
+ await iosPage.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:45000});
+ await iosPage.waitForFunction(()=>!!window.GELiveAudioEQ?.arm,{timeout:15000});
+ assert.equal(await iosPage.evaluate(()=>window.GELiveAudioEQ.status().iosEnabled),true,
+  'iPhone live-EQ opt-in must remain enabled after reload');
  await iosPage.evaluate(async url=>{
    const a=document.getElementById('player');a.src=url;a.load();
    await a.play();

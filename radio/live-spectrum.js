@@ -7,7 +7,10 @@ const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const GE_IOS_PREVIEW=new URLSearchParams(location.search).get('eq_preview')==='1';
-let geIOSLiveOptIn=GE_IOS_PREVIEW,lastError='',lastSignal=0;
+const IOS_OPT_IN_KEY='GE_IOS_LIVE_EQ_ENABLED_V1';
+let savedIOSOptIn=false;
+try{savedIOSOptIn=localStorage.getItem(IOS_OPT_IN_KEY)==='1';}catch(_){}
+let geIOSLiveOptIn=GE_IOS_PREVIEW||savedIOSOptIn,lastError='',lastSignal=0;
 const bins=new Uint8Array(256);
 const element=()=>document.getElementById('player');
 function localSong(){
@@ -87,6 +90,7 @@ function showEnableControl(){
 }
 function enable(){
   geIOSLiveOptIn=true;
+  try{localStorage.setItem(IOS_OPT_IN_KEY,'1');}catch(_){}
   lastError='';
   showEnableControl();
   return arm();

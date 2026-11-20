@@ -21,6 +21,11 @@ assert.match(gate,/createMediaElementSource\(main\)/);
 assert.match(fft,/getElementById\('player'\)/,'analyser must sample the real Radio player');
 assert.doesNotMatch(fft,/getElementById\('audio'\)/,'never sample the preview-only audio element');
 assert.match(fft,/getSpectrumFrame/);
+const preview=fs.readFileSync('radio/preview-lab.html','utf8');
+assert.match(preview,/window\.GEAudioGain\?\.arm\?\.\(\)/,'MUSIC must arm its own real audio graph');
+assert.match(radio,/frame\?\.GEAudioGain\?\.getSpectrumFrame\?\.\(\)/,'Sun EQ must read actual MUSIC PCM');
+assert.doesNotMatch(radio,/GEOfflineSpectrum|SAVED FREQUENCIES NOT AVAILABLE|offline-spectrum\.js/,'Radio must not use saved song-frequency mapping');
+
 assert.match(fft,/gate\.arm\(\)/);
 assert.doesNotMatch(fft,/createMediaElementSource|new AudioContext|new Audio\s*\(/);
 assert.doesNotMatch(fft,/new\s+Audio\s*\(/);
@@ -30,6 +35,7 @@ assert.match(radio,/if\(GE_STATIC_RADIO_PRIMARY\|\|!GE_IOS_AUDIO/); // BLITZ pol
 assert.match(radio,/id="geSunEQEnable"/);
 assert.match(fft,/function enable\(\)/);
 assert.match(fft,/geIOSLiveOptIn/);
+assert.match(fft,/GE_IOS_LIVE_EQ_ENABLED_V1/,'live iPhone opt-in must survive reloads');
 assert.match(radio,/SUN_LAB_BALANCE_KEY/);
 assert.match(radio,/sunEQAura\.style\.opacity=live\?'1':'.075'/);
 assert.doesNotMatch(radio,/upgradeSunLabVisibility\(\);/);

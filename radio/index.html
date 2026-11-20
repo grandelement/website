@@ -879,6 +879,10 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
+    <div class="sunlab-share-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0">
+      <button id="sunLabCopyPhoneLink" type="button" class="sunlab-mini" title="Transfer the eight saved EQ effects to your other device">SEND EQ TO PHONE</button>
+      <span id="sunLabShareStatus" role="status" style="font-size:11px;color:#9de5fe"></span>
+    </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
     <button id="geSunEQEnable" type="button" class="sunlab-mini" hidden
       style="margin:5px auto 9px;padding:9px 16px;min-height:40px;max-width:100%;border:1px solid #5dbbde;border-radius:9px;color:#eefaff;background:#10476a;font-weight:800"
@@ -905,7 +909,12 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
       <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
       <div class="sunlab-row"><label for="slContrast">Contrast</label><output id="slContrastVal"></output><input id="slContrast" type="range" min="0" max="280" step="1" value="40"><small>Widens the light-versus-dark difference so hits stand out more clearly.</small></div>
-      <div class="sunlab-row"><label for="slDynamics">Dynamics</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Expands the difference between quiet and peak movement after automatic band balancing.</small></div>
+      <div class="sunlab-row"><label for="slDynamics">Dynamics Gain</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Overall movement gain. Use Pulse Depth to change quiet-versus-loud beats.</small></div>
+      <div class="sunlab-row"><label for="slPulseDepth">Pulse Depth</label><output id="slPulseDepthVal"></output><input id="slPulseDepth" type="range" min="0" max="100" step="1" value="82"><small>0 = dimmer; 100 = pronounced beat flashes</small></div>
+      <div class="sunlab-row"><label for="slPulseSensitivity">Beat Sensitivity</label><output id="slPulseSensitivityVal"></output><input id="slPulseSensitivity" type="range" min="0" max="100" step="1" value="70"><small>How strongly to respond to quieter changes in the music</small></div>
+      <div class="sunlab-row"><label for="slPulseAttack">Pulse Attack</label><output id="slPulseAttackVal"></output><input id="slPulseAttack" type="range" min="0" max="100" step="1" value="85"><small>How quickly each new beat turns the light on</small></div>
+      <div class="sunlab-row"><label for="slPulseRelease">Pulse Release</label><output id="slPulseReleaseVal"></output><input id="slPulseRelease" type="range" min="0" max="100" step="1" value="72"><small>How quickly each beat fades back toward darkness</small></div>
+      <div class="sunlab-row"><label for="slPulseNoiseFloor">Pulse Noise Floor</label><output id="slPulseNoiseFloorVal"></output><input id="slPulseNoiseFloor" type="range" min="0" max="100" step="1" value="12"><small>Ignore steady background energy and retain musical pulses</small></div>
       <div class="sunlab-row"><label for="slGlow">Glow / Blur</label><output id="slGlowVal"></output><input id="slGlow" type="range" min="0" max="150" step="1" value="0"><small>Lower this to remove the haze and expose the raw bars.</small></div>
       <div class="sunlab-row"><label for="slMist">Mist / Residue</label><output id="slMistVal"></output><input id="slMist" type="range" min="0" max="220" step="1" value="0"><small>Adds smoky carry-over so each pulse leaves a lingering atmospheric trail.</small></div>
       <div class="sunlab-row"><label for="slBlueDepth">Blue Depth</label><output id="slBlueDepthVal"></output><input id="slBlueDepth" type="range" min="0" max="260" step="1" value="40"><small>Pushes the base color deeper into blue before the brighter tip colors appear.</small></div>
@@ -965,6 +974,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
 <script src="./ge-gate-audio.js?v=20261119-shared-live-fft-v2"></script>
+<script src="./sun-pulse-engine.js?v=20261120-pulse-v1"></script>
 <script>
 'use strict';
 
@@ -3737,7 +3747,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v723-native-iframe-audio';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261120-live-music-fft-v1';
   // Keep the preview document's licensed gate and transport, but mount
   // MUSIC's audio element in the top document BEFORE any track starts.
   // Safari can suspend media owned by an embedded frame in the background.
@@ -4236,7 +4246,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
-    if(!isStationID(url))void window.GEOfflineSpectrum?.prepare?.(url);
+    // Live FFT is measured from the audible player; no saved song analysis.
     if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     window.GELoudness?.applyURL?.(url,350);
     fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
@@ -5575,7 +5585,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261119-sun-eq-signal-v2',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261120-pulse-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -5811,6 +5821,7 @@ async function registerServiceWorker(){
     waveType:'mirrorflip',distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
     blueDepth:40,outerFade:50,tipWhite:56,brightness:145,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
+    pulseDepth:82,pulseSensitivity:70,pulseAttack:85,pulseRelease:72,pulseNoiseFloor:12,
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
@@ -5891,7 +5902,10 @@ async function registerServiceWorker(){
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
     if(hint)hint.textContent=mode?modeLabel(mode)+' controls':'Tap an effect to edit it.';
     const publicOnly=window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed();
-    const ids=new Set(mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[]);
+    const baseControls=mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[];
+    const pulseControls=mode?(publicOnly?['slPulseDepth']:
+      ['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']):[];
+    const ids=new Set([...baseControls,...pulseControls]);
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
@@ -5967,6 +5981,11 @@ async function registerServiceWorker(){
     bindSunLabControl('slThickness','thickness');
     bindSunLabControl('slContrast','contrast');
     bindSunLabControl('slDynamics','dynamics');
+    bindSunLabControl('slPulseDepth','pulseDepth');
+    bindSunLabControl('slPulseSensitivity','pulseSensitivity');
+    bindSunLabControl('slPulseAttack','pulseAttack');
+    bindSunLabControl('slPulseRelease','pulseRelease');
+    bindSunLabControl('slPulseNoiseFloor','pulseNoiseFloor');
     bindSunLabControl('slGlow','glow');
     bindSunLabControl('slMist','mist');
     bindSunLabControl('slBlueDepth','blueDepth');
@@ -6563,14 +6582,6 @@ Vector ${vector}. ${pair[1]}.`;
       eqMessage(equipped?'MUSIC EQ · REAL-TIME AUDIO':'MUSIC EQ · LIVE ANALYZER UNAVAILABLE');
       return equipped;
     }
-    if(localSpectrumSource()){
-      const url=state.currentURL||audio.currentSrc;
-      void window.GEOfflineSpectrum?.prepare?.(url);
-      const bins=window.GEOfflineSpectrum?.read?.(url,audio.currentTime);
-      if(bins){eqData=bins;eqLastSignalAt=performance.now();eqMessage('MUSIC EQ · LOCAL SONG FREQUENCIES');return true}
-      eqMessage('MUSIC EQ · PREPARING LOCAL SONG ANALYSIS');
-      return false;
-    }
     // iPhone Safari/PWA has a single reliable native music session. A SECOND
     // (even silent) HTMLAudioElement can steal the audible output, producing
     // "playing live" while the phone makes no sound. Never start EQ tap on iOS.
@@ -6659,6 +6670,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
+    if(geInlineMusicActive)return inlineSpectrumData();
     if(audio.paused||audio.ended)return null;
     // Prefer the spectrum sampled directly from the actually audible player.
     // Neither the Radio mode flag nor iframe detection may override real FFT.
@@ -6666,7 +6678,6 @@ Vector ${vector}. ${pair[1]}.`;
     if(actual)return actual;
     if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource())
       return null;
-    if(localSpectrumSource())return window.GEOfflineSpectrum?.read?.(state.currentURL||audio.currentSrc,audio.currentTime)||null;
     if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
@@ -6949,7 +6960,8 @@ Vector ${vector}. ${pair[1]}.`;
     const outer=sunEQAura.querySelector('.sun-glow-outer');
     if(!inner||!outer)return;
     const raw=currentAudioEnergy(live);
-    const pulse=.86+Math.pow(clamp(raw*1.65,0,1),.72)*.38;
+    // Change radius perceptibly with live transients; leave color independent.
+    const pulse=.74+Math.pow(clamp(raw*1.8,0,1),.75)*.64;
     const innerReach=clamp(sunNum('innerGlowReach',18)/100,0,1);
     const outerReach=clamp(sunNum('outerGlowReach',42)/100,0,1);
     const innerStrength=clamp(sunNum('innerGlowStrength',150)/220,0,1);
@@ -6957,10 +6969,10 @@ Vector ${vector}. ${pair[1]}.`;
     const innerHue=((sunNum('innerGlowHue',205)%360)+360)%360;
     const outerHue=((sunNum('outerGlowHue',188)%360)+360)%360;
 
-    const innerScale=1.00+innerReach*.24+raw*.035;
-    const outerScale=1.02+outerReach*.48+raw*.055;
-    const innerAlpha=clamp(innerStrength*(.76+raw*.24),.30,1);
-    const outerAlpha=clamp(outerStrength*(.68+raw*.32),.26,1);
+    const innerScale=1.00+innerReach*.24+raw*.12;
+    const outerScale=1.02+outerReach*.48+raw*.18;
+    const innerAlpha=clamp(innerStrength*(.18+raw*.88),.06,1);
+    const outerAlpha=clamp(outerStrength*(.12+raw*.92),.05,1);
     const innerBlur=3+innerReach*11;
     const outerBlur=8+outerReach*26;
 
@@ -7247,21 +7259,30 @@ Vector ${vector}. ${pair[1]}.`;
   }
   // Reuse existing frequency snapshots for Music played in the protected
   // same-origin iframe. Never create a second audio player on iPhone.
-  let inlineSpectrumPath='',inlineSpectrumRetryAt=0;
+  // MUSIC and Radio use different native audio elements. The MUSIC iframe
+  // already has a Gate Web Audio graph attached to its real transport.
+  // Read that graph's current PCM FFT directly; never cache song frequency maps.
+  const geMusicFFT=new Uint8Array(256);
   function inlineSpectrumData(){
-    if(!geInlineMusicActive||!geInlineMusicCurrentPath)return null;
-    const transport=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+    if(!geInlineMusicActive||geInlineMusicPaused)return null;
+    const frame=geInlineMusicFrame?.contentWindow;
+    const transport=frame?.GEGetMusicTransport?.();
     if(!transport||transport.paused||transport.ended)return null;
-    const path=canonicalSongPath(geInlineMusicCurrentPath);
-    if(!path)return null;
-    const url=new URL('../'+path,location.href).href;
-    const now=performance.now();
-    if(path!==inlineSpectrumPath){inlineSpectrumPath=path;inlineSpectrumRetryAt=0;}
-    if(now>=inlineSpectrumRetryAt){
-      inlineSpectrumRetryAt=now+15000;
-      void window.GEOfflineSpectrum?.prepare?.(url);
+    const spectrum=frame?.GEAudioGain?.getSpectrumFrame?.();
+    if(!spectrum?.bins?.length)return null;
+    const raw=spectrum.bins;
+    const resolution=(spectrum.sampleRate||44100)/(spectrum.fftSize||2048);
+    const ceiling=Math.min(16000,(spectrum.sampleRate||44100)/2);
+    for(let i=0;i<geMusicFFT.length;i++){
+      const loHz=32*Math.pow(ceiling/32,i/geMusicFFT.length);
+      const hiHz=32*Math.pow(ceiling/32,(i+1)/geMusicFFT.length);
+      const lo=Math.min(raw.length-1,Math.max(0,Math.floor(loHz/resolution)));
+      const hi=Math.min(raw.length,Math.max(lo+1,Math.ceil(hiHz/resolution)));
+      let total=0,peak=0;
+      for(let j=lo;j<hi;j++){total+=raw[j];peak=Math.max(peak,raw[j]);}
+      geMusicFFT[i]=Math.round((total/(hi-lo))*.65+peak*.35);
     }
-    return window.GEOfflineSpectrum?.read?.(url,transport.currentTime)||null;
+    return geMusicFFT.some(bin=>bin>1)?geMusicFFT:null;
   }
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
@@ -7306,12 +7327,23 @@ Vector ${vector}. ${pair[1]}.`;
         if(live)eqLastSignalAt=performance.now();
       }catch(_e){}
     }
+    // Visual transient processor is driven exclusively by measured live FFT;
+    // this never changes the audible track, volume, or Gate.
+    if(live&&eqData?.length&&window.GESunPulseEngine?.process){
+      eqData=window.GESunPulseEngine.process(eqData,{
+        pulseDepth:sunLab.pulseDepth,
+        pulseSensitivity:sunLab.pulseSensitivity,
+        pulseAttack:sunLab.pulseAttack,
+        pulseRelease:sunLab.pulseRelease,
+        pulseNoiseFloor:sunLab.pulseNoiseFloor
+      },performance.now())||eqData;
+    }else if(!live)window.GESunPulseEngine?.reset?.();
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
       else if(GE_IOS_AUDIO&&!window.GELiveAudioEQ?.status?.()?.iosEnabled)
         eqMessage('MUSIC EQ · OFF · TAP ENABLE LIVE EQ');
-      else if(inlinePlaying)eqMessage('MUSIC EQ · SAVED FREQUENCIES NOT AVAILABLE');
+      else if(inlinePlaying)eqMessage('MUSIC EQ · LIVE MUSIC AUDIO SIGNAL UNAVAILABLE');
       else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
     }
@@ -9231,10 +9263,11 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
  });
 })();
 </script>
-<script defer src="./sun-lab-compact.js?v=20261119-v1"></script>
+<script defer src="./sun-lab-compact.js?v=20261120-pulse-controls-v1"></script>
+<script defer src="./sun-eq-profile-share.js?v=20261120-transfer-v1"></script>
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
-<script defer src="./live-spectrum.js?v=20261119-live-fft-v2"></script>
-<script defer src="./offline-spectrum.js?v=20261115-v1"></script>
+<script defer src="./live-spectrum.js?v=20261120-ios-persistent-v1"></script>
+<!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
 <script defer src="./offline-manager.js?v=20261117-offline-manager-v9"></script>
 
 

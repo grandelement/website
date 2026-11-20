@@ -21,7 +21,9 @@ test('one worker verifies the startup shell and never deletes music',()=>{
  assert.match(sw,/'.\/offline-home\.html'/);
  assert.doesNotMatch(sw,/'.\/offline-control\.js'/);
  assert.match(sw,/'.\/offline-manager\.js'/);
- assert.match(sw,/'.\/offline-spectrum\.js'/);
+ assert.doesNotMatch(sw,/'.\/offline-spectrum\.js'/,'saved song-frequency maps are no longer part of the required shell');
+ assert.match(sw,/'.\/sun-pulse-engine\.js'/);
+ assert.match(sw,/'.\/sun-eq-profile-share\.js'/);
  assert.match(sw,/GE_RADIO_SHELL_STATUS/);
  assert.match(sw,/ge-images\/img\/31\.gif/);
  assert.match(sw,/ARTWORK\.map/);

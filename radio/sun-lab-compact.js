@@ -5,8 +5,8 @@ const KEY='GE_SUN_LAB_SPECTRUM_POSITION_V1';
 const config=[
  ['Position',-30,30,0,'Spectrum starting radius relative to the Sun','position'],
  ['Reach',-440,220,55,'How far the spectrum extends','slDistance'],
- ['Movement',0,380,190,'Strength of music-driven movement','slDynamics'],
- ['Speed',0,100,65,'Response and waterfall travel speed','slCascadeSpeed'],
+ ['Pulse Depth',0,100,82,'Makes beats alternate between dark and bright','slPulseDepth'],
+ ['Release',0,100,72,'Higher makes each beat fall back toward darkness faster','slPulseRelease'],
  ['Detail',0,100,65,'Ray thickness and separation','detail']
 ];
 function setNative(id,value){const el=$(id);if(!el)return;el.value=String(Math.max(Number(el.min),Math.min(Number(el.max),value)));el.dispatchEvent(new Event('input',{bubbles:true}));}
@@ -28,8 +28,12 @@ function init(){
  actions.append(starter,advanced);box.append(actions);
  const status=document.createElement('p');status.id='geSunCompactStatus';status.setAttribute('role','status');status.textContent='Movement requires live audio spectrum data.';box.append(status);
  grid.before(box);
- // Preserve the original Sun Lab control DOM and mode selectors.
- // Reparenting these rows breaks the existing EQ mode UI and visualizer wiring.
+ // Phone: start with the five readable controls. Desktop keeps all original
+ // advanced sliders visible, so precision editing remains practical.
+ const onPhone=window.matchMedia?.('(max-width:720px)').matches??false;
+ grid.hidden=onPhone;
+ if(!onPhone){advanced.setAttribute('aria-expanded','true');advanced.textContent='ADVANCED SETTINGS ▴';}
+ // Preserve original DOM and original effect profiles. Never reparent rows.
  advanced.addEventListener('click',()=>{
    const expanded=advanced.getAttribute('aria-expanded')!=='true';
    advanced.setAttribute('aria-expanded',String(expanded));
@@ -47,8 +51,8 @@ function init(){
  for(const [key,c] of controls)c.slider.addEventListener('input',()=>update(key,Number(c.slider.value)));
  update('position',position);
  // Read existing per-effect values; don't overwrite saved presets at load.
- for(const key of ['slDistance','slDynamics','slCascadeSpeed']){const el=$(key);if(el){const c=controls.get(key);c.slider.value=el.value;c.value.textContent=el.value;el.addEventListener('input',()=>{c.slider.value=el.value;c.value.textContent=el.value;});}}
- starter.addEventListener('click',()=>{update('position',0);update('slDistance',75);update('slDynamics',230);update('slCascadeSpeed',72);update('detail',70);setNative('slGlow',0);setNative('slMist',10);setNative('slBrightness',145);status.textContent='Movement starting point loaded. Play music and confirm the live spectrum meter changes.';});
+ for(const key of ['slDistance','slPulseDepth','slPulseRelease']){const el=$(key);if(el){const c=controls.get(key);c.slider.value=el.value;c.value.textContent=el.value;el.addEventListener('input',()=>{c.slider.value=el.value;c.value.textContent=el.value;});}}
+ starter.addEventListener('click',()=>{update('position',0);update('slDistance',75);update('slPulseDepth',92);update('slPulseRelease',83);update('detail',62);setNative('slPulseSensitivity',82);setNative('slPulseAttack',92);setNative('slPulseNoiseFloor',13);setNative('slGlow',0);setNative('slMist',10);setNative('slBrightness',145);status.textContent='Beat pulse ready. Play music to see the light flash with the real frequencies.';});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
