@@ -35,6 +35,7 @@ assert.match(radio,/if\(GE_STATIC_RADIO_PRIMARY\|\|!GE_IOS_AUDIO/); // BLITZ pol
 assert.match(radio,/id="geSunEQEnable"/);
 assert.match(fft,/function enable\(\)/);
 assert.match(fft,/geIOSLiveOptIn/);
+assert.match(fft,/GE_IOS_LIVE_EQ_ENABLED_V1/,'live iPhone opt-in must survive reloads');
 assert.match(radio,/SUN_LAB_BALANCE_KEY/);
 assert.match(radio,/sunEQAura\.style\.opacity=live\?'1':'.075'/);
 assert.doesNotMatch(radio,/upgradeSunLabVisibility\(\);/);
