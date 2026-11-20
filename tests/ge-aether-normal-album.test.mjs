@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const source=readFileSync(new URL('../radio/preview-lab.html',import.meta.url),'utf8');
+const fn=source.match(/function geAudioSourceURL\(t\)\{([\s\S]*?)\n\}/);
+assert.ok(fn,'Music player must define a shared audio URL resolver');
+assert.match(fn[1],/new URL\(t\.url,location\.origin\)\.href/);
+assert.doesNotMatch(fn[1],/Aether|raw\.githubusercontent\.com|Grand Element - 2026/);
+assert.match(source,/function restoreSelected\(tracks\)/);
+assert.match(source,/function setAlbumSelected\(name,on\)/);
+console.log('Aether and other albums use the same media URL resolver; shared selection handlers remain.');
