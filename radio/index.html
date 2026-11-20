@@ -2430,10 +2430,9 @@ function updateRadioStartupCue(){
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
-    const nextLabel=(state.live||state.livePreparing)?'STOP':'RADIO';
+    // RADIO always keeps its visible label; ON/OFF is conveyed by red color.
     const label=button.querySelector('.ge-radio-control-label');
-    if(label){if(label.textContent!==nextLabel)label.textContent=nextLabel;}
-    else if(button.textContent!==nextLabel)button.textContent=nextLabel;
+    if(label&&label.textContent!=='RADIO')label.textContent='RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
