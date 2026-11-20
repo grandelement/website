@@ -2128,6 +2128,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
+  document.body.classList.toggle('ge-radio-on',!!(state.live||state.livePreparing));
   // RADIO remains visible during startup; red heartbeat requires verified progress.
   updateRadioStartupCue?.();
 }
@@ -2422,6 +2423,7 @@ function updateRadioStartupCue(){
   // The separate signal-ready/audible classes still require real audio proof.
   const tapReady=!state.live&&!state.livePreparing&&
     navigator.onLine!==false&&liveStreamConfigured();
+  document.body.classList.toggle('ge-radio-on',!!(state.live||state.livePreparing));
   document.body.classList.toggle('ge-radio-tap-ready',tapReady);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
   document.body.classList.toggle('ge-radio-audible',connected);
@@ -4638,6 +4640,7 @@ syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   // RADIO is a true start/stop control, including while connecting.
   document.body.classList.add('ge-radio-pulse-ack');
+  document.body.classList.toggle('ge-radio-on',!(state.live||state.livePreparing));
   if(state.live||state.livePreparing){
     exitLiveMode('RADIO STOPPED');
     requestUserPause();
@@ -9236,45 +9239,43 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 
 <style id="ge-radio-single-state">
-/* Single RADIO visual owner. The first-click latch never resets. */
-@keyframes geRadioFirstTapDoubleBeat {
-  0%,8%,36%,100% { opacity:.12;transform:scale(1); }
-  12% { opacity:.65;transform:scale(1.025); }
-  23% { opacity:.2;transform:scale(1); }
-  29% { opacity:.85;transform:scale(1.035); }
+/* RADIO has exactly three visual states: inviting, ON, OFF. */
+@keyframes geRadioHeartbeat {
+  0%,9%,24%,42%,100% { opacity:.08;transform:scale(1); }
+  13% { opacity:.75;transform:scale(1.03); }
+  31% { opacity:1;transform:scale(1.05); }
 }
-html.ge-radio-ui body #musicGroup button#liveBtn,
-html.ge-radio-ui body #shipStage button[data-proxy="liveBtn"] {
+html.ge-radio-ui[class] body[class] #musicGroup button#liveBtn,
+html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"] {
   animation:none!important;transition:none!important;
   background:#4c0c16!important;background-image:none!important;
-  filter:none!important;opacity:1!important;
-  border-color:#8c2b3a!important;color:#fff!important;
-  box-shadow:none!important;position:relative!important;
+  border-color:#8c2b3a!important;box-shadow:none!important;
+  filter:none!important;opacity:1!important;color:white!important;
+  position:relative!important;
 }
-html.ge-radio-ui body #musicGroup button#liveBtn[aria-pressed="true"],
-html.ge-radio-ui body #shipStage button[data-proxy="liveBtn"][aria-pressed="true"] {
+html.ge-radio-ui[class] body.ge-radio-on[class] #musicGroup button#liveBtn,
+html.ge-radio-ui[class] body.ge-radio-on[class] #shipStage button[data-proxy="liveBtn"] {
   background:#d21d30!important;background-image:none!important;
-  border-color:#ff6270!important;
-  box-shadow:0 0 10px rgba(230,42,62,.35)!important;
+  border-color:#ff6270!important;box-shadow:0 0 10px rgba(230,42,62,.35)!important;
 }
-html.ge-radio-ui body #musicGroup button#liveBtn::before,
-html.ge-radio-ui body #shipStage button[data-proxy="liveBtn"]::before {
+html.ge-radio-ui[class] body[class] #musicGroup button#liveBtn::before,
+html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]::before {
   content:none!important;display:none!important;animation:none!important;
 }
-html.ge-radio-ui body #musicGroup button#liveBtn::after,
-html.ge-radio-ui body #shipStage button[data-proxy="liveBtn"]::after {
+html.ge-radio-ui[class] body[class] #musicGroup button#liveBtn::after,
+html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]::after {
   content:""!important;display:block!important;position:absolute!important;
-  inset:-5px!important;border-radius:inherit!important;pointer-events:none!important;
-  box-shadow:0 0 14px rgba(255,65,90,.55)!important;
+  inset:-6px!important;border-radius:inherit!important;pointer-events:none!important;
+  background:transparent!important;box-shadow:0 0 18px 5px rgba(255,45,82,.7)!important;
   opacity:0!important;animation:none!important;
 }
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #musicGroup button#liveBtn::after,
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #shipStage button[data-proxy="liveBtn"]::after {
-  animation:geRadioFirstTapDoubleBeat 3.2s ease-in-out infinite!important;
+html.ge-radio-ui[class] body:not(.ge-radio-pulse-ack)[class] #musicGroup button#liveBtn::after,
+html.ge-radio-ui[class] body:not(.ge-radio-pulse-ack)[class] #shipStage button[data-proxy="liveBtn"]::after {
+  animation:geRadioHeartbeat 2.6s ease-in-out infinite!important;
 }
 @media(prefers-reduced-motion:reduce){
-  html.ge-radio-ui body #musicGroup button#liveBtn::after,
-  html.ge-radio-ui body #shipStage button[data-proxy="liveBtn"]::after {
+  html.ge-radio-ui[class] body[class] #musicGroup button#liveBtn::after,
+  html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]::after {
     animation:none!important;opacity:0!important;
   }
 }
