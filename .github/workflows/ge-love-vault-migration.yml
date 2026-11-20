@@ -1,4 +1,4 @@
-name: GE LOVE — consolidate Radio Gate in Vault
+name: GE Vault — standard access code delivery
 
 on:
   push:
@@ -23,17 +23,20 @@ concurrency:
 
 jobs:
   test:
-    name: Verify LOVE migration, revocation and security
+    name: Verify all owner-managed code permissions and security
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Test LOVE migration with the real Vault route and mocked D1
-        run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test owner-issued LOVE as a normal code with real Vault route
+        run: node tests/legacy-love-vault.test.mjs
       - name: Verify scoped Music code security is unaffected
-        run: node --experimental-default-type=module tests/access-music-session.test.mjs
-      - name: Verify private Worker service binding bypasses public Vault edge and loads LOVE
-        run: node --experimental-default-type=module tests/private-vault-binding.test.mjs
+        run: node tests/access-music-session.test.mjs
+      - name: Verify private Worker binding bypasses public Vault edge and reads stored codes
+        run: node tests/private-vault-binding.test.mjs
   deploy:
     name: Deploy existing Vault and Back Room Workers
     needs: test
