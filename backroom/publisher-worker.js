@@ -101,8 +101,27 @@ async function githubAppJwt(env){
   const appId=String(env.GITHUB_APP_ID||'').trim();
   const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
   if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
-  const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
-  const bytes=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
+  // WebCrypto accepts PKCS#8. Wrap PKCS#1 in a PKCS#8 PrivateKeyInfo
+  // without changing or exporting the owner's private key.
+  const pkcs1=/^-----BEGIN RSA PRIVATE KEY-----([\s\S]*?)-----END RSA PRIVATE KEY-----$/;
+  const pkcs8=/^-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----$/;
+  const match=pem.match(pkcs1)||pem.match(pkcs8);
+  if(!match)throw new Error('Unsupported GitHub App private key PEM format.');
+  const body=match[1].replace(/\s/g,'');
+  const raw=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  const derLength=n=>{
+    if(n<128)return Uint8Array.of(n);
+    const bytes=[];
+    while(n>0){bytes.unshift(n&255);n=Math.floor(n/256);}
+    return Uint8Array.of(0x80|bytes.length,...bytes);
+  };
+  const der=(tag,content)=>Uint8Array.of(tag,...derLength(content.length),...content);
+  const bytes=pem.match(pkcs1)?der(0x30,Uint8Array.of(
+    0x02,0x01,0x00,
+    0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0x00,
+    ...der(0x04,raw)
+  )):raw;
   const key=await crypto.subtle.importKey('pkcs8',bytes,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   const now=Math.floor(Date.now()/1000);
   const header=b64url(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})));
@@ -116,7 +135,10 @@ async function githubCredential(env){
     if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
     throw new Error('GitHub publishing credentials are not configured.');
   }
-  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID);
+  // Cache identity includes a non-reversible digest of the App private key.
+  // When the owner rotates the key, never reuse a token minted by the old key.
+  const keyFingerprint=Array.from(await sha256(String(env.GITHUB_APP_PRIVATE_KEY))).map(n=>n.toString(16).padStart(2,'0')).join('');
+  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID)+':'+keyFingerprint;
   if(appTokenCache&&appTokenCache.identity===identity&&appTokenCache.expires>Date.now()+120000){
     return appTokenCache.token;
   }
@@ -906,12 +928,31 @@ export default {
       try{
         const hasApp=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
         const hasFallback=!!env.GITHUB_TOKEN;
-        const test=await github(env,'config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main'),{method:'GET'});
+        const path='config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main');
+        const test=await github(env,path,{method:'GET'});
         const ok=test.ok;
+        // A successful generic read can be rescued by the expiring legacy PAT.
+        // Explicitly verify the App using an isolated environment without it.
+        let appReadVerified=false,appReadHttp=null;
+        if(hasApp){
+          try{
+            const appOnly=await github({...env,GITHUB_TOKEN:undefined},path,{method:'GET'});
+            appReadVerified=appOnly.ok;
+            appReadHttp=appOnly.status;
+          }catch(_error){
+            // Do not send secret keys, JWTs or GitHub response bodies to browser.
+            appReadVerified=false;
+          }
+        }
         return json({ok,github_ready:ok,github_http:test.status,
           server_credential_configured:hasApp||hasFallback,
           credential_mode:hasApp?'github_app'+(hasFallback?'+fallback':''):hasFallback?'server_token':'missing',
-          action:ok?'ready':'repair GitHub App installation/permissions or the server-side token in the Publisher Worker'},ok?200:503,cors);
+          app_read_verified:appReadVerified,app_read_http:appReadHttp,
+          legacy_token_configured:hasFallback,
+          action:!ok?'repair GitHub publisher authorization':
+            !appReadVerified?'install or repair GitHub App; legacy token is not a permanent solution':
+            hasFallback?'test a real App-only write/readback before removing the legacy token':
+            'renewable GitHub App read verified; verify a real write/readback'},ok?200:503,cors);
       }catch(error){
         return json({ok:false,github_ready:false,server_credential_configured:!!(env.GITHUB_TOKEN||
           (env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY)),

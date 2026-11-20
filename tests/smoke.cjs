@@ -49,7 +49,7 @@ assert(!backroom.includes('openLocalEditor'),'Local editor bypass must be remove
 assert(backroom.includes('id="gatePassword"'),'Owner password gate missing');
 assert(backroom.includes('id="gateEnter"'),'Owner sign-in missing');
 assert(backroom.includes('id="publishLive" type="button">PUBLISH GITHUB'),'GitHub publishing is not primary');
-assert(backroom.includes('id="legacyPublishLive"'),'Legacy publisher fallback missing');
+assert(!backroom.includes('id="legacyPublishLive"'),'Retired manual-token publisher must not return');
 assert(backroom.includes("const GE_GITHUB_PUBLIC_FIELDS="),'Public-field whitelist missing');
 const whitelist=backroom.match(/const GE_GITHUB_PUBLIC_FIELDS=(\[[^\]]+\])/);
 assert(whitelist&&!/['"](?:music|vault|accessCodes|fanRecords)['"]/.test(whitelist[1]),'Unsafe public publisher whitelist');

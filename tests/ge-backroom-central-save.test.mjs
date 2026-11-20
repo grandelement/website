@@ -54,6 +54,8 @@ try{
  const health=await result.json();
  assert.equal(health.github_ready,true);
  assert.equal(health.credential_mode,'github_app+fallback');
+ assert.equal(health.app_read_verified,false,'Broken App must not be shown as verified');
+ assert.equal(health.legacy_token_configured,true,'Flag the expiring server PAT');
  result=await worker.fetch(req('/manage/public-config'),env);
  assert.equal(result.status,401,'Unauthenticated visitors cannot request the owner editing baseline');
  result=await worker.fetch(req('/manage/public-config',{headers:auth}),env);
