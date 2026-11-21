@@ -2661,7 +2661,7 @@ function toggleAlbumTracks(album){
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
- const paths=tracks.map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
+ const paths=selectableAlbumTracks(album).map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
  box.checked=paths.length>0&&count===paths.length;
  box.indeterminate=count>0&&count<paths.length;
  box.setAttribute('aria-label','Check the entire album '+album);
