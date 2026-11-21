@@ -3040,7 +3040,7 @@ function render(){
 
 // The single OFFLINE downloader is controlled from a thin MUSIC dock.
 // Playback, selections, playlists and Radio transport stay available while it runs.
-let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[],offlineTargetCount=0;
+let offlineChoice='checked',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[],offlineTargetCount=0;
 const offlinePanel=el('.geOfflineWorkspace');
 const offlineStatus=el('.geOfflineStatus');
 const offlineStop=el('.geOfflineStop');
@@ -3160,6 +3160,10 @@ async function offlineDownload(mode=offlineChoice){
 offlineToggle.addEventListener('click',()=>showOfflineChoices(offlineChoices.hidden));
 root.querySelectorAll('[data-ge-offline]').forEach(button=>button.addEventListener('click',()=>{
  offlineChoice=button.dataset.geOffline;
+ if(offlineChoice==='all'){
+  // Never start a full-library download with a single accidental tap.
+  if(!window.confirm('DOWNLOAD ALL MUSIC? This saves every authorized song and station clip, not only checked songs.'))return;
+ }
  if(offlineChoice==='playlist'){
   fillOfflinePlaylists();
   el('.geOfflinePlaylistRow').hidden=false;
