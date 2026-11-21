@@ -154,17 +154,33 @@ test('revoked access blocks new downloads but retains existing saved music',asyn
  assert.equal(await h.has(songs[0]),true);
  assert.equal(h.engine.active(),true);
 });
-test('a new playlist never deletes older downloaded music or selections',async()=>{
+test('a new playlist downloads only that playlist and retains older cached files',async()=>{
  const h=makeHarness();
  h.succeedPrana();
  await h.engine.save({mode:'checked',paths:[songs[0]]});
+ const oldDownloads=h.count(songs[0]);
  const next=await h.engine.save({mode:'playlist',paths:[songs[2]]});
  assert.equal(next.ready,true);
- assert.equal(next.saved,2);
- assert.equal(next.total,2);
- assert.equal(await h.has(songs[0]),true);
+ assert.equal(next.saved,1);
+ assert.equal(next.total,1);
+ assert.equal(await h.has(songs[0]),true,'Previous recordings stay cached');
  assert.equal(await h.has(songs[2]),true);
- assert.deepEqual([...h.engine.plan()], [songs[0],songs[2]]);
+ assert.equal(h.count(songs[0]),oldDownloads,'Old song is not downloaded again');
+ assert.equal(h.count(station),0,'Playlist must not download station files');
+ assert.deepEqual([...h.engine.plan()], [songs[2]],'UPDATE MISSING uses current selection only');
+});
+test('checked songs never fetch all albums or station clips even after an earlier ALL MUSIC plan',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ await h.engine.save({mode:'all'});
+ const priorSongCount=h.count(songs[1]),stationCount=h.count(station);
+ const selected=await h.engine.save({mode:'checked',paths:[songs[2]]});
+ assert.equal(selected.ready,true);
+ assert.equal(selected.total,1);
+ assert.equal(selected.saved,1);
+ assert.equal(h.count(songs[1]),priorSongCount,'Old selection must not be downloaded again');
+ assert.equal(h.count(station),stationCount,'CHECKED SONGS must not download station audio');
+ assert.deepEqual([...h.engine.plan()],[songs[2]]);
 });
 test('restricted codes cannot fetch unassigned songs or remove prior files',async()=>{
  const h=makeHarness();

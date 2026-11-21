@@ -2661,7 +2661,7 @@ function toggleAlbumTracks(album){
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
- const paths=tracks.map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
+ const paths=selectableAlbumTracks(album).map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
  box.checked=paths.length>0&&count===paths.length;
  box.indeterminate=count>0&&count<paths.length;
  box.setAttribute('aria-label','Check the entire album '+album);
@@ -3040,7 +3040,7 @@ function render(){
 
 // The single OFFLINE downloader is controlled from a thin MUSIC dock.
 // Playback, selections, playlists and Radio transport stay available while it runs.
-let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[];
+let offlineChoice='checked',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[],offlineTargetCount=0;
 const offlinePanel=el('.geOfflineWorkspace');
 const offlineStatus=el('.geOfflineStatus');
 const offlineStop=el('.geOfflineStop');
@@ -3110,8 +3110,8 @@ async function offlineCheck(){
 }
 function offlineProgressUpdate(event){
  if(Number.isFinite(event.percent))setOfflineProgress(event.percent,event.etaSeconds);
- if(event.phase==='preparing')setOfflineMessage('PREPARING…');
- else if(event.phase==='audio')setOfflineMessage('SAVING MUSIC…');
+ if(event.phase==='preparing')setOfflineMessage(offlineTargetCount?'PREPARING '+offlineTargetCount+' SONGS…':'PREPARING…');
+ else if(event.phase==='audio')setOfflineMessage(offlineTargetCount?'SAVING '+offlineTargetCount+' SONGS…':'SAVING MUSIC…');
  else if(event.phase==='verifying'||event.phase==='checking')setOfflineMessage('VERIFYING…');
  else if(event.phase==='error')setOfflineMessage(event.message||'DOWNLOAD INTERRUPTED');
 }
@@ -3121,12 +3121,21 @@ async function offlineDownload(mode=offlineChoice){
  if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE · RECONNECT');return}
  offlineChoice=mode;
  let paths=[];
- if(mode==='checked')paths=[...state.selected];
+ if(mode==='checked'){
+  // An album-detail download is strictly scoped to its checked album songs.
+  // Other previously checked albums remain selected for playlist editing,
+  // but cannot silently join this album's download.
+  const activeAlbum=state.view.startsWith('album:')?state.view.slice(6):'';
+  const albumPaths=activeAlbum?new Set(selectableAlbumTracks(activeAlbum).map(t=>t.path)):null;
+  paths=[...state.selected].filter(path=>!albumPaths||albumPaths.has(path));
+ }
  if(mode==='playlist')paths=offlinePlaylistPaths();
  if((mode==='checked'||mode==='playlist')&&!paths.length){
   setOfflineMessage(mode==='checked'?'CHECK SONGS FIRST':'CHOOSE A PLAYLIST FIRST');
   return;
  }
+ if((mode==='checked'||mode==='playlist')&&
+     !window.confirm('DOWNLOAD '+paths.length+' CHECKED SONG'+(paths.length===1?'':'S')+' ONLY? No other album recordings will be requested.'))return;
  if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
   offlineResumeAfterAccess=true;
@@ -3135,22 +3144,29 @@ async function offlineDownload(mode=offlineChoice){
  }
  showOfflineChoices(false);
  offlineBusy=true;
+ offlineTargetCount=(mode==='checked'||mode==='playlist')?paths.length:0;
  offlineStop.hidden=false;
- setOfflineProgress(0);setOfflineMessage('PREPARING…');
+ setOfflineProgress(0);
+ setOfflineMessage(offlineTargetCount?'PREPARING '+offlineTargetCount+' SONGS…':'PREPARING…');
  try{
   const result=await engine.save({mode,paths,onProgress:offlineProgressUpdate});
   if(result.error)setOfflineMessage(result.message||'DOWNLOAD NOT READY');
   else{
    setOfflineProgress(result.ready?100:result.percent);
-   setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
-    'PARTIAL · '+(result.message||'TAP OFFLINE → UPDATE MISSING'));
+   setOfflineMessage(result.ready?
+    ('SAVED '+result.saved+' OF '+result.total+' SELECTED SONGS · READY FOR AIRPLANE MODE'):
+    ('SAVED '+result.saved+' OF '+result.total+' SELECTED SONGS · '+(result.message||'PARTIAL · UPDATE MISSING')));
   }
  }catch(error){setOfflineMessage('DOWNLOAD INTERRUPTED · '+String(error?.message||error).slice(0,85))}
- finally{offlineBusy=false;offlineStop.hidden=true}
+ finally{offlineBusy=false;offlineTargetCount=0;offlineStop.hidden=true}
 }
 offlineToggle.addEventListener('click',()=>showOfflineChoices(offlineChoices.hidden));
 root.querySelectorAll('[data-ge-offline]').forEach(button=>button.addEventListener('click',()=>{
  offlineChoice=button.dataset.geOffline;
+ if(offlineChoice==='all'){
+  // Never start a full-library download with a single accidental tap.
+  if(!window.confirm('DOWNLOAD ALL MUSIC? This saves every authorized song and station clip, not only checked songs.'))return;
+ }
  if(offlineChoice==='playlist'){
   fillOfflinePlaylists();
   el('.geOfflinePlaylistRow').hidden=false;
@@ -3196,7 +3212,9 @@ window.addEventListener('ge-access-experience-updated',()=>{
 });
 const persistedOfflineState=window.GEOfflineDownloads?.status?.();
 if(persistedOfflineState?.state==='ready'){
- setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
+ // Persisted status is not evidence the audio is still cached in Safari.
+ setOfflineProgress(0);setOfflineMessage('VERIFYING SAVED MUSIC…');
+ void offlineCheck();
 }else if(persistedOfflineState?.state==='downloading'){
  setOfflineProgress(persistedOfflineState.percent,persistedOfflineState.etaSeconds);
  setOfflineMessage('SAVING MUSIC…');

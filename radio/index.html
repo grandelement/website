@@ -1945,8 +1945,17 @@ async function discoverOfflineMediaFromCaches(){
         }
 
         if(!path.toLowerCase().startsWith('ge-music/music/')) continue;
-        // Include downloaded Singles in the offline catalog.
+        // Include only complete, readable cached audio, not merely a URL key.
         if(isStationID(request.url)) continue;
+        const cached=await cache.match(request);
+        if(!cached?.ok||cached.status!==200)continue;
+        const type=cached.headers.get('content-type')||'';
+        if(/text\/html|application\/json|text\/plain|image\//i.test(type))continue;
+        let bytes=Number(cached.headers.get('content-length'));
+        if(!Number.isFinite(bytes)||bytes<=128){
+          try{bytes=(await cached.blob()).size}catch(_e){continue}
+        }
+        if(bytes<=128)continue;
         songs.add(request.url);
       }
     }
@@ -3863,7 +3872,8 @@ window.GEMusicV5Bridge={
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   // OFFLINE uses the existing single Radio audio element. No preview iframe,
   // Vault music-session request or 33:33 Gate is involved after download.
-  if(offlinePlaybackMode()&&window.GEOffline?.isActive?.()){
+  if(window.GEOffline?.isActive?.()&&offlineAvailability.songs.size&&
+     (offlinePlaybackMode()||[...offlineAvailability.songs].some(url=>canonicalSongPath(url)===path))){
     const saved=new Map([...offlineAvailability.songs].map(url=>[canonicalSongPath(url),url]));
     const chosen=saved.get(path);
     if(!chosen)return {ok:false,message:'Download this song in OFFLINE before playing it without internet.'};
@@ -4191,7 +4201,8 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   // The actual licensed library is not yet hosted privately. This guard
   // closes UI bypasses, including controls used during a live Radio session.
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(window.GEOffline?.isActive?.()&&
+     (offlinePlaybackMode()||offlineAvailability.songs.has(url)))){
     if(userAction)startMainMusicLibrary('all');
     else setStatus('Press PLAY for the shuffled Grand Element song library.');
     return;
