@@ -2445,7 +2445,13 @@ function appendSong(parent,track){
   songText.type='button';
   songText.title='Select or deselect '+track.title;
   songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
-  songText.addEventListener('click',()=>checkbox.click());
+  // iOS Safari: update selection directly instead of synthesizing a click on
+  // an input inside another interactive control (which can be swallowed).
+  songText.addEventListener('click',event=>{
+   event.preventDefault();event.stopPropagation();
+   checkbox.checked=!state.selected.has(track.path);
+   checkbox.dispatchEvent(new Event('change',{bubbles:true}));
+  });
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
