@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const html=readFileSync(new URL('../radio/preview-lab.html',import.meta.url),'utf8');
+const fn=html.match(/function geAudioSourceURL\(t\)\{([\s\S]*?)\n\}/);
+assert.ok(fn,'shared media URL resolver exists');
+assert.match(fn[1],/new URL\(t\.url,location\.origin\)\.href/);
+assert.doesNotMatch(fn[1],/raw\.githubusercontent\.com|Aether/);
+assert.match(html,/id="reloadAlbumSongs"/);
+assert.match(html,/albumTitle'\)\.textContent='SONGS'/);
+assert.match(html,/ONLY '\+saved\+'\/ '\+tracks\.length|ONLY '\+saved\+'\/'\+tracks\.length/);
+const manifest=JSON.parse(readFileSync(new URL('../radio/manifest.json',import.meta.url),'utf8'));
+const aether=manifest.files.filter(x=>/Grand Element - 2026 - Aether\//.test(x));
+assert.equal(aether.length,12,'Current Aether manifest has 12 tracks; investigate expected album count before deleting');
+console.log('Shared playback/offline URL, reload control, and current 12-track manifest verified.');
