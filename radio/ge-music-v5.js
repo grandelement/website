@@ -2645,7 +2645,13 @@ function chosenSongs(){
 function selectableAlbumTracks(album){
  const access=musicAccessActive();
  const allowed=access?.restricted?new Set(access.allowed):null;
- return state.tracks.filter(track=>track.album===album&&(!allowed||allowed.has(track.path)));
+ // Use the full refreshed catalog, not a player-routing subset or the visible page.
+ const catalog=state.catalogAllTracks?.length?state.catalogAllTracks:state.tracks;
+ const seen=new Set();
+ return catalog.filter(track=>{
+  if(track.album!==album||(allowed&&!allowed.has(track.path))||seen.has(track.path))return false;
+  seen.add(track.path);return true;
+ });
 }
 function toggleAlbumTracks(album){
  const tracks=selectableAlbumTracks(album);
@@ -2657,6 +2663,7 @@ function toggleAlbumTracks(album){
  }
  if(!allSelected)state.lastSelectedAlbum=album;
  saveSelected();
+ say(album+': '+tracks.filter(track=>state.selected.has(track.path)).length+'/'+tracks.length+' songs selected');
  render();
 }
 function albumSelectAll(parent,album,tracks,compact=false){
