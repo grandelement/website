@@ -2724,7 +2724,8 @@ function render(){
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent='ALBUMS';
  el('.albumDetailPlaylist').textContent='PLAYLIST';
- el('.albumDetailSongs').textContent=albumDetail?state.view.slice(6).toUpperCase():'SONGS';
+ // SONGS is a fixed navigation label, never the active album name.
+ el('.albumDetailSongs').textContent='SONGS';
  el('.albumDetailSongs').setAttribute('aria-label',albumDetail?'Selected album '+state.view.slice(6)+'. Tap to browse all songs.':'Browse all songs');
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
