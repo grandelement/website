@@ -226,12 +226,15 @@ async function save({mode='all',paths=[],onProgress}={}){
    }
   }
   // Preserve all earlier planned songs, even if today's access scope is narrower.
-  const desired=unique([...previous,...chosen]);setPlan(desired);
+  // Explicit selections replace the previous plan. Only UPDATE MISSING reuses it.
+  const desired=mode==='update'?unique([...previous,...chosen]):chosen;
+  setPlan(desired);
   const previousPending=pending();
   savePending({mode,paths:mode==='all'||mode==='update'?[]:chosen,
    tries:Math.min(5,Number(previousPending?.tries||0)+1),updatedAt:Date.now()});
   const permittedDownloads=desired.filter(p=>allow.has(p));
-  const downloads=unique([...permittedDownloads,...list.stations]);
+  // Checked/playlist requests must never silently download unrelated station files.
+  const downloads=mode==='all'?unique([...permittedDownloads,...list.stations]):permittedDownloads;
   const cache=await caches.open(AUDIO);
   const total=downloads.length;
   for(const path of downloads){
