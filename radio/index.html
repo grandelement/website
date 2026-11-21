@@ -1945,8 +1945,17 @@ async function discoverOfflineMediaFromCaches(){
         }
 
         if(!path.toLowerCase().startsWith('ge-music/music/')) continue;
-        // Include downloaded Singles in the offline catalog.
+        // Include only complete, readable cached audio, not merely a URL key.
         if(isStationID(request.url)) continue;
+        const cached=await cache.match(request);
+        if(!cached?.ok||cached.status!==200)continue;
+        const type=cached.headers.get('content-type')||'';
+        if(/text\/html|application\/json|text\/plain|image\//i.test(type))continue;
+        let bytes=Number(cached.headers.get('content-length'));
+        if(!Number.isFinite(bytes)||bytes<=128){
+          try{bytes=(await cached.blob()).size}catch(_e){continue}
+        }
+        if(bytes<=128)continue;
         songs.add(request.url);
       }
     }
