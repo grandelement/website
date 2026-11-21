@@ -3350,16 +3350,10 @@ function geRadioSunLabPrivateAllowed(){
   }catch(_){return false}
 }
 function geRadioSunLabAllowed(){
-  // Public visual EQ is available without a code; private controls remain separately gated.
+  // EQ visuals are public; developer and owner tools use the separate private permission.
   return true;
-  if(window.GEOffline?.isActive?.())return true;
-  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
-  try{
-    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
-    return !!receipt&&receipt.verifiedFor==='radio'&&
-      Number(receipt.until)>Date.now()&&receipt.sunLab===true;
-  }catch(_){return false}
 }
+
 // I AM is opt-in even for local demos and historic LOVE. A saved code with
 // the 'iam' permission is required before the button can become available.
 function geRadioIAMAllowed(){
@@ -5952,7 +5946,7 @@ async function registerServiceWorker(){
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
-    sunLabPanel.classList.toggle('ge-sunlab-public',window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed());
+    sunLabPanel.classList.toggle('ge-sunlab-public',!geRadioSunLabPrivateAllowed());
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
     // The Sun symbol indicates visual EQ power, not whether its settings panel is open.
     if(on)void ensureLiveEQ();
