@@ -3134,6 +3134,8 @@ async function offlineDownload(mode=offlineChoice){
   setOfflineMessage(mode==='checked'?'CHECK SONGS FIRST':'CHOOSE A PLAYLIST FIRST');
   return;
  }
+ if((mode==='checked'||mode==='playlist')&&
+     !window.confirm('DOWNLOAD '+paths.length+' CHECKED SONG'+(paths.length===1?'':'S')+' ONLY? No other album recordings will be requested.'))return;
  if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
   offlineResumeAfterAccess=true;
@@ -3151,8 +3153,9 @@ async function offlineDownload(mode=offlineChoice){
   if(result.error)setOfflineMessage(result.message||'DOWNLOAD NOT READY');
   else{
    setOfflineProgress(result.ready?100:result.percent);
-   setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
-    'PARTIAL · '+(result.message||'TAP OFFLINE → UPDATE MISSING'));
+   setOfflineMessage(result.ready?
+    ('SAVED '+result.saved+' OF '+result.total+' SELECTED SONGS · READY FOR AIRPLANE MODE'):
+    ('SAVED '+result.saved+' OF '+result.total+' SELECTED SONGS · '+(result.message||'PARTIAL · UPDATE MISSING')));
   }
  }catch(error){setOfflineMessage('DOWNLOAD INTERRUPTED · '+String(error?.message||error).slice(0,85))}
  finally{offlineBusy=false;offlineTargetCount=0;offlineStop.hidden=true}
