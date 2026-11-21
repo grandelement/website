@@ -3872,7 +3872,8 @@ window.GEMusicV5Bridge={
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   // OFFLINE uses the existing single Radio audio element. No preview iframe,
   // Vault music-session request or 33:33 Gate is involved after download.
-  if(offlinePlaybackMode()&&window.GEOffline?.isActive?.()){
+  if(window.GEOffline?.isActive?.()&&offlineAvailability.songs.size&&
+     (offlinePlaybackMode()||[...offlineAvailability.songs].some(url=>canonicalSongPath(url)===path))){
     const saved=new Map([...offlineAvailability.songs].map(url=>[canonicalSongPath(url),url]));
     const chosen=saved.get(path);
     if(!chosen)return {ok:false,message:'Download this song in OFFLINE before playing it without internet.'};
@@ -4200,7 +4201,8 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   // The actual licensed library is not yet hosted privately. This guard
   // closes UI bypasses, including controls used during a live Radio session.
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.())){
+  if(!geOwnerDemoEnabled()&&!(window.GEOffline?.isActive?.()&&
+     (offlinePlaybackMode()||offlineAvailability.songs.has(url)))){
     if(userAction)startMainMusicLibrary('all');
     else setStatus('Press PLAY for the shuffled Grand Element song library.');
     return;
