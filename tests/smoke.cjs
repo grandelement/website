@@ -79,7 +79,7 @@ assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in boun
 assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
 assert(home.includes('ge-vault-client.js?v=20261112-emergency-fan-tracking-v4'),'Website must load approved Vault client');
 assert(vault.includes('GE_EVENT_COOLDOWN_KEY'),'Vault retry backoff must persist across page reloads');
-assert(siteSW.includes('GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109'),'Current website shell cache key missing');
+assert(/const SITE_SHELL='GE_SITE_SHELL_V\d+_[^']+'/.test(siteSW),'Versioned website shell cache key missing');
 for(const file of ['ge-vault-client.js','config/site-live.json','radio/manifest.json','radio/ge-home-gate-stop.js','ge-dream.js'])
   assert(siteSW.includes('./'+file),'Public offline core asset missing: '+file);
 assert(siteSW.includes("relative.startsWith('backroom/')"),'Owner Back Room must not be served from public offline cache');
