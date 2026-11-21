@@ -57,8 +57,14 @@ function clearPending(){try{localStorage.removeItem(PENDING)}catch(_){}}
 function plan(){
  try{return unique(JSON.parse(localStorage.getItem(PLAN)||'null')?.paths).filter(x=>safe(x,SONG))}catch(_){return []}
 }
-function setPlan(paths){
- try{localStorage.setItem(PLAN,JSON.stringify({type:'music',paths:unique(paths).filter(x=>safe(x,SONG)),at:Date.now()}))}catch(_){}
+function stationPlanRequired(){
+ try{return JSON.parse(localStorage.getItem(PLAN)||'null')?.includeStations===true}catch(_){return false}
+}
+function setPlan(paths,{includeStations=false}={}){
+ try{localStorage.setItem(PLAN,JSON.stringify({
+  type:'music',paths:unique(paths).filter(x=>safe(x,SONG)),
+  includeStations,at:Date.now()
+ }))}catch(_){}
 }
 function audioResponse(response){
  return !!response?.ok&&response.status===200&&
@@ -146,12 +152,16 @@ async function inspect({onProgress}={}){
   else missing.push(savedPlan[i]);
   if(i%8===0)report(onProgress,{phase:'checking',percent:savedPlan.length?Math.floor((i+1)/savedPlan.length*100):0});
  }
+ const needStations=stationPlanRequired();
  let stations=[],stationSaved=0;
- try{stations=(await catalog()).stations;
-  for(const path of stations)if(await alreadySaved(address(path)))stationSaved++;
- }catch(_){}
+ if(needStations){
+  try{stations=(await catalog()).stations;
+   for(const path of stations)if(await alreadySaved(address(path)))stationSaved++;
+  }catch(_){}
+ }
+ // CHECKED SONGS and PLAYLIST require exactly their selected songs, not radio clips.
  const all=savedPlan.length>0&&saved===savedPlan.length&&
-  stations.length>0&&stationSaved===stations.length;
+  (!needStations||(stations.length>0&&stationSaved===stations.length));
  // Safari and installed Home Screen Radio each own their own Cache Storage.
  // Downloading and playback are allowed in either; never refuse Safari by platform.
  const ready=all&&engine.ready&&active();
@@ -208,11 +218,13 @@ async function save({mode='all',paths=[],onProgress}={}){
    message:'Radio startup did not verify: '+String(engine.missing?.[0]||'Unknown file')+
     '. Reconnect, reopen Radio, and retry. Existing music is safe.'};
   const list=await catalog();
-  if(!list.stations.length)return {error:'catalog',message:'Station identification files are missing from the catalog.'};
   const allowed=authorized(list.songs),allow=new Set(allowed),previous=plan();
+  const includeStations=mode==='all'||(mode==='update'&&stationPlanRequired());
+  if(includeStations&&!list.stations.length)
+   return {error:'catalog',message:'Station identification files are missing from the catalog.'};
   if(!allowed.length)return {error:'access',message:'Your access code does not include published songs.'};
   const chosen=mode==='all'?allowed:
-   mode==='update'?(previous.length?previous.filter(p=>allow.has(p)):allowed):
+   mode==='update'?previous.filter(p=>allow.has(p)):
    unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
   if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
   // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
@@ -225,16 +237,16 @@ async function save({mode='all',paths=[],onProgress}={}){
     return {error:'access',message:String(error?.message||'OFFLINE permission could not be verified.')};
    }
   }
-  // Preserve all earlier planned songs, even if today's access scope is narrower.
-  // Explicit selections replace the previous plan. Only UPDATE MISSING reuses it.
-  const desired=mode==='update'?unique([...previous,...chosen]):chosen;
-  setPlan(desired);
+  // Explicit CHECKED SONGS/PLAYLIST requests replace the old plan.
+  // UPDATE MISSING only reuses the previously selected music, not the whole catalog.
+  const desired=chosen;
+  setPlan(desired,{includeStations});
   const previousPending=pending();
   savePending({mode,paths:mode==='all'||mode==='update'?[]:chosen,
    tries:Math.min(5,Number(previousPending?.tries||0)+1),updatedAt:Date.now()});
   const permittedDownloads=desired.filter(p=>allow.has(p));
   // Checked/playlist requests must never silently download unrelated station files.
-  const downloads=mode==='all'?unique([...permittedDownloads,...list.stations]):permittedDownloads;
+  const downloads=includeStations?unique([...permittedDownloads,...list.stations]):permittedDownloads;
   const cache=await caches.open(AUDIO);
   const total=downloads.length;
   for(const path of downloads){
