@@ -312,15 +312,6 @@ async function resume(){
  // request is the only authority to download that selection.
  return false;
 }
-async function legacyResumeDisabled(){
- if(busy||resumeAttempted||navigator.onLine===false)return false;
- const saved=pending();
- if(!saved||!canDownload())return false;
- resumeAttempted=true;
- const choice=saved.mode==='all'||saved.mode==='update'?'update':saved.mode;
- await save({mode:choice,paths:saved.paths});
- return true;
-}
 function onReturn(){
  // Recheck local files only. Never restart downloads on focus or page load.
  void syncStatus();
