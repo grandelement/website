@@ -865,7 +865,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
     <div class="sunlab-title">
       <h3>Sun Lab</h3>
-      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" title="Save the current Sun Lab settings on this device">SAVE</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" title="Save the current Sun Lab settings on this device">SAVE</button><button id="sunLabCopy" type="button" class="sunlab-mini" title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect first. Its own controls will appear below. Each effect remembers its own settings.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
@@ -6102,6 +6102,19 @@ async function registerServiceWorker(){
         saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
         const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE';},1800);}
         setStatus('Sun Lab settings saved on this device for desktop and mobile layouts.');
+      });
+      $('sunLabCopy')?.addEventListener('click',async()=>{
+        saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
+        const payload=JSON.stringify({format:'GE_SUN_LAB_EXPORT_V1',selectedMode:localStorage.getItem(SUN_MODE_SELECTED_KEY),profiles:sunModeProfiles,current:sunLab},null,2);
+        let copied=false;
+        try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(payload);copied=true;}}catch(_e){}
+        if(!copied){
+          const field=document.createElement('textarea');field.value=payload;field.setAttribute('readonly','');field.style.cssText='position:fixed;left:8px;top:8px;width:90vw;height:35vh;z-index:2147483647;';document.body.appendChild(field);field.focus();field.select();
+          try{copied=document.execCommand('copy');}catch(_e){}
+          if(copied)field.remove();else{setStatus('Select and copy the settings text, then paste it into chat.');return;}
+        }
+        const button=$('sunLabCopy');if(button){button.textContent='COPIED ✓';setTimeout(()=>{button.textContent='COPY SETTINGS';},1800);}
+        setStatus('All Sun Lab effect settings copied. Paste them into your chat.');
       });
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
