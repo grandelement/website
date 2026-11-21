@@ -859,7 +859,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="geUtilityRow" aria-label="Radio utility controls">
     <button id="offlineLaunchBtn" type="button" aria-controls="geMusicV5Host" aria-label="Offline music" title="Offline music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 19v2h16v-2"/></svg><span class="ge-radio-icon-label">OFFLINE</span></button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Buy Grand Element music at the GE Store" title="Buy Grand Element music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 8h15l-1 13h-13l-1-13Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span class="ge-radio-icon-label">BUY MUSIC</span></a>
-    <button id="sunLabBtn" type="button" aria-label="Sun Lab" title="Sun Lab"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">SUN LAB</span></button>
+    <button id="sunLabBtn" type="button" aria-label="Sun Lab" title="Sun Lab"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">EQ ON/OFF</span></button><button id="sunLabSettingsBtn" type="button" aria-label="Choose EQ effects" title="Choose EQ effects">EQ EFFECTS</button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
@@ -3350,6 +3350,8 @@ function geRadioSunLabPrivateAllowed(){
   }catch(_){return false}
 }
 function geRadioSunLabAllowed(){
+  // Public visual EQ is available without a code; private controls remain separately gated.
+  return true;
   if(window.GEOffline?.isActive?.())return true;
   if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
   try{
@@ -5863,6 +5865,13 @@ async function registerServiceWorker(){
     orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
     aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:145,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:145,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
   };
+  const SUN_EQ_PUBLIC_ON_KEY='GE_PUBLIC_EQ_ON_V1';
+  let sunEQPublicOn=(()=>{try{return localStorage.getItem(SUN_EQ_PUBLIC_ON_KEY)!=='false';}catch(_){return true;}})();
+  function syncSunEQPower(){
+    if(sunLabBtn){sunLabBtn.setAttribute('aria-pressed',String(sunEQPublicOn));sunLabBtn.setAttribute('aria-label',sunEQPublicOn?'Turn EQ effects off':'Turn EQ effects on');sunLabBtn.title=sunEQPublicOn?'EQ effects on':'EQ effects off';}
+    if(sunEQAura)sunEQAura.style.opacity=sunEQPublicOn?'1':'0';
+    if(sunEQFog&&!sunEQPublicOn)sunEQFog.style.opacity='0';
+  }
   let sunLab={...SUN_MODE_DEFAULTS.waterfall};
   let sunLabEditMode=null;
   let sunModeProfiles={};
@@ -5945,7 +5954,7 @@ async function registerServiceWorker(){
     sunLabPanel.classList.toggle('show',on);
     sunLabPanel.classList.toggle('ge-sunlab-public',window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed());
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
-    sunLabBtn?.setAttribute('aria-pressed',on?'true':'false');
+    // The Sun symbol indicates visual EQ power, not whether its settings panel is open.
     if(on)void ensureLiveEQ();
     else window.GEStopEQTapIfUnused?.();
   }
@@ -6097,7 +6106,9 @@ async function registerServiceWorker(){
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
-      sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed()){if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();else $('accessLaunchBtn')?.click();return;}const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      sunLabBtn.addEventListener('click',()=>{sunEQPublicOn=!sunEQPublicOn;try{localStorage.setItem(SUN_EQ_PUBLIC_ON_KEY,String(sunEQPublicOn));}catch(_e){}syncSunEQPower();if(sunEQPublicOn&&!audio.paused)void ensureLiveEQ();});
+      syncSunEQPower();
+      $('sunLabSettingsBtn')?.addEventListener('click',()=>{const opening=!!sunLabPanel?.hidden;if(opening&&!sunLabEditMode)chooseSunMode('waterfall');setPanelVisible(opening);});
       $('sunLabSave')?.addEventListener('click',()=>{
         saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
         const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE';},1800);}
@@ -6931,7 +6942,7 @@ Vector ${vector}. ${pair[1]}.`;
     const distance=sunNum('distance',-220);
     const reachNorm=clamp((distance+440)/660,0,1);
     const innerScale=1.008;
-    const outerScale=1.32+reachNorm*1.35;
+    const outerScale=1.15+reachNorm*.80; // Keep the spectrum concentrated around the Blue Sun.
     const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
     const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
     const colorMix=clamp(sunNum('bandColorMix',70)/100,0,1);
@@ -6992,7 +7003,8 @@ Vector ${vector}. ${pair[1]}.`;
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
     // Hide fixed bars unless genuine live FFT data exists.
-    sunEQAura.style.opacity=live?'1':'.075';
+    sunEQAura.style.opacity=sunEQPublicOn?(live?'1':'.075'):'0';
+    if(!sunEQPublicOn){if(sunEQFog)sunEQFog.style.opacity='0';return;}
     const now=performance.now();
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
