@@ -312,7 +312,7 @@ body.ge-site-music-embedded #geSitePreviewRemaining{display:block;text-align:cen
   <div id="albumWall" class="albumWall">Loading albums…</div>
   <div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
   <div id="albumView" hidden>
-    <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
+    <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong><button id="reloadAlbumSongs" type="button" hidden aria-label="Reload song catalog" title="Refresh the current album song list">RELOAD SONGS</button></div>
     <div class="albumBulk"><label><input id="albumSelectAll" type="checkbox"> SELECT WHOLE ALBUM</label><button id="playBrowserCollection" type="button">PLAY ALBUM</button><button id="saveAlbumOffline" type="button" hidden>SAVE ALBUM OFFLINE</button></div>
     <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
     <div id="songs"></div>
@@ -940,6 +940,7 @@ function openAlbum(name){
  $('albumTitle').textContent=name;$('search').value='';
  showSongs();syncAlbumWholeCheck();
  $('saveAlbumOffline').hidden=!ownerPreview();
+ $('reloadAlbumSongs').hidden=!isAuthorized();
 }
 function switchMusicBrowse(mode){
  browserMode=mode==='playlists'?'playlists':'albums';
@@ -1465,6 +1466,14 @@ async function loadCompleteMusicCatalog(){
    }
  }catch(error){console.warn('Using saved music listing:',error);}
 }
+$('reloadAlbumSongs').addEventListener('click',async()=>{
+ if(!isAuthorized()){renderGate();return;}
+ const button=$('reloadAlbumSongs');button.disabled=true;button.textContent='RELOADING…';
+ const album=selectedAlbum;
+ try{await loadCompleteMusicCatalog();if(album&&albums.has(album))openAlbum(album);musicNotice('Song catalog reloaded.');}
+ catch(error){musicNotice('Could not reload songs: '+error.message);}
+ finally{button.disabled=false;button.textContent='RELOAD SONGS';}
+});
 void loadCompleteMusicCatalog();
 void loadPublicPlaylists();
 if(GE_RADIO_MUSIC_EMBED)openMusicList(true);
