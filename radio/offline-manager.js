@@ -204,7 +204,7 @@ async function downloadAudio(path,cache){
  }
  throw last||Error('Download interrupted');
 }
-async function save({mode='all',paths=[],onProgress}={}){
+async function save({mode='checked',paths=[],onProgress}={}){
  if(busy)return {error:'busy',message:'Download already running'};
  if(navigator.onLine===false)return {error:'offline',message:'Connect online to download new music'};
  if(!canDownload())return {error:'access',message:'Enter your OFFLINE access code before downloading. Saved music stays available.'};
@@ -213,7 +213,8 @@ async function save({mode='all',paths=[],onProgress}={}){
  const start=Date.now();
  try{
   report(onProgress,{phase:'preparing',percent:0,etaSeconds:null});
-  const engine=await shell({refresh:true});
+  // A song download must not trigger a service worker update or shell refresh.
+  const engine=await shell();
   if(!engine.ready)return {error:'engine',
    message:'Radio startup did not verify: '+String(engine.missing?.[0]||'Unknown file')+
     '. Reconnect, reopen Radio, and retry. Existing music is safe.'};
@@ -223,9 +224,15 @@ async function save({mode='all',paths=[],onProgress}={}){
   if(includeStations&&!list.stations.length)
    return {error:'catalog',message:'Station identification files are missing from the catalog.'};
   if(!allowed.length)return {error:'access',message:'Your access code does not include published songs.'};
+  const requested=unique(paths);
+  // Reject the entire request when a selected filename is not in the authorized
+  // published catalog. Never silently substitute the full library.
+  if((mode==='checked'||mode==='playlist')&&
+     requested.some(p=>!safe(p,SONG)||!allow.has(p)))
+   return {error:'selection',message:'Some checked songs are not authorized or not in the current catalog. Refresh MUSIC and retry.'};
   const chosen=mode==='all'?allowed:
    mode==='update'?previous.filter(p=>allow.has(p)):
-   unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
+   requested;
   if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
   // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
   // existing server to verify a signed OFFLINE-enabled session before saving.
@@ -240,6 +247,11 @@ async function save({mode='all',paths=[],onProgress}={}){
   // Explicit CHECKED SONGS/PLAYLIST requests replace the old plan.
   // UPDATE MISSING only reuses the previously selected music, not the whole catalog.
   const desired=chosen;
+  // Hard invariant: an explicit selection must be exactly the audio download list.
+  if((mode==='checked'||mode==='playlist')&&
+     (includeStations||desired.length!==requested.length||
+      desired.some(p=>!requested.includes(p))))
+   return {error:'selection',message:'Download selection mismatch. Nothing was downloaded.'};
   setPlan(desired,{includeStations});
   const previousPending=pending();
   savePending({mode,paths:mode==='all'||mode==='update'?[]:chosen,
@@ -247,6 +259,9 @@ async function save({mode='all',paths=[],onProgress}={}){
   const permittedDownloads=desired.filter(p=>allow.has(p));
   // Checked/playlist requests must never silently download unrelated station files.
   const downloads=includeStations?unique([...permittedDownloads,...list.stations]):permittedDownloads;
+  if((mode==='checked'||mode==='playlist')&&
+     (downloads.length!==requested.length||downloads.some(p=>!requested.includes(p))))
+   return {error:'selection',message:'Download queue does not match checked songs. Nothing was downloaded.'};
   const cache=await caches.open(AUDIO);
   const total=downloads.length;
   for(const path of downloads){
@@ -293,6 +308,11 @@ async function syncStatus(){
  try{await inspect()}catch(_){}
 }
 async function resume(){
+ // Automatic retry is deliberately disabled. A foreground CHECKED SONGS
+ // request is the only authority to download that selection.
+ return false;
+}
+async function legacyResumeDisabled(){
  if(busy||resumeAttempted||navigator.onLine===false)return false;
  const saved=pending();
  if(!saved||!canDownload())return false;
@@ -302,9 +322,8 @@ async function resume(){
  return true;
 }
 function onReturn(){
- // iOS can suspend JS when switching apps. Reopening resumes missing files,
- // but never bypasses a new or expired code authorization.
- void syncStatus().then(()=>resume());
+ // Recheck local files only. Never restart downloads on focus or page load.
+ void syncStatus();
 }
 try{
  window.addEventListener?.('pageshow',onReturn);
