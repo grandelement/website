@@ -30,7 +30,7 @@ try{
       sun:box(sun),sunHit:hit(sun),sunVisible:sun.getBoundingClientRect().width>35,
       offline:box(offline),offlineHit:hit(offline),offlineVisible:getComputedStyle(offline).display!=='none'};
    });
-   assert.equal(ui.title,'Fire');assert.equal(ui.tab,'FIRE');
+   assert.equal(ui.title,'Fire');assert.equal(ui.tab,'SONGS');
    assert(ui.delta<=3&&ui.inside&&ui.toolbarHits.every(Boolean),'Search/SAVE/LOAD/DELETE must be same row, tappable: '+JSON.stringify(ui));
    assert(ui.countHidden&&ui.sunVisible&&ui.sunHit,'Mini Sun must replace count and receive taps');
    assert(ui.offlineVisible&&ui.offlineHit,'OFFLINE must be available even when locked');
