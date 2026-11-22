@@ -4280,10 +4280,41 @@ const backroomVaultManagers=(()=>{
         const duplicate=!isEdit&&error?.vaultHttp===409&&
           error?.vaultData?.code_exists===true;
         if(!duplicate)throw error;
-        const found=codeRows.find(row=>String(row.id)===
-          String(error.vaultData.existing_id||''));
-        if(!found||found.revoked)
-          throw Error('This access code is already saved but not editable. Reconnect and review saved codes. Nothing was changed.');
+        const existingId=String(error.vaultData.existing_id||'');
+        let found=codeRows.find(row=>String(row.id)===existingId);
+        // A successful issue followed by a lost response can leave the
+        // browser's code list stale. Re-read the authoritative Vault records
+        // before treating an already-issued code as unavailable.
+        if(!found){
+          if(!await refreshCodes())
+            throw Error('Vault reports that this key already exists, but the saved-code list could not be verified. Reconnect before saving. No duplicate was issued.');
+          found=codeRows.find(row=>String(row.id)===existingId);
+        }
+        if(!found)
+          throw Error('This key is reserved by an older or deleted Vault record. Enter a DIFFERENT NEW ACCESS CODE name, then press SAVE. The old key was not reactivated.');
+        if(found.revoked)
+          throw Error('This key belongs to a revoked access code. Enter a DIFFERENT NEW ACCESS CODE name. Revoked keys cannot be reactivated.');
+        const sameSet=(a,b)=>JSON.stringify([...new Set(a||[])].sort())===
+          JSON.stringify([...new Set(b||[])].sort());
+        // If the original issue succeeded but its response was lost, do not
+        // turn a harmless retry into an unrelated edit or another credential.
+        const alreadySaved=found.label===payload.label&&
+          String(found.display_name||'')===payload.display_name&&
+          sameSet(found.scopes,payload.scopes)&&
+          sameSet(found.playlist_ids,payload.playlist_ids)&&
+          JSON.stringify(found.track_paths||[])===JSON.stringify(payload.track_paths||[])&&
+          Number(found.max_uses||0)===Number(payload.max_uses||0)&&
+          found.duration_mode===payload.duration_mode&&
+          found.experience?.games_enabled===payload.experience.games_enabled&&
+          found.experience?.autopilot_enabled===payload.experience.autopilot_enabled;
+        if(alreadySaved){
+          selectedCodeId=found.id;
+          showCodeEditor(found.id);
+          renderAccessCodes();
+          accessStatus('ALREADY SAVED AND VERIFIED IN VAULT · '+found.label+
+            '. Use SHOW ACTUAL RADIO KEY to view its saved key. No new code was issued.');
+          return;
+        }
         if(!confirm('The code you entered is already saved as "'+found.label+
           '". Update that saved record with the permissions now checked? Usage history and its key stay unchanged.')){
           selectedCodeId=found.id;renderAccessCodes();
