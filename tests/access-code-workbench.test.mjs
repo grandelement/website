@@ -71,10 +71,14 @@ assert.match(html,/if\(!await refreshCodes\(\)\)/,
   'on a duplicate response re-read Vault before deciding the saved record is missing');
 assert.match(html,/const alreadySaved=found\.label===payload\.label/,
   'an identical reissued code must be recognized as already saved, not rewritten');
-assert.match(html,/This key is reserved by an older or deleted Vault record/,
-  'a deleted code must remain reserved and tell the owner to choose a different key');
-assert.match(html,/This key belongs to a revoked access code/,
-  'never restore a revoked key during duplicate recovery');
+assert.match(html,/restore_available!==true/,
+  'an archived or revoked key is not restored unless Vault explicitly identifies the matching saved record');
+assert.match(html,/Old fan links will be cleared/,
+  'the owner must see the risk and fan-link reset before restoring an old key');
+assert.match(html,/confirm_restore:true/,
+  'restoring a deleted or revoked code must require owner confirmation');
+assert.match(html,/The key is reserved but the record cannot be restored/,
+  'a key with an unknown collision cannot be silently reused');
 console.log('PASS: duplicate recovery refreshes Vault and never reuses deleted or revoked keys');
 
 assert.match(html,/KEY ISSUED · SAVE THE ACCESS KEY/,'the issued secret must remain visible on failed readback');
@@ -94,6 +98,10 @@ assert.match(html,/JSON.stringify\(saved.track_paths\|\|\[\]\)===JSON.stringify\
   'Vault verification must preserve song order');
 assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
+assert.match(html,/\$\('brAccessMode'\)\.closest\('details\.brAccessCategory'\)/,
+  'EXPIRATION controls must be selected by their own mode input, never by first-other section');
+assert.doesNotMatch(html,/\.find\(d=>d!==accessSection&&d!==musicSection\)/,
+  'FANS must not be accidentally renamed to EXPIRATION & LIMITS');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
 assert.match(html, /musicSection\.querySelector\('summary'\)\.textContent='MUSIC · PLAYLISTS'/);
 assert.match(html, /songsSection\.append\(\$\('brAccessSongSearch'\)/);

@@ -8,7 +8,7 @@ if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const source=await readFile(new URL('../vault-worker/src/index.js',import.meta.url),'utf8');
 const worker=(await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'))).default;
 const owner='test-vault-owner',key='test-hash-key-not-production';
-const rows=new Map(),contents=new Map(),secrets=new Map(),names=new Map();
+const rows=new Map(),contents=new Map(),secrets=new Map(),names=new Map(),deleted=new Set();
 let audits=0;
 const policy={enabled:1},db={
  prepare(sql){
@@ -19,6 +19,10 @@ const policy={enabled:1},db={
     if(sql==='SELECT id FROM playlists LIMIT 1')return null;
     if(/^(SELECT id FROM access_code_policy LIMIT 1|SELECT id FROM access_codes LIMIT 1|SELECT code_id FROM (access_code_content|access_code_deletions|access_code_experience) LIMIT 1|SELECT fan_id FROM fan_code_links LIMIT 1)$/.test(sql))return null;
     if(sql.includes('FROM access_code_policy'))return policy;
+    if(sql.includes('FROM access_codes a LEFT JOIN access_code_deletions d')&&sql.includes('WHERE a.code_hash=?')){
+     const row=[...rows.values()].find(x=>x.code_hash===p[0]);
+     return row?{id:row.id,label:row.label,revoked_at:row.revoked_at,deleted_at:deleted.has(row.id)?123:null}:null;
+    }
     if(sql.includes('SELECT id FROM access_codes WHERE code_hash=')){
      const row=[...rows.values()].find(x=>x.code_hash===p[0]);
      return row?{id:row.id}:null;
@@ -40,7 +44,7 @@ const policy={enabled:1},db={
     throw Error('Unexpected SELECT '+sql);
    },
    async all(){
-    if(sql.includes('FROM access_codes a'))return {results:[...rows.values()].map(row=>({
+    if(sql.includes('FROM access_codes a'))return {results:[...rows.values()].filter(row=>!deleted.has(row.id)).map(row=>({
      ...row,...(contents.get(row.id)||{playlist_ids_json:'[]',track_paths_json:'[]'}),
      display_name:names.get(row.id)||'',deleted_at:null
     }))};
@@ -66,6 +70,20 @@ const policy={enabled:1},db={
     }
     if(sql.includes('INSERT INTO access_code_display_names')){
      names.set(p[0],p[1]);return {meta:{changes:1}};
+    }
+    if(sql.includes('UPDATE access_codes SET label=?,code_hint=')){
+     const row=rows.get(p[11]);
+     if(!row||row.code_hash!==p[12])return {meta:{changes:0}};
+     Object.assign(row,{label:p[0],code_hint:p[1],scopes_json:p[2],
+      duration_mode:p[3],duration_seconds:p[4],fixed_expires_at:p[5],
+      expires_at:p[6],activated_at:p[7],first_used_at:null,max_uses:p[8],
+      use_count:0,enabled:p[9],revoked_at:null,updated_at:p[10]});
+     return {meta:{changes:1}};
+    }
+    if(sql.includes('DELETE FROM access_code_deletions')){deleted.delete(p[0]);return {meta:{changes:1}}}
+    if(sql.includes('DELETE FROM fan_code_links'))return {meta:{changes:0}};
+    if(sql.includes('INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?) ON CONFLICT')){
+     secrets.set(p[0],p[1]);return {meta:{changes:1}};
     }
     if(sql.includes('UPDATE access_codes SET label=?,scopes_json=')){
      const row=rows.get(p[8]);
@@ -143,6 +161,29 @@ assert.deepEqual(r.data.items[0].scopes,['radio','music'],
 r=await call('/v1/public/access/music-session',{action:'redeem',code:'LOVE'});
 assert.equal(r.http,200,JSON.stringify(r.data));
 assert.ok(r.data.token,'Normal LOVE code gets a signed Music session only when allowed');
+// Deleted / revoked LOVE is hidden from the normal list but its key hash
+// remains reserved. The owner can explicitly restore it, with NO auto-grant.
+deleted.add(codeId);rows.get(codeId).revoked_at=123;rows.get(codeId).enabled=0;
+r=await call(admin,undefined,true);
+assert.equal(r.data.items.length,0,'Deleted LOVE must be hidden until confirmed restoration');
+r=await call(admin,payload,true);
+assert.equal(r.http,409);
+assert.equal(r.data.restore_available,true,'Vault must identify the old record as restorable');
+r=await call(admin,{...payload,action:'restore',id:codeId},true);
+assert.equal(r.http,400,'Restore must require explicit owner confirmation');
+assert.equal(deleted.has(codeId),true);
+r=await call(admin,{...payload,action:'restore',id:codeId,confirm_restore:true},true);
+assert.equal(r.http,200,JSON.stringify(r.data));
+assert.equal(r.data.id,codeId,'Restore reuses the same historical record, never creates duplicate');
+assert.equal(r.data.code,'LOVE');
+assert.equal(deleted.has(codeId),false);
+assert.equal(rows.get(codeId).revoked_at,null);
+assert.equal(rows.size,1);
+r=await call(admin,undefined,true);
+assert.equal(r.data.items.length,1,'Restored LOVE must reappear in Access Codes list');
+assert.deepEqual(r.data.items[0].scopes,['radio']);
+r=await call(redeem,{code:'LOVE',scope:'music'});
+assert.equal(r.http,403,'restored LOVE must never gain unselected permissions');
 assert.ok(audits>=3);
 assert.doesNotMatch(source,/row\.id==="access_legacy_love_v1"|code==="LOVE" \|\|/,
  'No LOVE-only backend allow/deny bypass may remain');

@@ -4290,10 +4290,21 @@ const backroomVaultManagers=(()=>{
             throw Error('Vault reports that this key already exists, but the saved-code list could not be verified. Reconnect before saving. No duplicate was issued.');
           found=codeRows.find(row=>String(row.id)===existingId);
         }
-        if(!found)
-          throw Error('This key is reserved by an older or deleted Vault record. Enter a DIFFERENT NEW ACCESS CODE name, then press SAVE. The old key was not reactivated.');
-        if(found.revoked)
-          throw Error('This key belongs to a revoked access code. Enter a DIFFERENT NEW ACCESS CODE name. Revoked keys cannot be reactivated.');
+        if(!found||found.revoked){
+          if(error.vaultData.restore_available!==true)
+            throw Error('The key is reserved but the record cannot be restored. Choose a different key.');
+          // Reissuing a known key is sensitive. Require a separate explicit
+          // owner confirmation; never turn an automatic retry into reactivation.
+          const oldLabel=String(error.vaultData.existing_label||payload.label);
+          if(!confirm('A deleted or revoked Vault code already uses this key ('+oldLabel+
+            '). Restore that record with ONLY the permissions currently selected? Anyone who knows this old key may use it once enabled. Old fan links will be cleared.')){
+            throw Error('RESTORE CANCELLED · No access permissions were changed.');
+          }
+          data=await vaultAction('/manage/access-codes',
+            {...payload,action:'restore',id:existingId,confirm_restore:true});
+          // A restored key is deliberately visible like a newly issued key;
+          // all other records and their history remain in the Vault.
+        }else{
         const sameSet=(a,b)=>JSON.stringify([...new Set(a||[])].sort())===
           JSON.stringify([...new Set(b||[])].sort());
         // If the original issue succeeded but its response was lost, do not
@@ -4324,6 +4335,7 @@ const backroomVaultManagers=(()=>{
           {...payload,action:'edit',id:found.id});
         editingCodeId=found.id;
         isEdit=true;
+        }
       }
       const codeId=data.id||editingCodeId;
       if(!codeId||(!isEdit&&!data.code))throw Error('Vault did not confirm a saved code and its one-time secret.');
@@ -4959,8 +4971,10 @@ const backroomVaultManagers=(()=>{
       keySection.innerHTML='<summary>ACCESS KEY</summary>';
       keySection.append($('brAccessCustomCode').closest('label'),$('brAccessCustomHelp'),$('brAccessKeyHelpPanel'));
       accessSection.appendChild(keySection);
-      const expiration=Array.from(editor.querySelectorAll('details.brAccessCategory'))
-        .find(d=>d!==accessSection&&d!==musicSection);
+      // Select the real Expiration controls, never the FANS section.
+      // The previous first-match selector renamed FANS to EXPIRATION & LIMITS
+      // and left the original expiration section behind as a duplicate.
+      const expiration=$('brAccessMode').closest('details.brAccessCategory');
       if(expiration){
         expiration.querySelector('summary').textContent='EXPIRATION & LIMITS';
         expiration.open=false;

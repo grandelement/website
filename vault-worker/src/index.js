@@ -56,9 +56,9 @@ function adminAuthorized(request, env) {
   return !!expected && !!token && constantTimeEqual(token, expected);
 }
 
-// Private Back Room bridge credential: accepts only the access-code admin
-// endpoints. It cannot authorize Vault analytics, users, playlists, ingest or
-// other general administrator operations. Existing Vault admin token still works.
+// Scoped Back Room bridge credential: accepts access-code management and
+// fan-to-code assignment ONLY. It cannot authorize analytics, Vault export,
+// general fan detail, fan playlists, ingestion or other admin endpoints.
 function accessCodesAuthorized(request,env){
   if(adminAuthorized(request,env))return true;
   const auth=String(request.headers.get("authorization")||"").trim();
@@ -2099,7 +2099,7 @@ async function adminSetFanLabel(request, env) {
 // Owner-only fan/code directory. This records administrative assignments,
 // not authentication of an anonymous browser or proof of a person's identity.
 async function adminFanAccess(request,env){
- if(!adminAuthorized(request,env))
+ if(!accessCodesAuthorized(request,env))
   return json({ok:false,error:"Full Vault owner authorization required."},401);
  await ensureAccessCodeTables(env);
  if(request.method==="GET"){
@@ -2400,7 +2400,11 @@ async function accessAdminChange(request,env){
     await audit(env,"admin","access.reveal","access_code",codeId,{});
     return json({ok:true,id:codeId,code,action:"reveal"});
   }
-  if(action==="issue"){
+  if(action==="issue"||action==="restore"){
+    // Restoring an intentionally removed code is never automatic: the owner
+    // must explicitly confirm and present the matching original key.
+    if(action==="restore"&&body.confirm_restore!==true)
+      return json({ok:false,error:"Explicit owner confirmation is required to restore an old key."},400);
     const label=String(body.label||"").trim().slice(0,100);
     if(!label)return json({ok:false,error:"Enter a code label."},400);
     const displayName=cleanAccessDisplayName(body.display_name);
@@ -2432,14 +2436,54 @@ async function accessAdminChange(request,env){
       return json({ok:false,error:"Use 4–64 letters or numbers; spaces are allowed."},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+    if(action==="restore"&&!requested)return json({ok:false,error:"Enter the exact old access code to restore."},400);
     const code=requested||("GE-"+hex.match(/.{4}/g).join("-"));
     const hash=await accessCodeHash(code,env);
     if(!hash)return json({ok:false,error:"Invalid access code."},400);
     // Code hashes are unique: never replace the secret or assignment of an
     // existing access code with a different person's typed value.
-    const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
+    const collision=await env.VAULT_DB.prepare(
+      "SELECT a.id,a.label,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=?"
+    ).bind(hash).first();
+    if(action==="restore"){
+      const codeId=String(body.id||"").slice(0,100);
+      if(!collision||collision.id!==codeId)return json({ok:false,error:"The old key does not match the selected Vault record."},409);
+      if(!collision.revoked_at&&!collision.deleted_at)
+        return json({ok:false,error:"This code is already in the saved list. Load and edit it instead."},409);
+      const activate=body.activate_now!==false;
+      const activatedAt=activate?t:null;
+      const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
+      const hint=accessNormalizeCode(code).slice(-4);
+      await ensureAccessCodeSecretStorage(env);
+      const encryptedCode=await encryptPrivate(code,env);
+      const batch=await env.VAULT_DB.batch([
+        env.VAULT_DB.prepare(
+          "UPDATE access_codes SET label=?,code_hint=?,scopes_json=?,duration_mode=?,duration_seconds=?,fixed_expires_at=?,expires_at=?,activated_at=?,first_used_at=NULL,max_uses=?,use_count=0,enabled=?,revoked_at=NULL,updated_at=? WHERE id=? AND code_hash=?"
+        ).bind(label,hint,JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,activate?1:0,t,codeId,hash),
+        env.VAULT_DB.prepare("DELETE FROM access_code_deletions WHERE code_id=?").bind(codeId),
+        // Do not silently reactivate old fan grants when an old key returns.
+        env.VAULT_DB.prepare("DELETE FROM fan_code_links WHERE code_id=?").bind(codeId),
+        env.VAULT_DB.prepare(
+          "INSERT INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET playlist_ids_json=excluded.playlist_ids_json,track_paths_json=excluded.track_paths_json,updated_at=excluded.updated_at"
+        ).bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
+        env.VAULT_DB.prepare(
+          "INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?) ON CONFLICT(code_id) DO UPDATE SET ciphertext=excluded.ciphertext,updated_at=excluded.updated_at"
+        ).bind(codeId,encryptedCode,t),
+        accessDisplayNameStatement(env,codeId,displayName||'',t),
+        ...(experience?[codeExperienceStatement(env,codeId,experience,t)]:[])
+      ]);
+      if(!batch[0]?.meta?.changes)
+        return json({ok:false,error:"Vault restore was not confirmed. Refresh saved codes."},409);
+      await audit(env,"admin","access.restore","access_code",codeId,{
+        owner_confirmed:true,previously_deleted:!!collision.deleted_at,previously_revoked:!!collision.revoked_at,
+        scopes,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length
+      });
+      return json({ok:true,id:codeId,code,action:"restore",restored:true});
+    }
     if(collision)return json({ok:false,code_exists:true,existing_id:collision.id,
-      error:"This access code already exists. Update the saved record instead of duplicating it."},409);
+      restore_available:!!(collision.deleted_at||collision.revoked_at),
+      existing_label:String(collision.label||'').slice(0,100),
+      error:"This access code already exists. Load or explicitly restore its saved record."},409);
     const hint=accessNormalizeCode(code).slice(-4);
     const activate=body.activate_now!==false;
     const activatedAt=activate?t:null;
