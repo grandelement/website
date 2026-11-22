@@ -4971,8 +4971,10 @@ const backroomVaultManagers=(()=>{
       keySection.innerHTML='<summary>ACCESS KEY</summary>';
       keySection.append($('brAccessCustomCode').closest('label'),$('brAccessCustomHelp'),$('brAccessKeyHelpPanel'));
       accessSection.appendChild(keySection);
-      const expiration=Array.from(editor.querySelectorAll('details.brAccessCategory'))
-        .find(d=>d!==accessSection&&d!==musicSection);
+      // Select the real Expiration controls, never the FANS section.
+      // The previous first-match selector renamed FANS to EXPIRATION & LIMITS
+      // and left the original expiration section behind as a duplicate.
+      const expiration=$('brAccessMode').closest('details.brAccessCategory');
       if(expiration){
         expiration.querySelector('summary').textContent='EXPIRATION & LIMITS';
         expiration.open=false;
