@@ -1085,8 +1085,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <h3>FAN BASE VAULT · STATES &amp; REGIONS</h3>
     <p style="font-size:12px;color:#c3e0ee">Live D1 records · anonymous visitors · approximate IP-derived locations · not concurrent listeners</p>
     <div class="brGeoFilters">
-      <label>TIME <select id="brGeoPeriod"><option value="1h">LAST HOUR</option><option value="24h">LAST 24 HOURS</option><option value="7d">LAST 7 DAYS</option><option value="30d">LAST 30 DAYS</option></select></label>
-      <label>COUNTRY <select id="brGeoCountry"><option value="US">UNITED STATES</option><option value="ALL">ALL COUNTRIES</option><option value="OTHER">OUTSIDE USA</option></select></label>
+      <label>TIME <select id="brGeoPeriod"><option value="24h">LAST 24 HOURS</option><option value="1h">LAST HOUR</option><option value="7d">LAST 7 DAYS</option><option value="30d">LAST 30 DAYS</option></select></label>
+      <label>COUNTRY <select id="brGeoCountry"><option value="ALL">ALL COUNTRIES</option><option value="US">UNITED STATES</option><option value="OTHER">OUTSIDE USA</option></select></label>
       <label>STATE / REGION <select id="brGeoState"><option value="ALL">ALL STATES</option></select></label>
       <label>ACTIVITY <select id="brGeoEvent"><option value="ALL">ALL ACTIVITY</option></select></label>
     </div>
@@ -1096,7 +1096,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" data-ge-geo-period="7d">7 DAYS</button>
       <button type="button" id="brGeoRefresh" class="primary">REFRESH VAULT</button>
     </div>
-    <button type="button" id="brVaultReconnect" style="width:100%;min-height:54px;background:#125b75;border:2px solid #70dcf4;color:white;font-weight:900;margin:8px 0">RECONNECT + VERIFY VAULT</button>
+    <button type="button" id="brVaultReconnect" style="width:100%;min-height:54px;background:#125b75;border:2px solid #70dcf4;color:white;font-weight:900;margin:8px 0">CHECK VAULT CONNECTIONS</button>
     <div id="brVaultReconnectStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px">Not checked yet.</div>
     <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
     <div id="brGeoTotals" class="brGeoTotals"></div>
@@ -4790,9 +4790,19 @@ const backroomVaultManagers=(()=>{
       fanActions.append(fanLoad,fanCreate,fanClose);
       fanProfile.append(fanTitle,fanCodeLabel,fanSave,fanAccessEdit);
       const recentDetails=document.createElement('details');recentDetails.className='brSourceDetails';
-      const recentSummary=document.createElement('summary');recentSummary.textContent='RECENT VISITORS · OPTIONAL';
-      recentDetails.append(recentSummary,fanRecent,recentName,labelRecent);
+      const recentSummary=document.createElement('summary');recentSummary.textContent='RECENT VISITORS · RECORDED ACTIVITY';
+      const recentFilter=document.createElement('select');recentFilter.id='brRecentPeriod';
+      recentFilter.setAttribute('aria-label','Recent visitor activity period');
+      for(const [value,label] of [['24h','LAST 24 HOURS'],['1h','LAST HOUR'],['7d','LAST 7 DAYS']])
+        recentFilter.add(new Option(label,value));
+      recentDetails.append(recentSummary,recentFilter,fanRecent,recentName,labelRecent);
       fanPanel.append(fanSummary,fanInfo,fanRefresh,fanSearch,fanActions,fanNameLabel,fanProfile,recentDetails,fanStatus);
+      // Keep fan-owned playlists with fan profiles, not as a separate global panel.
+      const fanPlaylistsDrawer=document.createElement('details');fanPlaylistsDrawer.className='brSourceDetails';
+      const fanPlaylistsSummary=document.createElement('summary');
+      fanPlaylistsSummary.textContent='SAVED FAN PLAYLISTS · PRIVATE';
+      fanPlaylistsDrawer.append(fanPlaylistsSummary,$('brFanPlaylistVault'));
+      fanPanel.appendChild(fanPlaylistsDrawer);
       $('brFansHome').appendChild(fanPanel);
       fanPanel.open=false;
       let knownFans=[],activeFanProfileId='';
@@ -4806,7 +4816,6 @@ const backroomVaultManagers=(()=>{
         // Until a real saved Vault ID is loaded, show NO stale settings.
         activeFanProfileId=fan?.id||'';
         fanProfile.hidden=!fan;
-        $('brFanPlaylistVault').hidden=!!fan;
         fanTitle.textContent=fan?'FAN · '+(fan.display_name||fan.id):'FAN PROFILE';
         if(fan){
           fanSelect.value=fan.id;fanChoice();fanSearch.value=fan.display_name||'';
@@ -4837,7 +4846,6 @@ const backroomVaultManagers=(()=>{
       });
       fanClose.addEventListener('click',()=>{
         showFanProfile('');fanSearch.value='';fanSelect.value='';
-        $('brFanPlaylistVault').hidden=false;
       });
       fanCreate.addEventListener('click',async()=>{
         const name=fanSearch.value.trim();
@@ -4869,7 +4877,7 @@ const backroomVaultManagers=(()=>{
         if(!authReady()){fanStatus.textContent='SIGN IN REQUIRED';return;}
         fanStatus.textContent='READING PRIVATE VAULT FAN RECORDS…';
         try{
-          const response=await api('/manage/fan-access',{method:'GET'});
+          const response=await api('/manage/fan-access?period='+recentFilter.value,{method:'GET'});
           const body=await response.json();
           if(!response.ok||body.ok!==true)throw Error(body.error||'Fan source unavailable');
           knownFans=Array.isArray(body.fans)?body.fans:[];
@@ -4882,8 +4890,13 @@ const backroomVaultManagers=(()=>{
           if(activeFanProfileId)showFanProfile(activeFanProfileId);
           selectedRecentAnon='';recentName.value='';
           const items=Array.isArray(body.recent)?body.recent:[];
-          const heading=document.createElement('strong');heading.textContent='RECENT ACTIVITY · '+items.length;
+          const heading=document.createElement('strong');heading.textContent='RECORDED VISITORS · '+items.length+' · '+recentFilter.selectedOptions[0].textContent;
           fanRecent.appendChild(heading);
+          if(!items.length){
+            const note=document.createElement('p');
+            note.textContent='No recorded visitor events in this period. This is not proof of zero visits. Verify event collection and the Vault data source.';
+            fanRecent.appendChild(note);
+          }
           items.slice(0,40).forEach(f=>{
             const line=document.createElement('button');line.type='button';
             line.className='brCompactStatus';
@@ -4900,7 +4913,7 @@ const backroomVaultManagers=(()=>{
             });
             fanRecent.appendChild(line);
           });
-          fanStatus.textContent='VAULT READ · '+knownFans.length+' SAVED FANS · RECENT IS NOT VERIFIED ONLINE';
+          fanStatus.textContent='VAULT READ · '+knownFans.length+' SAVED FANS · '+items.length+' RECENT RECORDED VISITORS (NOT LIVE ONLINE)';
         }catch(e){fanStatus.textContent='FAN LINK NOT VERIFIED · '+String(e.message||e)}
       }
       labelRecent.addEventListener('click',async()=>{
@@ -4923,6 +4936,7 @@ const backroomVaultManagers=(()=>{
         finally{labelRecent.disabled=false}
       });
       fanRefresh.addEventListener('click',()=>void refreshFanDirectory());
+      recentFilter.addEventListener('change',()=>void refreshFanDirectory());
       fanPanel.addEventListener('toggle',()=>{if(fanPanel.open)void refreshFanDirectory()});
       fanSave.addEventListener('click',async()=>{
         if(!activeFanProfileId||!authReady()){fanStatus.textContent='LOAD A SAVED FAN PROFILE FIRST';return;}
