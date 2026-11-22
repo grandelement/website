@@ -103,6 +103,48 @@ try{
   'Expose the failing identity stage without exposing a secret');
  console.log('PASS: GitHub 401 is identified as a rejected App JWT, not an assumed Contents permission issue.');
 
+ // GitHub may accept the public Client ID issuer when the numeric App ID
+ // issuer is rejected. Recovery must still require a valid App JWT.
+ appTokenCachePlaceholderUnused: {
+  const clientEnv={...env,GITHUB_APP_INSTALLATION_ID:'444'};
+  let numericIssuerAttempts=0,clientIssuerAttempts=0;
+  globalThis.fetch=async(url,init={})=>{
+   const u=String(url),auth=String(init.headers?.Authorization||'');
+   if(u==='https://api.github.com/app'){
+    const jwt=auth.slice('Bearer '.length);
+    const payload=JSON.parse(Buffer.from(jwt.split('.')[1],'base64url'));
+    if(payload.iss==='5831659'){
+     numericIssuerAttempts++;
+     return Response.json({message:'Bad credentials'},{status:401});
+    }
+    if(payload.iss==='Iv23liIckQZ7XOLyGUQv'){
+     clientIssuerAttempts++;
+     return Response.json({id:5831659});
+    }
+    throw Error('Unexpected JWT issuer');
+   }
+   if(u.endsWith('/app/installations/444/access_tokens')){
+    const jwt=auth.slice('Bearer '.length);
+    const payload=JSON.parse(Buffer.from(jwt.split('.')[1],'base64url'));
+    return payload.iss==='Iv23liIckQZ7XOLyGUQv'
+     ?Response.json({token:'client-issuer-token',expires_at:new Date(Date.now()+3600000).toISOString()},{status:201})
+     :Response.json({message:'Bad credentials'},{status:401});
+   }
+   if(u.includes('/contents/config/site-live.json')){
+    assert.equal(auth,'Bearer client-issuer-token');
+    return Response.json({sha:'current-sha',content:Buffer.from(JSON.stringify({welcome:{},albums:{},games:{}})).toString('base64')});
+   }
+   throw Error('Unexpected Client ID fallback request: '+u);
+  };
+  response=await worker.fetch(req('/manage/github-health',{headers:authorization}),clientEnv);
+  assert.equal(response.status,200,await response.clone().text());
+  const recovered=await response.json();
+  assert.equal(recovered.app_read_verified,true);
+  assert.ok(numericIssuerAttempts>0,'Numeric issuer must be tested first');
+  assert.ok(clientIssuerAttempts>0,'Client ID issuer fallback must be exercised');
+  console.log('PASS: rejected numeric App issuer recovers through validated Client ID JWT.');
+ }
+
  let dedicatedCount=0,adminCount=0;
  const vaultEnv={...env,
   VAULT_ACCESS_CODES_TOKEN:'stale-dedicated-bridge',
