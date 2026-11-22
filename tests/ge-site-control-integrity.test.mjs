@@ -73,6 +73,9 @@ assert.match(radio,/sunLabPanel\.classList\.toggle\('ge-sunlab-public',!geRadioS
 assert.match(css,/#sunLabPanel\.ge-sunlab-public\.show #sunLabAdvancedTools/,'mobile advanced controls must remain hidden from guests');
 assert.match(css,/#sunLabPanel\.ge-sunlab-public\.show #geSunLabTransparency/,'advanced transparency tuning needs code');
 assert.match(backroom,/ADVANCED EQ CONTROLS · FOR THIS CODE ONLY/);
+const compact=read('radio/sun-lab-compact.js');
+assert.match(compact,/panel\.classList\.contains\('ge-sunlab-public'\)/,
+ 'compact EQ must also enforce the public/private control boundary');
 assert.match(vault,/capabilities:\{sun_lab:scopes\.includes\("sunlab"\)\}/,
  'only a validated Vault code can grant full Sun Lab variables');
 assert.match(backroom,/const expiration=\$\('brAccessMode'\)\.closest\('details\.brAccessCategory'\)/,
