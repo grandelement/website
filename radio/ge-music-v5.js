@@ -64,6 +64,21 @@ try{
    state.musicAccess=saved;
 }catch(_){}
 try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw))state.selected=new Set(raw.filter(x=>typeof x==='string'))}catch(_){}
+ // One-time migration: the old CODE handler checked the entire assigned
+ // library automatically. Do not carry that accidental bulk selection into
+ // the repaired manual-selection controls. Saved playlists and media are intact.
+ try{
+  const key='GE_MUSIC_MANUAL_SELECTION_REPAIR_V1';
+  if(localStorage.getItem(key)!=='yes'){
+   const access=state.musicAccess,allowed=Array.isArray(access?.allowed)?access.allowed:[];
+   if(access?.restricted&&allowed.length>1&&state.selected.size===allowed.length&&
+      allowed.every(path=>state.selected.has(path))){
+    state.selected.clear();
+    localStorage.setItem(store,'[]');
+   }
+   localStorage.setItem(key,'yes');
+  }
+ }catch(_){};
 const host=document.createElement('div');host.id='geMusicV5Host';host.dataset.build=BUILD;
 host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
 const root=host.attachShadow({mode:'open'});
