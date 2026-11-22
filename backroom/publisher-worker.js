@@ -97,9 +97,9 @@ function validConfig(cfg){
 // GitHub App credentials stay exclusively in Cloudflare Worker secrets.
 // Installation access tokens expire automatically; the Worker requests fresh ones.
 let appTokenCache=null;
-async function githubAppJwt(env,issuerOverride){
+async function githubAppJwt(env){
   // GitHub accepts either the App ID or the public Client ID as JWT issuer.
-  const appId=String(issuerOverride||env.GITHUB_APP_ID||'').trim();
+  const appId=String(env.GITHUB_APP_ID||'').trim();
   const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
   if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
   // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
@@ -181,7 +181,7 @@ async function githubCredential(env){
     if(jwtHttp===401){
       const clientId=String(env.GITHUB_APP_CLIENT_ID||'Iv23liIckQZ7XOLyGUQv').trim();
       if(clientId&&clientId!==String(env.GITHUB_APP_ID||'').trim()){
-        headers.Authorization='Bearer '+await githubAppJwt(env,clientId);
+        headers.Authorization='Bearer '+await githubAppJwt({...env,GITHUB_APP_ID:clientId});
         appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
         jwtHttp=appCheck.status;
         if(appCheck.ok)({response,data}=await issueToken(installationId));
