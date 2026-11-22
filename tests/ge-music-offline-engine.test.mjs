@@ -268,7 +268,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261122-offline-manager-v10/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261120-pulse-v1/);
+ assert.match(html,/sw\.js\?v=20261122-public-eq-live-home-v1/);
  assert.ok(workerVersion,'Service worker advertises a version');
  assert.match(source,/const VERSION='2026\.11\.22-offline-manager-v10-exact-scope'/);
 });
