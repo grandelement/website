@@ -167,6 +167,7 @@ async function githubCredential(env){
   let installationId=String(env.GITHUB_APP_INSTALLATION_ID||'').trim();
   let {response,data}=await issueToken(installationId);
   let jwtHttp=null,installationHttp=null,appMatches=null;
+  let verifiedKnownClientId=false;
   if(!response.ok||!data.token){
     const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
     const repo=encodeURIComponent(env.GITHUB_REPO||'website');
@@ -184,13 +185,22 @@ async function githubCredential(env){
         headers.Authorization='Bearer '+await githubAppJwt({...env,GITHUB_APP_ID:clientId});
         appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
         jwtHttp=appCheck.status;
+        verifiedKnownClientId=appCheck.ok&&clientId==='Iv23liIckQZ7XOLyGUQv';
         if(appCheck.ok)({response,data}=await issueToken(installationId));
       }
     }
     const appDetails=appCheck.ok?await appCheck.json().catch(()=>({})):{};
-    const appIdentityMatches=appCheck.ok&&String(appDetails.id||'')===String(env.GITHUB_APP_ID);
+    const authenticatedAppId=String(appDetails.id||'');
+    // A stale Cloudflare App ID must not prevent the *verified* GE Publisher
+    // App from using its installed repository. The public Client ID and the
+    // expected public App ID BOTH must match; never trust arbitrary Apps.
+    const appIdentityMatches=appCheck.ok&&(
+      authenticatedAppId===String(env.GITHUB_APP_ID||'').trim()||
+      (verifiedKnownClientId&&authenticatedAppId==='5831659'&&
+        (!appDetails.client_id||String(appDetails.client_id)==='Iv23liIckQZ7XOLyGUQv'))
+    );
     if(appCheck.ok&&!appIdentityMatches)
-      throw new Error('GitHub App identity mismatch: configured App ID does not identify the signed key.');
+      throw new Error('GitHub App identity mismatch: authenticated App is not the verified GE Back Room Publisher.');
     if(jwtHttp===401)
       throw new Error('GitHub rejected the signed App JWT (HTTP 401). The Cloudflare GitHub App ID/private key pair is not accepted by GitHub. Check that the key is still active for that exact App.');
     if(!appCheck.ok)
@@ -202,7 +212,7 @@ async function githubCredential(env){
     if(lookup?.ok){
       const installation=await lookup.json().catch(()=>({}));
       const discovered=String(installation.id||'');
-      appMatches=String(installation.app_id||'')===String(env.GITHUB_APP_ID);
+      appMatches=String(installation.app_id||'')===authenticatedAppId;
       if(discovered&&appMatches&&discovered!==installationId){
         ({response,data}=await issueToken(discovered));
         if(response.ok&&data.token)installationId=discovered;

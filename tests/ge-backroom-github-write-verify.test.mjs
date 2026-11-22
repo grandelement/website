@@ -145,6 +145,42 @@ try{
   console.log('PASS: rejected numeric App issuer recovers through validated Client ID JWT.');
  }
 
+ // The live Cloudflare App ID can be stale even when the public Client ID
+ // authenticates the correct GE App; trust only the expected verified App.
+ {
+  const staleEnv={...env,GITHUB_APP_ID:'99999999',GITHUB_APP_INSTALLATION_ID:'555'};
+  let installationChecked=false;
+  globalThis.fetch=async(url,init={})=>{
+   const target=String(url),auth=String(init.headers?.Authorization||'');
+   const jwt=auth.startsWith('Bearer eyJ')?auth.slice(7):'';
+   const issuer=jwt?JSON.parse(Buffer.from(jwt.split('.')[1],'base64url')).iss:'';
+   if(target.endsWith('/app/installations/555/access_tokens'))
+    return Response.json({message:'Bad credentials'},{status:401});
+   if(target==='https://api.github.com/app')
+    return issuer==='Iv23liIckQZ7XOLyGUQv'
+     ?Response.json({id:5831659,client_id:'Iv23liIckQZ7XOLyGUQv'})
+     :Response.json({message:'Bad credentials'},{status:401});
+   if(target.endsWith('/repos/grandelement/website/installation')){
+    installationChecked=true;
+    return Response.json({id:666,app_id:5831659});
+   }
+   if(target.endsWith('/app/installations/666/access_tokens')){
+    assert.equal(issuer,'Iv23liIckQZ7XOLyGUQv');
+    return Response.json({token:'validated-app-token',expires_at:new Date(Date.now()+3600000).toISOString()},{status:201});
+   }
+   if(target.includes('/contents/config/site-live.json')){
+    assert.equal(auth,'Bearer validated-app-token');
+    return Response.json({sha:'live-test-sha',content:Buffer.from(JSON.stringify({welcome:{},albums:{},games:{}})).toString('base64')});
+   }
+   throw Error('Unexpected stale-id recovery endpoint: '+target);
+  };
+  response=await worker.fetch(req('/manage/github-health',{headers:authorization}),staleEnv);
+  assert.equal(response.status,200,await response.clone().text());
+  assert.equal((await response.json()).app_read_verified,true);
+  assert.equal(installationChecked,true,'Must confirm repository installation belongs to authenticated App');
+  console.log('PASS: stale numeric App ID recovers only for verified GE Client ID + App ID and matching repo installation.');
+ }
+
  let dedicatedCount=0,adminCount=0;
  const vaultEnv={...env,
   VAULT_ACCESS_CODES_TOKEN:'stale-dedicated-bridge',
