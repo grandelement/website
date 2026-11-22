@@ -1993,7 +1993,10 @@ function playerPlaylist(){
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
 const GE_PUBLIC_PLAYER_CACHE='GE_PUBLIC_PLAYER_PROFILE_V1';
 const PUBLIC_PLAYER_ALLOWED=new Set(['sunlab','offline','reload','debug','legacy','iam']);
-let publicPlayerProfile={playlistId:'',scopes:[]},publicPlayerPlaylistPaths=new Set();
+// EQ Effects start available to every visitor while the public profile loads.
+// The published profile can still change public feature availability; private
+// advanced tuning always requires a verified Vault code, never this default.
+let publicPlayerProfile={playlistId:'',scopes:['sunlab']},publicPlayerPlaylistPaths=new Set();
 let configuredPlayerSongs=null; // Back Room PLAYER destination, independent of RADIO.
 function applyPublicPlayerProfile(profile,playlistPaths=[]){
   const scopes=Array.isArray(profile?.scopes)?profile.scopes.filter(scope=>PUBLIC_PLAYER_ALLOWED.has(scope)):[];
