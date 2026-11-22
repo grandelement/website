@@ -115,9 +115,12 @@
        show('CHOOSE OR CREATE AN ACCESS CODE FIRST. Review the permissions, then press SAVE. No code was issued.','error');
        return;
      }
-     const existing=$('brAccessSave')&&!$('brAccessSave').hidden;
-     return trigger(existing?'brAccessSave':'brAccessIssue',
-       existing?'ACCESS CODE CHANGES':'NEW ACCESS CODE','PRIVATE VAULT','brAccessStatus');
+     // One Access Codes SAVE path. The primary workbench handler resolves
+     // duplicate names, new versus existing keys and confirmed Vault updates.
+     // Bypassing it through the old hidden issue/edit controls could select
+     // the wrong record or attempt to reissue an existing secret.
+     return trigger('brAccessSavePrimary',
+       'ACCESS CODE','PRIVATE VAULT','brAccessStatus');
    }
    if(current==='fans'){
      const profile=$('brFanActiveProfile');
