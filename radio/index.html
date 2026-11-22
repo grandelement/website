@@ -859,12 +859,12 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="geUtilityRow" aria-label="Radio utility controls">
     <button id="offlineLaunchBtn" type="button" aria-controls="geMusicV5Host" aria-label="Offline music" title="Offline music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 19v2h16v-2"/></svg><span class="ge-radio-icon-label">OFFLINE</span></button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Buy Grand Element music at the GE Store" title="Buy Grand Element music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 8h15l-1 13h-13l-1-13Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span class="ge-radio-icon-label">BUY MUSIC</span></a>
-    <button id="sunLabBtn" type="button" aria-label="Sun Lab" title="Sun Lab"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">SUN LAB</span></button>
+    <button id="sunLabBtn" type="button" aria-label="EQ Effects" title="EQ Effects"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">EQ EFFECTS</span></button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
-  <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
+  <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
     <div class="sunlab-title">
-      <h3>Sun Lab</h3>
+      <h3>EQ EFFECTS</h3>
       <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" title="Save the current Sun Lab settings on this device">SAVE</button><button id="sunLabCopy" type="button" class="sunlab-mini" title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect first. Its own controls will appear below. Each effect remembers its own settings.</p>
@@ -3394,8 +3394,8 @@ function syncRadioOfflineAccessUI(){
   // Its existing click handler checks Vault access and opens CODE when locked.
   if(sunLabUtility){sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;sunLabUtility.dataset.locked=permissions.sunLab?'false':'true';}
   if(sunLabUtility){
-    sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open Sun Lab':'Sun Lab requires an access code');
-    sunLabUtility.title=permissions.sunLab?'Open Sun Lab':'Enter CODE to unlock Sun Lab';
+    sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open EQ Effects':'EQ Effects unavailable while public settings load');
+    sunLabUtility.title=permissions.sunLab?'Open EQ Effects':'EQ Effects are unavailable; check the published public profile';
   }
   setUtility($('iamLaunchRow'),permissions.iam);
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
@@ -5901,7 +5901,9 @@ async function registerServiceWorker(){
     grid?.classList.toggle('no-mode',!mode);
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
     if(hint)hint.textContent=mode?modeLabel(mode)+' controls':'Tap an effect to edit it.';
-    const publicOnly=window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed();
+    // Public EQ presets are always usable when the public profile permits Sun Lab.
+    // Only a VERIFIED Vault code with the sunlab scope unlocks the full variables.
+    const publicOnly=!geRadioSunLabPrivateAllowed();
     const baseControls=mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[];
     const pulseControls=mode?(publicOnly?['slPulseDepth']:
       ['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']):[];
@@ -5943,7 +5945,7 @@ async function registerServiceWorker(){
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
-    sunLabPanel.classList.toggle('ge-sunlab-public',window.GEOffline?.isActive?.()&&!geRadioSunLabPrivateAllowed());
+    sunLabPanel.classList.toggle('ge-sunlab-public',!geRadioSunLabPrivateAllowed());
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
     sunLabBtn?.setAttribute('aria-pressed',on?'true':'false');
     if(on)void ensureLiveEQ();
