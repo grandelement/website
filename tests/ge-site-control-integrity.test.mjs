@@ -76,6 +76,11 @@ assert.match(vault,/capabilities:\{sun_lab:scopes\.includes\("sunlab"\)\}/,
 assert.match(backroom,/const expiration=\$\('brAccessMode'\)\.closest\('details\.brAccessCategory'\)/,
  'Expiration must not hijack the Fans panel');
 assert.match(backroom,/githubPlaylistAction/,'the publisher is the owner GitHub playlist writer');
+const saveCenter=read('backroom/save-center.js');
+assert.match(saveCenter,/trigger\('brAccessSavePrimary'/,
+ 'central SAVE must use the single duplicate-safe Access Code workbench handler');
+assert.doesNotMatch(saveCenter,/trigger\(existing\?'brAccessSave':'brAccessIssue'/,
+ 'central SAVE cannot bypass saved-code collision and reconciliation logic');
 
 console.log('PASS: '+mainPages.length+' primary pages; '+idsChecked+
  ' control IDs; '+assets+' local links/assets; all Music route snapshots;'+
