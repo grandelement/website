@@ -97,8 +97,9 @@ function validConfig(cfg){
 // GitHub App credentials stay exclusively in Cloudflare Worker secrets.
 // Installation access tokens expire automatically; the Worker requests fresh ones.
 let appTokenCache=null;
-async function githubAppJwt(env){
-  const appId=String(env.GITHUB_APP_ID||'').trim();
+async function githubAppJwt(env,issuerOverride){
+  // GitHub accepts either the App ID or the public Client ID as JWT issuer.
+  const appId=String(issuerOverride||env.GITHUB_APP_ID||'').trim();
   const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
   if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
   // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
@@ -172,8 +173,20 @@ async function githubCredential(env){
     // This endpoint accepts an App JWT, not an installation access token.
     // Its HTTP status independently diagnoses whether the uploaded PEM and
     // configured App ID actually authenticate with GitHub.
-    const appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
+    let appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
     jwtHttp=appCheck.status;
+    // GitHub recommends the public App Client ID as issuer. If the App ID
+    // issuer is rejected, retry ONCE with the known GE Back Room Publisher
+    // Client ID. A valid App signature is still mandatory; no token bypass.
+    if(jwtHttp===401){
+      const clientId=String(env.GITHUB_APP_CLIENT_ID||'Iv23liIckQZ7XOLyGUQv').trim();
+      if(clientId&&clientId!==String(env.GITHUB_APP_ID||'').trim()){
+        headers.Authorization='Bearer '+await githubAppJwt(env,clientId);
+        appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
+        jwtHttp=appCheck.status;
+        if(appCheck.ok)({response,data}=await issueToken(installationId));
+      }
+    }
     const appDetails=appCheck.ok?await appCheck.json().catch(()=>({})):{};
     const appIdentityMatches=appCheck.ok&&String(appDetails.id||'')===String(env.GITHUB_APP_ID);
     if(appCheck.ok&&!appIdentityMatches)
@@ -182,11 +195,11 @@ async function githubCredential(env){
       throw new Error('GitHub rejected the signed App JWT (HTTP 401). The Cloudflare GitHub App ID/private key pair is not accepted by GitHub. Check that the key is still active for that exact App.');
     if(!appCheck.ok)
       throw new Error('GitHub App JWT identity check failed (HTTP '+jwtHttp+'). No GitHub write was attempted.');
-    const lookup=await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/installation',{
+    const lookup=(!response.ok||!data.token)?await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/installation',{
       method:'GET',headers
-    });
-    installationHttp=lookup.status;
-    if(lookup.ok){
+    }):null;
+    installationHttp=lookup?.status??null;
+    if(lookup?.ok){
       const installation=await lookup.json().catch(()=>({}));
       const discovered=String(installation.id||'');
       appMatches=String(installation.app_id||'')===String(env.GITHUB_APP_ID);
