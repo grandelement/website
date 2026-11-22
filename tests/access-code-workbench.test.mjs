@@ -67,6 +67,16 @@ assert.doesNotMatch(html,/accessLoaded=false;codeRows=\[\];legacyLoveAudit=null;
 assert.match(html,/Previously loaded codes are UNVERIFIED, not deleted/,
   'stale records must be clearly marked rather than falsely reported missing');
 console.log('PASS: failed reads preserve prior Vault record visibility; search cannot silently create duplicate codes');
+assert.match(html,/if\(!await refreshCodes\(\)\)/,
+  'on a duplicate response re-read Vault before deciding the saved record is missing');
+assert.match(html,/const alreadySaved=found\.label===payload\.label/,
+  'an identical reissued code must be recognized as already saved, not rewritten');
+assert.match(html,/This key is reserved by an older or deleted Vault record/,
+  'a deleted code must remain reserved and tell the owner to choose a different key');
+assert.match(html,/This key belongs to a revoked access code/,
+  'never restore a revoked key during duplicate recovery');
+console.log('PASS: duplicate recovery refreshes Vault and never reuses deleted or revoked keys');
+
 assert.match(html,/KEY ISSUED · SAVE THE ACCESS KEY/,'the issued secret must remain visible on failed readback');
 assert.match(html,/row&&row.id===revealedKeyRecordId/,'same-record editor readback must preserve the just-revealed key');
 assert.doesNotMatch(html,/accessSongOptions\(\);assignedSongsUI\(\);accessModeUI\(\);\s*\$\('brAccessOneTime'\)\.hidden=true;/,
