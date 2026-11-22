@@ -37,7 +37,9 @@ const snapshot=()=>JSON.stringify({
  storeSongPaths:sorted('storeSongPaths'),playerSongPaths:sorted('playerSongPaths'),
  radioSongPaths:sorted('radioSongPaths'),assignments
 });
-const changed=()=>snapshot()!==baseSignature;
+// A fresh page has no published baseline yet. Do not treat the empty
+// pre-load controls as an unsaved edit or interrupt automatic sign-in/refresh.
+const changed=()=>loaded&&snapshot()!==baseSignature;
 const token=()=>{try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_){return ''}};
 async function ownerApi(method,body){
  const secret=token();if(!secret)throw Error('Sign in to the private Back Room first.');

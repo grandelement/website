@@ -2103,16 +2103,18 @@ async function adminFanAccess(request,env){
   return json({ok:false,error:"Full Vault owner authorization required."},401);
  await ensureAccessCodeTables(env);
  if(request.method==="GET"){
+  const period=new URL(request.url).searchParams.get("period")||"24h";
+  const recentWindowSeconds=({"1h":3600,"24h":86400,"7d":604800})[period]||86400;
   const [fans,recent]=await Promise.all([
    env.VAULT_DB.prepare(
     "SELECT f.id,f.display_name,f.last_seen_at,l.code_id,a.label AS code_label FROM fans f LEFT JOIN fan_code_links l ON l.fan_id=f.id LEFT JOIN access_codes a ON a.id=l.code_id ORDER BY f.last_seen_at DESC LIMIT 300"
    ).all(),
    env.VAULT_DB.prepare(
     "SELECT anon_id,MAX(occurred_at) AS last_activity,MAX(fan_id) AS fan_id FROM fan_events WHERE occurred_at>=? AND anon_id IS NOT NULL GROUP BY anon_id ORDER BY last_activity DESC LIMIT 100"
-   ).bind(now()-120).all()
+   ).bind(now()-recentWindowSeconds).all()
   ]);
   return json({ok:true,fans:fans.results||[],recent:recent.results||[],
-   recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
+   recent_window_seconds:recentWindowSeconds,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
  }
  const body=await readBody(request);
  if(body.action==="create"){
