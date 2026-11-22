@@ -5,8 +5,19 @@ import {readFileSync,existsSync,statSync} from 'node:fs';
 import path from 'node:path';
 
 const read=file=>readFileSync(file,'utf8');
-const mainPages=['index.html','radio/index.html','backroom/index.html',
-  'support/index.html','vault/index.html','radio/preview-lab.html'];
+// Every non-archived HTML entry point, including alternate DJ/studio screens.
+const mainPages=[
+  'index.html','radio/index.html','backroom/index.html','support/index.html',
+  'vault/index.html','radio/preview-lab.html','dj/imac.html','dj/index.html',
+  'ge-images/index.html','live/index.html','qr/index.html','studio/index.html',
+  'modules/bk.html','qr/radio/index.html','radio-backend/dj-entry.html',
+  'radio-backend/dj-lite.html','radio-backend/dj.html','radio-backend/live-dj.html',
+  'radio/classic.html','radio/dj/index.html','radio/ge-clock.html','radio/ge-dj.html',
+  'radio/offline-home.html','radio/preview-merch-legacy.html',
+  'backroom/github-direct.html','backroom/high-scores.html',
+  'backroom/music-upload.html','ge-images/img/manifest-creator.html',
+  'radio/release-studio.html'
+];
 let assets=0,idsChecked=0;
 for(const page of mainPages){
  const html=read(page);
@@ -21,9 +32,10 @@ for(const page of mainPages){
  const missing=[];
  for(const match of html.matchAll(/<(?:script|link|img|audio|source|iframe|a)\b[^>]*?\b(?:src|href)=(["'])(.*?)\1/gi)){
   const raw=match[2].trim();
-  if(!raw||/^(?:https?:|data:|blob:|mailto:|tel:|javascript:|\/\/|#)/i.test(raw)||
+  if(!raw||/^(?:https?:|data:|blob:|mailto:|tel:|javascript:|about:|\/\/|#)/i.test(raw)||
     raw.includes('${')||raw.includes('{{'))continue;
-  const local=raw.split(/[?#]/)[0];
+  let local=raw.split(/[?#]/)[0];
+  try{local=decodeURIComponent(local)}catch(_){missing.push(raw);continue}
   if(!local)continue;
   const resolved=local.startsWith('/')?
     path.resolve('.',local.slice(1)):path.resolve(path.dirname(page),local);
