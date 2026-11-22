@@ -28,7 +28,7 @@ const db={prepare(sql){
    throw Error('Unexpected first SQL '+sql);
  },
  async run(){
-   if(sql.includes('CREATE TABLE IF NOT EXISTS access_code_secrets'))return {meta:{changes:0}};
+   if(sql.includes('CREATE TABLE IF NOT EXISTS'))return {meta:{changes:0}};
    if(sql.includes('INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) SELECT id,')){
      if(row.id===p[2]&&row.code_hash===p[3])encryptedSecret=p[0];
      return {meta:{changes:encryptedSecret?1:0}};
