@@ -374,10 +374,9 @@ async function deletePreset(env,id){
 /* Owner-only GE Vault bridge. The Vault admin token never reaches the browser.
    No code/playlist record is written to public GitHub or site-live.json. */
 async function geVaultBridge(env,path,method='GET',body=null){
-  // Prefer the dedicated Access Codes bridge credential. An existing full
-  // Vault admin credential is an authorized fallback if that credential was
-  // rotated independently on the Vault and Publisher Workers.
-  const accessPath=path==='/v1/admin/access-codes';
+  // The dedicated bridge credential is valid for Access Codes and their
+  // owner-only Fan assignment directory; the full admin token is optional.
+  const accessPath=path==='/v1/admin/access-codes'||path==='/v1/admin/fan-access';
   const dedicated=String(env.VAULT_ACCESS_CODES_TOKEN||'').trim();
   const admin=String(env.VAULT_ADMIN_TOKEN||'').trim();
   const secret=accessPath&&dedicated?dedicated:admin;
@@ -1199,8 +1198,8 @@ export default {
     if(url.pathname==='/manage/fan-access'&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
-      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
-        return json({ok:false,error:'Fan integration needs the full Vault admin token configured on Publisher.'},503,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Fan directory bridge credentials are not configured.'},503,cors);
       let body=null;
       if(request.method==='POST'){
         try{body=await request.json()}catch(_){return json({ok:false,error:'Invalid fan assignment request.'},400,cors)}
@@ -1244,7 +1243,7 @@ export default {
         return json({ok:false,error:'Unknown playlist action.'},400,cors);
       }
       // The Vault validates scope, limits, entropy, HMAC hashes and authorization.
-      if(!['issue','edit','reveal','rotate','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
+      if(!['issue','restore','edit','reveal','rotate','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
         return json({ok:false,error:'Unknown access-code action.'},400,cors);
       }
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
