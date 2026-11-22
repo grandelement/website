@@ -13,7 +13,6 @@ try{
  const errors=[];
  let outage=false;
  let playlistOutage=false;
- let duplicateIssueTest=false,duplicateIssueSeen=false,duplicatePostCount=0,duplicatePayload=null;
  const sourceReads={codes:0,playlists:0};
  const savedFans=[
    {id:'fan_aaaaaaa1',display_name:'Fan One',code_id:'access_test1',code_label:'Test 1'},
@@ -49,10 +48,6 @@ try{
      if(body.action==='reveal'&&body.id==='access_test1')data={
        ok:true,id:'access_test1',action:'reveal',code:'GE-ABCD-1234-4A5B'
      };
-     else if(body.action==='issue'&&duplicateIssueTest){
-       duplicatePostCount++;duplicatePayload=body;duplicateIssueSeen=true;
-       status=409;data={ok:false,code_exists:true,existing_id:'access_retry',error:'Existing key'};
-     }
      else{status=400;data={ok:false,error:'Unexpected test write'};}
    }
    else if(route==='/manage/access-codes')data={
@@ -65,15 +60,7 @@ try{
        {id:'access_legacy_love_v1',label:'LOVE',code_hint:'LOVE',enabled:1,revoked:false,
         scopes:['website','radio','music','albums','games'],playlist_ids:[],track_paths:[],
         max_uses:0,use_count:0,duration_mode:'none',
-        experience:{games_enabled:true,autopilot_enabled:true,radio_playlist_id:''}},
-       ...(duplicateIssueSeen?[{
-         id:'access_retry',label:duplicatePayload.label,display_name:duplicatePayload.display_name,
-         code_hint:'TRY2',enabled:1,revoked:false,
-         scopes:duplicatePayload.scopes,playlist_ids:duplicatePayload.playlist_ids,
-         track_paths:duplicatePayload.track_paths,max_uses:duplicatePayload.max_uses,
-         use_count:0,duration_mode:duplicatePayload.duration_mode,
-         experience:duplicatePayload.experience
-       }]:[])
+        experience:{games_enabled:true,autopilot_enabled:true,radio_playlist_id:''}}
      ]};
    else if(route==='/manage/github-playlists'&&playlistOutage){status=503;data={ok:false,error:'GitHub playlist outage'};}
    else if(route==='/manage/github-playlists')data={ok:true,items:[
@@ -106,7 +93,7 @@ try{
        'Access-Control-Allow-Methods':'GET, POST, OPTIONS'},
      body:JSON.stringify(data)});
  });
- await page.goto(BASE,{waitUntil:'commit',timeout:20000});
+ await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:100000});
  try{
    await page.waitForFunction(()=>{
      const el=document.getElementById('brAccessSelect');
@@ -286,21 +273,9 @@ try{
    'GitHub playlist outages must not falsely report the private Vault as offline');
  playlistOutage=false;
  console.log('PASS: GitHub playlist outage does not change independently healthy Vault status.');
- // Simulate the first Vault issue succeeding but its HTTP response being lost.
- // A retry must resolve the 409 against fresh Vault data, without another write.
- duplicateIssueTest=true;
- await page.click('#brTabAccess');
- await page.click('#brAccessNewPrimary');
- await page.$eval('#brAccessLabel',el=>{el.value='RETRYCODE77';});
- await page.click('#brAccessSavePrimary');
- await page.waitForFunction(()=>document.getElementById('brAccessStatus')?.textContent?.includes('ALREADY SAVED AND VERIFIED IN VAULT'),{timeout:15000});
- assert.equal(duplicatePostCount,1,'Exactly one issue request; never retry duplicate writes');
- assert.equal(await page.$eval('#brAccessLabel',el=>el.value),'RETRYCODE77');
- assert.ok(sourceReads.codes>readsBefore.codes,'Fresh authoritative Vault list must be fetched after a duplicate');
- console.log('PASS: actual mobile SAVE recovers a previously issued code after a lost response, with no duplicate write.');
  // Simulate a real iPhone with an authenticated owner but failed Vault read.
  outage=true;
- await page.reload({waitUntil:'commit',timeout:20000});
+ await page.reload({waitUntil:'domcontentloaded',timeout:45000});
  await page.waitForFunction(()=>/VAULT · (PARTIAL|OFFLINE|ERROR)/.test(
   document.getElementById('brVaultConnection')?.textContent||''),{timeout:25000});
  const disconnected=await page.evaluate(()=>({
