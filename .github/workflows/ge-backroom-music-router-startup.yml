@@ -1,0 +1,29 @@
+name: GE Back Room Music Router startup regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/music-router.js'
+      - 'tests/ge-backroom-music-router-startup.test.mjs'
+      - '.github/workflows/ge-backroom-music-router-startup.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/music-router.js'
+      - 'tests/ge-backroom-music-router-startup.test.mjs'
+      - '.github/workflows/ge-backroom-music-router-startup.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate routing JavaScript syntax
+        run: node --check backroom/music-router.js
+      - name: Verify startup guard and preservation of genuine edits
+        run: node tests/ge-backroom-music-router-startup.test.mjs
