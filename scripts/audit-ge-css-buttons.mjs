@@ -49,7 +49,8 @@ const critical={
  connectionHealth:back.includes("api('/manage/github-health'")&&
   publisher.includes("url.pathname==='/manage/github-health'"),
  accessVault:save.includes("trigger('brAccessSavePrimary'")&&
-  back.includes("id=\"brAccessSavePrimary\""),
+  back.includes("'brAccessSavePrimary'")&&
+  back.includes("void saveCode(editing)"),
  fanVault:save.includes("current==='fans'"),
  merchRoute:publisher.includes("'/manage/merchandise'"),
  originalBlitz:back.includes("geDJApi('/control/playlists'"),
