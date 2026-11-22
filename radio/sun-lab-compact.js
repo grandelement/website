@@ -35,6 +35,10 @@ function init(){
  if(!onPhone){advanced.setAttribute('aria-expanded','true');advanced.textContent='ADVANCED SETTINGS ▴';}
  // Preserve original DOM and original effect profiles. Never reparent rows.
  advanced.addEventListener('click',()=>{
+   if(panel.classList.contains('ge-sunlab-public')){
+     status.textContent='Advanced EQ settings require an authorized access code.';
+     return;
+   }
    const expanded=advanced.getAttribute('aria-expanded')!=='true';
    advanced.setAttribute('aria-expanded',String(expanded));
    advanced.textContent=expanded?'ADVANCED SETTINGS ▴':'ADVANCED SETTINGS ▾';
@@ -52,7 +56,16 @@ function init(){
  update('position',position);
  // Read existing per-effect values; don't overwrite saved presets at load.
  for(const key of ['slDistance','slPulseDepth','slPulseRelease']){const el=$(key);if(el){const c=controls.get(key);c.slider.value=el.value;c.value.textContent=el.value;el.addEventListener('input',()=>{c.slider.value=el.value;c.value.textContent=el.value;});}}
- starter.addEventListener('click',()=>{update('position',0);update('slDistance',75);update('slPulseDepth',92);update('slPulseRelease',83);update('detail',62);setNative('slPulseSensitivity',82);setNative('slPulseAttack',92);setNative('slPulseNoiseFloor',13);setNative('slGlow',0);setNative('slMist',10);setNative('slBrightness',145);status.textContent='Beat pulse ready. Play music to see the light flash with the real frequencies.';});
+ starter.addEventListener('click',()=>{
+   update('position',0);update('slDistance',75);update('slPulseDepth',92);
+   update('slPulseRelease',83);update('detail',62);
+   if(!panel.classList.contains('ge-sunlab-public')){
+     setNative('slPulseSensitivity',82);setNative('slPulseAttack',92);
+     setNative('slPulseNoiseFloor',13);setNative('slGlow',0);
+     setNative('slMist',10);setNative('slBrightness',145);
+   }
+   status.textContent='Beat pulse ready. Play music to see the light flash with the real frequencies.';
+ });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

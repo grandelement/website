@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.20-real-time-pulse-v1';
+const VERSION='2026.11.22-public-eq-live-home-v1';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -160,7 +160,12 @@ async function navigation(request){
  const url=new URL(request.url),path=url.pathname;
  // Existing iPhone Home Screen icons sometimes launch offline-home.html.
  // Open the actual cached Radio player without a redirect or timer.
- if(path.endsWith('/radio/offline-home.html')||url.searchParams.has('ge_home')){
+ // Installed offline-home launchers still open the cached Radio directly.
+ // But ge_home=1 is also how the PUBLIC WEBSITE links into Radio. Always
+ // attempt the current GitHub Pages HTML when online instead of returning
+ // a months-old offline shell on every homepage click.
+ if(path.endsWith('/radio/offline-home.html')||
+    (url.searchParams.has('ge_home')&&self.navigator?.onLine===false)){
   const saved=await savedIndex();
   if(saved.ok)return saved;
  }

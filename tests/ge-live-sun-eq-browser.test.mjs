@@ -25,6 +25,39 @@ try{
  await desktop.waitForFunction(()=>!!document.getElementById('geSunCompact'),{timeout:15000});
  assert.equal(await desktop.evaluate(()=>document.getElementById('sunLabGrid').hidden),false,
    'Desktop should keep the full Sun Lab editor available');
+ // Regression: public EQ Effects are selectable without a code, but only a
+ // verified Vault sunlab scope unlocks advanced variables and testing tools.
+ await desktop.waitForFunction(()=>window.GEPublicPlayerProfile?.scopes?.includes('sunlab'),{timeout:15000});
+ await desktop.click('#sunLabBtn');
+ await desktop.waitForFunction(()=>document.getElementById('sunLabPanel')?.classList.contains('ge-sunlab-public'),{timeout:5000});
+ const publicEQ=await desktop.evaluate(()=>({
+   open:!document.getElementById('sunLabPanel').hidden,
+   advanced:getComputedStyle(document.getElementById('sunLabAdvancedTools')).display,
+   transparency:getComputedStyle(document.getElementById('geSunLabTransparency')).display,
+   shown:[...document.querySelectorAll('#sunLabGrid .sunlab-row')].filter(el=>getComputedStyle(el).display!=='none').length,
+   compactAdvanced:getComputedStyle(document.querySelector('#geSunCompact .ge-sun-compact-actions button:nth-child(2)')).display
+ }));
+ assert.equal(publicEQ.open,true,'Guest can open public EQ Effects');
+ assert.equal(publicEQ.advanced,'none','Guest cannot see protected testing and reset');
+ assert.equal(publicEQ.transparency,'none','Guest cannot see protected transparency tuning');
+ assert.equal(publicEQ.compactAdvanced,'none','Guest cannot bypass code through compact ADVANCED controls');
+ assert(publicEQ.shown<=3,'Guests only see the basic controls per effect');
+ const privateEQ=await desktop.evaluate(()=>{
+   sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+     verifiedFor:'radio',until:Date.now()+600000,scopes:['radio','sunlab'],sunLab:true
+   }));
+   document.getElementById('sunLabBtn').click(); // close old public panel
+   document.getElementById('sunLabBtn').click(); // reopen under verified receipt fixture
+   return {
+     public:document.getElementById('sunLabPanel').classList.contains('ge-sunlab-public'),
+     shown:[...document.querySelectorAll('#sunLabGrid .sunlab-row')].filter(el=>getComputedStyle(el).display!=='none').length,
+     advanced:getComputedStyle(document.getElementById('sunLabAdvancedTools')).display
+   };
+ });
+ assert.equal(privateEQ.public,false,'Verified access scope unlocks the advanced editor');
+ assert(privateEQ.shown>publicEQ.shown,'Advanced code must reveal more variables than public EQ');
+ assert.notEqual(privateEQ.advanced,'none','Owner-only testing controls can be reached after verified grant');
+ console.log('PASS: public EQ Effects versus advanced Vault-authorized variables, mobile/desktop layout safe');
  await desktop.close();
  assert.equal(await page.evaluate(()=>document.querySelectorAll('button[data-sun-mode]').length),8,'eight effects must exist');
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('sunEQAura')).opacity)===0.075,{timeout:8000});

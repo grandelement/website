@@ -18,6 +18,10 @@ test('one worker verifies the startup shell and never deletes music',()=>{
  assert.match(sw,/await self\.skipWaiting\(\)/);
  assert.ok(sw.indexOf('await Promise.all(REQUIRED.map')<sw.indexOf('await self.skipWaiting()'));
  assert.match(sw,/async function savedIndex/);
+ assert.match(sw,/url\.searchParams\.has\('ge_home'\)&&self\.navigator\?\.onLine===false/,
+   'online homepage Radio links must use live network HTML, not a stale cached shell');
+ assert.match(radio,/sw\.js\?v=20261122-public-eq-live-home-v1/,
+   'service worker URL must change when live homepage navigation policy changes');
  assert.match(sw,/'.\/offline-home\.html'/);
  assert.doesNotMatch(sw,/'.\/offline-control\.js'/);
  assert.match(sw,/'.\/offline-manager\.js'/);
