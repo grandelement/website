@@ -48,7 +48,8 @@ const critical={
   !back.includes('id="brDirectPublisherFrame"'),
  connectionHealth:back.includes("api('/manage/github-health'")&&
   publisher.includes("url.pathname==='/manage/github-health'"),
- accessVault:save.includes("trigger(existing?'brAccessSave':'brAccessIssue'"),
+ accessVault:save.includes("trigger('brAccessSavePrimary'")&&
+  back.includes("id=\"brAccessSavePrimary\""),
  fanVault:save.includes("current==='fans'"),
  merchRoute:publisher.includes("'/manage/merchandise'"),
  originalBlitz:back.includes("geDJApi('/control/playlists'"),

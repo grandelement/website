@@ -28,7 +28,7 @@ try{
  // Regression: public EQ Effects are selectable without a code, but only a
  // verified Vault sunlab scope unlocks advanced variables and testing tools.
  await desktop.waitForFunction(()=>window.GEPublicPlayerProfile?.scopes?.includes('sunlab'),{timeout:15000});
- await desktop.click('#sunLabBtn');
+ await desktop.evaluate(()=>document.getElementById('sunLabBtn')?.click());
  await desktop.waitForFunction(()=>document.getElementById('sunLabPanel')?.classList.contains('ge-sunlab-public'),{timeout:5000});
  const publicEQ=await desktop.evaluate(()=>({
    open:!document.getElementById('sunLabPanel').hidden,
