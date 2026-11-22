@@ -131,18 +131,15 @@ Preserve together:
     if(requestedDesktop){
       viewport.content='width=1160,initial-scale=1,viewport-fit=cover';
     }else if(layout==='mobile'&&phoneHardware){
-      // Safari's "Request Desktop Website" can use a Macintosh user-agent
-      // and desktop CSS width even on an iPhone. Use its real screen width.
-      const w=Number(screen.width)||390,h=Number(screen.height)||844;
-      const landscape=window.matchMedia?.('(orientation: landscape)').matches===true;
-      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
-      viewport.content='width='+width+',initial-scale=1,viewport-fit=cover';
+      // A stable responsive viewport lets Safari recalculate CSS on rotation.
+      // Never write screen.width or screen.height into the viewport meta tag.
+      viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }else{
       viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }
   }
   applyViewport();
-  window.addEventListener?.('orientationchange',applyViewport,{passive:true});
+  // Safari automatically recomputes device-width when orientation changes.
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},
