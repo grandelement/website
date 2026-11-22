@@ -106,7 +106,7 @@ try{
        'Access-Control-Allow-Methods':'GET, POST, OPTIONS'},
      body:JSON.stringify(data)});
  });
- await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:100000});
+ await page.goto(BASE,{waitUntil:'commit',timeout:20000});
  try{
    await page.waitForFunction(()=>{
      const el=document.getElementById('brAccessSelect');
@@ -300,7 +300,7 @@ try{
  console.log('PASS: actual mobile SAVE recovers a previously issued code after a lost response, with no duplicate write.');
  // Simulate a real iPhone with an authenticated owner but failed Vault read.
  outage=true;
- await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+ await page.reload({waitUntil:'commit',timeout:20000});
  await page.waitForFunction(()=>/VAULT · (PARTIAL|OFFLINE|ERROR)/.test(
   document.getElementById('brVaultConnection')?.textContent||''),{timeout:25000});
  const disconnected=await page.evaluate(()=>({
