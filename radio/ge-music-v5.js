@@ -172,6 +172,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .album b{min-width:0;overflow-wrap:anywhere;text-align:left}.album small{color:#a3dbff;flex:0 0 auto}
 .section{padding:8px 7px;background:#0c3653;border-bottom:1px solid #4384ac;font-weight:850;margin:12px 0 5px}
 .song{display:flex;align-items:center;gap:9px;min-height:49px;padding:6px 4px;border-bottom:1px solid #203d53;touch-action:pan-y}
+/* Stable checkbox and title pairing across iPhone rotation and viewport changes. */
+.song .songInfo{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:12px!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0 6px!important;position:static!important;transform:none!important}
+.song .songInfo>input[type=checkbox]{position:static!important;transform:none!important;flex:0 0 24px!important;width:24px!important;height:24px!important;margin:0!important}
+.song .songInfo>.songTitlePlay{position:static!important;transform:none!important;flex:1 1 auto!important;min-width:0!important;max-width:100%!important;text-align:left!important;justify-content:flex-start!important;margin:0!important}
+
 .song label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow-wrap:anywhere;cursor:pointer}
 .song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#087eff}
 .song span{min-width:0;overflow-wrap:anywhere;font-size:13px}
@@ -2421,7 +2426,7 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
- const simpleBrowser=state.view==='browse-songs'||state.view.startsWith('album:')||state.view==='playlist-display';
+ // A single checkbox controls each recording in every view.
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -2451,19 +2456,7 @@ function appendSong(parent,track){
  row.classList.toggle('selectedSong',checkbox.checked);
  // Song title itself remains the play control; no duplicate PLAY button.
  row.append(label);
- if(simpleBrowser){
-  const add=elem('button','geSongAdd',state.selected.has(track.path)?'✓':'');
-  add.type='button';add.classList.toggle('isAdded',state.selected.has(track.path));
-  add.setAttribute('aria-label',(state.selected.has(track.path)?'Remove ':'Add ')+track.title+' from working playlist');
-  add.addEventListener('click',()=>{
-   if(state.selected.has(track.path))state.selected.delete(track.path);else state.selected.add(track.path);
-   // Editing a loaded list creates a working copy; the existing Vault record is untouched until SAVE.
-   saveSelected();updateMeta();render();
-   recordPlaylistInteraction('control_change',{control:'quick_playlist_toggle',track_id:track.path,album:track.album});
-  });
-  // Invisible left hit target until selected; selection is independent of playback.
-  row.insertBefore(add,label);
- }
+
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
