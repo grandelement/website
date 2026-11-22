@@ -34,11 +34,13 @@ try{
    open:!document.getElementById('sunLabPanel').hidden,
    advanced:getComputedStyle(document.getElementById('sunLabAdvancedTools')).display,
    transparency:getComputedStyle(document.getElementById('geSunLabTransparency')).display,
-   shown:[...document.querySelectorAll('#sunLabGrid .sunlab-row')].filter(el=>getComputedStyle(el).display!=='none').length
+   shown:[...document.querySelectorAll('#sunLabGrid .sunlab-row')].filter(el=>getComputedStyle(el).display!=='none').length,
+   compactAdvanced:getComputedStyle(document.querySelector('#geSunCompact .ge-sun-compact-actions button:nth-child(2)')).display
  }));
  assert.equal(publicEQ.open,true,'Guest can open public EQ Effects');
  assert.equal(publicEQ.advanced,'none','Guest cannot see protected testing and reset');
  assert.equal(publicEQ.transparency,'none','Guest cannot see protected transparency tuning');
+ assert.equal(publicEQ.compactAdvanced,'none','Guest cannot bypass code through compact ADVANCED controls');
  assert(publicEQ.shown<=3,'Guests only see the basic controls per effect');
  const privateEQ=await desktop.evaluate(()=>{
    sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
