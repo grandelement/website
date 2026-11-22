@@ -66,6 +66,8 @@ const radio=read('radio/index.html'),backroom=read('backroom/index.html');
 const css=read('radio/radio-components.css'),vault=read('vault-worker/src/index.js');
 assert.ok(saved.music.publicPlayer.scopes.includes('sunlab'),'public EQ Effects must be enabled in published settings');
 assert.match(radio,/id="sunLabBtn"[^>]*aria-label="EQ Effects"/,'public button must say EQ Effects');
+assert.match(radio,/let publicPlayerProfile=\{playlistId:'',scopes:\['sunlab'\]\}/,
+ 'Public EQ must work before the published profile has finished loading');
 assert.match(radio,/const publicOnly=!geRadioSunLabPrivateAllowed\(\)/,'public EQ must not expose advanced sliders without Vault scope');
 assert.match(radio,/sunLabPanel\.classList\.toggle\('ge-sunlab-public',!geRadioSunLabPrivateAllowed\(\)\)/);
 assert.match(css,/#sunLabPanel\.ge-sunlab-public\.show #sunLabAdvancedTools/,'mobile advanced controls must remain hidden from guests');
