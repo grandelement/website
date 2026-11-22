@@ -94,6 +94,10 @@ assert.match(html,/JSON.stringify\(saved.track_paths\|\|\[\]\)===JSON.stringify\
   'Vault verification must preserve song order');
 assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
+assert.match(html,/\$\('brAccessMode'\)\.closest\('details\.brAccessCategory'\)/,
+  'EXPIRATION controls must be selected by their own mode input, never by first-other section');
+assert.doesNotMatch(html,/\.find\(d=>d!==accessSection&&d!==musicSection\)/,
+  'FANS must not be accidentally renamed to EXPIRATION & LIMITS');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
 assert.match(html, /musicSection\.querySelector\('summary'\)\.textContent='MUSIC · PLAYLISTS'/);
 assert.match(html, /songsSection\.append\(\$\('brAccessSongSearch'\)/);
