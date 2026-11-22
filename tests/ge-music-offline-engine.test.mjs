@@ -160,11 +160,11 @@ test('a new playlist never deletes older downloaded music or selections',async()
  await h.engine.save({mode:'checked',paths:[songs[0]]});
  const next=await h.engine.save({mode:'playlist',paths:[songs[2]]});
  assert.equal(next.ready,true);
- assert.equal(next.saved,2);
- assert.equal(next.total,2);
+ assert.equal(next.saved,1);
+ assert.equal(next.total,1);
  assert.equal(await h.has(songs[0]),true);
  assert.equal(await h.has(songs[2]),true);
- assert.deepEqual([...h.engine.plan()], [songs[0],songs[2]]);
+ assert.deepEqual([...h.engine.plan()], [songs[2]],'Only the new playlist is in the active request');
 });
 test('restricted codes cannot fetch unassigned songs or remove prior files',async()=>{
  const h=makeHarness();
@@ -266,9 +266,9 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261117-offline-manager-v9/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261122-offline-manager-v10/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
  assert.match(html,/sw\.js\?v=20261120-pulse-v1/);
  assert.ok(workerVersion,'Service worker advertises a version');
- assert.match(source,/const VERSION='2026\.11\.17-offline-manager-v9'/);
+ assert.match(source,/const VERSION='2026\.11\.22-offline-manager-v10-exact-scope'/);
 });

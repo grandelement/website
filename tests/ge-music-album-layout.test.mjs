@@ -50,6 +50,7 @@ try{
   album.click();
  });
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.albumDetailTitle')?.textContent==='Aether');
+ assert.equal(await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailSongs').textContent),'SONGS','Album name must not replace the SONGS button');
  const aether=await inspect();
  const expectedAether=['The Journey I','The Journey II','The Journey III','Gravity',
   'Free Energy','Prana','Nexus','Polaris','Conduit','Peace','Aether','Starlight'];
@@ -83,7 +84,7 @@ try{
  assert.equal(listing.divider,'0px','Song rows must not show dividers');
  assert(listing.search&&listing.save&&listing.nav,'Search, SAVE and navigation must stay visible');
  assert(!/\b\d+\s+SONGS\b/.test(listing.publicCountBanner),'Public song total must stay private');
- assert.equal(listing.visibleBoxes,0,'Unselected songs must have no visible checkboxes');
+ assert.equal(listing.visibleBoxes,listing.songs.length,'Every song must expose an iPhone-tappable selection checkbox');
  const before=listing.count;
  await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
@@ -91,7 +92,7 @@ try{
  });
  const selected=await inspect();
  assert.equal(selected.count,before+1,'Tap a song title to select it into the working playlist');
- assert.equal(selected.visibleBoxes,0,'Compact song browser never exposes redundant checkboxes');
+ assert.equal(selected.visibleBoxes,selected.songs.length,'Selected songs retain visible checkbox controls');
  const marked=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const node=root.querySelector('.scroll .song.selectedSong .geSongTitleGlow');
@@ -105,7 +106,7 @@ try{
  });
  const cleared=await inspect();
  assert.equal(cleared.count,before,'Unselecting by title restores the original selection');
- assert.equal(cleared.visibleBoxes,0,'Compact track list must remain free of redundant checkboxes');
+ assert.equal(cleared.visibleBoxes,cleared.songs.length,'Unselected songs keep tappable checkboxes');
  await page.evaluate(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelector('.albumDetailSongs').click());
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelectorAll('.albumBrowseHeading').length>2);
  const all=await inspect();
@@ -115,5 +116,5 @@ try{
  await page.waitForFunction(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('.gePlaylistListTitle')?.textContent==='SAVED PLAYLISTS');
  const playlist=await inspect();
  assert(playlist.search&&playlist.save,'PLAYLIST must keep shared SEARCH and SAVE');
- console.log('PASS initial ALBUMS, album-only songs, SONGS all catalog, quiet left selection, no public counts');
+ console.log('PASS ALBUMS, album song views, permanent SONGS, tappable checkboxes and exact song selection');
 }finally{await browser.close()}

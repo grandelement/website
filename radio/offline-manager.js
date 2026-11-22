@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.17-offline-manager-v9';
+const VERSION='2026.11.22-offline-manager-v10-exact-scope';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
@@ -44,7 +44,7 @@ function report(fn,event){
  try{localStorage.setItem(STATUS,JSON.stringify({...lastStatus,updatedAt:Date.now()}))}catch(_){}
  try{window.dispatchEvent?.(new CustomEvent('ge-radio-offline-status',{detail:lastStatus}))}catch(_){}
 }
-let busy=false,stopped=false,currentAbort=null,resumeAttempted=false;
+let busy=false,stopped=false,currentAbort=null;
 function pending(){
  try{const v=JSON.parse(localStorage.getItem(PENDING)||'null');
   return v&&['all','checked','playlist','update'].includes(v.mode)&&
@@ -57,8 +57,13 @@ function clearPending(){try{localStorage.removeItem(PENDING)}catch(_){}}
 function plan(){
  try{return unique(JSON.parse(localStorage.getItem(PLAN)||'null')?.paths).filter(x=>safe(x,SONG))}catch(_){return []}
 }
-function setPlan(paths){
- try{localStorage.setItem(PLAN,JSON.stringify({type:'music',paths:unique(paths).filter(x=>safe(x,SONG)),at:Date.now()}))}catch(_){}
+function planMode(){
+ try{const mode=JSON.parse(localStorage.getItem(PLAN)||'null')?.mode;
+  return ['all','checked','playlist'].includes(mode)?mode:'all';
+ }catch(_){return 'all'}
+}
+function setPlan(paths,mode='all'){
+ try{localStorage.setItem(PLAN,JSON.stringify({type:'music',mode,paths:unique(paths).filter(x=>safe(x,SONG)),at:Date.now()}))}catch(_){}
 }
 function audioResponse(response){
  return !!response?.ok&&response.status===200&&
@@ -150,8 +155,9 @@ async function inspect({onProgress}={}){
  try{stations=(await catalog()).stations;
   for(const path of stations)if(await alreadySaved(address(path)))stationSaved++;
  }catch(_){}
+ const requireStations=planMode()==='all';
  const all=savedPlan.length>0&&saved===savedPlan.length&&
-  stations.length>0&&stationSaved===stations.length;
+  (!requireStations||(stations.length>0&&stationSaved===stations.length));
  // Safari and installed Home Screen Radio each own their own Cache Storage.
  // Downloading and playback are allowed in either; never refuse Safari by platform.
  const ready=all&&engine.ready&&active();
@@ -196,6 +202,8 @@ async function downloadAudio(path,cache){
 }
 async function save({mode='all',paths=[],onProgress}={}){
  if(busy)return {error:'busy',message:'Download already running'};
+ if(!['all','checked','playlist','update'].includes(mode))
+  return {error:'selection',message:'Choose a valid download option.'};
  if(navigator.onLine===false)return {error:'offline',message:'Connect online to download new music'};
  if(!canDownload())return {error:'access',message:'Enter your OFFLINE access code before downloading. Saved music stays available.'};
  busy=true;stopped=false;
@@ -212,7 +220,7 @@ async function save({mode='all',paths=[],onProgress}={}){
   const allowed=authorized(list.songs),allow=new Set(allowed),previous=plan();
   if(!allowed.length)return {error:'access',message:'Your access code does not include published songs.'};
   const chosen=mode==='all'?allowed:
-   mode==='update'?(previous.length?previous.filter(p=>allow.has(p)):allowed):
+   mode==='update'?previous.filter(p=>allow.has(p)):
    unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
   if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
   // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
@@ -226,12 +234,15 @@ async function save({mode='all',paths=[],onProgress}={}){
    }
   }
   // Preserve all earlier planned songs, even if today's access scope is narrower.
-  const desired=unique([...previous,...chosen]);setPlan(desired);
+  // The plan describes only the current choice. Cached earlier music stays
+  // untouched but must never be silently added to this request.
+  const priorMode=planMode();
+  setPlan(chosen,mode==='update'?priorMode:mode);
   const previousPending=pending();
   savePending({mode,paths:mode==='all'||mode==='update'?[]:chosen,
    tries:Math.min(5,Number(previousPending?.tries||0)+1),updatedAt:Date.now()});
-  const permittedDownloads=desired.filter(p=>allow.has(p));
-  const downloads=unique([...permittedDownloads,...list.stations]);
+  const withStations=mode==='all'||(mode==='update'&&priorMode==='all');
+  const downloads=unique([...chosen,...(withStations?list.stations:[])]);
   const cache=await caches.open(AUDIO);
   const total=downloads.length;
   for(const path of downloads){
@@ -278,18 +289,14 @@ async function syncStatus(){
  try{await inspect()}catch(_){}
 }
 async function resume(){
- if(busy||resumeAttempted||navigator.onLine===false)return false;
- const saved=pending();
- if(!saved||!canDownload())return false;
- resumeAttempted=true;
- const choice=saved.mode==='all'||saved.mode==='update'?'update':saved.mode;
- await save({mode:choice,paths:saved.paths});
- return true;
+ // Never restart a stale ALL MUSIC request in the background.
+ // Downloads require a fresh user choice, including UPDATE MISSING.
+ return false;
 }
 function onReturn(){
  // iOS can suspend JS when switching apps. Reopening resumes missing files,
  // but never bypasses a new or expired code authorization.
- void syncStatus().then(()=>resume());
+ void syncStatus();
 }
 try{
  window.addEventListener?.('pageshow',onReturn);

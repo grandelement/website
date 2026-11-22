@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.69-20261116-OFFLINE-DOCK-VIEWPORT';
+const BUILD='GE-MUSIC-V7.70-20261122-EXACT-SELECTION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -64,6 +64,21 @@ try{
    state.musicAccess=saved;
 }catch(_){}
 try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw))state.selected=new Set(raw.filter(x=>typeof x==='string'))}catch(_){}
+ // One-time migration: the old CODE handler checked the entire assigned
+ // library automatically. Do not carry that accidental bulk selection into
+ // the repaired manual-selection controls. Saved playlists and media are intact.
+ try{
+  const key='GE_MUSIC_MANUAL_SELECTION_REPAIR_V1';
+  if(localStorage.getItem(key)!=='yes'){
+   const access=state.musicAccess,allowed=Array.isArray(access?.allowed)?access.allowed:[];
+   if(access?.restricted&&allowed.length>1&&state.selected.size===allowed.length&&
+      allowed.every(path=>state.selected.has(path))){
+    state.selected.clear();
+    localStorage.setItem(store,'[]');
+   }
+   localStorage.setItem(key,'yes');
+  }
+ }catch(_){};
 const host=document.createElement('div');host.id='geMusicV5Host';host.dataset.build=BUILD;
 host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
 const root=host.attachShadow({mode:'open'});
@@ -1469,6 +1484,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .geOfflineEta{font-size:9px}
  .geOfflineStatus{font-size:10px}
 }
+
+/* Make the real iOS selection checkbox visible and tappable for every song.
+   Override earlier hidden and 1px-checkbox rules from older layouts. */
+.window.geSimpleSongBrowser .scroll .song .songInfo input[type=checkbox],
+.window.geSimpleSongBrowser .scroll .song:not(.selectedSong) .songInfo input[type=checkbox],
+.window.geSimpleSongBrowser .scroll .song.selectedSong .songInfo input[type=checkbox]{
+ position:static!important;display:block!important;visibility:visible!important;
+ opacity:1!important;pointer-events:auto!important;appearance:checkbox!important;
+ -webkit-appearance:checkbox!important;width:24px!important;height:24px!important;
+ min-width:24px!important;min-height:24px!important;flex:0 0 24px!important;
+ margin:0 7px 0 0!important;accent-color:#53c7ff!important;
+ touch-action:manipulation!important;
+}
+.window.geSimpleSongBrowser .scroll .song .songInfo{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ min-height:44px!important;
+}
+.window.geSimpleSongBrowser .scroll .song .songInfo .songTitlePlay{
+ flex:1 1 0!important;min-width:0!important;min-height:44px!important;
+ touch-action:manipulation!important;
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -2310,7 +2346,7 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(allowed)}
+     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set()}
      saveSelected();void loadPublished();
      say('Code verified. Assigned songs unlocked in the same Music screen.');
    }else{
@@ -2430,6 +2466,7 @@ function appendSong(parent,track){
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
    if(checkbox.checked)state.lastSelectedAlbum=track.album;
    saveSelected();updateMeta();
+   say(state.selected.size+' SONG'+(state.selected.size===1?'':'S')+' SELECTED');
    row.classList.toggle('selectedSong',checkbox.checked);
    if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
    recordPlaylistInteraction('control_change',{
@@ -2445,7 +2482,11 @@ function appendSong(parent,track){
   songText.type='button';
   songText.title='Select or deselect '+track.title;
   songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
-  songText.addEventListener('click',()=>checkbox.click());
+  songText.addEventListener('click',()=>{
+    // Avoid programmatically clicking an invisible checkbox on Safari.
+    checkbox.checked=!state.selected.has(track.path);
+    checkbox.dispatchEvent(new Event('change',{bubbles:true}));
+   });
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
@@ -2724,8 +2765,8 @@ function render(){
  el('.geBrowseMessage').textContent=state.notice||'';
  el('.albumDetailBack').textContent='ALBUMS';
  el('.albumDetailPlaylist').textContent='PLAYLIST';
- el('.albumDetailSongs').textContent=albumDetail?state.view.slice(6).toUpperCase():'SONGS';
- el('.albumDetailSongs').setAttribute('aria-label',albumDetail?'Selected album '+state.view.slice(6)+'. Tap to browse all songs.':'Browse all songs');
+ el('.albumDetailSongs').textContent='SONGS';
+ el('.albumDetailSongs').setAttribute('aria-label','Browse all songs');
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
  const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
@@ -3488,7 +3529,10 @@ musicAccessStatus();
 window.addEventListener('ge-vault-music-access-updated',()=>{
  const access=musicAccessActive();
  if(access?.restricted){
-  if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(access.allowed)}
+  if(!restoreWorkingOrder()){
+    state.activePlaylist=null;state.playlistDraftName='';
+    state.selected=new Set([...state.selected].filter(path=>access.allowed.includes(path)));
+   }
   saveSelected();void loadPublished();
  }
  // Access update must never switch to another Music interface.
