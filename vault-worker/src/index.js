@@ -1616,6 +1616,56 @@ async function adminFanGeography(env,url){
  return {ok:true,period,country,state,event,generated_at:now(),totals:totals||{},ledger:ledger||{events:0,last_seen:null},states:states.results||[],event_types:types.results||[],note:"Recorded anonymous devices, not verified people or concurrent listeners. Region is IP-derived and approximate."};
 }
 
+
+/* Back Room visitor drilldown. Owner-only scoped read, with one anonymous
+   visitor ID per row and a bounded timeline. Never expose IP, contact info,
+   user-agent, referrer, raw metadata or unrelated Vault tables. */
+async function adminFanVisitors(env,url){
+ const period=String(url.searchParams.get("period")||"24h");
+ const seconds={"1h":3600,"24h":86400,"7d":604800,"30d":2592000}[period];
+ if(!seconds)return {ok:false,error:"Invalid visitor activity period."};
+ const since=now()-seconds;
+ const anonParam=String(url.searchParams.get("anon_id")||"");
+ if(anonParam){
+  const anonId=safeAnonId(anonParam);
+  if(!anonId)return {ok:false,error:"Invalid anonymous visitor ID."};
+  const rows=await env.VAULT_DB.prepare(
+   "SELECT occurred_at,event_type,surface,page_path,track_title,album,playlist_id,share_target,session_id,fan_id,country,region,city FROM fan_events WHERE anon_id=? AND occurred_at>=? ORDER BY occurred_at DESC LIMIT 300"
+  ).bind(anonId,since).all();
+  const events=rows.results||[];
+  const fanId=String(events.find(row=>row.fan_id)?.fan_id||"");
+  let fanName="";
+  if(fanId){
+   const fan=await env.VAULT_DB.prepare("SELECT display_name FROM fans WHERE id=?").bind(fanId).first();
+   fanName=String(fan?.display_name||"");
+  }
+  return {ok:true,anon_id:anonId,period,events,fan_id:fanId,fan_name:fanName,
+   has_more:events.length===300,note:"Anonymous device activity, not a verified person."};
+ }
+ const country=String(url.searchParams.get("country")||"ALL").toUpperCase();
+ if(!["ALL","US","OTHER"].includes(country))return {ok:false,error:"Invalid visitor country filter."};
+ const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
+ const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const filters=["e.occurred_at>=?","e.anon_id IS NOT NULL","e.anon_id<>''","e.anon_id<>'ge-radio-station'"];
+ const binds=[since];
+ if(country==="US")filters.push("UPPER(COALESCE(e.country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ else if(country==="OTHER")filters.push("UPPER(COALESCE(e.country,'')) NOT IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ if(state!=="ALL"){
+  if(state==="Unknown")filters.push("(e.region IS NULL OR e.region='')");
+  else {filters.push("e.region=?");binds.push(state)}
+ }
+ if(event!=="ALL"){filters.push("e.event_type=?");binds.push(event)}
+ const rows=await env.VAULT_DB.prepare(
+  "SELECT e.anon_id,MAX(e.occurred_at) AS last_activity,COUNT(*) AS events,"+
+  "COUNT(DISTINCT e.session_id) AS sessions,MAX(e.fan_id) AS fan_id,"+
+  "MAX(f.display_name) AS fan_name,MAX(e.country) AS country,MAX(e.region) AS region "+
+  "FROM fan_events e LEFT JOIN fans f ON f.id=e.fan_id WHERE "+
+  filters.join(" AND ")+" GROUP BY e.anon_id ORDER BY last_activity DESC LIMIT 300"
+ ).bind(...binds).all();
+ return {ok:true,period,country,state,event,visitors:rows.results||[],
+  note:"Each visitor is one anonymous browser identifier, not a verified person."};
+}
+
 async function adminAnalytics(env, url) {
   const range = analyticsWindow(url, 30);
   const { since, until, days } = range;
@@ -3002,6 +3052,12 @@ export default {
       if (url.pathname === "/v1/admin/fan-geography" && request.method === "GET") {
         if (!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
         return json(await adminFanGeography(env,url),200,cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-visitors" && request.method === "GET") {
+        if (!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
+        const result=await adminFanVisitors(env,url);
+        return json(result,result.ok?200:400,cors);
       }
 
       if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {
