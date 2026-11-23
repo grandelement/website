@@ -1,0 +1,38 @@
+name: GE Fan Vault visitor drilldown regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/fan-visitor-drilldown.js'
+      - 'backroom/publisher-worker.js'
+      - 'vault-worker/src/index.js'
+      - 'tests/ge-fan-visitor-drilldown.test.mjs'
+      - '.github/workflows/ge-fan-visitor-drilldown.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/fan-visitor-drilldown.js'
+      - 'backroom/publisher-worker.js'
+      - 'vault-worker/src/index.js'
+      - 'tests/ge-fan-visitor-drilldown.test.mjs'
+      - '.github/workflows/ge-fan-visitor-drilldown.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Fan Vault worker and visitor module syntax
+        run: |
+          node --check vault-worker/src/index.js
+          node --check backroom/publisher-worker.js
+          node --check backroom/fan-visitor-drilldown.js
+      - name: Verify owner drilldown, timeline and saved fan safety contract
+        run: node tests/ge-fan-visitor-drilldown.test.mjs
