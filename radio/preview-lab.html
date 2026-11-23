@@ -312,7 +312,7 @@ body.ge-site-music-embedded #geSitePreviewRemaining{display:block;text-align:cen
   <div id="albumWall" class="albumWall">Loading albums…</div>
   <div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
   <div id="albumView" hidden>
-    <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
+    <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">SONGS</strong><button id="reloadAlbumSongs" type="button" hidden aria-label="Reload current album songs">RELOAD SONGS</button></div>
     <div class="albumBulk"><label><input id="albumSelectAll" type="checkbox"> SELECT WHOLE ALBUM</label><button id="playBrowserCollection" type="button">PLAY ALBUM</button><button id="saveAlbumOffline" type="button" hidden>SAVE ALBUM OFFLINE</button></div>
     <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
     <div id="songs"></div>
@@ -937,7 +937,8 @@ function openAlbum(name){
  if(!albums.has(name))return;
  browserMode='albums';selectedAlbum=name;selectedPlaylistId='';
  $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('musicListView').hidden=true;$('albumView').hidden=false;
- $('albumTitle').textContent=name;$('search').value='';
+ $('albumTitle').textContent='SONGS';$('search').value='';
+ $('reloadAlbumSongs').hidden=!isAuthorized();
  showSongs();syncAlbumWholeCheck();
  $('saveAlbumOffline').hidden=!ownerPreview();
 }
@@ -990,8 +991,8 @@ $('saveAlbumOffline').addEventListener('click',async()=>{
    }catch(error){console.warn('Offline album song not stored:',track.path,error);}
   }
   musicNotice(saved===tracks.length?
-   selectedAlbum+' saved on this device for offline playback.':
-   selectedAlbum+' · Some songs could not be saved offline. Check storage and connection.');
+   selectedAlbum+' · '+saved+'/'+tracks.length+' tracks downloaded. Test in airplane mode before relying on offline playback.':
+   selectedAlbum+' · ONLY '+saved+'/'+tracks.length+' tracks downloaded. Offline album INCOMPLETE.');
  }catch(_e){musicNotice('Offline album save failed on this device.');}
  finally{button.disabled=false;}
 });
@@ -1037,12 +1038,8 @@ let geTrackRequestSerial=0;
 // Use their repository-backed audio URLs rather than treating a catalog entry
 // as proof that /ge-music/ was deployed. Keep the original local URL for
 // every other album so previously working recordings are unchanged.
+// Playback must use exactly the same same-origin URL as the offline cache.
 function geAudioSourceURL(t){
- const path=cleanMusicPath(t?.path);
- if(path.startsWith('ge-music/music/Grand Element - 2026 - Aether/')){
-  return 'https://raw.githubusercontent.com/grandelement/website/main/'+
-   path.split('/').map(encodeURIComponent).join('/');
- }
  return new URL(t.url,location.origin).href;
 }
 async function startTrack(t){
@@ -1465,6 +1462,14 @@ async function loadCompleteMusicCatalog(){
    }
  }catch(error){console.warn('Using saved music listing:',error);}
 }
+$('reloadAlbumSongs').addEventListener('click',async()=>{
+ if(!isAuthorized()){renderGate();return;}
+ const button=$('reloadAlbumSongs'),album=selectedAlbum;
+ button.disabled=true;button.textContent='RELOADING…';
+ try{await loadCompleteMusicCatalog();if(album&&albums.has(album))openAlbum(album);musicNotice('Album song names and catalog refreshed.');}
+ catch(error){musicNotice('Reload failed: '+error.message);}
+ finally{button.disabled=false;button.textContent='RELOAD SONGS';}
+});
 void loadCompleteMusicCatalog();
 void loadPublicPlaylists();
 if(GE_RADIO_MUSIC_EMBED)openMusicList(true);
