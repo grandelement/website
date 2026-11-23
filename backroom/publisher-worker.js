@@ -376,12 +376,16 @@ async function deletePreset(env,id){
 async function geVaultBridge(env,path,method='GET',body=null){
   // The dedicated bridge credential is valid for Access Codes and their
   // owner-only Fan assignment directory; the full admin token is optional.
-  const accessPath=path==='/v1/admin/access-codes'||path==='/v1/admin/fan-access';
+  const route=path.split('?')[0];
+  // These exact owner-only routes are allowed through the existing scoped
+  // bridge; broader Vault admin functions remain reserved to the full token.
+  const accessPath=['/v1/admin/access-codes','/v1/admin/fan-access',
+    '/v1/admin/fan-geography','/v1/admin/fan-playlists'].includes(route);
   const dedicated=String(env.VAULT_ACCESS_CODES_TOKEN||'').trim();
   const admin=String(env.VAULT_ADMIN_TOKEN||'').trim();
   const secret=accessPath&&dedicated?dedicated:admin;
   if(!secret)return {status:503,data:{ok:false,error:accessPath?
-    'Access Codes bridge credential is missing on Publisher.':
+    'Scoped Vault bridge credential is missing on Publisher.':
     'GE Vault admin credential is missing on Publisher.'}};
   const url='https://vault.grandelement.com'+path;
   const invoke=async credential=>{
@@ -1158,18 +1162,24 @@ export default {
         checks.vault_ready=health.ok&&h.ok===true&&h.storage==='READY';
         checks.access_tables_ready=h.access_codes_ready===true;
       }catch(_){checks.vault_ready=false;checks.vault_http=0}
-      if(checks.admin_token_configured){
-        const fan=await geVaultBridge(env,'/v1/admin/fan-geography?period=1h&country=US');
+      checks.scoped_bridge_configured=!!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim();
+      if(checks.scoped_bridge_configured){
+        const fan=await geVaultBridge(env,'/v1/admin/fan-geography?period=24h&country=ALL');
         checks.fan_analytics_http=fan.status;
         checks.fan_analytics_readable=fan.status===200&&fan.data?.ok===true;
         const codes=await geVaultBridge(env,'/v1/admin/access-codes');
         checks.access_codes_http=codes.status;
         checks.access_codes_readable=codes.status===200&&codes.data?.ok===true&&Array.isArray(codes.data.items);
+        const playlists=await geVaultBridge(env,'/v1/admin/fan-playlists');
+        checks.fan_playlists_http=playlists.status;
+        checks.fan_playlists_readable=playlists.status===200&&playlists.data?.ok===true&&Array.isArray(playlists.data.items);
       }else{
         checks.fan_analytics_readable=false;checks.access_codes_readable=false;
+        checks.fan_playlists_readable=false;
       }
       const ok=checks.publisher_configured&&checks.service_binding&&checks.vault_ready&&
-        checks.admin_token_configured&&checks.fan_analytics_readable&&checks.access_codes_readable;
+        checks.scoped_bridge_configured&&checks.fan_analytics_readable&&
+        checks.access_codes_readable&&checks.fan_playlists_readable;
       return json({ok,checks,read_only:true,
         advice:ok?'Private Vault connection verified. No configuration changes needed.':
         'A failed check needs configuration, deployment, or permission repair. No secrets or data were changed.'},200,cors);
@@ -1177,8 +1187,8 @@ export default {
     if(url.pathname==='/manage/fan-geography'&&request.method==='GET'){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Back Room sign-in required.'},401,cors);
-      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
-        return json({ok:false,error:'Vault admin bridge not configured.'},503,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Vault bridge is not configured.'},503,cors);
       const allowed=new URLSearchParams();
       for(const name of ['period','country','state','event']){
         const value=url.searchParams.get(name);
@@ -1190,8 +1200,8 @@ export default {
     if(url.pathname==='/manage/fan-playlists'&&request.method==='GET'){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
-      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
-        return json({ok:false,error:'Full Vault administrator token is not configured on publisher.'},503,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Vault bridge is not configured on Publisher.'},503,cors);
       const upstream=await geVaultBridge(env,'/v1/admin/fan-playlists');
       return json(upstream.data,upstream.status,cors);
     }
@@ -1205,7 +1215,11 @@ export default {
         try{body=await request.json()}catch(_){return json({ok:false,error:'Invalid fan assignment request.'},400,cors)}
         if(!['assign','label','create'].includes(body?.action))return json({ok:false,error:'Unknown fan assignment action.'},400,cors);
       }
-      const upstream=await geVaultBridge(env,'/v1/admin/fan-access',request.method,body);
+      const period=url.searchParams.get('period')||'24h';
+      if(request.method==='GET'&&!['1h','24h','7d'].includes(period))
+        return json({ok:false,error:'Invalid fan activity period.'},400,cors);
+      const path='/v1/admin/fan-access'+(request.method==='GET'?'?period='+period:'');
+      const upstream=await geVaultBridge(env,path,request.method,body);
       return json(upstream.data,upstream.status,cors);
     }
     if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
