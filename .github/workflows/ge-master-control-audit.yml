@@ -1,0 +1,36 @@
+name: GE Master Control Audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/ge-control-audit.mjs'
+      - '.github/workflows/ge-master-control-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chrome browser
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Install browser automation
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Audit website controls and links
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tests/ge-control-audit.mjs
+      - name: Preserve full audit and inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ge-master-control-audit
+          path: ge-audit/
