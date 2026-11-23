@@ -1085,8 +1085,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <h3>FAN BASE VAULT · STATES &amp; REGIONS</h3>
     <p style="font-size:12px;color:#c3e0ee">Live D1 records · anonymous visitors · approximate IP-derived locations · not concurrent listeners</p>
     <div class="brGeoFilters">
-      <label>TIME <select id="brGeoPeriod"><option value="1h">LAST HOUR</option><option value="24h">LAST 24 HOURS</option><option value="7d">LAST 7 DAYS</option><option value="30d">LAST 30 DAYS</option></select></label>
-      <label>COUNTRY <select id="brGeoCountry"><option value="US">UNITED STATES</option><option value="ALL">ALL COUNTRIES</option><option value="OTHER">OUTSIDE USA</option></select></label>
+      <label>TIME <select id="brGeoPeriod"><option value="24h">LAST 24 HOURS</option><option value="1h">LAST HOUR</option><option value="7d">LAST 7 DAYS</option><option value="30d">LAST 30 DAYS</option></select></label>
+      <label>COUNTRY <select id="brGeoCountry"><option value="ALL">ALL COUNTRIES</option><option value="US">UNITED STATES</option><option value="OTHER">OUTSIDE USA</option></select></label>
       <label>STATE / REGION <select id="brGeoState"><option value="ALL">ALL STATES</option></select></label>
       <label>ACTIVITY <select id="brGeoEvent"><option value="ALL">ALL ACTIVITY</option></select></label>
     </div>
@@ -1096,7 +1096,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" data-ge-geo-period="7d">7 DAYS</button>
       <button type="button" id="brGeoRefresh" class="primary">REFRESH VAULT</button>
     </div>
-    <button type="button" id="brVaultReconnect" style="width:100%;min-height:54px;background:#125b75;border:2px solid #70dcf4;color:white;font-weight:900;margin:8px 0">RECONNECT + VERIFY VAULT</button>
+    <button type="button" id="brVaultReconnect" style="width:100%;min-height:54px;background:#125b75;border:2px solid #70dcf4;color:white;font-weight:900;margin:8px 0">CHECK VAULT CONNECTIONS</button>
     <div id="brVaultReconnectStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px">Not checked yet.</div>
     <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
     <div id="brGeoTotals" class="brGeoTotals"></div>
@@ -5535,14 +5535,14 @@ $('gatePassword').focus();
    if(!response.ok)throw Error(data.error||'HTTP '+response.status);
    const c=data.checks||{};
    const names=[['Publisher',c.publisher_configured],['Private binding',c.service_binding],
-    ['Admin credential present',c.admin_token_configured],['Vault D1 ready',c.vault_ready],
+    ['Private scoped bridge',c.scoped_bridge_configured],['Vault D1 ready',c.vault_ready],
     ['Access tables',c.access_tables_ready],['Fan analytics readable',c.fan_analytics_readable],
-    ['Access codes readable',c.access_codes_readable]];
-   status.textContent=(data.ok?'CONNECTED AND VERIFIED':'CONNECTION NEEDS REPAIR')+'\\n'+
-    names.map(([name,ok])=>(ok?'PASS':'FAIL')+' · '+name).join('\\n')+'\\n'+(data.advice||'');
+    ['Fan playlists readable',c.fan_playlists_readable],['Access codes readable',c.access_codes_readable]];
+   status.textContent=(data.ok?'CONNECTED AND VERIFIED':'CONNECTION NEEDS REPAIR')+'\n'+
+    names.map(([name,ok])=>(ok?'PASS':'FAIL')+' · '+name).join('\n')+'\n'+(data.advice||'');
    if(data.ok){
     const reloaded=await window.GE_BACKROOM_RECONNECT_SOURCES?.();
-    if(reloaded===false)status.textContent+='\\nACCESS CODE OR GITHUB PLAYLIST RELOAD FAILED · Check the Vault indicator and Access Codes status.';
+    if(reloaded===false)status.textContent+='\nACCESS CODE OR GITHUB PLAYLIST RELOAD FAILED · Check the Vault indicator and Access Codes status.';
     void refresh();
    }
   }catch(error){status.textContent='VERIFICATION FAILED · '+String(error.message||error)}
@@ -5590,7 +5590,7 @@ $('gatePassword').focus();
     $('brGeoStates').append(b);
    }
    text('brGeoStatus','VAULT READ CONFIRMED · '+new Date().toLocaleTimeString()+' · Approximate locations, not verified identities.');
-   if(!data.states?.length)text('brGeoStatus','VAULT CONNECTED · NO MATCHING FAN EVENTS IN THIS FILTER.');
+   if(!data.states?.length)text('brGeoStatus','NO RECORDED FAN EVENTS MATCH THIS PERIOD OR COUNTRY. This does not prove nobody visited.');
   }catch(e){text('brGeoStatus','VAULT READ FAILED · '+String(e.message||e))}
   finally{busy=false;$('brGeoRefresh').disabled=false}
  }
@@ -5598,6 +5598,7 @@ $('gatePassword').focus();
  for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'));
  panel.querySelectorAll('[data-ge-geo-period]').forEach(b=>b.addEventListener('click',()=>{$('brGeoPeriod').value=b.dataset.geGeoPeriod;void refresh()}));
  document.querySelectorAll('#brTabFans,[data-tab="fans"],#brAccessViews [data-br-access-view="fans"]').forEach(b=>b.addEventListener('click',()=>{if(sessionStorage.getItem(tokenKey))void refresh()}));
+ if(sessionStorage.getItem(tokenKey))void refresh();
 })();
 </script>
 <script>
