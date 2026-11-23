@@ -21,7 +21,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ge-studios-workers-production-deploy
+  # Vault deploys must not cancel one another when multiple Publisher and
+  # Vault workflows start from the same main commit. The previous shared
+  # group let unrelated Publisher runs replace a pending Vault release.
+  group: ge-studios-vault-worker-deploy
   cancel-in-progress: false
 
 jobs:
