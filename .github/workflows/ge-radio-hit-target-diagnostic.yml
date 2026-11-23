@@ -1,0 +1,25 @@
+name: Radio hit target diagnostic
+on:
+  pull_request:
+    paths:
+      - "radio/**"
+      - "tests/ge-radio-hit-target-diagnostic.mjs"
+      - ".github/workflows/ge-radio-hit-target-diagnostic.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-hits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install headless browser
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Inspect mobile and desktop click targets
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/ge-radio-hit-targets.log 2>&1 &
+          node tests/ge-radio-hit-target-diagnostic.mjs
