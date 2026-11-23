@@ -5541,9 +5541,11 @@ $('gatePassword').focus();
    status.textContent=(data.ok?'CONNECTED AND VERIFIED':'CONNECTION NEEDS REPAIR')+'\n'+
     names.map(([name,ok])=>(ok?'PASS':'FAIL')+' · '+name).join('\n')+'\n'+(data.advice||'');
    if(data.ok){
-    const reloaded=await window.GE_BACKROOM_RECONNECT_SOURCES?.();
-    if(reloaded===false)status.textContent+='\nACCESS CODE OR GITHUB PLAYLIST RELOAD FAILED · Check the Vault indicator and Access Codes status.';
+    // This is a FAN VAULT read-only diagnostic. Do not treat GitHub playlist
+    // or Access Codes editor reloads as prerequisites for verified fan reads.
+    // Those managers have separate buttons and separate error reporting.
     void refresh();
+    void refreshFanPlaylistVault();
    }
   }catch(error){status.textContent='VERIFICATION FAILED · '+String(error.message||error)}
   finally{button.disabled=false}
@@ -5589,8 +5591,17 @@ $('gatePassword').focus();
     b.append(label,n);b.addEventListener('click',()=>{$('brGeoState').value=row.state||'Unknown';void refresh(true)});
     $('brGeoStates').append(b);
    }
-   text('brGeoStatus','VAULT READ CONFIRMED · '+new Date().toLocaleTimeString()+' · Approximate locations, not verified identities.');
-   if(!data.states?.length)text('brGeoStatus','NO RECORDED FAN EVENTS MATCH THIS PERIOD OR COUNTRY. This does not prove nobody visited.');
+   const matched=Number(totals.events||0);
+   const stored=Number(data.ledger?.events||0);
+   const last=Number(data.ledger?.last_seen||0);
+   const lastText=last?' · LAST RECORD '+new Date(last*1000).toLocaleString():'';
+   if(matched){
+     text('brGeoStatus','VAULT READ CONFIRMED · '+matched+' MATCHING RECORDED EVENTS · '+new Date().toLocaleTimeString()+' · Approximate locations, not verified identities.');
+   }else if(stored){
+     text('brGeoStatus','NO EVENTS MATCH THIS FILTER · '+stored+' HISTORICAL FAN EVENTS STORED'+lastText+' · Try LAST 30 DAYS / ALL COUNTRIES.');
+   }else{
+     text('brGeoStatus','VAULT CONNECTED BUT NO FAN EVENTS STORED · Check first-party visitor telemetry delivery. This is not proof nobody visited.');
+   }
   }catch(e){text('brGeoStatus','VAULT READ FAILED · '+String(e.message||e))}
   finally{busy=false;$('brGeoRefresh').disabled=false}
  }
