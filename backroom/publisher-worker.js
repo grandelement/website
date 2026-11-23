@@ -380,7 +380,8 @@ async function geVaultBridge(env,path,method='GET',body=null){
   // These exact owner-only routes are allowed through the existing scoped
   // bridge; broader Vault admin functions remain reserved to the full token.
   const accessPath=['/v1/admin/access-codes','/v1/admin/fan-access',
-    '/v1/admin/fan-geography','/v1/admin/fan-playlists'].includes(route);
+    '/v1/admin/fan-geography','/v1/admin/fan-playlists',
+    '/v1/admin/fan-visitors'].includes(route);
   const dedicated=String(env.VAULT_ACCESS_CODES_TOKEN||'').trim();
   const admin=String(env.VAULT_ADMIN_TOKEN||'').trim();
   const secret=accessPath&&dedicated?dedicated:admin;
@@ -1195,6 +1196,19 @@ export default {
         if(value)allowed.set(name,value.slice(0,100));
       }
       const upstream=await geVaultBridge(env,'/v1/admin/fan-geography?'+allowed.toString());
+      return json(upstream.data,upstream.status,cors);
+    }
+    if(url.pathname==='/manage/fan-visitors'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Fan Vault credential missing.'},503,cors);
+      const allowed=new URLSearchParams();
+      for(const name of ['period','country','state','event','anon_id']){
+        const value=url.searchParams.get(name);
+        if(value)allowed.set(name,value.slice(0,name==='anon_id'?160:100));
+      }
+      const upstream=await geVaultBridge(env,'/v1/admin/fan-visitors?'+allowed.toString());
       return json(upstream.data,upstream.status,cors);
     }
     if(url.pathname==='/manage/fan-playlists'&&request.method==='GET'){
