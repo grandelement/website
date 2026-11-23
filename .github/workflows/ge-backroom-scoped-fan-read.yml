@@ -1,0 +1,35 @@
+name: GE Back Room scoped Fan Vault read repair
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'backroom/publisher-worker.js'
+      - 'backroom/index.html'
+      - 'tests/ge-backroom-scoped-fan-read.test.mjs'
+      - '.github/workflows/ge-backroom-scoped-fan-read.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'backroom/publisher-worker.js'
+      - 'backroom/index.html'
+      - 'tests/ge-backroom-scoped-fan-read.test.mjs'
+      - '.github/workflows/ge-backroom-scoped-fan-read.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Publisher and Vault JavaScript syntax
+        run: |
+          node --check backroom/publisher-worker.js
+          node --check vault-worker/src/index.js
+      - name: Verify scoped fan read access and owner-only protections
+        run: node tests/ge-backroom-scoped-fan-read.test.mjs

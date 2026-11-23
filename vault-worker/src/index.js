@@ -56,9 +56,9 @@ function adminAuthorized(request, env) {
   return !!expected && !!token && constantTimeEqual(token, expected);
 }
 
-// Scoped Back Room bridge credential: accepts access-code management and
-// fan-to-code assignment ONLY. It cannot authorize analytics, Vault export,
-// general fan detail, fan playlists, ingestion or other admin endpoints.
+// Scoped Back Room credential authorizes access-code management, fan assignments,
+// and read-only fan geography and saved fan-playlist summaries. It does not
+// authorize exports, general fan detail, wider analytics, or ingestion.
 function accessCodesAuthorized(request,env){
   if(adminAuthorized(request,env))return true;
   const auth=String(request.headers.get("authorization")||"").trim();
@@ -1053,7 +1053,7 @@ async function fanMusicEndpoint(request,env){
  return json({ok:true,id:playlistId,name,songs,updated_at:t,storage:"GE_VAULT_D1"});
 }
 async function adminFanMusicPlaylists(request,env){
- if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
+ if(!accessCodesAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
  await ensureFanMusicPlaylistTable(env);
  await ensureAccessCodeTables(env);
  const rows=await env.VAULT_DB.prepare(
@@ -2103,16 +2103,18 @@ async function adminFanAccess(request,env){
   return json({ok:false,error:"Full Vault owner authorization required."},401);
  await ensureAccessCodeTables(env);
  if(request.method==="GET"){
+  const period=new URL(request.url).searchParams.get("period")||"24h";
+  const recentWindowSeconds=({"1h":3600,"24h":86400,"7d":604800})[period]||86400;
   const [fans,recent]=await Promise.all([
    env.VAULT_DB.prepare(
     "SELECT f.id,f.display_name,f.last_seen_at,l.code_id,a.label AS code_label FROM fans f LEFT JOIN fan_code_links l ON l.fan_id=f.id LEFT JOIN access_codes a ON a.id=l.code_id ORDER BY f.last_seen_at DESC LIMIT 300"
    ).all(),
    env.VAULT_DB.prepare(
     "SELECT anon_id,MAX(occurred_at) AS last_activity,MAX(fan_id) AS fan_id FROM fan_events WHERE occurred_at>=? AND anon_id IS NOT NULL GROUP BY anon_id ORDER BY last_activity DESC LIMIT 100"
-   ).bind(now()-120).all()
+   ).bind(now()-recentWindowSeconds).all()
   ]);
   return json({ok:true,fans:fans.results||[],recent:recent.results||[],
-   recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
+   recent_window_seconds:recentWindowSeconds,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
  }
  const body=await readBody(request);
  if(body.action==="create"){
@@ -2995,7 +2997,7 @@ export default {
       }
 
       if (url.pathname === "/v1/admin/fan-geography" && request.method === "GET") {
-        if (!adminAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
+        if (!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
         return json(await adminFanGeography(env,url),200,cors);
       }
 
