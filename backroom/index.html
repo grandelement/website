@@ -5592,11 +5592,14 @@ $('gatePassword').focus();
     $('brGeoStates').append(b);
    }
    const matched=Number(totals.events||0);
-   const stored=Number(data.ledger?.events||0);
+   const ledgerChecked=!!data.ledger&&Number.isFinite(Number(data.ledger.events));
+   const stored=ledgerChecked?Number(data.ledger.events):0;
    const last=Number(data.ledger?.last_seen||0);
    const lastText=last?' · LAST RECORD '+new Date(last*1000).toLocaleString():'';
    if(matched){
      text('brGeoStatus','VAULT READ CONFIRMED · '+matched+' MATCHING RECORDED EVENTS · '+new Date().toLocaleTimeString()+' · Approximate locations, not verified identities.');
+   }else if(!ledgerChecked){
+     text('brGeoStatus','NO MATCHING RECENT EVENTS · Historical event total not yet verified. Try LAST 30 DAYS / ALL COUNTRIES.');
    }else if(stored){
      text('brGeoStatus','NO EVENTS MATCH THIS FILTER · '+stored+' HISTORICAL FAN EVENTS STORED'+lastText+' · Try LAST 30 DAYS / ALL COUNTRIES.');
    }else{
