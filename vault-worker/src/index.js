@@ -1605,12 +1605,15 @@ async function adminFanGeography(env,url){
  if(event!=="ALL"){filters.push("event_type=?");args.push(event)}
  const where=filters.join(" AND ");
  const statement=sql=>env.VAULT_DB.prepare(sql).bind(...args).all();
- const [states,types,totals]=await Promise.all([
+ const [states,types,totals,ledger]=await Promise.all([
   statement("SELECT COALESCE(NULLIF(region,''),'Unknown') AS state, COALESCE(NULLIF(country,''),'Unknown') AS country,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions FROM fan_events WHERE "+where+" GROUP BY country,region ORDER BY visitors DESC,events DESC LIMIT 120"),
   statement("SELECT event_type,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY event_type ORDER BY events DESC LIMIT 70"),
-  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions,MAX(occurred_at) AS last_seen FROM fan_events WHERE "+where).bind(...args).first()
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions,MAX(occurred_at) AS last_seen FROM fan_events WHERE "+where).bind(...args).first(),
+  // Read-only, unfiltered overview to distinguish an empty time window from
+  // an unpopulated event ledger. No private event rows or IP data leave D1.
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,MAX(occurred_at) AS last_seen FROM fan_events WHERE anon_id IS NOT NULL AND anon_id<>'' AND anon_id<>'ge-radio-station'").first()
  ]);
- return {ok:true,period,country,state,event,generated_at:now(),totals:totals||{},states:states.results||[],event_types:types.results||[],note:"Recorded anonymous devices, not verified people or concurrent listeners. Region is IP-derived and approximate."};
+ return {ok:true,period,country,state,event,generated_at:now(),totals:totals||{},ledger:ledger||{events:0,last_seen:null},states:states.results||[],event_types:types.results||[],note:"Recorded anonymous devices, not verified people or concurrent listeners. Region is IP-derived and approximate."};
 }
 
 async function adminAnalytics(env, url) {
