@@ -74,7 +74,9 @@ const COLUMN={radio:'radioSongPaths',player:'playerSongPaths',store:'storeSongPa
 const playlistStatus=message=>{$('brRoutePlaylistStatus').textContent=String(message)};
 function selectedColumnSongs(){
  const key=COLUMN[$('brRoutePlaylistColumn').value];
- return key?entries.filter(row=>effective(key).has(row.path)).map(row=>row.path):[];
+ if(!key)return [];
+ const approved=effective(key);
+ return entries.filter(row=>approved.has(row.path)).map(row=>row.path);
 }
 function useRecord(record){
  const paths=entries.map(row=>row.path);
@@ -280,7 +282,7 @@ async function saveCheckedPlaylist(){
  if(songs.length>500){playlistStatus('A PLAYLIST CAN CONTAIN UP TO 500 SONGS.');return}
  const existing=playlists.find(row=>row.name.trim().toLowerCase()===name.toLowerCase());
  if(existing&&!confirm('OVERWRITE SAVED PLAYLIST "'+existing.name+'" WITH '+songs.length+
-    ' CHECKED '+column+' SONGS?\\n\\nThis replaces its songs wherever the playlist is assigned. It does not change the live DJ queue.'))return;
+    ' CHECKED '+column+' SONGS?\n\nThis replaces its songs wherever the playlist is assigned. It does not change the live DJ queue.'))return;
  const control=$('brRouteSavePlaylist');
  busy=true;control.disabled=true;
  playlistStatus('SAVING '+songs.length+' CHECKED '+column+' SONGS TO GITHUB…');
@@ -327,7 +329,7 @@ function loadSavedPlaylistIntoCheckboxes(){
  const current=effective(key);
  if(changed()&&(current.size!==songs.length||songs.some(path=>!current.has(path)))&&
     !confirm('REPLACE THE CURRENT '+destination.toUpperCase()+
-      ' CHECKBOXES WITH "'+playlist.name+'"?\\n\\nOther unsaved destinations are preserved.'))return;
+      ' CHECKBOXES WITH "'+playlist.name+'"?\n\nOther unsaved destinations are preserved.'))return;
  flags[key]=new Set(songs);
  assignments[destination]=''; // CUSTOM enables further checkbox editing.
  if(destination==='store')flags.storeAlbums=new Set(songs.map(albumOf));
