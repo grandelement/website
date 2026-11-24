@@ -436,6 +436,12 @@ root.querySelectorAll('[data-route-playlist]').forEach(select=>select.addEventLi
  render();
 }));
 $('brRoutePlaylistColumn').addEventListener('change',updateCount);
+$('brRouteSavedPlaylist').addEventListener('change',()=>{
+ const chosen=playlists.find(row=>row.id===$('brRouteSavedPlaylist').value);
+ if(!chosen)return;
+ $('brRoutePlaylistName').value=chosen.name;
+ playlistStatus('SELECTED "'+chosen.name+'". LOAD it into checkboxes to edit. SAVE the same name to update, with confirmation.');
+});
 $('brRouteSavePlaylist').addEventListener('click',()=>void saveCheckedPlaylist());
 $('brRouteLoadPlaylist').addEventListener('click',loadSavedPlaylistIntoCheckboxes);
 $('brRouteEditPlaylists').addEventListener('click',()=>{
