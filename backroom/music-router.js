@@ -6,7 +6,7 @@ if(!root)return;
 const $=id=>document.getElementById(id);
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
 const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
-const ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
+const ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire','Aether','Singles'];
 const SONG=/^ge-music\/music\/.+\.(?:mp3|m4a|wav|ogg|flac)$/i;
 const PATH_KEYS=['storeSongPaths','playerSongPaths','radioSongPaths'];
 const COLORS=window.GE_ALBUM_COLORS||{};
@@ -23,6 +23,14 @@ const songOf=path=>{
  return name.replace(/\.(mp3|m4a|wav|ogg|flac)$/i,'').replace(/^[^_]+_\d+[-_]?/,'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
 };
 const order=(a,b)=>{let x=ORDER.indexOf(a),y=ORDER.indexOf(b);return (x<0?999:x)-(y<0?999:y)||a.localeCompare(b)};
+const trackNumber=path=>{
+ const file=String(path).split('/').pop()||'';
+ const match=file.match(/_(\d{1,3})(?=[_-])/);
+ return match?Number(match[1]):Number.POSITIVE_INFINITY;
+};
+const songOrder=(a,b)=>order(a.album,b.album)||
+ (trackNumber(a.path)-trackNumber(b.path))||
+ a.path.localeCompare(b.path,undefined,{numeric:true,sensitivity:'base'});
 const status=message=>{$('brRouteStatus').textContent=String(message)};
 const sorted=key=>[...flags[key]].sort();
 function resolved(){
@@ -50,6 +58,25 @@ async function ownerApi(method,body){
  const data=await response.json().catch(()=>({}));
  if(!response.ok||data.ok!==true)throw Error(data.error||'Publisher HTTP '+response.status);
  return data;
+}
+// Same GitHub playlist registry and owner session as the GE playlist editor.
+async function playlistApi(method,body){
+ const secret=token();if(!secret)throw Error('Sign in to the private Back Room first.');
+ const response=await fetch(API+'/manage/github-playlists',{
+  method,cache:'no-store',headers:{Authorization:'Bearer '+secret,...(body?{'Content-Type':'application/json'}:{})},
+  ...(body?{body:JSON.stringify(body)}:{})
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||data.ok!==true)throw Error(data.error||'GitHub playlist HTTP '+response.status);
+ return data;
+}
+const COLUMN={radio:'radioSongPaths',player:'playerSongPaths',store:'storeSongPaths'};
+const playlistStatus=message=>{$('brRoutePlaylistStatus').textContent=String(message)};
+function selectedColumnSongs(){
+ const key=COLUMN[$('brRoutePlaylistColumn').value];
+ if(!key)return [];
+ const approved=effective(key);
+ return entries.filter(row=>approved.has(row.path)).map(row=>row.path);
 }
 function useRecord(record){
  const paths=entries.map(row=>row.path);
@@ -83,6 +110,14 @@ function populatePlaylistChoices(){
    control.value=assignments[destination];
   }
  }
+ const picker=$('brRouteSavedPlaylist'),prior=picker.value;
+ picker.replaceChildren(new Option('CHOOSE SAVED PLAYLIST',''));
+ for(const playlist of playlists){
+  if(!playlist?.id||!playlist?.name)continue;
+  const available=(playlist.songs||[]).filter(path=>entries.some(e=>e.path===path));
+  picker.add(new Option(String(playlist.name)+' · '+available.length+' SONGS',playlist.id));
+ }
+ picker.value=playlists.some(row=>row.id===prior)?prior:'';
 }
 function updatePlaylistHint(){
  const active=Object.entries(assignments).filter(([,id])=>!!id);
@@ -92,6 +127,11 @@ function updatePlaylistHint(){
   'CUSTOM controls selected. Choose a saved playlist to reuse its songs.';
 }
 function updateCount(){
+ const picked=$('brRoutePlaylistColumn').value;
+ const chosen=loaded?selectedColumnSongs().length:0;
+ $('brRoutePlaylistSelectionCount').textContent=loaded?
+  chosen+' CHECKED '+picked.toUpperCase()+' SONGS · Name and save this list.':
+  'Loading song selections…';
  if(!loaded){
   $('brRouteCounts').textContent='SIGN IN TO LOAD THE MASTER CATALOG';
   $('brRouteSave').textContent='SAVE · SIGN IN REQUIRED';
@@ -102,9 +142,9 @@ function updateCount(){
   (route.routing.storeAlbums?.length||0)+' STORE · '+
   (route.routing.playerSongPaths?.length||0)+' PLAYER · '+(route.routing.radioSongPaths?.length||0)+' RADIO';
  updatePlaylistHint();
- $('brRouteSave').textContent=serverReady?'SAVE ALL CHANGES':'SAVE · CONNECTION NEEDED';
+ $('brRouteSave').textContent=serverReady?'SAVE ROUTING CHANGES':'SAVE · CONNECTION NEEDED';
  $('brRouteSave').disabled=busy;
- if(changed())status(serverReady?'UNSAVED CHANGES · SAVE ALL CHANGES to publish.':
+ if(changed())status(serverReady?'UNSAVED ROUTING CHANGES · SAVE ROUTING CHANGES to publish.':
   'READ ONLY · Publisher needs the new Music routing deployment before it can save.');
 }
 function toggle(kind,value,aria){
@@ -175,6 +215,7 @@ function render(){
 }
 function setView(next){
  view=next;
+ if(COLUMN[next])$('brRoutePlaylistColumn').value=next;
  $('brRouteMatrix').dataset.view=view;
  root.querySelectorAll('[data-route-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.routeView===view)));
  $('brRouteRadioAux').hidden=view!=='radio';
@@ -192,7 +233,7 @@ async function load(force=false){
   if(!Array.isArray(manifest.files))throw Error('Invalid music manifest.');
   entries=[...new Set(manifest.files.filter(path=>typeof path==='string'&&SONG.test(path)&&!path.includes('..')))]
    .map(path=>({path,album:albumOf(path),title:songOf(path)}))
-   .sort((a,b)=>order(a.album,b.album)||a.title.localeCompare(b.title));
+   .sort(songOrder);
   if(!entries.length)throw Error('No committed song files. Settings were not changed.');
   names=[...new Set(entries.map(row=>row.album))].sort(order);
   const select=$('brRouteAlbum'),prior=select.value;
@@ -228,6 +269,76 @@ async function load(force=false){
   if(serverReady)status('READY · '+entries.length+' MUSIC FILES · ONE PUBLISHED MASTER.');
  }catch(error){loaded=false;status('NOT LOADED · '+String(error.message||error))}
  finally{busy=false;$('brRouteRefresh').disabled=false;$('brRouteRebuild').disabled=false;updateCount()}
+}
+async function saveCheckedPlaylist(){
+ if(busy)return;
+ if(!loaded||!serverReady){
+  playlistStatus('NOT SAVED · Sign in and REFRESH the catalog first.');return;
+ }
+ const name=$('brRoutePlaylistName').value.trim(),songs=selectedColumnSongs();
+ const column=$('brRoutePlaylistColumn').value.toUpperCase();
+ if(!name||name.length>100){playlistStatus('ENTER A PLAYLIST NAME (1–100 CHARACTERS).');return}
+ if(!songs.length){playlistStatus('CHECK AT LEAST ONE '+column+' SONG FIRST.');return}
+ if(songs.length>500){playlistStatus('A PLAYLIST CAN CONTAIN UP TO 500 SONGS.');return}
+ const existing=playlists.find(row=>row.name.trim().toLowerCase()===name.toLowerCase());
+ if(existing&&!confirm('OVERWRITE SAVED PLAYLIST "'+existing.name+'" WITH '+songs.length+
+    ' CHECKED '+column+' SONGS?\n\nThis replaces its songs wherever the playlist is assigned. It does not change the live DJ queue.'))return;
+ const control=$('brRouteSavePlaylist');
+ busy=true;control.disabled=true;
+ playlistStatus('SAVING '+songs.length+' CHECKED '+column+' SONGS TO GITHUB…');
+ try{
+  const result=await playlistApi('POST',{action:'save',playlist:{
+   id:existing?.id||'',name,public:existing?.visibility==='published',
+   tracks:songs.map((track_path,position)=>({track_path,position}))
+  }});
+  if(!result.id||!result.commit_sha)throw Error('GitHub did not confirm the playlist commit.');
+  // Verify the saved rows from GitHub before reporting success.
+  const proof=await playlistApi('GET');
+  const saved=proof.items?.find(row=>row.id===result.id);
+  const verifiedSongs=(saved?.tracks||[]).map(row=>row.track_path);
+  if(!saved||JSON.stringify(verifiedSongs)!==JSON.stringify(songs))
+   throw Error('GitHub commit '+result.commit_sha.slice(0,12)+' exists, but the playlist readback differs. Inspect before retrying.');
+  if(!Array.isArray(proof.items)||!proof.commit_sha)
+   throw Error('Playlist write succeeded but the GitHub registry revision could not be verified.');
+  playlists=proof.items.map(row=>{
+   let metadata={};try{metadata=JSON.parse(row.metadata_json||'{}')}catch(_){}
+   return {id:String(row.id||''),name:String(row.name||''),
+    visibility:metadata.visibility||'unlisted',
+    songs:(row.tracks||[]).map(track=>track.track_path)};
+  });
+  playlistRevision=proof.commit_sha;
+  populatePlaylistChoices();
+  $('brRouteSavedPlaylist').value=result.id;
+  playlistStatus(existing?
+   'EXISTING PLAYLIST UPDATED AND VERIFIED · "'+saved.name+'" · '+songs.length+
+    ' SONGS · Destinations already assigned to it will use the updated songs after deployment. Live BLITZ is unchanged.':
+   'PLAYLIST SAVED AND VERIFIED · "'+saved.name+'" · '+songs.length+
+    ' SONGS · Select it under SAVED PLAYLISTS to reload. No public routing was changed.');
+ }catch(error){playlistStatus('PLAYLIST NOT VERIFIED · '+String(error.message||error))}
+ finally{busy=false;control.disabled=false;updateCount()}
+}
+function loadSavedPlaylistIntoCheckboxes(){
+ if(busy||!loaded)return;
+ const id=$('brRouteSavedPlaylist').value,playlist=playlists.find(row=>row.id===id);
+ if(!playlist){playlistStatus('CHOOSE A SAVED PLAYLIST FIRST.');return;}
+ const destination=$('brRoutePlaylistColumn').value,key=COLUMN[destination];
+ if(!key)return;
+ const available=new Set(entries.map(row=>row.path));
+ const songs=playlist.songs||[],missing=songs.filter(path=>!available.has(path));
+ if(!songs.length||missing.length){
+  playlistStatus('NOT LOADED · Playlist is empty or contains '+missing.length+
+   ' unavailable files. Repair it in FULL PLAYLIST EDITOR first.');return;
+ }
+ const current=effective(key);
+ if(changed()&&(current.size!==songs.length||songs.some(path=>!current.has(path)))&&
+    !confirm('REPLACE THE CURRENT '+destination.toUpperCase()+
+      ' CHECKBOXES WITH "'+playlist.name+'"?\n\nOther unsaved destinations are preserved.'))return;
+ flags[key]=new Set(songs);
+ assignments[destination]=''; // CUSTOM enables further checkbox editing.
+ if(destination==='store')flags.storeAlbums=new Set(songs.map(albumOf));
+ render();
+ playlistStatus('LOADED "'+playlist.name+'" · '+songs.length+' '+destination.toUpperCase()+
+  ' SONGS · Edit the checkboxes if needed; SAVE ROUTING CHANGES only to publish.');
 }
 async function save(){
  if(busy)return;
@@ -324,6 +435,15 @@ root.querySelectorAll('[data-route-playlist]').forEach(select=>select.addEventLi
  }
  render();
 }));
+$('brRoutePlaylistColumn').addEventListener('change',updateCount);
+$('brRouteSavedPlaylist').addEventListener('change',()=>{
+ const chosen=playlists.find(row=>row.id===$('brRouteSavedPlaylist').value);
+ if(!chosen)return;
+ $('brRoutePlaylistName').value=chosen.name;
+ playlistStatus('SELECTED "'+chosen.name+'". LOAD it into checkboxes to edit. SAVE the same name to update, with confirmation.');
+});
+$('brRouteSavePlaylist').addEventListener('click',()=>void saveCheckedPlaylist());
+$('brRouteLoadPlaylist').addEventListener('click',loadSavedPlaylistIntoCheckboxes);
 $('brRouteEditPlaylists').addEventListener('click',()=>{
   setView('radio');
   const editor=document.getElementById('brRadioPlaylistTools');

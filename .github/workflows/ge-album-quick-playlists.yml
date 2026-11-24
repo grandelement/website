@@ -1,0 +1,35 @@
+name: GE Album-Order Catalog and Quick Playlist Save QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/music-router.js'
+      - 'backroom/music-router.css'
+      - 'backroom/index.html'
+      - 'tests/ge-backroom-album-quick-playlists.test.mjs'
+      - '.github/workflows/ge-album-quick-playlists.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/music-router.js'
+      - 'backroom/music-router.css'
+      - 'backroom/index.html'
+      - 'tests/ge-backroom-album-quick-playlists.test.mjs'
+      - '.github/workflows/ge-album-quick-playlists.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate browser router syntax
+        run: node --check backroom/music-router.js
+      - name: Verify actual catalog ordering, GitHub Save/Load contract
+        run: node tests/ge-backroom-album-quick-playlists.test.mjs
+      - name: Verify first-load dirty-state guard still works
+        run: node tests/ge-backroom-music-router-startup.test.mjs
