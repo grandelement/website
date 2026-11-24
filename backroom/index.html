@@ -713,6 +713,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brDirectPublisherStatus{font-weight:800;color:#b4e7ff;font-size:13px;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261123-album-order-playlist-save-v1">
+<link rel="stylesheet" href="./owner-unified-ui.css?v=20261124-b">
 <link rel="stylesheet" href="./save-center.css?v=20261117-c">
 </head>
 <body>
@@ -1125,6 +1126,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label>COUNTRY <select id="brGeoCountry"><option value="ALL">ALL COUNTRIES</option><option value="US">UNITED STATES</option><option value="OTHER">OUTSIDE USA</option></select></label>
       <label>STATE / REGION <select id="brGeoState"><option value="ALL">ALL STATES</option></select></label>
       <label>ACTIVITY <select id="brGeoEvent"><option value="ALL">ALL ACTIVITY</option></select></label>
+      <label>GE PAGE <select id="brGeoPage"><option value="ALL">ALL GE PAGES</option></select></label>
     </div>
     <div class="brGeoButtons">
       <button type="button" data-ge-geo-period="1h">1 HOUR</button>
@@ -1137,6 +1139,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
     <div id="brGeoTotals" class="brGeoTotals"></div>
     <div id="brGeoStates" class="brGeoStates"></div>
+    <p class="brGeoDataFootnote">Statistics cover recorded Grand Element pages, songs and visitor arrival sources. They do not show other websites a visitor subsequently browses.</p>
   </section>
   <div id="brFansHome"></div>
   <section id="brFanPlaylistVault" style="margin-top:14px;padding:12px;border:1px solid #385e7e;border-radius:12px;background:#071d2e">
@@ -5566,7 +5569,7 @@ $('gatePassword').focus();
  const panel=$('brGeoPanel');if(!panel)return;
  const api='https://ge-backroom-publisher.grandelement.workers.dev';
  const tokenKey='GE_BACKROOM_PUBLISH_SESSION_V1';
- const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent'];
+ const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent','brGeoPage'];
  $('brVaultReconnect').addEventListener('click',async()=>{
   const button=$('brVaultReconnect'),status=$('brVaultReconnectStatus');
   const token=sessionStorage.getItem(tokenKey);
@@ -5604,7 +5607,7 @@ $('gatePassword').focus();
   if(!token){text('brGeoStatus','SIGN IN TO BACK ROOM FIRST.');return}
   busy=true;$('brGeoRefresh').disabled=true;text('brGeoStatus','READING LIVE FAN EVENTS FROM GE VAULT…');
   const q=new URLSearchParams();
-  for(const id of selectors)q.set(({brGeoPeriod:'period',brGeoCountry:'country',brGeoState:'state',brGeoEvent:'event'})[id],$(id).value);
+  for(const id of selectors)q.set(({brGeoPeriod:'period',brGeoCountry:'country',brGeoState:'state',brGeoEvent:'event',brGeoPage:'page'})[id],$(id).value);
   try{
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
    let response;
@@ -5629,6 +5632,12 @@ $('gatePassword').focus();
     $('brGeoEvent').replaceChildren(new Option('ALL ACTIVITY','ALL'),...events.map(x=>new Option(x.replaceAll('_',' ').toUpperCase(),x)));
     if(events.includes(oldEvent))$('brGeoEvent').value=oldEvent;
    }
+   const oldPage=$('brGeoPage').value;
+   if(oldPage==='ALL'||!keepOptions){
+    const pages=(data.pages||[]).map(x=>x.page).filter(x=>x&&x!=='(no page recorded)');
+    $('brGeoPage').replaceChildren(new Option('ALL GE PAGES','ALL'),...pages.map(x=>new Option(x,x)));
+    if(pages.includes(oldPage))$('brGeoPage').value=oldPage;
+   }
    $('brGeoStates').replaceChildren();
    for(const row of data.states||[]){
     const b=document.createElement('button');b.type='button';
@@ -5641,6 +5650,7 @@ $('gatePassword').focus();
     });
     $('brGeoStates').append(b);
    }
+   document.dispatchEvent(new CustomEvent('ge-backroom-fan-stats',{detail:data}));
    const matched=Number(totals.events||0);
    const ledgerChecked=!!data.ledger&&Number.isFinite(Number(data.ledger.events));
    const stored=ledgerChecked?Number(data.ledger.events):0;
@@ -5659,13 +5669,14 @@ $('gatePassword').focus();
   finally{busy=false;$('brGeoRefresh').disabled=false}
  }
  $('brGeoRefresh').addEventListener('click',()=>void refresh());
- for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'));
+ for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'||id==='brGeoPage'));
  panel.querySelectorAll('[data-ge-geo-period]').forEach(b=>b.addEventListener('click',()=>{$('brGeoPeriod').value=b.dataset.geGeoPeriod;void refresh()}));
  document.querySelectorAll('#brTabFans,[data-tab="fans"],#brAccessViews [data-br-access-view="fans"]').forEach(b=>b.addEventListener('click',()=>{if(sessionStorage.getItem(tokenKey))void refresh()}));
  if(sessionStorage.getItem(tokenKey))void refresh();
 })();
 </script>
 <script src="./fan-visitor-drilldown.js?v=20261123-fan-v1"></script>
+<script src="./fan-statistics-tabs.js?v=20261124-a"></script>
 <script>
 /* Album layout is a presentation preference, separate from radio configuration. */
 (()=>{
