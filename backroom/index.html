@@ -1433,6 +1433,7 @@ function installBackroomTabs(){
     section.append(title,buttons);moreTools.appendChild(section);
   }
   nav.insertAdjacentElement('afterend',moreTools);
+  const albumTools=document.createElement('details');const albumSummary=document.createElement('summary');albumSummary.textContent='MUSIC ALBUM VIEW';albumTools.append(albumSummary,$('brAlbumUniverseSettings'));moreTools.append(albumTools);
   let accessView='access';
   const accessSubnav=document.createElement('nav');
   accessSubnav.id='brAccessViews';accessSubnav.setAttribute('aria-label','Access views');accessSubnav.hidden=true;
@@ -2596,12 +2597,13 @@ function geGithubSame(a,b){return JSON.stringify(a)===JSON.stringify(b)}
    then verify the exact values by re-reading GitHub. Existing master radio,
    station, playlists, Vault and music routing stay untouched. */
 window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY=()=>!!publisherBase&&$('brAlbumUniverseLayout').value!==(publisherBase.albums?.albumUniverseMode??publisherBase.music?.albumUniverseMode??'planets-touch');
-window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
+window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(options={}){
  if(!serverAuthenticated||!token())throw Error('Back Room owner login required. Sign in again.');
  if(!publisherBase)throw Error('The published website baseline did not load. Reopen Back Room before saving.');
  collect();
- const paths=GE_GITHUB_PUBLIC_FIELDS.filter(key=>!geGithubSame(cfg[key],publisherBase[key]));
- for(const name of ['startupEnabled','firstTrack']){
+ const paths=options.albumOnly?['albums']:GE_GITHUB_PUBLIC_FIELDS.filter(key=>!geGithubSame(cfg[key],publisherBase[key]));
+ if(options.albumOnly){cfg.albums={...(publisherBase.albums||{}),albumUniverseMode:$('brAlbumUniverseLayout').value};}
+ for(const name of (options.albumOnly?[]:['startupEnabled','firstTrack'])){
    if(!geGithubSame(cfg.music?.[name]??null,publisherBase.music?.[name]??null))
      paths.push('music.'+name);
  }
@@ -2609,9 +2611,15 @@ window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
    setStatus('GITHUB · ALL WEBSITE SETTINGS ARE ALREADY SAVED.');
    return {ok:true,unchanged:true};
  }
- if(!confirm('SAVE THESE WEBSITE SETTINGS TO GITHUB?\n\n'+paths.join(', ').toUpperCase()+
-   '\n\nPrivate fan records, access codes, original BLITZ DJ and live radio queue will not change.'))
-   return {ok:false,cancelled:true};
+ const describe=(value)=>({squares:'Square albums','planets-touch':'Touching planets','planets-gap':'Separated planets'}[value]??(value===undefined?'Not set':JSON.stringify(value)));
+ const differences=(before,after,path)=>{
+   if(geGithubSame(before,after))return [];
+   if(before&&after&&typeof before==='object'&&typeof after==='object'&&!Array.isArray(before)&&!Array.isArray(after))
+     return [...new Set([...Object.keys(before),...Object.keys(after)])].flatMap(k=>differences(before[k],after[k],path+'.'+k));
+   return [(path==='albums.albumUniverseMode'?'Music Album View':path)+': '+describe(before)+' → '+describe(after)];
+ };
+ const preview=paths.flatMap(path=>differences(path.startsWith('music.')?publisherBase.music?.[path.slice(6)]:publisherBase[path],path.startsWith('music.')?cfg.music?.[path.slice(6)]:cfg[path],path));
+ if(!confirm('CONFIRM GITHUB CHANGES\n\n'+preview.join('\n\n')+'\n\nOnly the listed settings will be submitted.'))return {ok:false,cancelled:true};
  const changes={},expected={};
  for(const path of paths){
    if(path.startsWith('music.')){
