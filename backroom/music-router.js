@@ -240,6 +240,7 @@ async function load(force=false){
   select.replaceChildren(new Option('ALL ALBUMS',''));
   for(const album of names)select.add(new Option(album,album));
   select.value=names.includes(prior)?prior:'';
+  window.GE_BACKROOM_MUSIC_CATALOG_READY?.();
   let record;
   try{
    const result=await ownerApi('GET');

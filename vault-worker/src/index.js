@@ -1597,25 +1597,48 @@ async function adminFanGeography(env,url){
  const country=String(url.searchParams.get("country")||"US").toUpperCase();
  const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
  const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const page=String(url.searchParams.get("page")||"ALL").trim().slice(0,250);
  const filters=["occurred_at>=?","anon_id IS NOT NULL","anon_id<>''","anon_id<>'ge-radio-station'"];
  const args=[since];
  if(country==="US")filters.push("UPPER(COALESCE(country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
  else if(country==="OTHER")filters.push("UPPER(COALESCE(country,'')) NOT IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
  if(state!=="ALL"){filters.push("region=?");args.push(state)}
  if(event!=="ALL"){filters.push("event_type=?");args.push(event)}
+ if(page!=="ALL"){filters.push("page_path=?");args.push(page)}
  const where=filters.join(" AND ");
  const statement=sql=>env.VAULT_DB.prepare(sql).bind(...args).all();
- const [states,types,totals,ledger]=await Promise.all([
+ const [states,types,totals,ledger,pages,surfaces,songs,campaignSources,rawReferrers]=await Promise.all([
   statement("SELECT COALESCE(NULLIF(region,''),'Unknown') AS state, COALESCE(NULLIF(country,''),'Unknown') AS country,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions FROM fan_events WHERE "+where+" GROUP BY country,region ORDER BY visitors DESC,events DESC LIMIT 120"),
   statement("SELECT event_type,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY event_type ORDER BY events DESC LIMIT 70"),
   env.VAULT_DB.prepare("SELECT COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions,MAX(occurred_at) AS last_seen FROM fan_events WHERE "+where).bind(...args).first(),
-  // Read-only, unfiltered overview to distinguish an empty time window from
-  // an unpopulated event ledger. No private event rows or IP data leave D1.
-  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,MAX(occurred_at) AS last_seen FROM fan_events WHERE anon_id IS NOT NULL AND anon_id<>'' AND anon_id<>'ge-radio-station'").first()
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,MAX(occurred_at) AS last_seen FROM fan_events WHERE anon_id IS NOT NULL AND anon_id<>'' AND anon_id<>'ge-radio-station'").first(),
+  statement("SELECT COALESCE(NULLIF(page_path,''),'(no page recorded)') AS page,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY page_path ORDER BY events DESC LIMIT 60"),
+  statement("SELECT COALESCE(NULLIF(surface,''),'unknown') AS surface,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY surface ORDER BY events DESC LIMIT 20"),
+  statement("SELECT track_title AS song,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" AND track_title IS NOT NULL AND track_title<>'' GROUP BY track_title ORDER BY events DESC LIMIT 50"),
+  statement("SELECT utm_source AS source,COUNT(*) AS events FROM fan_events WHERE "+where+" AND utm_source IS NOT NULL AND utm_source<>'' GROUP BY utm_source ORDER BY events DESC LIMIT 30"),
+  statement("SELECT referrer,COUNT(*) AS events FROM fan_events WHERE "+where+" AND referrer IS NOT NULL AND referrer<>'' GROUP BY referrer ORDER BY events DESC LIMIT 250")
  ]);
- return {ok:true,period,country,state,event,generated_at:now(),totals:totals||{},ledger:ledger||{events:0,last_seen:null},states:states.results||[],event_types:types.results||[],note:"Recorded anonymous devices, not verified people or concurrent listeners. Region is IP-derived and approximate."};
+ // Referrer URLs are reduced to hostnames; no tracking/query strings exposed.
+ const hosts=new Map();
+ for(const row of rawReferrers.results||[]){
+  try{
+   const parsed=new URL(String(row.referrer||""));
+   if(!["http:","https:"].includes(parsed.protocol))continue;
+   const host=parsed.hostname.toLowerCase().slice(0,120);
+   if(!host)continue;
+   hosts.set(host,(hosts.get(host)||0)+Number(row.events||0));
+  }catch(_){}
+ }
+ const referrerHosts=[...hosts].sort((a,b)=>b[1]-a[1]).slice(0,30)
+  .map(([host,events])=>({host,events}));
+ return {ok:true,period,country,state,event,page,generated_at:now(),
+  totals:totals||{},ledger:ledger||{events:0,last_seen:null},
+  states:states.results||[],event_types:types.results||[],
+  pages:pages.results||[],surfaces:surfaces.results||[],
+  songs:songs.results||[],campaign_sources:campaignSources.results||[],
+  referrer_hosts:referrerHosts,
+  note:"Recorded anonymous GE site activity only. Referral hostnames show arrival sources, not a visitor's unrelated web browsing. Regions are approximate."};
 }
-
 
 /* Back Room visitor drilldown. Owner-only scoped read, with one anonymous
    visitor ID per row and a bounded timeline. Never expose IP, contact info,
@@ -1646,6 +1669,7 @@ async function adminFanVisitors(env,url){
  if(!["ALL","US","OTHER"].includes(country))return {ok:false,error:"Invalid visitor country filter."};
  const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
  const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const page=String(url.searchParams.get("page")||"ALL").trim().slice(0,250);
  const filters=["e.occurred_at>=?","e.anon_id IS NOT NULL","e.anon_id<>''","e.anon_id<>'ge-radio-station'"];
  const binds=[since];
  if(country==="US")filters.push("UPPER(COALESCE(e.country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
@@ -1655,6 +1679,7 @@ async function adminFanVisitors(env,url){
   else {filters.push("e.region=?");binds.push(state)}
  }
  if(event!=="ALL"){filters.push("e.event_type=?");binds.push(event)}
+ if(page!=="ALL"){filters.push("e.page_path=?");binds.push(page)}
  const rows=await env.VAULT_DB.prepare(
   "SELECT e.anon_id,MAX(e.occurred_at) AS last_activity,COUNT(*) AS events,"+
   "COUNT(DISTINCT e.session_id) AS sessions,MAX(e.fan_id) AS fan_id,"+
@@ -1662,7 +1687,7 @@ async function adminFanVisitors(env,url){
   "FROM fan_events e LEFT JOIN fans f ON f.id=e.fan_id WHERE "+
   filters.join(" AND ")+" GROUP BY e.anon_id ORDER BY last_activity DESC LIMIT 300"
  ).bind(...binds).all();
- return {ok:true,period,country,state,event,visitors:rows.results||[],
+ return {ok:true,period,country,state,event,page,visitors:rows.results||[],
   note:"Each visitor is one anonymous browser identifier, not a verified person."};
 }
 

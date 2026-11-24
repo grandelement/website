@@ -713,6 +713,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brDirectPublisherStatus{font-weight:800;color:#b4e7ff;font-size:13px;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261123-album-order-playlist-save-v1">
+<link rel="stylesheet" href="./owner-unified-ui.css?v=20261124-b">
 <link rel="stylesheet" href="./save-center.css?v=20261117-c">
 </head>
 <body>
@@ -952,6 +953,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brRouteSave" class="primary" disabled>SAVE ROUTING CHANGES</button>
     </div>
     <p id="brRouteStatus" role="status" aria-live="polite">Sign in, then load the master catalog.</p>
+    <nav id="brMusicSections" class="brMusicSectionTabs" role="tablist" aria-label="Choose Music section">
+      <button type="button" role="tab" id="brMusicSectionSongs" data-br-music-section="songs" aria-selected="true" aria-controls="brRouteSongSection">SONGS / CATALOG</button>
+      <button type="button" role="tab" id="brMusicSectionPlaylists" data-br-music-section="playlists" aria-selected="false" aria-controls="brRoutePlaylistSection">PLAYLISTS / SAVE</button>
+    </nav>
+    <div id="brRoutePlaylistSection" data-br-music-section-panel="playlists" role="tabpanel" aria-labelledby="brMusicSectionPlaylists" hidden>
     <div id="brRouteAssignments" class="brRouteAssignments" role="group" aria-label="Assign existing saved playlists to music destinations">
       <label>FRONT <select id="brRoutePlaylistFront" data-route-playlist="front" aria-label="Front album playlist"><option value="">CUSTOM · CHECKBOXES</option></select></label>
       <label>STORE <select id="brRoutePlaylistStore" data-route-playlist="store" aria-label="Store music playlist"><option value="">CUSTOM · CHECKBOXES</option></select></label>
@@ -989,6 +995,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <p id="brRoutePlaylistSelectionCount" class="brRouteHelp">Loading song selections…</p>
       <p id="brRoutePlaylistStatus" role="status" aria-live="polite">Saving creates a reusable GitHub playlist. Loading changes only the selected checkboxes until you publish routing changes.</p>
     </section>
+    </div>
+    <div id="brRouteSongSection" data-br-music-section-panel="songs" role="tabpanel" aria-labelledby="brMusicSectionSongs">
     <nav id="brRouteViews" role="group" aria-label="Music destinations">
       <button type="button" data-route-view="all" aria-pressed="true">ALL</button>
       <button type="button" data-route-view="front">FRONT</button>
@@ -1001,6 +1009,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <select id="brRouteAlbum" aria-label="Filter songs by album"><option value="">ALL ALBUMS</option></select>
       <output id="brRouteCounts"></output>
     </div>
+    <nav id="brRouteAlbumTabs" class="brRouteAlbumTabs" aria-label="Jump to an album" role="group"></nav>
     <div id="brRouteMatrix" class="brRouteMatrix" data-view="all">
       <div id="brRouteStickyHead" class="brRouteStickyHead" aria-hidden="true"></div>
       <div id="brRouteSongList"></div>
@@ -1008,6 +1017,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brRouteRadioAux" hidden>
       <h3>RADIO 1 · ON-AIR PLAYLISTS</h3>
       <p class="brRouteHelp">RADIO song checkmarks control the website Radio/Shuffle pool. For the actual BLITZ stream, choose and activate an original DJ playlist below. Radio 2 uses a separate backup program.</p>
+    </div>
     </div>
   </section>
 
@@ -1116,6 +1126,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label>COUNTRY <select id="brGeoCountry"><option value="ALL">ALL COUNTRIES</option><option value="US">UNITED STATES</option><option value="OTHER">OUTSIDE USA</option></select></label>
       <label>STATE / REGION <select id="brGeoState"><option value="ALL">ALL STATES</option></select></label>
       <label>ACTIVITY <select id="brGeoEvent"><option value="ALL">ALL ACTIVITY</option></select></label>
+      <label>GE PAGE <select id="brGeoPage"><option value="ALL">ALL GE PAGES</option></select></label>
     </div>
     <div class="brGeoButtons">
       <button type="button" data-ge-geo-period="1h">1 HOUR</button>
@@ -1128,6 +1139,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <p id="brGeoStatus" role="status">Sign in, then tap REFRESH VAULT.</p>
     <div id="brGeoTotals" class="brGeoTotals"></div>
     <div id="brGeoStates" class="brGeoStates"></div>
+    <p class="brGeoDataFootnote">Statistics cover recorded Grand Element pages, songs and visitor arrival sources. They do not show other websites a visitor subsequently browses.</p>
   </section>
   <div id="brFansHome"></div>
   <section id="brFanPlaylistVault" style="margin-top:14px;padding:12px;border:1px solid #385e7e;border-radius:12px;background:#071d2e">
@@ -5557,7 +5569,7 @@ $('gatePassword').focus();
  const panel=$('brGeoPanel');if(!panel)return;
  const api='https://ge-backroom-publisher.grandelement.workers.dev';
  const tokenKey='GE_BACKROOM_PUBLISH_SESSION_V1';
- const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent'];
+ const selectors=['brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent','brGeoPage'];
  $('brVaultReconnect').addEventListener('click',async()=>{
   const button=$('brVaultReconnect'),status=$('brVaultReconnectStatus');
   const token=sessionStorage.getItem(tokenKey);
@@ -5595,7 +5607,7 @@ $('gatePassword').focus();
   if(!token){text('brGeoStatus','SIGN IN TO BACK ROOM FIRST.');return}
   busy=true;$('brGeoRefresh').disabled=true;text('brGeoStatus','READING LIVE FAN EVENTS FROM GE VAULT…');
   const q=new URLSearchParams();
-  for(const id of selectors)q.set(({brGeoPeriod:'period',brGeoCountry:'country',brGeoState:'state',brGeoEvent:'event'})[id],$(id).value);
+  for(const id of selectors)q.set(({brGeoPeriod:'period',brGeoCountry:'country',brGeoState:'state',brGeoEvent:'event',brGeoPage:'page'})[id],$(id).value);
   try{
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
    let response;
@@ -5620,6 +5632,12 @@ $('gatePassword').focus();
     $('brGeoEvent').replaceChildren(new Option('ALL ACTIVITY','ALL'),...events.map(x=>new Option(x.replaceAll('_',' ').toUpperCase(),x)));
     if(events.includes(oldEvent))$('brGeoEvent').value=oldEvent;
    }
+   const oldPage=$('brGeoPage').value;
+   if(oldPage==='ALL'||!keepOptions){
+    const pages=(data.pages||[]).map(x=>x.page).filter(x=>x&&x!=='(no page recorded)');
+    $('brGeoPage').replaceChildren(new Option('ALL GE PAGES','ALL'),...pages.map(x=>new Option(x,x)));
+    if(pages.includes(oldPage))$('brGeoPage').value=oldPage;
+   }
    $('brGeoStates').replaceChildren();
    for(const row of data.states||[]){
     const b=document.createElement('button');b.type='button';
@@ -5632,6 +5650,7 @@ $('gatePassword').focus();
     });
     $('brGeoStates').append(b);
    }
+   document.dispatchEvent(new CustomEvent('ge-backroom-fan-stats',{detail:data}));
    const matched=Number(totals.events||0);
    const ledgerChecked=!!data.ledger&&Number.isFinite(Number(data.ledger.events));
    const stored=ledgerChecked?Number(data.ledger.events):0;
@@ -5650,13 +5669,14 @@ $('gatePassword').focus();
   finally{busy=false;$('brGeoRefresh').disabled=false}
  }
  $('brGeoRefresh').addEventListener('click',()=>void refresh());
- for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'));
+ for(const id of selectors)$(id).addEventListener('change',()=>void refresh(id==='brGeoState'||id==='brGeoEvent'||id==='brGeoPage'));
  panel.querySelectorAll('[data-ge-geo-period]').forEach(b=>b.addEventListener('click',()=>{$('brGeoPeriod').value=b.dataset.geGeoPeriod;void refresh()}));
  document.querySelectorAll('#brTabFans,[data-tab="fans"],#brAccessViews [data-br-access-view="fans"]').forEach(b=>b.addEventListener('click',()=>{if(sessionStorage.getItem(tokenKey))void refresh()}));
  if(sessionStorage.getItem(tokenKey))void refresh();
 })();
 </script>
 <script src="./fan-visitor-drilldown.js?v=20261123-fan-v1"></script>
+<script src="./fan-statistics-tabs.js?v=20261124-a"></script>
 <script>
 /* Album layout is a presentation preference, separate from radio configuration. */
 (()=>{
@@ -5676,7 +5696,8 @@ $('gatePassword').focus();
 </script>
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
-<script src="./music-router.js?v=20261123-album-order-playlist-save-v1"></script>
+<script src="./music-router.js?v=20261124-album-tabs-v2"></script>
+<script src="./music-section-nav.js?v=20261124-a"></script>
 <script src="./save-center.js?v=20261118-verified-save-v2"></script>
 </body>
 </html>
