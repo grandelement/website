@@ -1,0 +1,31 @@
+name: GE Access Song Album Accordions
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/owner-unified-ui.css'
+      - 'tests/ge-access-album-accordion.test.mjs'
+      - '.github/workflows/ge-access-album-accordion.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/owner-unified-ui.css'
+      - 'tests/ge-access-album-accordion.test.mjs'
+      - '.github/workflows/ge-access-album-accordion.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify album song accordion and checkbox persistence
+        run: node tests/ge-access-album-accordion.test.mjs
+      - name: Verify existing music playlist publishing contract
+        run: node tests/ge-backroom-album-quick-playlists.test.mjs
