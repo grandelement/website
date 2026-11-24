@@ -40,7 +40,7 @@ async function loadCatalogRouting(){
   if(!response.ok)throw Error('Routing settings unavailable');
   const data=await response.json();
   published=data.music?.catalogRouting||null;
-  publishedAlbumMode=validAlbumMode(data.music?.albumUniverseMode)?data.music.albumUniverseMode:'planets-touch';
+  publishedAlbumMode=validAlbumMode(data.albums?.albumUniverseMode??data.music?.albumUniverseMode)?(data.albums?.albumUniverseMode??data.music?.albumUniverseMode):'planets-touch';
   try{localStorage.setItem('GE_PUBLISHED_ALBUM_MODE_V1',publishedAlbumMode)}catch(_){}
   if(published&&Object.values(published.assignments||{}).some(Boolean)){
    try{
