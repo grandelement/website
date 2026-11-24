@@ -10,8 +10,11 @@ const [html,css,musicUi,fanUi,fanVisitorUi,vaultSource,publisherSource]=await Pr
  file('../backroom/fan-visitor-drilldown.js'),file('../vault-worker/src/index.js'),
  file('../backroom/publisher-worker.js')
 ]);
-for(const [name,source] of [['Music section nav',musicUi],['Fan stats tabs',fanUi],['Visitor drilldown',fanVisitorUi],['Vault',vaultSource],['Publisher',publisherSource]])
- new Script(source.replace(/export default\s*\{/,'({'),{filename:name});
+for(const [name,source] of [['Music section nav',musicUi],['Fan stats tabs',fanUi],['Visitor drilldown',fanVisitorUi]]){
+ new Script(source,{filename:name});
+}
+for(const source of [vaultSource,publisherSource])
+ new Function(source.replace(/export default\s*\{/,'return {'));
 assert.match(html,/id="brMusicSections"[^>]*role="tablist"/);
 assert.match(html,/id="brRouteSongSection"[^>]*data-br-music-section-panel="songs"/);
 assert.match(html,/id="brRoutePlaylistSection"[^>]*data-br-music-section-panel="playlists"/);
