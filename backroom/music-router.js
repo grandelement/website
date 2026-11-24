@@ -309,8 +309,11 @@ async function saveCheckedPlaylist(){
   playlistRevision=proof.commit_sha;
   populatePlaylistChoices();
   $('brRouteSavedPlaylist').value=result.id;
-  playlistStatus('PLAYLIST SAVED AND VERIFIED · "'+saved.name+'" · '+songs.length+
-   ' SONGS · Select it under SAVED PLAYLISTS to reload. Public music routing has not changed.');
+  playlistStatus(existing?
+   'EXISTING PLAYLIST UPDATED AND VERIFIED · "'+saved.name+'" · '+songs.length+
+    ' SONGS · Destinations already assigned to it will use the updated songs after deployment. Live BLITZ is unchanged.':
+   'PLAYLIST SAVED AND VERIFIED · "'+saved.name+'" · '+songs.length+
+    ' SONGS · Select it under SAVED PLAYLISTS to reload. No public routing was changed.');
  }catch(error){playlistStatus('PLAYLIST NOT VERIFIED · '+String(error.message||error))}
  finally{busy=false;control.disabled=false;updateCount()}
 }
