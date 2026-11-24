@@ -1,0 +1,53 @@
+name: GE Owner Music Navigation and Fan Statistics QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/music-router.js'
+      - 'backroom/music-section-nav.js'
+      - 'backroom/fan-statistics-tabs.js'
+      - 'backroom/fan-visitor-drilldown.js'
+      - 'backroom/owner-unified-ui.css'
+      - 'backroom/publisher-worker.js'
+      - 'vault-worker/src/index.js'
+      - 'tests/ge-owner-music-fan-stats.test.mjs'
+      - '.github/workflows/ge-owner-music-fan-stats.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/music-router.js'
+      - 'backroom/music-section-nav.js'
+      - 'backroom/fan-statistics-tabs.js'
+      - 'backroom/fan-visitor-drilldown.js'
+      - 'backroom/owner-unified-ui.css'
+      - 'backroom/publisher-worker.js'
+      - 'vault-worker/src/index.js'
+      - 'tests/ge-owner-music-fan-stats.test.mjs'
+      - '.github/workflows/ge-owner-music-fan-stats.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript syntax
+        run: |
+          node --check backroom/music-router.js
+          node --check backroom/music-section-nav.js
+          node --check backroom/fan-statistics-tabs.js
+          node --check backroom/fan-visitor-drilldown.js
+          node --check backroom/publisher-worker.js
+          node --check vault-worker/src/index.js
+      - name: Verify UI panels, analytics scopes and filters
+        run: node tests/ge-owner-music-fan-stats.test.mjs
+      - name: Protect Fan Vault visitor privacy and drilldown regressions
+        run: node tests/ge-fan-visitor-drilldown.test.mjs
+      - name: Protect master playlist save and album order
+        run: node tests/ge-backroom-album-quick-playlists.test.mjs
