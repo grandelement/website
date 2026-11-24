@@ -1,0 +1,42 @@
+name: GE music duration audit
+on:
+  push:
+    branches: [feat/music-duration-index-20261124]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  durations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Measure catalog
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, pathlib, collections
+          catalog=json.load(open('radio/manifest.json'))
+          tracks={}
+          albums=collections.defaultdict(float)
+          errors=[]
+          for p in catalog['files']:
+              if not p.startswith('ge-music/music/'): continue
+              try:
+                  d=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',p],text=True).strip())
+                  if not 0<d<float('inf'): raise ValueError('invalid duration')
+                  tracks[p]=d
+                  albums[pathlib.Path(p).parent.name]+=d
+                  print(f'{p}: {d:.3f} seconds',flush=True)
+              except Exception as e:
+                  errors.append(p)
+                  print(f'UNMEASURED {p}: {e}',flush=True)
+          result={'tracks':tracks,'albums':dict(albums),'librarySeconds':sum(tracks.values()),'unmeasured':errors,'complete':not errors}
+          print(json.dumps(result,indent=2))
+          pathlib.Path('music-durations.json').write_text(json.dumps(result,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: music-durations
+          path: music-durations.json
