@@ -1669,6 +1669,7 @@ async function adminFanVisitors(env,url){
  if(!["ALL","US","OTHER"].includes(country))return {ok:false,error:"Invalid visitor country filter."};
  const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
  const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const page=String(url.searchParams.get("page")||"ALL").trim().slice(0,250);
  const filters=["e.occurred_at>=?","e.anon_id IS NOT NULL","e.anon_id<>''","e.anon_id<>'ge-radio-station'"];
  const binds=[since];
  if(country==="US")filters.push("UPPER(COALESCE(e.country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
@@ -1678,6 +1679,7 @@ async function adminFanVisitors(env,url){
   else {filters.push("e.region=?");binds.push(state)}
  }
  if(event!=="ALL"){filters.push("e.event_type=?");binds.push(event)}
+ if(page!=="ALL"){filters.push("e.page_path=?");binds.push(page)}
  const rows=await env.VAULT_DB.prepare(
   "SELECT e.anon_id,MAX(e.occurred_at) AS last_activity,COUNT(*) AS events,"+
   "COUNT(DISTINCT e.session_id) AS sessions,MAX(e.fan_id) AS fan_id,"+
@@ -1685,7 +1687,7 @@ async function adminFanVisitors(env,url){
   "FROM fan_events e LEFT JOIN fans f ON f.id=e.fan_id WHERE "+
   filters.join(" AND ")+" GROUP BY e.anon_id ORDER BY last_activity DESC LIMIT 300"
  ).bind(...binds).all();
- return {ok:true,period,country,state,event,visitors:rows.results||[],
+ return {ok:true,period,country,state,event,page,visitors:rows.results||[],
   note:"Each visitor is one anonymous browser identifier, not a verified person."};
 }
 
