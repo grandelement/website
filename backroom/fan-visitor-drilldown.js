@@ -88,7 +88,7 @@
   const serial=++requestSerial;
   showLoading('READING VISITORS FROM GE VAULT…');
   const q=new URLSearchParams({period:currentPeriod(),country:'ALL',state:regionChoice.state,
-   event:$('brGeoEvent')?.value||'ALL'});
+   event:$('brGeoEvent')?.value||'ALL',page:$('brGeoPage')?.value||'ALL'});
   const country=regionChoice.country.toUpperCase();
   if(regionChoice.state!=='ALL'&&['US','USA','UNITED STATES'].includes(country))q.set('country','US');
   try{
@@ -140,7 +140,7 @@
    shell.append(controls,status,line('h4','ACTIVITY HISTORY'));
    const history=document.createElement('div');
    history.id='brGeoVisitorEvents';
-   history.style.cssText='max-height:55vh;overflow-y:auto;border-top:1px solid #365b7d';
+   history.style.cssText='max-height:none;overflow:visible;border-top:1px solid #365b7d';
    if(!events.length)history.append(line('p','No events found for this visitor in the selected time range.'));
    for(const event of events){
     const item=document.createElement('article');
@@ -191,7 +191,8 @@
  }
  allButton.addEventListener('click',()=>void openRegion({state:'ALL',country:'ALL'}));
  window.GE_BACKROOM_OPEN_REGION_VISITORS=choice=>void openRegion(choice);
- for(const id of ['brGeoRefresh','brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent']){
+ window.GE_BACKROOM_CLOSE_VISITOR_DRILLDOWN=hideDrilldown;
+ for(const id of ['brGeoRefresh','brGeoPeriod','brGeoCountry','brGeoState','brGeoEvent','brGeoPage']){
   const control=$(id);if(!control)continue;
   control.addEventListener(id==='brGeoRefresh'?'click':'change',hideDrilldown);
  }
