@@ -944,6 +944,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
+  <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
+    <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
+    <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
+      <option value="squares">SQUARE ALBUMS</option>
+      <option value="planets-touch">PLANETS TOUCHING</option>
+      <option value="planets-gap">PLANETS WITH GAP</option>
+    </select>
+    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
+  </section>
   <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
     <h2>RADIO / MUSIC · MASTER CATALOG</h2>
     <p class="brRouteHelp">One GitHub song inventory. FRONT controls the public album-cover stack. STORE controls the shop preview. PLAYER controls the music browser. RADIO controls website Radio/Shuffle approvals. The BLITZ on-air program remains under RADIO.</p>
@@ -1021,15 +1030,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
   </section>
 
-  <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
-    <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
-    <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
-      <option value="squares">SQUARE ALBUMS</option>
-      <option value="planets-touch">PLANETS TOUCHING</option>
-      <option value="planets-gap">PLANETS WITH GAP</option>
-    </select>
-    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
-  </section>
+
   <section id="brGeneralPublicAccess" aria-label="General public screen access" style="border:1px solid #376987;border-radius:12px;padding:12px;margin:10px 0">
     <strong>GENERAL SCREEN · PUBLIC ACCESS</strong>
     <p style="font-size:13px;margin:6px 0 10px">Checked buttons are available to everyone without a code.</p>
@@ -2158,7 +2159,7 @@ function aboutPlainLinesFromHtml(raw){
   return lines;
 }
 function populate(){
-  $('brAlbumUniverseLayout').value=['squares','planets-touch','planets-gap'].includes(cfg.music?.albumUniverseMode)?cfg.music.albumUniverseMode:'planets-touch';
+  $('brAlbumUniverseLayout').value=['squares','planets-touch','planets-gap'].includes((cfg.albums?.albumUniverseMode??cfg.music?.albumUniverseMode))?(cfg.albums?.albumUniverseMode??cfg.music?.albumUniverseMode):'planets-touch';
   $('brAlbumUniverseLayoutStatus').textContent='Publish Live to apply to every device.';
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78,width:72,height:56,fontScale:100,textAlign:'center'},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96,width:86,height:78,fontScale:100,textAlign:'center'},cfg.visual.about||{});
   cfg.albums=cfg.albums||{};cfg.albums.layout=cfg.albums.layout||'random';cfg.albums.positions=cfg.albums.positions||{};
@@ -2200,7 +2201,7 @@ function populate(){
 }
 $('brAlbumUniverseLayout').addEventListener('change',()=>{mark();$('brAlbumUniverseLayoutStatus').textContent='Unsaved layout. Publish Live to apply globally.'});
 function collect(){
-  cfg.music=cfg.music||{};cfg.music.albumUniverseMode=$('brAlbumUniverseLayout').value;
+  cfg.albums=cfg.albums||{};cfg.albums.albumUniverseMode=$('brAlbumUniverseLayout').value;
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
   {
     const prev=cfg.welcome||{};
@@ -2594,6 +2595,7 @@ function geGithubSame(a,b){return JSON.stringify(a)===JSON.stringify(b)}
    baseline, patch ONLY edited keys through the signed Cloudflare publisher,
    then verify the exact values by re-reading GitHub. Existing master radio,
    station, playlists, Vault and music routing stay untouched. */
+window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY=()=>!!publisherBase&&$('brAlbumUniverseLayout').value!==(publisherBase.albums?.albumUniverseMode??publisherBase.music?.albumUniverseMode??'planets-touch');
 window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
  if(!serverAuthenticated||!token())throw Error('Back Room owner login required. Sign in again.');
  if(!publisherBase)throw Error('The published website baseline did not load. Reopen Back Room before saving.');
@@ -2642,6 +2644,7 @@ window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
    }else publisherBase[path]=clone(changes[path]);
  }
  try{localStorage.setItem(WORK_KEY,JSON.stringify(cfg))}catch(_e){}
+ $('brAlbumUniverseLayoutStatus').textContent='Published and verified · '+result.commit.slice(0,12);
  dirty=false;setStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+
    ' · '+paths.join(', ').toUpperCase()+' · Website Pages deployment follows.');
  return {ok:true,commit:result.commit,paths};
@@ -5695,6 +5698,6 @@ $('gatePassword').focus();
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
 <script src="./music-router.js?v=20261124-album-tabs-v2"></script>
 <script src="./music-section-nav.js?v=20261124-a"></script>
-<script src="./save-center.js?v=20261118-verified-save-v2"></script>
+<script src="./save-center.js?v=20261124-album-save"></script>
 </body>
 </html>
