@@ -1191,7 +1191,7 @@ export default {
       if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
         return json({ok:false,error:'Scoped Vault bridge is not configured.'},503,cors);
       const allowed=new URLSearchParams();
-      for(const name of ['period','country','state','event']){
+      for(const name of ['period','country','state','event','page']){
         const value=url.searchParams.get(name);
         if(value)allowed.set(name,value.slice(0,100));
       }
