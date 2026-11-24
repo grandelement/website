@@ -1028,7 +1028,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <option value="planets-touch">PLANETS TOUCHING</option>
       <option value="planets-gap">PLANETS WITH GAP</option>
     </select>
-    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the album layout on this device.</p>
+    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
   </section>
   <section id="brGeneralPublicAccess" aria-label="General public screen access" style="border:1px solid #376987;border-radius:12px;padding:12px;margin:10px 0">
     <strong>GENERAL SCREEN · PUBLIC ACCESS</strong>
@@ -2158,6 +2158,8 @@ function aboutPlainLinesFromHtml(raw){
   return lines;
 }
 function populate(){
+  $('brAlbumUniverseLayout').value=['squares','planets-touch','planets-gap'].includes(cfg.music?.albumUniverseMode)?cfg.music.albumUniverseMode:'planets-touch';
+  $('brAlbumUniverseLayoutStatus').textContent='Publish Live to apply to every device.';
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78,width:72,height:56,fontScale:100,textAlign:'center'},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96,width:86,height:78,fontScale:100,textAlign:'center'},cfg.visual.about||{});
   cfg.albums=cfg.albums||{};cfg.albums.layout=cfg.albums.layout||'random';cfg.albums.positions=cfg.albums.positions||{};
   checked('welcomeEnabled',cfg.welcome?.enabled!==false);field('welcomeTitle',cfg.welcome?.title||'WELCOME');field('welcomeBody',cfg.welcome?.body||'');field('welcomeContact',cfg.welcome?.contactText||'');field('welcomeEmail',cfg.welcome?.contactEmail||'');
@@ -2196,7 +2198,9 @@ function populate(){
   field('radioMoonDistanceMobile',moon.distanceMobile??1.1);
   renderAlbums();if(brMasterLoaded)brMasterRender();dirty=false;setStatus('READY');
 }
+$('brAlbumUniverseLayout').addEventListener('change',()=>{mark();$('brAlbumUniverseLayoutStatus').textContent='Unsaved layout. Publish Live to apply globally.'});
 function collect(){
+  cfg.music=cfg.music||{};cfg.music.albumUniverseMode=$('brAlbumUniverseLayout').value;
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
   {
     const prev=cfg.welcome||{};
@@ -5686,21 +5690,6 @@ $('gatePassword').focus();
 <script src="./fan-visitor-drilldown.js?v=20261123-fan-v1"></script>
 <script src="./fan-statistics-tabs.js?v=20261124-a"></script>
 <script>
-/* Album layout is a presentation preference, separate from radio configuration. */
-(()=>{
- const control=document.getElementById('brAlbumUniverseLayout');
- const status=document.getElementById('brAlbumUniverseLayoutStatus');
- const key='GE_ALBUM_UNIVERSE_VIEW_V1';
- if(!control)return;
- try{
-  const saved=localStorage.getItem(key);
-  if(['squares','planets-touch','planets-gap'].includes(saved))control.value=saved;
- }catch(_){status.textContent='Device storage is unavailable. This setting may not persist.'}
- control.addEventListener('change',()=>{
-  try{localStorage.setItem(key,control.value);status.textContent='Saved on this device. Reopen MUSIC to see the layout.'}
-  catch(_){status.textContent='Could not save on this device.'}
- });
-})();
 </script>
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>

@@ -25,6 +25,8 @@ function applyAlbumStyle(element,name){
 }
 const state={open:false,loading:false,loaded:false,tracks:[],view:'albums',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 let catalogRouting=null;
+let publishedAlbumMode='planets-touch';
+const validAlbumMode=v=>['squares','planets-touch','planets-gap'].includes(v);
 function playerTracksFromCatalog(all){
  const paths=catalogRouting?.playerSongPaths;
  if(!Array.isArray(paths))return all;
@@ -38,6 +40,8 @@ async function loadCatalogRouting(){
   if(!response.ok)throw Error('Routing settings unavailable');
   const data=await response.json();
   published=data.music?.catalogRouting||null;
+  publishedAlbumMode=validAlbumMode(data.music?.albumUniverseMode)?data.music.albumUniverseMode:'planets-touch';
+  try{localStorage.setItem('GE_PUBLISHED_ALBUM_MODE_V1',publishedAlbumMode)}catch(_){}
   if(published&&Object.values(published.assignments||{}).some(Boolean)){
    try{
     const registryResponse=await fetch('../playlists/registry.json?music_routing='+Date.now(),{cache:'no-store'});
@@ -53,6 +57,7 @@ async function loadCatalogRouting(){
   try{published=JSON.parse(localStorage.getItem('GE_MUSIC_CATALOG_ROUTING_V1')||'null')}catch(_){}
  }
  catalogRouting=published;
+ if(universe.classList.contains('isActive'))renderStandaloneAlbums();
  if(state.catalogAllTracks?.length){
   state.tracks=playerTracksFromCatalog(state.catalogAllTracks);
   updateMeta();render();
@@ -1708,8 +1713,8 @@ universe.addEventListener('click',event=>{
  if(Date.now()<pinchReleaseUntil){event.stopImmediatePropagation();event.preventDefault();}
 },true);
 const albumUniverseModeKey='GE_ALBUM_UNIVERSE_VIEW_V1';
-let albumUniverseMode='squares';
-try{const saved=localStorage.getItem(albumUniverseModeKey);if(['squares','planets-touch','planets-gap'].includes(saved))albumUniverseMode=saved}catch(_){}
+let albumUniverseMode=publishedAlbumMode;
+try{const saved=localStorage.getItem('GE_PUBLISHED_ALBUM_MODE_V1');if(validAlbumMode(saved))publishedAlbumMode=saved}catch(_){}
 const albumViewChooser=document.createElement('label');
 albumViewChooser.className='geAlbumViewChooser';
 albumViewChooser.style.cssText='display:flex;align-items:center;gap:8px;margin:6px 0;color:#d7e8f6;font:600 12px system-ui';
@@ -1730,12 +1735,7 @@ albumViewChooser.append(albumViewSelect);
 // Album layout is configured privately in Back Room > Radio, not in public MUSIC.
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
- // Honor the layout selected in Back Room > Radio, even when that Back Room
- // tab changed local storage after MUSIC was initially loaded in this tab.
- try{
-  const saved=localStorage.getItem(albumUniverseModeKey);
-  if(['squares','planets-touch','planets-gap'].includes(saved))albumUniverseMode=saved;
- }catch(_){}
+ albumUniverseMode=publishedAlbumMode;
  universe.dataset.mode=albumUniverseMode;
  board.replaceChildren();
  setUniverseZoom(1);
