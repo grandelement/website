@@ -1,0 +1,31 @@
+name: GE Radio Album Layout Modes
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'tests/ge-radio-album-layout-modes.test.mjs'
+      - '.github/workflows/ge-radio-album-layout-modes.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'tests/ge-radio-album-layout-modes.test.mjs'
+      - '.github/workflows/ge-radio-album-layout-modes.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate public Music JavaScript
+        run: node --check radio/ge-music-v5.js
+      - name: Verify shape and gap mode geometry
+        run: node tests/ge-radio-album-layout-modes.test.mjs

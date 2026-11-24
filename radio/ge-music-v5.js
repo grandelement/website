@@ -1603,8 +1603,10 @@ universeStyle.textContent=`
 .geUniverseAlbum[data-album="Aether"]::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,transparent 18%,rgba(137,165,195,.13) 68%,rgba(9,19,35,.18) 100%);border-radius:inherit}
 .geUniverseAlbum:focus-visible{outline:2px solid white;outline-offset:3px}
 .geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbum,.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbum{border-radius:50%;border:1px solid rgba(220,235,250,.28);box-shadow:0 0 14px rgba(185,221,249,.18)}
-/* Album art always connects edge to edge in the default public stack. */
-.geStandaloneAlbumUniverse .geUniverseAlbums{gap:0!important}
+/* Squares and touching planets connect; gap mode deliberately separates art. */
+.geStandaloneAlbumUniverse[data-mode="squares"] .geUniverseAlbums,
+.geStandaloneAlbumUniverse[data-mode="planets-touch"] .geUniverseAlbums{gap:0!important}
+.geStandaloneAlbumUniverse[data-mode="planets-gap"] .geUniverseAlbums{gap:10px!important}
 
 @media(prefers-reduced-motion:reduce){.geStandaloneAlbumUniverse *{animation:none!important;transition:none!important}}
 `;
@@ -1631,12 +1633,15 @@ function fitUniverseAlbums(){
  if(!count)return;
  const height=universeBoard.clientHeight||window.innerHeight||800;
  const width=universeBoard.clientWidth||window.innerWidth||390;
- const coverHeight=Math.max(1,height/count);
+ const mode=universe.dataset.mode||'squares';
+ const round=mode!=='squares';
+ const gaps=mode==='planets-gap'?(count-1)*10:0;
+ const coverHeight=Math.max(1,(height-gaps)/count);
  const fitted=Math.max(1,Math.min(width,coverHeight));
- // FRONT albums share the available vertical space with no unused bottom.
- // On a narrow screen a small selection may crop artwork, never distort it.
+ // Circles must be round, not vertically stretched; squares preserve the
+ // previous edge-to-edge full-height cover stack.
  universeBoard.style.setProperty('--ge-fit-cover-size',fitted+'px');
- universeBoard.style.setProperty('--ge-fit-cover-height',coverHeight+'px');
+ universeBoard.style.setProperty('--ge-fit-cover-height',(round?fitted:coverHeight)+'px');
  setUniverseZoom(universeZoom);
 }
 window.addEventListener('resize',()=>{
@@ -1719,14 +1724,19 @@ albumViewSelect.style.cssText='max-width:210px;min-height:34px;background:#102c4
 albumViewSelect.addEventListener('change',()=>{
  albumUniverseMode=albumViewSelect.value;
  try{localStorage.setItem(albumUniverseModeKey,albumUniverseMode)}catch(_){}
+ if(universe.classList.contains('isActive'))renderStandaloneAlbums();
 });
 albumViewChooser.append(albumViewSelect);
 // Album layout is configured privately in Back Room > Radio, not in public MUSIC.
 function renderStandaloneAlbums(){
  const board=universe.querySelector('.geUniverseAlbums');
- // The public MUSIC universe is always the connected square cover stack.
- // Private Back Room layout preferences cannot create gaps for listeners.
- universe.dataset.mode='squares';
+ // Honor the layout selected in Back Room > Radio, even when that Back Room
+ // tab changed local storage after MUSIC was initially loaded in this tab.
+ try{
+  const saved=localStorage.getItem(albumUniverseModeKey);
+  if(['squares','planets-touch','planets-gap'].includes(saved))albumUniverseMode=saved;
+ }catch(_){}
+ universe.dataset.mode=albumUniverseMode;
  board.replaceChildren();
  setUniverseZoom(1);
  if(!state.loaded){const loading=document.createElement('p');loading.textContent='Loading albums…';board.append(loading);return;}
