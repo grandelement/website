@@ -81,7 +81,7 @@
    const current=tab();
    if(current==='website')
      return trigger('brPublicPlayerSave','PUBLIC PLAYER PROFILE','GITHUB','brPublicPlayerStatus');
-   if(['welcome','about','universe','games','moon','gate'].includes(current)){
+   if(['welcome','about','universe','games','moon','gate'].includes(current)||(current==='radio'&&window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY?.())){
      if(typeof window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS!=='function'){
        show('Website GitHub publisher did not initialize. Nothing saved.','error');return;
      }
