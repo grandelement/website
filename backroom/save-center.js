@@ -88,7 +88,7 @@
      if(busy)return;
      busy=true;button.disabled=true;
      show('CHECKING WEBSITE CHANGES BEFORE GITHUB SAVE…');
-     Promise.resolve(window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS()).then(result=>{
+     Promise.resolve(window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS({albumOnly:current==='radio'})).then(result=>{
        if(result?.cancelled)show('SAVE CANCELLED · No settings changed.');
        else if(result?.unchanged)show('NO WEBSITE CHANGES · No GitHub write was needed or attempted.','info');
        else if(result?.ok){
