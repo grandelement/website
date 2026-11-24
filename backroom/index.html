@@ -3925,18 +3925,26 @@ const backroomVaultManagers=(()=>{
     selectAll.indeterminate=numberSelected>0&&numberSelected<found.length;
     host.hidden=view==='playlist';host.style.display=view==='playlist'?'none':'';
     $('brAccessOrderSection').open=view==='playlist';
+    // Preserve opened albums when checkboxes rebuild the list.
+    const expanded=new Set([...host.querySelectorAll('details.brAccessAlbumGroup[open]')]
+      .map(el=>el.dataset.album));
     host.replaceChildren();
     const grouped=new Map();
     for(const track of found){const album=track.album||'OTHER SONGS';if(!grouped.has(album))grouped.set(album,[]);grouped.get(album).push(track);}
     for(const [album,tracks] of grouped){
-      const group=create('div','','brAccessAlbumGroup');
+      const group=create('details','','brAccessAlbumGroup');
+      group.dataset.album=album;
+      group.open=expanded.has(album)||!!query||!!$('brAccessAlbum').value||view==='checked';
+      const summary=create('summary',album+' · '+tracks.length+' SONGS');
+      summary.setAttribute('aria-label','Expand '+album+' song checkboxes');
+      group.appendChild(summary);
       const head=create('label','','check');
       const all=document.createElement('input');all.type='checkbox';
       all.setAttribute('aria-label','Select all '+album+' songs');
       all.checked=tracks.every(t=>assignedSongPaths.includes(t.track_path));
       all.indeterminate=!all.checked&&tracks.some(t=>assignedSongPaths.includes(t.track_path));
       all.addEventListener('change',()=>{const set=new Set(assignedSongPaths);tracks.forEach(t=>all.checked?set.add(t.track_path):set.delete(t.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
-      head.append(all,create('span',album+' · '+tracks.length+' songs'));group.appendChild(head);
+      head.append(all,create('span','SELECT ENTIRE '+album.toUpperCase()+' ALBUM'));group.appendChild(head);
       for(const track of tracks){
         const label=create('label','','check brAccessSongChoice'),check=document.createElement('input');
         check.type='checkbox';check.checked=assignedSongPaths.includes(track.track_path);
