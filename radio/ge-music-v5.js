@@ -85,7 +85,7 @@ try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw
   }
  }catch(_){};
 const host=document.createElement('div');host.id='geMusicV5Host';host.dataset.build=BUILD;
-host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
+host.style.cssText='position:fixed;inset:0;width:100%;max-width:100%;overflow:hidden;z-index:60010;display:none;isolation:isolate';
 const root=host.attachShadow({mode:'open'});
 root.innerHTML=`
 <style>
@@ -93,7 +93,7 @@ root.innerHTML=`
 *,*::before,*::after{box-sizing:border-box}
 button,input{font:inherit}
 .backdrop{position:absolute;inset:0;background:rgba(0,4,12,.86);backdrop-filter:blur(5px)}
-.window{position:absolute;left:50%;top:max(45px,calc(env(safe-area-inset-top) + 7px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 8px));transform:translateX(-50%);width:min(770px,calc(100vw - 16px));max-height:calc(100dvh - 50px);background:#061626;border:2px solid #48bfff;border-radius:15px;box-shadow:0 15px 55px #000;display:flex;flex-direction:column;overflow:hidden}
+.window{position:absolute;left:50%;top:max(45px,calc(env(safe-area-inset-top) + 7px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 8px));transform:translateX(-50%);width:min(770px,calc(100% - 16px));max-height:calc(100dvh - 50px);background:#061626;border:2px solid #48bfff;border-radius:15px;box-shadow:0 15px 55px #000;display:flex;flex-direction:column;overflow:hidden}
 .header{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:linear-gradient(110deg,#004caa,#0c89ec,#023b74);border-bottom:1px solid #64dfff}
 .brand{font-weight:900;letter-spacing:.05em;font-size:15px}.build{display:block;color:#e7f9ff;font-size:10px;font-weight:700;opacity:.9}
 button{display:inline-flex;justify-content:center;align-items:center;text-align:center;border:1px solid #4c9ac8;border-radius:9px;color:#ebfaff;background:#0e314e;min-height:39px;padding:8px 10px;font-weight:750;cursor:pointer;touch-action:manipulation}
@@ -288,7 +288,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .arrangeCommands button{min-width:0;font-size:clamp(10px,2.8vw,13px);min-height:39px;padding:5px 5px}
 .arrangeDock .arrangeHint{font-size:11px;color:#b4e0f6;line-height:1.3}
 .arrangeDock .arrangeNotice{font-size:11px;color:#ffe3a0;line-height:1.3}
-.window.arranging{top:max(2px,env(safe-area-inset-top));bottom:2px;width:min(940px,calc(100vw - 6px));max-height:calc(100dvh - 4px);border-radius:9px}
+.window.arranging{top:max(2px,env(safe-area-inset-top));bottom:2px;width:min(940px,calc(100% - 6px));max-height:calc(100dvh - 4px);border-radius:9px}
 .window.arranging .tools{display:block!important;padding:6px 8px}
 .window.arranging .tools>.search,.window.arranging .tools>.filterRow{display:none!important}
 .window.arranging .tools>.browse{display:grid!important;margin-top:5px!important}
@@ -391,7 +391,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPlanetGrid .albumBrowseRow{grid-template-columns:30px minmax(0,1fr)}
 .albumPlanetGrid .album{min-height:145px}
 @media(min-width:900px) and (min-height:580px){
- .window{width:min(1320px,calc(100vw - 64px));max-height:calc(100dvh - 72px);top:36px;bottom:36px;border-radius:18px}
+ .window{width:min(1320px,calc(100% - 64px));max-height:calc(100dvh - 72px);top:36px;bottom:36px;border-radius:18px}
  .header{padding:13px 20px}.brand{font-size:24px}
  .tools{padding:12px 18px}.scroll{padding:18px 20px 30px}
  .albumPlanetGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
@@ -428,7 +428,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .selectionBar .checkedCount{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .selectionBar .selectionActions{flex:0 0 auto;min-width:0}
 @media(max-width:600px){
- .window{top:max(4px,env(safe-area-inset-top));bottom:max(4px,env(safe-area-inset-bottom));max-height:none;width:calc(100vw - 8px);border-radius:12px}
+ .window{top:max(4px,env(safe-area-inset-top));bottom:max(4px,env(safe-area-inset-bottom));max-height:none;width:calc(100% - 8px);border-radius:12px}
  .selectionBar{gap:5px}.selectionBar .quickPlaylistRow{width:100%}
  .selectionBar .checkedCount{flex:1 1 100%;font-size:11px}
  .selectionBar .selectionActions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
@@ -436,7 +436,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .selectionActions .arrangeBtn{display:none!important}
 }
 @media(max-height:520px) and (orientation:landscape){
- .window{top:2px;bottom:2px;max-height:none;width:calc(100vw - 12px)}
+ .window{top:2px;bottom:2px;max-height:none;width:calc(100% - 12px)}
  .header{padding:3px 9px;min-height:34px}.tools{padding:3px 7px}.tools .browse{margin-top:1px}
  .scroll{padding:5px 8px 12px;min-height:0}
  .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
@@ -465,7 +465,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   backdrop-filter:blur(13px);
  }
  .window{
-  width:min(1480px,calc(100vw - 72px))!important;
+  width:min(1480px,calc(100% - 72px))!important;
   top:clamp(24px,4vh,58px)!important;bottom:clamp(24px,4vh,58px)!important;
   max-height:none!important;
   border:1px solid rgba(153,226,255,.76)!important;
@@ -617,7 +617,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   top:max(5px,env(safe-area-inset-top))!important;
   bottom:max(5px,env(safe-area-inset-bottom))!important;
   transform:translateX(-50%)!important;
-  width:calc(100vw - 12px)!important;max-width:100%!important;
+  width:calc(100% - 12px)!important;max-width:100%!important;
   height:auto!important;min-height:0!important;max-height:none!important;
   display:flex!important;flex-direction:column!important;overflow:hidden!important;
  }
@@ -919,7 +919,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
    One fixed footer row; playlist editing remains in PLAYLISTS.
    No change to selection, access, payment or playback handlers. */
 @media(max-width:820px){
- .window{border:0!important;border-radius:0!important;box-shadow:none!important;width:100vw!important;top:env(safe-area-inset-top)!important;bottom:env(safe-area-inset-bottom)!important;background:#020817!important}
+ .window{border:0!important;border-radius:0!important;box-shadow:none!important;width:100%!important;max-width:100%!important;top:env(safe-area-inset-top)!important;bottom:env(safe-area-inset-bottom)!important;background:#020817!important}
  .header{padding:6px 10px!important;min-height:44px!important;background:rgba(2,17,36,.86)!important;border:0!important}
  .header .brand{font-size:19px!important;letter-spacing:.02em!important}
  .header button{min-height:38px!important;padding:5px 9px!important;font-size:12px!important;border-radius:7px!important}
