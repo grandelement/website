@@ -2214,7 +2214,13 @@ function collect(){
     if(!prev.contactHtml||textOf(prev.contactHtml)!==contactText)cfg.welcome.contactHtml=escapeHtml(contactText);
   }
   {const aboutHtml=cleanAboutHtml($('aboutIntro').innerHTML);cfg.about={intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml,richTextVersion:2};}
-  cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
+  cfg.visual=cfg.visual||{};
+  // Unrelated Back Room settings must never overwrite published EQ presets.
+  if(publisherBase){
+    if(publisherBase.visual?.sunEQ)cfg.visual.sunEQ=clone(publisherBase.visual.sunEQ);
+    else delete cfg.visual.sunEQ;
+  }
+  cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
