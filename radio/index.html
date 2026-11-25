@@ -3391,12 +3391,13 @@ function syncRadioOfflineAccessUI(){
   };
   setUtility($('legacyBtn'),permissions.legacy);
   const sunLabUtility=$('sunLabBtn');
-  // Keep SUN LAB in the same utility slot for guests and all access codes.
-  // Its existing click handler checks Vault access and opens CODE when locked.
-  if(sunLabUtility){sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;sunLabUtility.dataset.locked=permissions.sunLab?'false':'true';}
   if(sunLabUtility){
-    sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open EQ Effects':'EQ Effects unavailable while public settings load');
-    sunLabUtility.title=permissions.sunLab?'Open EQ Effects':'EQ Effects are unavailable; check the published public profile';
+    sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;
+    sunLabUtility.dataset.locked='false';
+    const on=window.GELiveAudioEQ?.isEnabled?.()!==false;
+    sunLabUtility.setAttribute('aria-pressed',String(on));
+    sunLabUtility.setAttribute('aria-label',on?'Turn EQ effects off':'Turn EQ effects on and choose effect');
+    sunLabUtility.title='EQ Effects';
   }
   setUtility($('iamLaunchRow'),permissions.iam);
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
