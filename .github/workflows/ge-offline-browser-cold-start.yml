@@ -1,0 +1,36 @@
+name: GE OFFLINE Browser Cold Start
+on:
+  pull_request:
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-manager.js'
+      - 'radio/ge-music-v5.js'
+      - 'tests/ge-offline-browser-cold-start.mjs'
+      - '.github/workflows/ge-offline-browser-cold-start.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'radio/sw.js'
+      - 'radio/index.html'
+      - 'radio/offline-manager.js'
+      - 'radio/ge-music-v5.js'
+      - 'tests/ge-offline-browser-cold-start.mjs'
+      - '.github/workflows/ge-offline-browser-cold-start.yml'
+jobs:
+  offline-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless browser runner
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Test saved Radio app with Wi-Fi disabled
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-offline-browser.log 2>&1 &
+          node tests/ge-offline-browser-cold-start.mjs

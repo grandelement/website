@@ -1,0 +1,39 @@
+name: GE Site Control Integrity
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'radio/**'
+      - 'backroom/**'
+      - 'support/**'
+      - 'vault/**'
+      - 'config/site-live.json'
+      - 'playlists/registry.json'
+      - 'tests/ge-site-control-integrity.test.mjs'
+      - '.github/workflows/ge-site-control-integrity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'radio/**'
+      - 'backroom/**'
+      - 'support/**'
+      - 'vault/**'
+      - 'config/site-live.json'
+      - 'playlists/registry.json'
+      - 'tests/ge-site-control-integrity.test.mjs'
+      - '.github/workflows/ge-site-control-integrity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  site-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit core page references, IDs, canonical tracks, and EQ permissions
+        run: node tests/ge-site-control-integrity.test.mjs

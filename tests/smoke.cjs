@@ -49,11 +49,14 @@ assert(!backroom.includes('openLocalEditor'),'Local editor bypass must be remove
 assert(backroom.includes('id="gatePassword"'),'Owner password gate missing');
 assert(backroom.includes('id="gateEnter"'),'Owner sign-in missing');
 assert(backroom.includes('id="publishLive" type="button">PUBLISH GITHUB'),'GitHub publishing is not primary');
-assert(backroom.includes('id="legacyPublishLive"'),'Legacy publisher fallback missing');
+assert(!backroom.includes('id="legacyPublishLive"'),'Retired manual-token publisher must not return');
 assert(backroom.includes("const GE_GITHUB_PUBLIC_FIELDS="),'Public-field whitelist missing');
 const whitelist=backroom.match(/const GE_GITHUB_PUBLIC_FIELDS=(\[[^\]]+\])/);
 assert(whitelist&&!/['"](?:music|vault|accessCodes|fanRecords)['"]/.test(whitelist[1]),'Unsafe public publisher whitelist');
-assert(backroom.includes("radioMasterSongPaths:selected"),'Radio Master GitHub save missing');
+assert(backroom.includes("action:'save_master',masterSongPaths:selected") &&
+       backroom.includes("expectedMasterSongPaths:brMasterSavedPaths") &&
+       backroom.includes("brMasterSavedPaths=selected.slice()"),
+       'Radio Master authenticated save or concurrency guard missing');
 assert(backroom.includes('publisherBase=await repoLive()'),'Published-base conflict guard missing');
 assert(!backroom.includes('void restorePublisherSession().then'),'Opening public Back Room must not call Cloudflare automatically');
 assert(backroom.includes('if(await restorePublisherSession())return'),'Private session resume must remain available on demand');
@@ -69,14 +72,14 @@ assert(vault.includes('GE_EVENT_BATCH_SIZE=25'),'Vault event batching missing');
 assert(vault.includes('geEventCooldownUntil'),'Vault outage circuit breaker missing');
 assert(dj.includes('ge-radio-sync.grandelement.workers.dev'),'DJ backend is still required; do not silently remove its bridge');
 assert(dj.includes('geBoardMeterPauseUntil'),'DJ meter outage backoff missing');
-assert(dj.includes('meterActive?850:5000'),'DJ active/idle network pacing missing');
+assert(dj.includes('document.hidden?30000:(meterActive?12000:30000)'),'DJ active/idle network pacing missing');
 assert(!dj.includes('setInterval(pushBoardFastMeter,120)'),'DJ remote meter still polls 8+ times each second');
 assert(vault.includes("SCORE_RETRY_AFTER_KEY"),'Vault score outage cooldown missing');
 assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in bounded batches');
 assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
-assert(home.includes('20261105-persistent-backoff-v3'),'Website must load latest Vault client');
+assert(home.includes('ge-vault-client.js?v=20261112-emergency-fan-tracking-v4'),'Website must load approved Vault client');
 assert(vault.includes('GE_EVENT_COOLDOWN_KEY'),'Vault retry backoff must persist across page reloads');
-assert(siteSW.includes('GE_SITE_SHELL_V3_CONTINUITY_20261105'),'New continuity cache key missing');
+assert(siteSW.includes('GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109'),'Current website shell cache key missing');
 for(const file of ['ge-vault-client.js','config/site-live.json','radio/manifest.json','radio/ge-home-gate-stop.js','ge-dream.js'])
   assert(siteSW.includes('./'+file),'Public offline core asset missing: '+file);
 assert(siteSW.includes("relative.startsWith('backroom/')"),'Owner Back Room must not be served from public offline cache');

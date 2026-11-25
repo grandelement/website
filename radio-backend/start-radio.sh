@@ -291,6 +291,30 @@ http {
 }
 EOF
 
+# Under Blitz's free/small memory limit, leave the optional continuous
+# frequency sampler and individualized preview server off. Preserve the live
+# broadcast, automation, DJ control, and iPhone HLS monitoring.
+# GE_RADIO_LOW_MEMORY=1 forces this; =0 keeps all optional features.
+low_memory_mode(){
+  case "${GE_RADIO_LOW_MEMORY:-auto}" in
+    1|true|on) return 0 ;;
+    0|false|off) return 1 ;;
+  esac
+  local limit=""
+  if [ -r /sys/fs/cgroup/memory.max ]; then
+    limit="$(cat /sys/fs/cgroup/memory.max 2>/dev/null || true)"
+  elif [ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+    limit="$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || true)"
+  fi
+  case "$limit" in
+    ''|max|*[!0-9]*) return 1 ;;
+  esac
+  [ "$limit" -le 536870912 ] 2>/dev/null
+}
+if low_memory_mode; then
+  echo "GE Radio: low-memory mode; optional preview and FFT processes disabled. Audio broadcast remains enabled."
+fi
+
 pid_alive(){ [ -n "${1:-}" ] && kill -0 "$1" 2>/dev/null; }
 wait_port(){
   local port="$1" seconds="${2:-20}"
@@ -334,12 +358,14 @@ start_control(){
   wait_http "http://127.0.0.1:8090/control/healthz" 12
 }
 start_preview(){
+  if low_memory_mode; then return 0; fi
   if pid_alive "$PREVIEW_PID"; then return 0; fi
   echo "GE Radio: starting listener-isolated preview processor..."
   python3 /app/personal-preview.py & PREVIEW_PID=$!
   wait_port 8091 8
 }
 start_spectrum(){
+  if low_memory_mode; then return 0; fi
   if pid_alive "$SPECTRUM_PID"; then return 0; fi
   echo "GE Radio: starting low-priority master stream frequency sampler..."
   nice -n 10 python3 /app/spectrum-server.py & SPECTRUM_PID=$!

@@ -347,8 +347,8 @@ body.ge-site-music-embedded #geSitePreviewRemaining{display:block;text-align:cen
     <div id="geGateHelp"><a id="geGatePurchase" class="button" href="../support/?section=music">EXPLORE MUSIC</a></div>
   </section>
 </div>
-<script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
-<script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
+<script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
+<script src="./ge-gate-audio.js?v=20261120-shared-music-fft-v1"></script>
 <script>
 /* Former 33-second samples, merchandise queue and Soul Comet are preserved
    in preview-merch-legacy.html. Their feature flag is OFF in this player. */
@@ -371,7 +371,7 @@ function geRadioEmbedNotify(type,fields={}){
 function geRadioEmbedPlaybackState(){
  if(!GE_ANY_MUSIC_EMBED)return;
  geRadioEmbedNotify('ge-radio-music-state',{
-  paused:audio.paused,title:currentTrack?label(currentTrack):'',
+  paused:audio.paused,ended:audio.ended,title:currentTrack?label(currentTrack):'',
    path:currentTrack?cleanMusicPath(currentTrack.path||currentTrack.url):'',
    index:trackIndex,total:albumTracks.length
  });
@@ -436,6 +436,7 @@ let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseV
 try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;
  data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);
  data.gateAtSeconds=Math.max(0,Number(saved.gateAtSeconds)||0);}}catch(_e){}
+const gateEnabled=()=>window.GEGateSettings?.get?.().enabled!==false;
 let APPROACH_SECONDS,GRACE_SECONDS,FADE_SECONDS,GATE_AT,WAVE_AT,SUN_AT,CENTER_AT,FADE_AT,ENTRANCE_SECONDS;
 function loadPreviewGateTimes(){
  const t=window.GEGateSettings?.get?.()||{sequenceSpeed:1.5,blurLeadSeconds:6,
@@ -452,9 +453,24 @@ function loadPreviewGateTimes(){
 }
 loadPreviewGateTimes();
 window.addEventListener('ge-gate-settings-ready',()=>{
+  if(!gateEnabled()){disablePublishedPreviewGate();return;}
   if(!data.gateStartedAtMs&&!data.expired)loadPreviewGateTimes();
 });
 const gate=$('geGate'),sun=$('geGateSun');let gateShown=false;
+function disablePublishedPreviewGate(){
+ const wasGated=!!(data.expired||data.gateStartedAtMs||gateShown);
+ data.used=0;data.expired=false;data.gateStartedAtMs=0;data.gateAtSeconds=0;
+ save(true); // A later ON begins a fresh preview, not a stale expired lock.
+ gate.classList.remove('open','blurring','waves','sun-moving','centered');
+ gate.setAttribute('aria-hidden','true');gateShown=false;
+ if(wasGated){
+   window.GEAudioGain?.restore?.();
+   window.GEAudioGain?.setImmediate?.(1);
+   audio.muted=false;
+   if(audio.volume<=0)audio.volume=Math.max(.05,baseVolume);
+   geRadioEmbedNotify('ge-radio-music-gate-clear');
+ }
+}
 // Vault is the only public Access Code authority. LOVE the album is unrelated.
 const GE_MUSIC_SESSION_KEY='GE_MUSIC_CODE_SESSION_V1';
 const GE_MUSIC_SESSION_ENDPOINT='https://vault.grandelement.com/v1/public/access/music-session';
@@ -500,6 +516,7 @@ function save(force=false){
 function valid(t){if(!t||t.kind!=='song'||(t.duration_ms!=null&&(!Number.isFinite(Number(t.duration_ms))||Number(t.duration_ms)<0)))return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){
+ if(!t)return 'Grand Element Music'; // The embedded audio may start before metadata arrives.
  // The Radio/album player retains Album • Track • Song, with a single
  // dot separating each field. MUSIC's song-only list is a separate view.
  const album=String(t.album||'Archive').trim();
@@ -507,7 +524,7 @@ function label(t){
  const fromTitle=raw.match(/^(\d{1,3})[ _•-]+(.+)$/);
  const fromPath=String(t.path||'').split('/').pop()?.match(/_(\d{1,3})[_-]/);
  const number=fromTitle?.[1]||fromPath?.[1]||'';
- const name=(fromTitle?.[2]||raw).replace(/[_]+/g,' ').trim();
+ const name=cleanMusicPath(t.path||t.url)==='ge-music/music/Grand Element - 2026 - Aether/Aether_11_Countdown to the Droid Army.mp3'?'PEACE!':(fromTitle?.[2]||raw).replace(/[_]+/g,' ').trim();
  const prefix=number?String(Number(number)).padStart(2,'0')+' • ':'';
  return album+' • '+prefix+name;
 }
@@ -519,13 +536,13 @@ function effectiveListeningSeconds(){
  return Math.min(AUDIO_LIMIT_SECONDS,originalGateAt+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
 }
 function startSongGateIfReady(){
- if(data.expired||data.gateStartedAtMs||isAuthorized()||data.used<GATE_AT)return;
+ if(!gateEnabled()||data.expired||data.gateStartedAtMs||isAuthorized()||data.used<GATE_AT)return;
  data.gateStartedAtMs=Date.now()-Math.max(0,data.used-GATE_AT)*1000;
  data.gateAtSeconds=GATE_AT;
  save(true);schedulePreviewGateAudio();
 }
 function schedulePreviewGateAudio(){
- if(!data.gateStartedAtMs||data.expired||isAuthorized())return;
+ if(!gateEnabled()||!data.gateStartedAtMs||data.expired||isAuthorized())return;
  const start=Number(data.gateStartedAtMs);
  const waves=start+(WAVE_AT-GATE_AT)*1000;
  const fade=start+(FADE_AT-GATE_AT)*1000;
@@ -537,6 +554,7 @@ function schedulePreviewGateAudio(){
 function ensureRings(){const waves=$('geGateWaves');if(waves.childElementCount)return;
  for(let i=0;i<10;i++){const ring=element('span',null,'geGateFreqRing');ring.style.setProperty('--water-cycle','7.2s');ring.style.setProperty('--water-delay',(-7.2*i/10)+'s');waves.appendChild(ring)}}
 function renderGate(){
+ if(!gateEnabled()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;geRadioEmbedNotify('ge-radio-music-gate-clear');}return;}
  if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;geRadioEmbedNotify('ge-radio-music-gate-clear');}return;}
  const used=effectiveListeningSeconds();
  if(used<GATE_AT&&!data.expired)return;
@@ -555,24 +573,31 @@ function renderGate(){
    'Enter an access code or explore music.';
 }
 function renderVolume(){
+ if(!gateEnabled())return;
  const elapsed=effectiveListeningSeconds();
  if(isAuthorized()||elapsed<FADE_AT)return;
  const p=Math.max(0,Math.min(1,(elapsed-FADE_AT)/FADE_SECONDS));
  if(!window.GEAudioGain?.getStatus?.().active)audio.volume=Math.max(0,Math.min(1,baseVolume*(1-p)));
 }
 function expireGate(){
- if(isAuthorized()||data.expired)return;
+ if(!gateEnabled()||isAuthorized()||data.expired)return;
  data.used=AUDIO_LIMIT_SECONDS;data.expired=true;save(true);
  renderGate();window.GEAudioGain?.stopAll?.();audio.volume=0;audio.muted=true;audio.pause();
  say('33:33 listening complete. The Inner Frequency Gate is ready.');
 }
 function isLocked(){
+ if(!gateEnabled())return false;
  if(!isAuthorized()&&!data.expired&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
  return !isAuthorized()&&data.expired;
 }
-function isCounting(){return !data.gateStartedAtMs&&!isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
+function isCounting(){return gateEnabled()&&!data.gateStartedAtMs&&!isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
 function syncListening(){
  const indicator=$('geSitePreviewRemaining');
+ if(!gateEnabled()){
+   if(indicator&&!indicator.hidden)indicator.textContent='GATE OFF · NO 33:33 CUTOFF';
+   lastMedia=Number.isFinite(audio.currentTime)?audio.currentTime:NaN;lastWall=performance.now();
+   renderGate();return;
+ }
  if(indicator&&!indicator.hidden){
   const left=Math.max(0,Math.ceil(AUDIO_LIMIT_SECONDS-effectiveListeningSeconds()));
   indicator.textContent=isAuthorized()?'ACCESS VERIFIED · MUSIC UNLOCKED':
@@ -1043,6 +1068,12 @@ async function startTrack(t){
  else audio.removeAttribute('crossorigin');
  const requestedURL=geAudioSourceURL(t);
  audio.src=requestedURL;audio.preload='auto';audio.muted=false;
+ // The album's own Gate already owns this audio element. Arm its existing
+ // shared Web Audio graph from the original PLAY gesture for real FFT.
+ // Do not attach another source or use stored per-song spectrum snapshots.
+ if(new URL(requestedURL,location.href).origin===location.origin){
+   try{window.GEAudioGain?.arm?.();}catch(_e){}
+ }
  geRadioEmbedNotify('ge-radio-music-playback-requested',{path:cleanMusicPath(t.path),sourceHost:new URL(requestedURL).host});
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.
@@ -1298,7 +1329,7 @@ function trackFromMusicPath(path){
  const album=folder.replace(/^Grand Element - (?:\d{4} - )?/i,'')||'Grand Element';
  const file=components[components.length-1].replace(/\.(mp3|m4a|ogg|wav)$/i,'');
  const numbered=file.match(/^.+?_(\d{1,3})[_ -]+(.+)$/);
- const title=numbered?(numbered[1]+' '+numbered[2].replace(/[_-]+/g,' ')):
+ const title=path==='ge-music/music/Grand Element - 2026 - Aether/Aether_11_Countdown to the Droid Army.mp3'?'11 PEACE!':numbered?(numbered[1]+' '+numbered[2].replace(/[_-]+/g,' ')):
    file.replace(/^Singles_/i,'').replace(/_/g,' ');
  return {kind:'song',path,album,title,duration_ms:0,
    url:'/'+components.map(encodeURIComponent).join('/')};

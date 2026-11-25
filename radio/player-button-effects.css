@@ -1,0 +1,197 @@
+/* GE Radio player button style selections, 2026-11-16.
+   2+6: RADIO red double heartbeat + outward rings (verified audio only).
+   1+9 in 6: PLAYER cyan glowing pulse + slow breathing light.
+   8: previous / next / shuffle ice-blue glass.
+   Width, line/border thickness, grid placement and click behavior unchanged. */
+@keyframes gePlayerCyanGlowBreath{
+  0%,100%{
+    filter:brightness(.96) saturate(1);
+    box-shadow:0 0 5px rgba(39,185,255,.35),inset 0 0 6px rgba(164,247,255,.12);
+  }
+  50%{
+    filter:brightness(1.19) saturate(1.16);
+    box-shadow:0 0 17px rgba(50,207,255,.84),
+               0 0 29px rgba(248,72,209,.23),
+               inset 0 0 10px rgba(171,248,255,.3);
+  }
+}
+@keyframes geRadioRedDoubleBeat{
+  0%,10%,26%,42%,70%,100%{opacity:.52;filter:brightness(.88)}
+  15%,33%{opacity:1;filter:brightness(1.44)}
+  19%,38%{opacity:.64;filter:brightness(1.02)}
+}
+@keyframes geRadioRedRingRipple{
+  0%{opacity:.6;transform:scale(1);filter:blur(0)}
+  43%{opacity:0;transform:scale(1.19);filter:blur(1px)}
+  100%{opacity:0;transform:scale(1.19);filter:blur(1px)}
+}
+/* 6 cyan base, 1 electric glow and 9 slow breathing on the PLAYER action.
+   A subtle magenta glow accent borrows the breathing effect without
+   replacing the requested cyan color. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn{
+  background:linear-gradient(180deg,#087f9f 0%,#053b55 100%)!important;
+  background-image:linear-gradient(180deg,#087f9f 0%,#053b55 100%)!important;
+  color:#f4fdff!important;
+  border-color:rgba(133,240,255,.93)!important;
+  animation:gePlayerCyanGlowBreath 3s ease-in-out infinite!important;
+  transform:none!important;
+  will-change:filter,box-shadow;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn:active{
+  filter:brightness(1.35)!important;
+}
+/* 8 ice blue: static glass look for navigation and shuffle.
+   The active Shuffle selection stays visibly marked. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#nextBtn,#shuffleBtn[aria-pressed="false"]){
+  background:linear-gradient(180deg,#42637c,#162c45)!important;
+  background-image:linear-gradient(180deg,#42637c,#162c45)!important;
+  color:#f4faff!important;
+  border-color:rgba(213,241,255,.9)!important;
+  box-shadow:inset 0 1px 7px rgba(225,250,255,.26),
+             0 0 8px rgba(160,223,255,.25)!important;
+  animation:none!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBtn[aria-pressed="true"]{
+  outline:2px solid var(--accent)!important;
+  outline-offset:-1px!important;
+  border-color:var(--accent)!important;
+  background:rgba(15,74,88,.32)!important;
+  background-image:none!important;
+  box-shadow:0 0 18px rgba(0,255,168,.20) inset!important;
+  animation:none!important;
+}
+/* Startup/ready cue remains governed by the existing stream state; without
+   verified audio there must not be a new animated "ON AIR" look. */
+
+@media (min-width:701px){
+/* Height hierarchy only. Keep every original column width, button width,
+   gap, border width and outline thickness unchanged. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > button{
+  box-sizing:border-box!important;
+  min-height:clamp(54px,7dvh,68px)!important;
+  height:auto!important;
+  padding-top:7px!important;
+  padding-bottom:7px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row > button,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row > #hudCombined{
+  box-sizing:border-box!important;
+  min-height:36px!important;
+  height:38px!important;
+  max-height:40px!important;
+  padding-top:3px!important;
+  padding-bottom:3px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > :is(button,a){
+  min-height:36px!important;
+  height:39px!important;
+  padding-top:3px!important;
+  padding-bottom:3px!important;
+}
+}
+@media (prefers-reduced-motion:reduce){
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #playBtn{
+    animation:none!important;filter:none!important;
+  }
+}
+
+
+/* 2026-11-19 GE RADIO controls: one coherent 75%-opaque glass palette.
+   Apply color only to backgrounds. Text/icons stay fully opaque. The
+   PLAYER now matches Previous/Next; MUSIC inherits PLAYER's vivid blue. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+  background:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  background-image:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  border-color:rgba(193,226,251,.82)!important;
+  color:#f4faff!important;
+  animation:none!important;filter:none!important;
+  box-shadow:inset 0 1px 7px rgba(225,250,255,.25),0 0 8px rgba(160,223,255,.2)!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button:hover,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button:not(:active){
+  background:linear-gradient(180deg,rgba(22,94,171,.75),rgba(6,56,106,.75))!important;
+  background-image:linear-gradient(180deg,rgba(22,94,171,.75),rgba(6,56,106,.75))!important;
+  border-color:rgba(140,226,255,.94)!important;
+  color:#f5fdff!important;
+  box-shadow:inset 0 1px 6px rgba(173,229,255,.24),0 0 10px rgba(55,137,204,.25)!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBtn[aria-pressed="false"]{
+  background:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  background-image:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup > #shuffleBtn[aria-pressed="true"]{
+  background:rgba(9,92,77,.75)!important;
+  background-image:none!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup button:not([aria-pressed="true"]),
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > button:not([aria-pressed="true"]){
+  background:rgba(12,44,72,.75)!important;
+  background-image:none!important;
+  color:#f4faff!important;
+}
+
+/* The user can still see the controls and effect colors on a bright phone.
+   Keep EQ measurement sourced from real audio, not invented animation. */
+/* Measured music controls the aura's opacity; do not override it with
+   opacity:1!important. The old 2.8× brightness hid all dynamics on phones. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQAura{
+  filter:brightness(1.08) saturate(1.12) drop-shadow(0 0 3px rgba(77,187,255,.18));
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQFog{
+  filter:brightness(1.08) saturate(1.12) blur(1.4px);
+}
+/* Show the truth of the audio analysis on mobile instead of hiding status. */
+html.ge-radio-ui body #sunLabPanel.show #sunEQSourceStatus{
+  display:block!important;
+  font-size:11.5px!important;
+  padding:3px 6px!important;
+}
+html.ge-radio-ui body #sunLabPanel #geSunEQEnable[hidden]{display:none!important}
+html.ge-radio-ui body #sunLabPanel.show #geSunEQEnable:not([hidden]){
+  display:block!important;
+}
+/* Portrait Radio layout has a more-specific old PLAYER blue rule.
+   Override that rule explicitly so PLAYER matches Previous/Next on iPhone. */
+html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+  background:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  background-image:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  border-color:rgba(193,226,251,.82)!important;
+  color:#f4faff!important;
+  animation:none!important;filter:none!important;
+}
+
+
+/* Existing portrait Previous/Next selectors carry an extra aria attribute
+   specificity. Win against those too, not just the old PLAYER rule. */
+html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+  background:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  background-image:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  border-color:rgba(193,226,251,.82)!important;
+  color:#f4faff!important;
+  animation:none!important;filter:none!important;
+}
+
+
+/* The older MUSIC styling uses two :not() qualifiers and outranked the
+   initial palette. Apply the artist's vivid PLAYER-blue to MUSIC at
+   higher specificity, including its hover and open states. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #geMusicV5Button,
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > #geMusicV5Button:hover{
+ background:linear-gradient(180deg,rgba(22,94,171,.75),rgba(6,56,106,.75))!important;
+ background-image:linear-gradient(180deg,rgba(22,94,171,.75),rgba(6,56,106,.75))!important;
+ border-color:rgba(140,226,255,.94)!important;
+ color:#f5fdff!important;
+ box-shadow:inset 0 1px 6px rgba(173,229,255,.24),0 0 10px rgba(55,137,204,.25)!important;
+}
+
+
+/* Desktop Previous/Next have the same specificity conflict as portrait.
+   Enforce one identical glass color across all three transport keys. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open)[class] #musicGroup > :is(#prevBtn,#playBtn,#nextBtn){
+  background:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  background-image:linear-gradient(180deg,rgba(53,101,142,.75),rgba(20,47,83,.75))!important;
+  border-color:rgba(193,226,251,.82)!important;
+  color:#f4faff!important;
+  animation:none!important;filter:none!important;
+}

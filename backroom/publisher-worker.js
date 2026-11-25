@@ -98,11 +98,31 @@ function validConfig(cfg){
 // Installation access tokens expire automatically; the Worker requests fresh ones.
 let appTokenCache=null;
 async function githubAppJwt(env){
+  // GitHub accepts either the App ID or the public Client ID as JWT issuer.
   const appId=String(env.GITHUB_APP_ID||'').trim();
   const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
   if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
-  const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
-  const bytes=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  // GitHub downloads traditional PKCS#1 PEM (BEGIN RSA PRIVATE KEY).
+  // WebCrypto accepts PKCS#8. Wrap PKCS#1 in a PKCS#8 PrivateKeyInfo
+  // without changing or exporting the owner's private key.
+  const pkcs1=/^-----BEGIN RSA PRIVATE KEY-----([\s\S]*?)-----END RSA PRIVATE KEY-----$/;
+  const pkcs8=/^-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----$/;
+  const match=pem.match(pkcs1)||pem.match(pkcs8);
+  if(!match)throw new Error('Unsupported GitHub App private key PEM format.');
+  const body=match[1].replace(/\s/g,'');
+  const raw=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  const derLength=n=>{
+    if(n<128)return Uint8Array.of(n);
+    const bytes=[];
+    while(n>0){bytes.unshift(n&255);n=Math.floor(n/256);}
+    return Uint8Array.of(0x80|bytes.length,...bytes);
+  };
+  const der=(tag,content)=>Uint8Array.of(tag,...derLength(content.length),...content);
+  const bytes=pem.match(pkcs1)?der(0x30,Uint8Array.of(
+    0x02,0x01,0x00,
+    0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0x00,
+    ...der(0x04,raw)
+  )):raw;
   const key=await crypto.subtle.importKey('pkcs8',bytes,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
   const now=Math.floor(Date.now()/1000);
   const header=b64url(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})));
@@ -116,31 +136,111 @@ async function githubCredential(env){
     if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
     throw new Error('GitHub publishing credentials are not configured.');
   }
-  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID);
+  // Cache identity includes a non-reversible digest of the App private key.
+  // When the owner rotates the key, never reuse a token minted by the old key.
+  const keyFingerprint=Array.from(await sha256(String(env.GITHUB_APP_PRIVATE_KEY))).map(n=>n.toString(16).padStart(2,'0')).join('');
+  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID)+':'+keyFingerprint;
   if(appTokenCache&&appTokenCache.identity===identity&&appTokenCache.expires>Date.now()+120000){
     return appTokenCache.token;
   }
+  // When the configured GitHub App is broken, the SERVER'S own legacy
+  // GITHUB_TOKEN secret is an optional fallback. Never request a token from
+  // a visitor, and never expose either credential to the browser.
+  try{
   const jwt=await githubAppJwt(env);
-  const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(String(env.GITHUB_APP_INSTALLATION_ID))+'/access_tokens',{
-    method:'POST',
-    headers:{
-      'Accept':'application/vnd.github+json',
-      'Authorization':'Bearer '+jwt,
-      'X-GitHub-Api-Version':'2022-11-28',
-      'User-Agent':'GE-Studios-Backroom-Publisher'
-    },
-    body:JSON.stringify({repositories:[env.GITHUB_REPO||'website'],permissions:{contents:'write'}})
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.token)throw new Error('GitHub App authorization failed ('+response.status+'). Check App installation and Contents permission.');
+  const headers={
+    'Accept':'application/vnd.github+json',
+    'Authorization':'Bearer '+jwt,
+    'X-GitHub-Api-Version':'2022-11-28',
+    'User-Agent':'GE-Studios-Backroom-Publisher'
+  };
+  const issueToken=async installationId=>{
+    const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(installationId)+'/access_tokens',{
+      method:'POST',headers,
+      body:JSON.stringify({repositories:[env.GITHUB_REPO||'website'],permissions:{contents:'write'}})
+    });
+    return {response,data:await response.json().catch(()=>({}))};
+  };
+  // An App installation ID may become stale after reinstalling the same App.
+  // On an issuance failure, verify the App's current installation for THIS repo
+  // using the App JWT. Never try an unrelated account or expose the JWT.
+  let installationId=String(env.GITHUB_APP_INSTALLATION_ID||'').trim();
+  let {response,data}=await issueToken(installationId);
+  let jwtHttp=null,installationHttp=null,appMatches=null;
+  let verifiedKnownClientId=false;
+  if(!response.ok||!data.token){
+    const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
+    const repo=encodeURIComponent(env.GITHUB_REPO||'website');
+    // This endpoint accepts an App JWT, not an installation access token.
+    // Its HTTP status independently diagnoses whether the uploaded PEM and
+    // configured App ID actually authenticate with GitHub.
+    let appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
+    jwtHttp=appCheck.status;
+    // GitHub recommends the public App Client ID as issuer. If the App ID
+    // issuer is rejected, retry ONCE with the known GE Back Room Publisher
+    // Client ID. A valid App signature is still mandatory; no token bypass.
+    if(jwtHttp===401){
+      const clientId=String(env.GITHUB_APP_CLIENT_ID||'Iv23liIckQZ7XOLyGUQv').trim();
+      if(clientId&&clientId!==String(env.GITHUB_APP_ID||'').trim()){
+        headers.Authorization='Bearer '+await githubAppJwt({...env,GITHUB_APP_ID:clientId});
+        appCheck=await fetch('https://api.github.com/app',{method:'GET',headers});
+        jwtHttp=appCheck.status;
+        verifiedKnownClientId=appCheck.ok&&clientId==='Iv23liIckQZ7XOLyGUQv';
+        if(appCheck.ok)({response,data}=await issueToken(installationId));
+      }
+    }
+    const appDetails=appCheck.ok?await appCheck.json().catch(()=>({})):{};
+    const authenticatedAppId=String(appDetails.id||'');
+    // A stale Cloudflare App ID must not prevent the *verified* GE Publisher
+    // App from using its installed repository. The public Client ID and the
+    // expected public App ID BOTH must match; never trust arbitrary Apps.
+    const appIdentityMatches=appCheck.ok&&(
+      authenticatedAppId===String(env.GITHUB_APP_ID||'').trim()||
+      (verifiedKnownClientId&&authenticatedAppId==='5831659'&&
+        (!appDetails.client_id||String(appDetails.client_id)==='Iv23liIckQZ7XOLyGUQv'))
+    );
+    if(appCheck.ok&&!appIdentityMatches)
+      throw new Error('GitHub App identity mismatch: authenticated App is not the verified GE Back Room Publisher.');
+    if(jwtHttp===401)
+      throw new Error('GitHub rejected the signed App JWT (HTTP 401). The Cloudflare GitHub App ID/private key pair is not accepted by GitHub. Check that the key is still active for that exact App.');
+    if(!appCheck.ok)
+      throw new Error('GitHub App JWT identity check failed (HTTP '+jwtHttp+'). No GitHub write was attempted.');
+    const lookup=(!response.ok||!data.token)?await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/installation',{
+      method:'GET',headers
+    }):null;
+    installationHttp=lookup?.status??null;
+    if(lookup?.ok){
+      const installation=await lookup.json().catch(()=>({}));
+      const discovered=String(installation.id||'');
+      appMatches=String(installation.app_id||'')===authenticatedAppId;
+      if(discovered&&appMatches&&discovered!==installationId){
+        ({response,data}=await issueToken(discovered));
+        if(response.ok&&data.token)installationId=discovered;
+      }
+    }
+  }
+  if(!response.ok||!data.token){
+    const diagnostic=installationHttp===404?
+      'The authenticated App is not installed for grandelement/website.':
+      appMatches===false?'The repository installation belongs to a different GitHub App.':
+      installationHttp===200?'The App JWT is valid, but the installation token request was rejected. Check installation permissions and active installation.':
+      'GitHub refused the installation token request.';
+    throw new Error('GitHub App authentication failed (token HTTP '+response.status+
+      ', App JWT HTTP '+String(jwtHttp??'not checked')+
+      ', repo installation HTTP '+String(installationHttp??'not checked')+'). '+diagnostic);
+  }
   appTokenCache={identity,token:data.token,expires:Date.parse(data.expires_at)||Date.now()+50*60*1000};
   return data.token;
+  }catch(error){
+    if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
+    throw error;
+  }
 }
 async function github(env,path,init={}){
   const owner=env.GITHUB_OWNER||'grandelement';
   const repo=env.GITHUB_REPO||'website';
-  const credential=await githubCredential(env);
-  return fetch('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/contents/'+path,{
+  const url='https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/contents/'+path;
+  const send=credential=>fetch(url,{
     ...init,
     headers:{
       'Accept':'application/vnd.github+json',
@@ -150,6 +250,19 @@ async function github(env,path,init={}){
       ...(init.headers||{})
     }
   });
+  // An installation token can be revoked before its nominal expiry.
+  // On a GitHub 401, refresh it ONCE; never retry a rejected legacy PAT.
+  let response=await send(await githubCredential(env));
+  if([401,403].includes(response.status)&&env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY){
+    // An App installation token can be stale, revoked or missing repo permission.
+    // Refresh once and then use an existing SERVER-SIDE token if available.
+    appTokenCache=null;
+    const fresh=await githubCredential(env);
+    response=await send(fresh);
+    if([401,403].includes(response.status)&&env.GITHUB_TOKEN&&fresh!==String(env.GITHUB_TOKEN))
+      response=await send(String(env.GITHUB_TOKEN));
+  }
+  return response;
 }
 async function publishLive(env,cfg){
   const branch=env.GITHUB_BRANCH||'main';
@@ -157,7 +270,16 @@ async function publishLive(env,cfg){
   const current=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
   if(!current.ok)throw new Error('Could not read live configuration from GitHub.');
   const currentData=await current.json();
+  const live=JSON.parse(decodeGithubText(currentData.content||''));
+  if(!validConfig(live))throw new Error('Current GitHub music routing is unavailable; publish blocked.');
   const out=structuredClone(cfg);
+  // Legacy full-site publishing must never roll back selections saved through
+  // the unified Radio > Music editor or its approved player profile.
+  out.music=out.music&&typeof out.music==='object'?out.music:{};
+  for(const key of ['radioMasterSongPaths','radioMasterRevision','catalogRouting','publicPlayer']){
+    if(Object.prototype.hasOwnProperty.call(live.music||{},key))out.music[key]=structuredClone(live.music[key]);
+    else delete out.music[key];
+  }
   out.version=Math.max(1,Number(out.version)||1);
   out.mode='live';
   out.publishedAt=new Date().toISOString();
@@ -252,35 +374,48 @@ async function deletePreset(env,id){
 /* Owner-only GE Vault bridge. The Vault admin token never reaches the browser.
    No code/playlist record is written to public GitHub or site-live.json. */
 async function geVaultBridge(env,path,method='GET',body=null){
-  // Access Codes have a dedicated least-privilege bridge secret. Legacy
-  // admin fallback exists for publishers that were configured previously.
-  // GitHub remains the exclusive GE playlist master.
-  const accessPath=path==='/v1/admin/access-codes';
-  const secret=String((accessPath&&env.VAULT_ACCESS_CODES_TOKEN)||env.VAULT_ADMIN_TOKEN||'').trim();
+  // The dedicated bridge credential is valid for Access Codes and their
+  // owner-only Fan assignment directory; the full admin token is optional.
+  const route=path.split('?')[0];
+  // These exact owner-only routes are allowed through the existing scoped
+  // bridge; broader Vault admin functions remain reserved to the full token.
+  const accessPath=['/v1/admin/access-codes','/v1/admin/fan-access',
+    '/v1/admin/fan-geography','/v1/admin/fan-playlists',
+    '/v1/admin/fan-visitors'].includes(route);
+  const dedicated=String(env.VAULT_ACCESS_CODES_TOKEN||'').trim();
+  const admin=String(env.VAULT_ADMIN_TOKEN||'').trim();
+  const secret=accessPath&&dedicated?dedicated:admin;
   if(!secret)return {status:503,data:{ok:false,error:accessPath?
-    'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
-    'GE Vault connection is not configured on the Back Room publisher.'}};
+    'Scoped Vault bridge credential is missing on Publisher.':
+    'GE Vault admin credential is missing on Publisher.'}};
   const url='https://vault.grandelement.com'+path;
-  const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'manual'};
-  if(body!==null)init.body=JSON.stringify(body);
-  try{
-    // Production uses the Wrangler service binding. This bypasses the public
-    // Cloudflare edge and calls the SAME Vault Worker (same D1 database) directly.
-    // The public URL remains only a development/test fallback when not bound.
+  const invoke=async credential=>{
+    const init={method,headers:{'Authorization':'Bearer '+credential,
+      'Content-Type':'application/json','Accept':'application/json'},redirect:'manual'};
+    if(body!==null)init.body=JSON.stringify(body);
     const response=env.GE_VAULT?.fetch
       ?await env.GE_VAULT.fetch(new Request(url,init))
       :await fetch(url,init);
-    const data=await response.json().catch(()=>({ok:false,error:'GE Vault returned a non-JSON response (HTTP '+response.status+').'}));
-    return{status:response.status,data};
+    const data=await response.json().catch(()=>({ok:false,
+      error:'GE Vault returned a non-JSON response (HTTP '+response.status+').'}));
+    return {status:response.status,data};
+  };
+  try{
+    let result=await invoke(secret);
+    // The full admin token was supported before the dedicated bridge was
+    // introduced. Retry ONLY an access-code auth failure, and only when the
+    // two independently configured credentials differ. A business validation
+    // failure (400/409) must never be retried.
+    if(accessPath&&result.status===401&&admin&&admin!==secret)
+      result=await invoke(admin);
+    return result;
   }catch(error){
-    // Log only the failure class, never secret headers or access-code values.
     console.error('GE Vault bridge failure',String(error?.name||'Error'));
     return {status:502,data:{ok:false,error:env.GE_VAULT?.fetch?
       'Private GE Vault service binding failed. Check Vault Worker health and binding deployment.':
       'GE Vault could not be reached. Private GE_VAULT binding is missing on the Back Room Worker.'}};
   }
 }
-
 
 // GitHub-only published/unlisted playlist registry. This path does not call
 // GE Vault, D1 or any Cloudflare data store. Authentication is the existing
@@ -326,6 +461,210 @@ async function saveGithubPlaylistRegistry(env,registry,sha){
   }
   return String(saved.commit?.sha||'');
 }
+// The Public Player and Master List share the same owner session and server-side
+// GitHub App credential as GE playlists. Never ask a browser for a GitHub PAT.
+async function handlePlayerProfile(request,env,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:'Owner login required. Sign in to Back Room.'},401,cors);
+  try{
+    const branch=env.GITHUB_BRANCH||'main';
+    const path='config/site-live.json';
+    const source=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+    if(!source.ok)throw Error('Could not read current published GE settings (HTTP '+source.status+').');
+    const file=await source.json();
+    const current=JSON.parse(decodeGithubText(file.content||''));
+    if(!validConfig(current))throw Error('Published GE settings are invalid; no changes made.');
+    const music=current.music||{};
+    const prior=music.publicPlayer||{};
+    const currentProfile={
+      playlistId:String(prior.playlistId||''),
+      scopes:Array.isArray(prior.scopes)?prior.scopes.filter(x=>PUBLIC_PLAYER_SCOPE_SET.has(x)):[]
+    };
+    const savedRouting=music.catalogRouting&&typeof music.catalogRouting==='object'?music.catalogRouting:{};
+    const routing={
+      frontAlbums:Array.isArray(savedRouting.frontAlbums)?savedRouting.frontAlbums:null,
+      storeAlbums:Array.isArray(savedRouting.storeAlbums)?savedRouting.storeAlbums:null,
+      storeSongPaths:Array.isArray(savedRouting.storeSongPaths)?savedRouting.storeSongPaths:null,
+      playerSongPaths:Array.isArray(savedRouting.playerSongPaths)?savedRouting.playerSongPaths:null,
+      radioSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[],
+      assignments:Object.fromEntries(['front','store','player','radio'].map(key=>[
+        key,typeof savedRouting.assignments?.[key]==='string'?savedRouting.assignments[key]:''
+      ]))
+    };
+    const {registry,sha:playlistRevision}=await readGithubPlaylistRegistry(env);
+    const playlists=registry.playlists.map(p=>({
+      id:String(p.id||''),name:String(p.name||''),visibility:String(p.visibility||'unlisted'),
+      songCount:Array.isArray(p.songs)?p.songs.length:0,
+      songs:Array.isArray(p.songs)?p.songs:[]
+    }));
+    if(request.method==='GET'){
+      return json({ok:true,profile:currentProfile,playlists,
+        masterSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[],
+        routing,playlistRevision},200,cors);
+    }
+    if(request.method!=='POST')return json({ok:false,error:'Unsupported method.'},405,cors);
+    const body=await request.json().catch(()=>null);
+    if(!body||typeof body!=='object')return json({ok:false,error:'Invalid settings.'},400,cors);
+    const next=structuredClone(current);
+    next.music={...music};
+    if(body.action==='rebuild_manifest'){
+      // Re-scan the committed GitHub tree, never a browser-provided file list.
+      const owner=encodeURIComponent(env.GITHUB_OWNER||'grandelement');
+      const repository=encodeURIComponent(env.GITHUB_REPO||'website');
+      const treeUrl='https://api.github.com/repos/'+owner+'/'+repository+'/git/trees/'+encodeURIComponent(branch)+'?recursive=1';
+      const [treeResponse,manifestResponse]=await Promise.all([
+        fetch(treeUrl,{headers:{Accept:'application/vnd.github+json',
+          Authorization:'Bearer '+await githubCredential(env),
+          'User-Agent':'GE-Studios-Backroom-Publisher','X-GitHub-Api-Version':'2022-11-28'}}),
+        github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'})
+      ]);
+      if(!treeResponse.ok||!manifestResponse.ok)throw Error('GitHub file inventory unavailable. Manifest unchanged.');
+      const tree=await treeResponse.json(),oldFile=await manifestResponse.json();
+      if(tree.truncated||!Array.isArray(tree.tree))throw Error('Incomplete GitHub tree. Manifest unchanged.');
+      const files=tree.tree.filter(item=>item.type==='blob'&&
+        /^ge-music\/(?:music|clips)\/.+\.(?:mp3|m4a|aac|wav|ogg|flac)$/i.test(item.path||''))
+        .map(item=>item.path).sort();
+      if(!files.length)throw Error('GitHub tree contains no music files. Manifest unchanged.');
+      const old=JSON.parse(decodeGithubText(oldFile.content||''));
+      if(!Array.isArray(old.files))throw Error('Existing manifest is invalid. Manifest unchanged.');
+      const unchanged=JSON.stringify(files)===JSON.stringify([...old.files].sort());
+      if(unchanged)return json({ok:true,unchanged:true,count:files.length,commit:''},200,cors);
+      const nextManifest={...old,files,generatedAt:new Date().toISOString()};
+      const response=await github(env,'radio/manifest.json',{
+        method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:'Back Room: rebuild GE music manifest from GitHub files',
+          content:utf8B64(JSON.stringify(nextManifest,null,2)+'\n'),sha:oldFile.sha,branch})
+      });
+      const saved=await response.json().catch(()=>({}));
+      if(!response.ok)throw Error('Manifest update refused (HTTP '+response.status+'). Nothing else changed.');
+      return json({ok:true,unchanged:false,count:files.length,commit:String(saved.commit?.sha||'')},200,cors);
+    }
+    if(body.action==='save_catalog_routing'){
+      if(!body.expectedRouting||JSON.stringify(body.expectedRouting)!==JSON.stringify(routing))
+        return json({ok:false,error:'Master routing changed elsewhere. RELOAD before saving.'},409,cors);
+      const incoming=body.routing||{};
+      const pathKeys=['storeSongPaths','playerSongPaths','radioSongPaths'];
+      const albumKeys=['frontAlbums','storeAlbums'];
+      for(const key of [...pathKeys,...albumKeys]){
+        if(!Array.isArray(incoming[key])||incoming[key].length>10000||
+            incoming[key].some(value=>typeof value!=='string')||
+            new Set(incoming[key]).size!==incoming[key].length)
+          return json({ok:false,error:'Invalid or duplicate '+key+' choices.'},400,cors);
+      }
+      const assignments={};
+      for(const destination of ['front','store','player','radio']){
+        const id=incoming.assignments?.[destination]||'';
+        if(typeof id!=='string'||id.length>110||
+           (id&&id!=='@all'&&!registry.playlists.some(row=>row.id===id)))
+          return json({ok:false,error:'Unknown saved playlist for '+destination+'. Refresh playlists.'},409,cors);
+        assignments[destination]=id;
+      }
+      if(Object.values(assignments).some(Boolean)&&body.playlistRevision!==playlistRevision)
+        return json({ok:false,error:'Playlists changed since loading. REFRESH before saving destinations.'},409,cors);
+      const manifestResponse=await github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'});
+      if(!manifestResponse.ok)throw Error('Published manifest unavailable. No changes made.');
+      const manifestFile=await manifestResponse.json();
+      const manifest=JSON.parse(decodeGithubText(manifestFile.content||''));
+      const available=new Set((manifest.files||[]).filter(p=>typeof p==='string'&&playlistSongPath(p)));
+      const albums=new Set([...available].map(p=>
+        (p.split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim()));
+      if(pathKeys.some(key=>incoming[key].some(p=>!playlistSongPath(p)||!available.has(p)))||
+          albumKeys.some(key=>incoming[key].some(n=>!albums.has(n))))
+        return json({ok:false,error:'Album or song not found in current GitHub manifest. REBUILD and RELOAD first.'},409,cors);
+      const selected={
+        frontAlbums:[...incoming.frontAlbums],storeAlbums:[...incoming.storeAlbums],
+        storeSongPaths:[...incoming.storeSongPaths],playerSongPaths:[...incoming.playerSongPaths],
+        radioSongPaths:[...incoming.radioSongPaths]
+      };
+      const allPaths=[...available].sort();
+      const songAlbum=p=>(p.split('/')[2]||'').replace(/^Grand Element - (?:\d{4} - )?/,'').trim();
+      for(const [destination,id] of Object.entries(assignments)){
+        if(!id)continue;
+        const playlist=registry.playlists.find(row=>row.id===id);
+        const songs=id==='@all'?allPaths:playlist?.songs;
+        if(!Array.isArray(songs)||!songs.length||songs.some(p=>!available.has(p))||
+           new Set(songs).size!==songs.length)
+          return json({ok:false,error:'Playlist '+destination+' has missing or invalid song files. Edit the shared playlist and refresh.'},409,cors);
+        const albumNames=[...new Set(songs.map(songAlbum))];
+        if(destination==='front')selected.frontAlbums=albumNames.filter(name=>name!=='Singles');
+        if(destination==='store'){selected.storeAlbums=albumNames;selected.storeSongPaths=songs}
+        if(destination==='player')selected.playerSongPaths=songs;
+        if(destination==='radio')selected.radioSongPaths=songs;
+      }
+      if(!selected.radioSongPaths.length)
+        return json({ok:false,error:'Keep at least one RADIO / SHUFFLE song enabled.'},400,cors);
+      next.music.catalogRouting={
+        version:2,assignments,frontAlbums:selected.frontAlbums,
+        storeAlbums:selected.storeAlbums,storeSongPaths:selected.storeSongPaths,
+        playerSongPaths:selected.playerSongPaths
+      };
+      next.music.radioMasterSongPaths=selected.radioSongPaths;
+      if(JSON.stringify(routing.radioSongPaths)!==JSON.stringify(selected.radioSongPaths))
+        next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
+    }else if(body.action==='save_master'){
+      if(routing.assignments.radio)
+        return json({ok:false,error:'RADIO is assigned to a saved playlist. Change it in Radio / Music, or switch to CUSTOM before editing master approvals.'},409,cors);
+      const old=Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[];
+      const expected=body.expectedMasterSongPaths;
+      if(!Array.isArray(expected)||JSON.stringify(expected)!==JSON.stringify(old))
+        return json({ok:false,error:'Master List changed since loading. Reload before saving.'},409,cors);
+      const selected=body.masterSongPaths;
+      if(!Array.isArray(selected)||selected.length<1||selected.length>10000||
+         selected.some(p=>!playlistSongPath(p))||new Set(selected).size!==selected.length)
+        return json({ok:false,error:'The selected Master List contains invalid or duplicate song paths.'},400,cors);
+      const manifestResponse=await github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'});
+      if(!manifestResponse.ok)throw Error('Music catalog cannot be verified. Nothing was saved.');
+      const manifestFile=await manifestResponse.json();
+      const manifest=JSON.parse(decodeGithubText(manifestFile.content||''));
+      const available=new Set(Array.isArray(manifest.files)?manifest.files:[]);
+      if(selected.some(p=>!available.has(p)))
+        return json({ok:false,error:'Some selected songs are not in the published music manifest. Refresh first.'},409,cors);
+      next.music.radioMasterSongPaths=selected;
+      next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
+    }else if(body.action==='save_profile'){
+      const incoming=body.profile||{};
+      const playlistId=String(incoming.playlistId||'');
+      const scopes=incoming.scopes;
+      if(playlistId&&!playlists.some(p=>p.id===playlistId))
+        return json({ok:false,error:'That playlist was not found. Refresh playlists and try again.'},409,cors);
+      if(!Array.isArray(scopes)||scopes.some(x=>!PUBLIC_PLAYER_SCOPE_SET.has(x)))
+        return json({ok:false,error:'Invalid public feature selection.'},400,cors);
+      next.music.publicPlayer={playlistId,scopes:[...new Set(scopes)]};
+    }else return json({ok:false,error:'Unknown player settings action.'},400,cors);
+    // Reuse current file SHA: concurrent owner commits fail safely instead of overwriting.
+    next.version=Math.max(1,Number(next.version)||1);
+    next.publishedAt=new Date().toISOString();
+    const content=JSON.stringify(next,null,2)+'\n';
+    if(content.length>250000)throw Error('Public configuration exceeds the GitHub limit.');
+    const update=await github(env,path,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:body.action==='save_catalog_routing'?'Back Room: publish unified FRONT STORE PLAYER RADIO music controls':
+          body.action==='save_master'?'Back Room: update approved Player Master List':'Back Room: update public Player profile',
+        content:utf8B64(content),sha:file.sha,branch
+      })
+    });
+    const result=await update.json().catch(()=>({}));
+    if(!update.ok){
+      if(update.status===409||update.status===422)
+        return json({ok:false,error:'Published settings changed during your edit. Reload before saving again.'},409,cors);
+      throw Error('GitHub refused player save (HTTP '+update.status+'): '+String(result.message||'Unknown error'));
+    }
+    return json({ok:true,commit:String(result.commit?.sha||''),profile:next.music.publicPlayer||currentProfile,
+      masterSongPaths:next.music.radioMasterSongPaths||[],
+      routing:body.action==='save_catalog_routing'?{
+        frontAlbums:next.music.catalogRouting.frontAlbums,
+        storeAlbums:next.music.catalogRouting.storeAlbums,
+        storeSongPaths:next.music.catalogRouting.storeSongPaths,
+        playerSongPaths:next.music.catalogRouting.playerSongPaths,
+        radioSongPaths:next.music.radioMasterSongPaths,
+        assignments:next.music.catalogRouting.assignments
+      }:routing,playlistRevision},200,cors);
+  }catch(error){
+    return json({ok:false,error:String(error?.message||error)},502,cors);
+  }
+}
+const PUBLIC_PLAYER_SCOPE_SET=new Set(['sunlab','offline','reload','debug','legacy','iam']);
 async function handleGithubPlaylists(request,env,cors){
   if(!(await verifySession(env,bearer(request))))
     return json({ok:false,error:'Owner login required. Sign in to Back Room.'},401,cors);
@@ -378,6 +717,153 @@ async function handleGithubPlaylists(request,env,cors){
   }catch(error){
     return json({ok:false,error:String(error?.message||error).slice(0,280)},502,cors);
   }
+}
+
+/* Owner-only, narrowly-scoped merchandise publisher.
+   Saves only floating shirt/hat controls; other current public, Radio, DJ,
+   Vault and music settings are read from GitHub and retained unchanged. */
+function geMerchValidate(source){
+  if(!source||typeof source!=='object'||Array.isArray(source))throw Error('Missing merchandise settings.');
+  const bounded=(key,min,max)=>{
+    if(source[key]===''||source[key]===null||source[key]===undefined)throw Error('Missing '+key+'.');
+    const n=Number(source[key]);
+    if(!Number.isFinite(n)||n<min||n>max)throw Error('Invalid '+key+' (allowed '+min+' to '+max+').');
+    return n;
+  };
+  const data={
+    size:bounded('size',25,250),
+    speed:bounded('speed',25,400),
+    rotation:bounded('rotation',0,400),
+    direction:String(source.direction||''),
+    entryDirection:String(source.entryDirection||''),
+    entryTiming:String(source.entryTiming||''),
+    entryMinSeconds:bounded('entryMinSeconds',5,600),
+    entryMaxSeconds:bounded('entryMaxSeconds',5,600),
+    quantity:bounded('quantity',0,2)
+  };
+  if(!Number.isInteger(data.quantity))throw Error('Invalid merchandise quantity.');
+  if(!['normal','reverse'].includes(data.direction))throw Error('Invalid rotation direction.');
+  if(!['random','left','right'].includes(data.entryDirection))throw Error('Invalid entry direction.');
+  if(!['random','fixed'].includes(data.entryTiming))throw Error('Invalid entry interval type.');
+  if(data.entryMaxSeconds<data.entryMinSeconds)throw Error('Maximum entry interval is below minimum.');
+  return data;
+}
+async function geHandleMerchandise(request,env,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:'Back Room owner sign-in required. Sign in again.'},401,cors);
+  try{
+    const branch=env.GITHUB_BRANCH||'main',path='config/site-live.json';
+    const source=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+    if(!source.ok)throw Error('Cannot read current live GE settings (HTTP '+source.status+').');
+    const file=await source.json();
+    const current=JSON.parse(decodeGithubText(file.content||''));
+    if(!validConfig(current))throw Error('Published configuration is incomplete; not saving.');
+    if(request.method==='GET')
+      return json({ok:true,merchandise:current.merchandise||{}},200,cors);
+    const body=await request.json().catch(()=>null);
+    if(!body||!Object.prototype.hasOwnProperty.call(body,'expectedMerchandise'))
+      return json({ok:false,error:'Load current merchandise settings before saving.'},400,cors);
+    if(JSON.stringify(body.expectedMerchandise||{})!==JSON.stringify(current.merchandise||{}))
+      return json({ok:false,error:'Merchandise was changed elsewhere. Reload Back Room before saving.'},409,cors);
+    let merch;
+    try{merch=geMerchValidate(body.merchandise)}
+    catch(e){return json({ok:false,error:String(e.message||e)},400,cors)}
+    const next=structuredClone(current);
+    next.merchandise={...(current.merchandise||{}),...merch};
+    next.publishedAt=new Date().toISOString();
+    const contents=JSON.stringify(next,null,2)+'\n';
+    if(contents.length>250000)throw Error('Public configuration exceeds GitHub limit.');
+    const updated=await github(env,path,{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:'Back Room: publish verified floating merchandise settings only',
+        content:utf8B64(contents),sha:file.sha,branch
+      })
+    });
+    const answer=await updated.json().catch(()=>({}));
+    if(!updated.ok){
+      if(updated.status===409||updated.status===422)
+        return json({ok:false,error:'Live settings changed while saving. Reload and retry.'},409,cors);
+      throw Error('GitHub refused merchandise save (HTTP '+updated.status+'): '+String(answer.message||''));
+    }
+    return json({ok:true,commit:String(answer.commit?.sha||''),merchandise:next.merchandise},200,cors);
+  }catch(error){
+    return json({ok:false,error:String(error?.message||error).slice(0,240)},502,cors);
+  }
+}
+
+/* One-screen SAVE uses a scoped GitHub patch. Never accept a full stale
+   website snapshot, private Vault data, BLITZ on-air controls or new music
+   routing from this endpoint. Protected by the existing owner session. */
+const GE_PUBLIC_SAVE_PATHS=new Set([
+ 'welcome','about','visual','albums','easySettings','merchandise','games',
+ 'gateTiming','radioMoon','music.startupEnabled','music.firstTrack'
+]);
+function gePublicValue(data,path){
+ if(path.startsWith('music.'))return data?.music?.[path.slice(6)]??null;
+ return data?.[path]??null;
+}
+async function geManagePublicSettings(request,env,cors){
+ if(!(await verifySession(env,bearer(request))))
+  return json({ok:false,error:'Owner sign-in required. Sign in to Back Room.'},401,cors);
+ try{
+  const branch=env.GITHUB_BRANCH||'main',filePath='config/site-live.json';
+  const upstream=await github(env,filePath+'?ref='+encodeURIComponent(branch),{method:'GET'});
+  if(!upstream.ok)throw Error('Cannot load the latest GitHub settings (HTTP '+upstream.status+').');
+  const file=await upstream.json();
+  const current=JSON.parse(decodeGithubText(file.content||''));
+  if(!validConfig(current))throw Error('Live website configuration is incomplete. Nothing was changed.');
+  const snapshot={};
+  for(const path of GE_PUBLIC_SAVE_PATHS)snapshot[path]=gePublicValue(current,path);
+  if(request.method==='GET')return json({ok:true,settings:snapshot},200,cors);
+  if(request.method!=='POST')return json({ok:false,error:'Method not allowed.'},405,cors);
+  const body=await request.json().catch(()=>null);
+  const changes=body?.changes,expected=body?.expected;
+  if(!changes||typeof changes!=='object'||Array.isArray(changes)||
+     !expected||typeof expected!=='object'||Array.isArray(expected))
+    return json({ok:false,error:'Missing scoped save changes and previous values.'},400,cors);
+  const keys=Object.keys(changes);
+  if(!keys.length||keys.length>GE_PUBLIC_SAVE_PATHS.size||
+     keys.some(key=>!GE_PUBLIC_SAVE_PATHS.has(key)||
+       !Object.prototype.hasOwnProperty.call(expected,key)))
+    return json({ok:false,error:'Only selected website settings can be saved.'},400,cors);
+  for(const key of keys){
+    if(JSON.stringify(gePublicValue(current,key))!==JSON.stringify(expected[key]??null))
+      return json({ok:false,error:key+' changed on GitHub. Reload the published settings before saving.'},409,cors);
+  }
+  const next=structuredClone(current);
+  for(const key of keys){
+    const value=changes[key];
+    if(key==='music.firstTrack'&&value===null){
+      if(next.music&&typeof next.music==='object')delete next.music.firstTrack;
+      continue;
+    }
+    if(value===null||typeof value!=='object'&&typeof value!=='string'&&typeof value!=='number'&&typeof value!=='boolean')
+      return json({ok:false,error:'Invalid '+key+' value.'},400,cors);
+    if(key.startsWith('music.')){
+      if(!next.music||typeof next.music!=='object')next.music={};
+      next.music[key.slice(6)]=structuredClone(value);
+    }else next[key]=structuredClone(value);
+  }
+  if(!validConfig(next))return json({ok:false,error:'Incomplete website settings. Nothing saved.'},400,cors);
+  next.version=Math.max(1,Number(next.version)||1);
+  next.mode='live';next.publishedAt=new Date().toISOString();
+  const contents=JSON.stringify(next,null,2)+'\n';
+  if(contents.length>250000)return json({ok:false,error:'Public settings exceed the GitHub size limit.'},400,cors);
+  const response=await github(env,filePath,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      message:'Back Room SAVE: publish scoped website settings ('+keys.join(', ')+')',
+      content:utf8B64(contents),sha:file.sha,branch
+    })
+  });
+  const saved=await response.json().catch(()=>({}));
+  if(!response.ok||!saved.commit?.sha){
+    if([409,422].includes(response.status))return json({ok:false,error:'GitHub changed during save. Reload and retry.'},409,cors);
+    throw Error('GitHub rejected website save (HTTP '+response.status+'): '+String(saved.message||'Unknown error'));
+  }
+  const written={};for(const key of keys)written[key]=gePublicValue(next,key);
+  return json({ok:true,commit:String(saved.commit.sha),saved:written},200,cors);
+ }catch(error){return json({ok:false,error:String(error?.message||error).slice(0,260)},502,cors)}
 }
 
 const GE_UPLOAD_LIMIT=60*1024*1024;
@@ -477,6 +963,7 @@ export default {
         }catch(error){console.error('GE Vault health probe failed',String(error?.name||'Error'))}
       }
       return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true,
+        catalog_routing_api:2,manifest_rebuild_available:true,
         access_codes_bridge_configured:!!(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN),
         vault_service_bound:vaultProbe.bound,
         vault_reachable:vaultProbe.reachable,
@@ -497,6 +984,123 @@ export default {
         return json({ok:false,error:'Incorrect password.'},401,cors);
       }
       return json({ok:true,token:await makeSession(env),expiresHours:12},200,cors);
+    }
+
+
+    if(url.pathname==='/manage/public-config'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      try{
+        const branch=env.GITHUB_BRANCH||'main';
+        const response=await github(env,'config/site-live.json?ref='+encodeURIComponent(branch),{method:'GET'});
+        if(!response.ok)throw Error('GitHub settings read refused (HTTP '+response.status+').');
+        const file=await response.json();
+        const config=JSON.parse(decodeGithubText(file.content||''));
+        if(!validConfig(config))throw Error('Published GitHub configuration is incomplete.');
+        return json({ok:true,config},200,cors);
+      }catch(error){
+        return json({ok:false,error:String(error?.message||error).slice(0,180)},503,cors);
+      }
+    }
+
+    if(url.pathname==='/manage/github-health'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      // Test a real GitHub API read, not only the presence of Worker secrets.
+      // Do not expose credentials, user account data, or repository contents.
+      try{
+        const hasApp=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
+        const hasFallback=!!env.GITHUB_TOKEN;
+        const path='config/site-live.json?ref='+encodeURIComponent(env.GITHUB_BRANCH||'main');
+        const test=await github(env,path,{method:'GET'});
+        const ok=test.ok;
+        // A successful generic read can be rescued by the expiring legacy PAT.
+        // Explicitly verify the App using an isolated environment without it.
+        let appReadVerified=false,appReadHttp=null,appReadError='';
+        if(hasApp){
+          try{
+            const appOnly=await github({...env,GITHUB_TOKEN:undefined},path,{method:'GET'});
+            appReadVerified=appOnly.ok;
+            appReadHttp=appOnly.status;
+          }catch(error){
+            // Credential errors from our own code contain no secrets or tokens.
+            appReadVerified=false;
+            appReadError=String(error?.message||'GitHub App authorization failed').slice(0,160);
+          }
+        }
+        return json({ok,github_ready:ok,github_http:test.status,
+          server_credential_configured:hasApp||hasFallback,
+          credential_mode:hasApp?'github_app'+(hasFallback?'+fallback':''):hasFallback?'server_token':'missing',
+          app_read_verified:appReadVerified,app_read_http:appReadHttp,app_read_error:appReadError,
+          legacy_token_configured:hasFallback,
+          action:!ok?'repair GitHub publisher authorization':
+            !appReadVerified?'install or repair GitHub App; legacy token is not a permanent solution':
+            hasFallback?'test a real App-only write/readback before removing the legacy token':
+            'renewable GitHub App read verified; verify a real write/readback'},ok?200:503,cors);
+      }catch(error){
+        return json({ok:false,github_ready:false,server_credential_configured:!!(env.GITHUB_TOKEN||
+          (env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY)),
+          error:String(error?.message||error).slice(0,180)},503,cors);
+      }
+    }
+
+    // Authenticated, App-only end-to-end write and readback proof.
+    // Uses an isolated canary file, never live settings, playlists, or Vault.
+    if(url.pathname==='/manage/github-write-verify'&&request.method==='POST'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      const appEnv={...env,GITHUB_TOKEN:undefined};
+      const branch=appEnv.GITHUB_BRANCH||'main';
+      const path='config/backroom-github-connection-check.json';
+      const refPath=path+'?ref='+encodeURIComponent(branch);
+      let stage='canary_read';
+      try{
+        const existing=await github(appEnv,refPath,{method:'GET'});
+        if(!existing.ok&&existing.status!==404)
+          return json({ok:false,stage:'canary_read',github_http:existing.status,
+            error:'GitHub App cannot read its verification file.'},503,cors);
+        let oldSha='';
+        if(existing.ok){
+          const file=await existing.json();
+          oldSha=String(file.sha||'');
+          const previous=JSON.parse(decodeGithubText(file.content||'')); 
+          const checkedAt=String(previous.checkedAt||'');
+          const age=Date.now()-Date.parse(checkedAt);
+          // One real write per day is enough; don't launch an entire website
+          // deployment on every owner login. Readback still runs each login.
+          if(previous.version===1&&Number.isFinite(age)&&age>=0&&age<86400000)
+            return json({ok:true,app_only:true,readback_verified:true,
+              previous:true,checkedAt,file_sha:oldSha},200,cors);
+        }
+        stage='canary_write';
+        const marker=crypto.randomUUID();
+        const checkedAt=new Date().toISOString();
+        const payload=JSON.stringify({version:1,checkedAt,marker},null,2)+'\n';
+        const body={message:'Verify Back Room GitHub App write and readback',
+          content:utf8B64(payload),branch};
+        if(oldSha)body.sha=oldSha;
+        const update=await github(appEnv,path,{
+          method:'PUT',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(body)
+        });
+        if(!update.ok)
+          return json({ok:false,stage,github_http:update.status,
+            error:'GitHub App could not create or update verification file.'},503,cors);
+        const saved=await update.json().catch(()=>({}));
+        stage='canary_readback';
+        const readback=await github(appEnv,refPath,{method:'GET'});
+        if(!readback.ok)
+          return json({ok:false,stage,github_http:readback.status,
+            error:'Write completed, but GitHub could not confirm readback.'},503,cors);
+        const file=await readback.json().catch(()=>({}));
+        if(decodeGithubText(file.content||'')!==payload)
+          return json({ok:false,stage,error:'GitHub readback differs from written verification.'},503,cors);
+        return json({ok:true,app_only:true,readback_verified:true,
+          commit:String(saved.commit?.sha||''),checkedAt},200,cors);
+      }catch(error){
+        return json({ok:false,stage,
+          error:String(error?.message||'GitHub App write verification failed').slice(0,160)},503,cors);
+      }
     }
 
     if(url.pathname==='/session'&&request.method==='GET'){
@@ -535,31 +1139,101 @@ export default {
     }
 
 
+    if(url.pathname==='/manage/player-profile'&&['GET','POST'].includes(request.method)){
+      return handlePlayerProfile(request,env,cors);
+    }
+
     if(url.pathname==='/manage/github-playlists'&&['GET','POST'].includes(request.method)){
       return handleGithubPlaylists(request,env,cors);
     }
 
     // Fan identities require the FULL Vault admin credential, not the
     // narrower Access Codes bridge token. Only the owner may link records.
+    if(url.pathname==='/manage/vault-reconnect'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Owner sign-in expired. Sign in again.'},401,cors);
+      const checks={publisher_configured:configured,service_binding:!!env.GE_VAULT?.fetch,
+        admin_token_configured:!!String(env.VAULT_ADMIN_TOKEN||'').trim()};
+      try{
+        const health=env.GE_VAULT?.fetch
+          ?await env.GE_VAULT.fetch('https://vault.grandelement.com/health')
+          :await fetch('https://vault.grandelement.com/health');
+        const h=await health.json().catch(()=>({}));
+        checks.vault_http=health.status;
+        checks.vault_ready=health.ok&&h.ok===true&&h.storage==='READY';
+        checks.access_tables_ready=h.access_codes_ready===true;
+      }catch(_){checks.vault_ready=false;checks.vault_http=0}
+      checks.scoped_bridge_configured=!!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim();
+      if(checks.scoped_bridge_configured){
+        const fan=await geVaultBridge(env,'/v1/admin/fan-geography?period=24h&country=ALL');
+        checks.fan_analytics_http=fan.status;
+        checks.fan_analytics_readable=fan.status===200&&fan.data?.ok===true;
+        const codes=await geVaultBridge(env,'/v1/admin/access-codes');
+        checks.access_codes_http=codes.status;
+        checks.access_codes_readable=codes.status===200&&codes.data?.ok===true&&Array.isArray(codes.data.items);
+        const playlists=await geVaultBridge(env,'/v1/admin/fan-playlists');
+        checks.fan_playlists_http=playlists.status;
+        checks.fan_playlists_readable=playlists.status===200&&playlists.data?.ok===true&&Array.isArray(playlists.data.items);
+      }else{
+        checks.fan_analytics_readable=false;checks.access_codes_readable=false;
+        checks.fan_playlists_readable=false;
+      }
+      const ok=checks.publisher_configured&&checks.service_binding&&checks.vault_ready&&
+        checks.scoped_bridge_configured&&checks.fan_analytics_readable&&
+        checks.access_codes_readable&&checks.fan_playlists_readable;
+      return json({ok,checks,read_only:true,
+        advice:ok?'Private Vault connection verified. No configuration changes needed.':
+        'A failed check needs configuration, deployment, or permission repair. No secrets or data were changed.'},200,cors);
+    }
+    if(url.pathname==='/manage/fan-geography'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room sign-in required.'},401,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Vault bridge is not configured.'},503,cors);
+      const allowed=new URLSearchParams();
+      for(const name of ['period','country','state','event','page']){
+        const value=url.searchParams.get(name);
+        if(value)allowed.set(name,value.slice(0,100));
+      }
+      const upstream=await geVaultBridge(env,'/v1/admin/fan-geography?'+allowed.toString());
+      return json(upstream.data,upstream.status,cors);
+    }
+    if(url.pathname==='/manage/fan-visitors'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Fan Vault credential missing.'},503,cors);
+      const allowed=new URLSearchParams();
+      for(const name of ['period','country','state','event','page','anon_id']){
+        const value=url.searchParams.get(name);
+        if(value)allowed.set(name,value.slice(0,name==='anon_id'?160:100));
+      }
+      const upstream=await geVaultBridge(env,'/v1/admin/fan-visitors?'+allowed.toString());
+      return json(upstream.data,upstream.status,cors);
+    }
     if(url.pathname==='/manage/fan-playlists'&&request.method==='GET'){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
-      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
-        return json({ok:false,error:'Full Vault administrator token is not configured on publisher.'},503,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Scoped Vault bridge is not configured on Publisher.'},503,cors);
       const upstream=await geVaultBridge(env,'/v1/admin/fan-playlists');
       return json(upstream.data,upstream.status,cors);
     }
     if(url.pathname==='/manage/fan-access'&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
-      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
-        return json({ok:false,error:'Fan integration needs the full Vault admin token configured on Publisher.'},503,cors);
+      if(!String(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Fan directory bridge credentials are not configured.'},503,cors);
       let body=null;
       if(request.method==='POST'){
         try{body=await request.json()}catch(_){return json({ok:false,error:'Invalid fan assignment request.'},400,cors)}
         if(!['assign','label','create'].includes(body?.action))return json({ok:false,error:'Unknown fan assignment action.'},400,cors);
       }
-      const upstream=await geVaultBridge(env,'/v1/admin/fan-access',request.method,body);
+      const period=url.searchParams.get('period')||'24h';
+      if(request.method==='GET'&&!['1h','24h','7d'].includes(period))
+        return json({ok:false,error:'Invalid fan activity period.'},400,cors);
+      const path='/v1/admin/fan-access'+(request.method==='GET'?'?period='+period:'');
+      const upstream=await geVaultBridge(env,path,request.method,body);
       return json(upstream.data,upstream.status,cors);
     }
     if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
@@ -597,12 +1271,18 @@ export default {
         return json({ok:false,error:'Unknown playlist action.'},400,cors);
       }
       // The Vault validates scope, limits, entropy, HMAC hashes and authorization.
-      if(!['issue','edit','reveal','rotate','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
+      if(!['issue','restore','edit','reveal','rotate','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
         return json({ok:false,error:'Unknown access-code action.'},400,cors);
       }
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
       return json(upstream.data,upstream.status,cors);
     }
+
+    if(url.pathname==='/manage/public-settings'&&['GET','POST'].includes(request.method))
+      return geManagePublicSettings(request,env,cors);
+
+    if(url.pathname==='/manage/merchandise'&&['GET','POST'].includes(request.method))
+      return geHandleMerchandise(request,env,cors);
 
     if(url.pathname==='/publish'&&request.method==='POST'){
       if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in again.'},401,cors);

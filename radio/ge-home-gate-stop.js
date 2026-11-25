@@ -17,6 +17,7 @@
     }catch(_e){return false;}
   };
   function locked(){
+    if(window.GEGateSettings?.get?.().enabled===false)return false;
     if(authorized())return false;
     try{
       const state=JSON.parse(localStorage.getItem(STATE)||'null');
@@ -52,6 +53,7 @@
   });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)enforce()});
   window.addEventListener('pageshow',enforce);
+  window.addEventListener('ge-gate-settings-ready',enforce);
   setInterval(enforce,1000);
   enforce();
 })();

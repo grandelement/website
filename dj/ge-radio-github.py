@@ -12,6 +12,9 @@ import os
 import re
 import stat
 import time
+import sys
+import subprocess
+import tempfile
 try:
     from urllib2 import Request, urlopen, HTTPError
     from urllib import quote
@@ -47,6 +50,41 @@ def _api(method, route, token, payload=None):
     except HTTPError as exc:
         # Never leak tokens or raw response bodies into UI.
         raise RuntimeError("GitHub API %s (%s). Check repository permission and connection." % (exc.code, route.split("/")[0]))
+    except Exception as exc:
+        # El Capitan Python 2.7 may lack modern TLS certificates. Its system curl
+        # often works when urllib fails. Keep the token out of command-line args.
+        curl = "/usr/bin/curl"
+        if not os.path.isfile(curl):
+            raise RuntimeError("GitHub HTTPS connection failed: " + type(exc).__name__)
+        # Curl reads secret headers from stdin, never from process arguments.
+        payload_file = None
+        try:
+            args = [curl, "--fail", "--silent", "--show-error", "--location",
+                    "--max-time", "120", "--config", "-"]
+            config = ['url = "' + url + '"', 'request = "' + method + '"',
+                      'header = "Accept: application/vnd.github+json"',
+                      'header = "X-GitHub-Api-Version: 2022-11-28"',
+                      'header = "Authorization: Bearer ' + token + '"']
+            if data is not None:
+                fd, payload_file = tempfile.mkstemp(prefix="ge-radio-api-")
+                try:
+                    os.write(fd, data)
+                finally:
+                    os.close(fd)
+                config.append('header = "Content-Type: application/json"')
+                config.append('data-binary = "@' + payload_file + '"')
+            proc = subprocess.Popen(args, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, errors = proc.communicate(("\n".join(config) + "\n").encode("utf-8"))
+        finally:
+            if payload_file and os.path.isfile(payload_file):
+                os.unlink(payload_file)
+        if proc.returncode:
+            raise RuntimeError("GitHub HTTPS failed via Python and curl (curl exit %s). Check TLS/network." % proc.returncode)
+        try:
+            return json.loads(_text(output))
+        except ValueError:
+            raise RuntimeError("GitHub returned an invalid response.")
 
 def _token():
     if not os.path.isfile(TOKEN_FILE):
@@ -58,7 +96,7 @@ def _token():
         raise RuntimeError("GitHub token file is empty or invalid.")
     return token
 
-def publish(mp3_path, filename, update=None):
+def publish(mp3_path, filename, update=None, replace_path=None):
     size = os.path.getsize(mp3_path)
     if size >= MAX_FILE_BYTES:
         raise RuntimeError("FILE TOO LARGE: converted MP3 is %0.1f MB; GitHub limit is 100 MB." % (size / 1000000.0))
@@ -71,6 +109,18 @@ def publish(mp3_path, filename, update=None):
     suffix = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
     safe = re.sub(r"[^A-Za-z0-9 ._()-]", "_", stem)[:120].strip(" .") or "Radio"
     target = DESTINATION + "/" + safe + " - " + suffix + ".mp3"
+    if replace_path:
+        # Only existing audio files in the public music tree can be replaced.
+        # A replacement preserves the exact URL and existing playlist references.
+        parts = replace_path.split("/")
+        if (not replace_path.startswith("ge-music/music/") or
+                any(part in ("", ".", "..") for part in parts) or
+                "\\" in replace_path or not replace_path.lower().endswith(".mp3")):
+            raise RuntimeError("REPLACE REJECTED: Invalid GE Music track path.")
+        existing = _api("GET", "contents/" + quote(replace_path.encode("utf-8"), safe="/"), token)
+        if existing.get("type") != "file" or not existing.get("sha"):
+            raise RuntimeError("REPLACE REJECTED: The original song was not found.")
+        target = replace_path
     if update:
         update(phase="uploading", detail="Sending converted MP3 to GitHub", percent=15)
     # Git Data API: one blob and one tree/commit, no Git checkout required on old iMac.
@@ -94,8 +144,32 @@ def publish(mp3_path, filename, update=None):
         })
         try:
             _api("PATCH", "git/refs/heads/" + BRANCH, token, {"sha": new_commit["sha"], "force": False})
+            confirmed = _api("GET", "contents/" + quote(target.encode("utf-8"), safe="/"), token)
+            if confirmed.get("sha") != blob["sha"]:
+                raise RuntimeError("GitHub commit was sent but published audio has not been verified.")
             return target
         except RuntimeError:
             if attempt == 2:
                 raise
     raise RuntimeError("GitHub upload commit could not be confirmed.")
+
+
+def check_connection():
+    """Read-only test: token, TLS, repository permission; never upload test songs."""
+    token = _token()
+    result = _api("GET", "git/ref/heads/" + BRANCH, token)
+    if not result.get("object", {}).get("sha"):
+        raise RuntimeError("GitHub responded but repository branch could not be verified.")
+    print("PASS: GitHub repository connection and read access verified.")
+    print("NOTE: Write access and actual audio publishing require a real upload test.")
+
+if __name__ == "__main__":
+    if len(sys.argv) == 2 and sys.argv[1] == "--check":
+        try:
+            check_connection()
+        except Exception as error:
+            print("NOT CONNECTED: " + str(error))
+            sys.exit(1)
+    else:
+        print("Usage: python ge-radio-github.py --check")
+        sys.exit(2)

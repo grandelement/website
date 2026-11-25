@@ -472,7 +472,7 @@ function uploadChosen(kind){
  var mode=conversionMode(kind),convert=mode==="320";
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
-  if(err||!data.rclone_ready){
+  if(err||(kind!=="radio"&&!data.rclone_ready)){
    status("UPLOAD NOT STARTED · "+(err?linkError(err):"Drive configuration unavailable on this Mac.")+
      " No audio was sent. The selected files remain on this Mac.");
    return;
@@ -664,19 +664,19 @@ function pollJob(kind,mode,item,number,started,id){
     finished++;succeeded++;removeChosen(kind,item);progress(100);
     var detail=convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
        "MP3 conversion confirmed":"Original file confirmed";
-    status("TRACK "+number+"/"+total+" COMPLETE · "+detail+" · Google Drive verified · "+(job.name||item.name));
+    status("TRACK "+number+"/"+total+" COMPLETE · "+detail+" · "+(kind==="radio"?"GitHub file committed; playlist rotation separate":"Google Drive verified")+" · "+(job.name||item.name));
     wait(function(){uploadNext(kind,mode)},300);return;
    }
    if(job.phase==="error"){
     finished++;failed++;
-    issue(item.name+" · "+(job.detail||"Google Drive upload failed"));
+    issue(item.name+" · "+(job.detail||(kind==="radio"?"GitHub upload failed":"Google Drive upload failed")));
     progress(0);
     wait(function(){uploadNext(kind,mode)},300);return;
    }
    var pct=Number(job.percent||0);
    progress(pct>0&&pct<100?pct:null);
    var stage=job.phase==="converting"?"CONVERTING TO MP3":
-    job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING";
+    job.phase==="uploading"?"UPLOADING TO "+(kind==="radio"?"GITHUB":"GOOGLE DRIVE"):"PREPARING";
    status("TRACK "+number+"/"+total+" · "+stage+" · "+
     (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+
     " · "+Math.floor((Date.now()-started)/1000)+"s · "+item.name);

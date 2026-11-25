@@ -2,32 +2,105 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V3_CONTINUITY_20261105';
+const SITE_SHELL='GE_SITE_SHELL_V12_SUNLAB_ALPHA_20261119';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
-const SHELL=['./','./index.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
+const LEGACY_RADIO_PATHS=[new URL('lite/',HOME),new URL('lite/index.html',HOME)];
+const SHELL=['./','./index.html','./ge-offline-library.js','./radio/offline-player.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
+// Cache the normal website AND Radio startup files before activating a
+// replacement worker. The website must not show READY if its scripts are absent.
+const REQUIRED_OFFLINE_FILES=[
+  './radio/radio-base.css',
+  './radio/radio-components.css',
+  './radio/sun-lab-transparency.css',
+  './radio/sun-lab-transparency.js',
+  './radio/radio-layout.css',
+  './ge-offline-library.js',
+  './ge-dream.js',
+  './radio/website-live.js',
+  './radio/ge-home-gate-stop.js',
+  './radio/ge-gate-settings.js',
+  './config/site-live.json',
+  './ge-vault-client.js',
+  './ge-accessibility.js',
+  './ge-accessibility.css',
+  './manifest.webmanifest',
+  './radio/',
+  './radio/index.html',
+  './radio/offline-player.html',
+  './radio/sw.js',
+  './radio/ge-music-v5.js',
+  './radio/ge-gate-audio.js',
+  './radio/iam-private-studio.js'
+];
+async function validHomepage(response){
+  if(!response||!response.ok)return false;
+  try{
+    const html=await response.clone().text();
+    return html.includes('<html') && html.includes('id="offlinePanel"') &&
+      html.includes('id="gameOfflineBtn"') && html.includes('</html>');
+  }catch(_){return false;}
+}
 async function fromAnyCache(request){
+  // Prefer the newest verified shell, not an older cache with a blank/partial HTML.
+  const current=await caches.open(SITE_SHELL);
+  const direct=await current.match(request,{ignoreSearch:true});
+  if(direct)return direct;
   return (await caches.match(request,{ignoreSearch:true}))||null;
+}
+function offlineRecovery(){
+  // Website cache may be missing while Radio's separate verified cache survives.
+  // Never offer a destructive reset as the remedy for a closed offline player.
+  const html='<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GE Studios Offline Recovery</title><style>body{background:#071421;color:#e8f4ff;font:16px system-ui;padding:24px;line-height:1.5}a,button{display:inline-block;background:#13476a;color:white;border:1px solid #75c6ee;border-radius:10px;padding:14px;margin:8px 4px 8px 0;font:inherit;text-decoration:none}p{max-width:560px}</style></head><body><h1>GRAND ELEMENT · OFFLINE</h1><p>The website is unavailable, but your saved Radio may still be ready. Open the Radio player below. Saved music and playlists have not been removed.</p><a href="/radio/index.html?ge_home=1">OPEN SAVED RADIO</a><button onclick="location.reload()">TRY SAVED SITE</button></body></html>';
+  return new Response(html,{status:200,headers:{'Content-Type':'text/html;charset=utf-8','Cache-Control':'no-store'}});
 }
 async function installShell(){
   const cache=await caches.open(SITE_SHELL);
   const response=await fetch(HOME.href,{cache:'reload'});
   if(!response.ok)throw new Error('Unable to cache Grand Element homepage');
+  // The page may respond 200 with an incomplete deploy; never install that
+  // as the offline application. Validate its core UI and recovery bootstrap.
+  const html=await response.clone().text();
+  if(!html.includes('id="offlinePanel"')||
+     !html.includes('ge-offline-boot-recovery-v1')||
+     !html.includes('id="gameOfflineBtn"')){
+    throw new Error('Grand Element homepage is incomplete; retaining previous offline worker');
+  }
   await cache.put(HOME.href,response.clone());
   await cache.put(HOME_INDEX.href,response.clone());
-  await Promise.allSettled(SHELL.slice(2).map(async path=>{
+  // Required startup files are transactional at the worker level:
+  // if a request fails, keep the last installed worker rather than showing
+  // a blank screen when the connection is later disabled.
+  for(const path of REQUIRED_OFFLINE_FILES){
     const url=new URL(path,HOME);
     const r=await fetch(url.href,{cache:'reload'});
-    if(r.ok)await cache.put(url.href,r.clone());
-  }));
+    if(!r.ok)throw new Error('Offline website missing required file: '+path);
+    await cache.put(url.href,r);
+  }
+  // Optional assets may be absent, but must never declare app readiness.
+  const optional=SHELL.slice(2).filter(path=>!REQUIRED_OFFLINE_FILES.includes(path));
+  for(let i=0;i<optional.length;i+=4){
+    await Promise.allSettled(optional.slice(i,i+4).map(async path=>{
+      const url=new URL(path,HOME);
+      const r=await fetch(url.href,{cache:'reload'});
+      if(r.ok)await cache.put(url.href,r);
+    }));
+  }
 }
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{await installShell();await self.skipWaiting()})());
 });
 self.addEventListener('activate',event=>{
-  event.waitUntil((async()=>{await self.clients.claim()})());
+  event.waitUntil((async()=>{
+    // Remove only obsolete Lite HTML from old caches. Retain all saved music.
+    for(const name of await caches.keys()){
+      const cache=await caches.open(name);
+      await Promise.all(LEGACY_RADIO_PATHS.map(url=>cache.delete(url.href)));
+    }
+    await self.clients.claim();
+  })());
 });
 
 function acceptableAsset(url){
@@ -40,56 +113,76 @@ async function partialResponse(request,response){
   if(!range||!response||response.status===206)return response;
   const m=/^bytes=(\d+)-(\d*)$/i.exec(range);
   if(!m)return response;
-  const buffer=await response.arrayBuffer();
-  const start=Number(m[1]),end=m[2]?Math.min(Number(m[2]),buffer.byteLength-1):buffer.byteLength-1;
-  if(start>=buffer.byteLength||end<start){
-    return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+buffer.byteLength}});
+  // Do not duplicate a multi-megabyte MP3 into an ArrayBuffer on iPhone.
+  const blob=await response.blob();
+  const total=blob.size;
+  const start=Number(m[1]),end=m[2]?Math.min(Number(m[2]),total-1):total-1;
+  if(start>=total||end<start){
+    return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+total}});
   }
-  const body=buffer.slice(start,end+1);
+  const body=blob.slice(start,end+1);
   const headers=new Headers(response.headers);
-  headers.set('Content-Range','bytes '+start+'-'+end+'/'+buffer.byteLength);
-  headers.set('Content-Length',String(body.byteLength));
+  headers.set('Content-Range','bytes '+start+'-'+end+'/'+total);
+  headers.set('Content-Length',String(body.size));
   headers.set('Accept-Ranges','bytes');
   return new Response(body,{status:206,headers});
 }
+function urlIsHome(value){const u=new URL(value);return u.pathname===HOME.pathname||u.pathname===HOME_INDEX.pathname;}
 async function navigation(request){
+  const url=new URL(request.url);
+  const isHome=urlIsHome(url.href);
   try{
     const response=await fetch(request);
     if(response.ok){
-      // Fresh HTML on every online visit; retain the last valid offline copy.
-      const cache=await caches.open(SITE_SHELL);
-      await cache.put(request.url,response.clone());
+      // Never promote a partial homepage into the device's offline backup.
+      if(isHome){
+        if(await validHomepage(response)){
+          const cache=await caches.open(SITE_SHELL);
+          await cache.put(HOME.href,response.clone());
+          await cache.put(HOME_INDEX.href,response.clone());
+        }else{
+          const cached=await verifiedHome();
+          if(cached)return cached;
+          return offlineRecovery();
+        }
+      }else{
+        const cache=await caches.open(SITE_SHELL);
+        await cache.put(request.url,response.clone());
+      }
     }else if(response.status>=500){
-      // A hosting outage must not replace a previously working homepage.
-      const saved=await fromAnyCache(request);
+      const saved=isHome?await verifiedHome():await fromAnyCache(request);
       if(saved)return saved;
     }
     return response;
   }catch(_e){
+    if(isHome){
+      const saved=await verifiedHome();
+      return saved||offlineRecovery();
+    }
     const saved=await fromAnyCache(request);
     if(saved)return saved;
-    const pathname=new URL(request.url).pathname;
-    // Bare /radio bookmarks cannot enter the child /radio/ worker scope
-    // without a network redirect. Serve the cached Radio application directly.
-    if(pathname==='/radio'||pathname==='/radio/'||pathname==='/radio/index.html'){
-      const page=await fromAnyCache(new URL('/radio/index.html',HOME).href)||
-        await fromAnyCache(new URL('/radio/',HOME).href);
-      if(page){
-        // /radio lacks a trailing slash, so relative JavaScript, styles and
-        // music URLs would point to / instead of /radio/. Redirect locally
-        // into the saved /radio/ page; no network or download is required.
-        if(pathname==='/radio')return Response.redirect(new URL('/radio/',HOME).href,302);
-        return page;
-      }
+    if(url.pathname.endsWith('/radio')){
+      return Response.redirect(new URL('radio/',HOME).href,302);
     }
-    if(pathname===HOME.pathname||pathname===HOME_INDEX.pathname){
-      const base=await fromAnyCache(HOME.href)||await fromAnyCache(HOME_INDEX.href);
-      if(base)return base;
-    }
-    return new Response('Grand Element is not available offline yet. Open the site online and choose MAKE AVAILABLE OFFLINE.',{
-      status:503,headers:{'Content-Type':'text/plain;charset=utf-8'}
-    });
+    return offlineRecovery();
   }
+}
+async function verifiedHome(){
+  const current=await caches.open(SITE_SHELL);
+  for(const key of [HOME.href,HOME_INDEX.href]){
+    const r=await current.match(key,{ignoreSearch:true});
+    if(await validHomepage(r))return r;
+  }
+  // During migration, recover a known-good older cached shell.
+  const keys=await caches.keys();
+  for(const name of keys.filter(n=>n.startsWith('GE_SITE_SHELL_')||n==='GE_SHARED_OFFLINE_V2').reverse()){
+    const cache=await caches.open(name);
+    for(const key of [HOME.href,HOME_INDEX.href]){
+      const r=await cache.match(key,{ignoreSearch:true});
+      if(await validHomepage(r))return r;
+    }
+  }
+  return null;
 }
 async function asset(request,url){
   const range=request.headers.get('range');
@@ -131,6 +224,10 @@ self.addEventListener('fetch',event=>{
     if(relative==='backroom'||relative.startsWith('backroom/'))return;
   }
   if(req.mode==='navigate'){
+    // Old Lite bookmarks/cached visits must land on the one canonical Radio.
+    if(LEGACY_RADIO_PATHS.some(legacy=>url.pathname===legacy.pathname)){
+      event.respondWith(Response.redirect(new URL('radio/',HOME).href,302));return;
+    }
     event.respondWith(navigation(req));return;
   }
   event.respondWith(asset(req,url));

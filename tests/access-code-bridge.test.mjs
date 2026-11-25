@@ -16,6 +16,8 @@ const db={prepare(sql){
   },
   async all(){
    if(sql.includes('FROM access_codes')){dbReads++;return {results:[]}};
+   if(sql.includes('FROM fans f LEFT JOIN fan_code_links'))return {results:[{id:'fan_aaaaaaa1',display_name:'Owner Linked Fan',last_seen_at:100,code_id:null}]};
+   if(sql.includes('FROM fan_events WHERE occurred_at>='))return {results:[]};
    throw Error('Unexpected list '+sql);
   },
   async run(){
@@ -68,6 +70,20 @@ try{
  assert.equal(body.master_enabled,false);
  assert.equal(dbWrites,1);
  assert.equal(upstreamCalls,2);
+ // The scoped Back Room token permits only the private Fan-to-Code directory,
+ // not full analytics, fan detail, export or unrestricted Vault admin.
+ resp=await publisher.fetch(request('/manage/fan-access'),backroomEnv);
+ assert.equal(resp.status,401,'fan directory requires owner Back Room session');
+ resp=await publisher.fetch(request('/manage/fan-access',{headers:auth}),backroomEnv);
+ body=await resp.json();
+ assert.equal(resp.status,200,JSON.stringify(body));
+ assert.equal(body.fans.length,1);
+ assert.equal(body.fans[0].display_name,'Owner Linked Fan');
+ resp=await vault.fetch(new Request('https://vault.grandelement.com/v1/admin/fan-detail',{headers:{
+   Authorization:'Bearer '+vaultEnv.VAULT_ACCESS_CODES_TOKEN
+ }}),vaultEnv);
+ assert.equal(resp.status,401,'scoped fan-code bridge must not expose full fan detail');
+ assert.equal(upstreamCalls,3,'fan directory accessed only through scoped private bridge');
  const wrongReq=new Request('https://vault.grandelement.com/v1/admin/access-codes',
    {headers:{Authorization:'Bearer WRONG'},method:'GET'});
  resp=await vault.fetch(wrongReq,vaultEnv);

@@ -8158,7 +8158,7 @@ async function pushBoardFastMeter(){
  if((!key&&!djTrustedId)||boardFastMeterBusy)return;
  const now=Date.now();
  const meterActive=!!(micAirOn||lineAirOn||radioMonitorOn||geTrackLive(micStream));
- const minimumGap=document.hidden?5000:(meterActive?850:5000);
+ const minimumGap=document.hidden?30000:(meterActive?12000:30000);
  if(now<geBoardMeterPauseUntil||now-geBoardMeterLastSentAt<minimumGap)return;
  geBoardMeterLastSentAt=now;
  boardFastMeterBusy=true;
@@ -8172,7 +8172,7 @@ async function pushBoardFastMeter(){
 function startBoardFastMeterBus(){
  if(boardFastMeterTimer)clearInterval(boardFastMeterTimer);
  pushBoardFastMeter();
- boardFastMeterTimer=setInterval(pushBoardFastMeter,250)
+ boardFastMeterTimer=setInterval(pushBoardFastMeter,1500)
 }
 async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
@@ -8191,7 +8191,7 @@ async function geBoardHeartbeat(){
 function startBoardHeartbeat(){
  clearInterval(boardHeartbeatTimer);
  geBoardHeartbeat();
- boardHeartbeatTimer=setInterval(geBoardHeartbeat,1000);
+ boardHeartbeatTimer=setInterval(geBoardHeartbeat,6000);
  if(boardWakeKeepAliveTimer)clearInterval(boardWakeKeepAliveTimer);
  requestBoardWakeLock();
  boardWakeKeepAliveTimer=setInterval(function(){
@@ -8262,7 +8262,7 @@ function updateLiveDiagnostics(){
  e.textContent=local+' · '+link+' · '+server+' · '+master;
  e.classList.toggle('bad',!pm.ok||((micAirOn||liveActive)&&!b.active))
 }
-async function poll(){try{const r=await api('/control/status');if(r.ok){status=await r.json();render();if(!(status.dj_boards||[]).some(function(x){return x.id===GE_BOARD_ID&&x.online}))geBoardHeartbeat()}}catch(e){$('statusPill').textContent='OFFLINE';renderStudioStatus()}}function startPoll(){clearInterval(poller);poller=setInterval(poll,1200);poll();startBoardHeartbeat();startBoardFastMeterBus()}
+async function poll(){try{const r=await api('/control/status');if(r.ok){status=await r.json();render();if(!(status.dj_boards||[]).some(function(x){return x.id===GE_BOARD_ID&&x.online}))geBoardHeartbeat()}}catch(e){$('statusPill').textContent='OFFLINE';renderStudioStatus()}}function startPoll(){clearInterval(poller);poller=setInterval(poll,12000);poll();startBoardHeartbeat();startBoardFastMeterBus()}
 $('crossfade').addEventListener('pointerdown',function(){crossDirty=true});$('crossfade').addEventListener('input',function(){crossDirty=true;$('crossVal').textContent=Number($('crossfade').value).toFixed(1)+'s';$('crossStatus').textContent='READY TO SAVE'});async function saveCross(){if(crossSaving)return;crossSaving=true;const seconds=Number($('crossfade').value);$('crossStatus').textContent='SAVING…';try{const r=await api('/control/crossfade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seconds:seconds})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Save failed');crossDirty=false;$('crossStatus').textContent=d.vault_configured?'SAVED · VAULT PERMANENT':'SAVED · LOCAL CACHE'}catch(e){$('crossStatus').textContent=e.message||'Save failed'}finally{crossSaving=false}}$('saveCross').onclick=saveCross;$('crossfade').addEventListener('change',saveCross);
 $('reshuffleQueue').onclick=function(){reshuffleQueue()};$('queue').onclick=async function(e){const b=e.target.closest('button[data-act]'),row=e.target.closest('.qrow');if(!b||!row)return;const act=b.dataset.act,slot=row.dataset.slot;if(act==='replace'){openPicker(slot,row.querySelector('.qtitle').textContent);return}const slots=queueItems().map(function(x){return x.slot}),i=slots.indexOf(slot),j=i+(act==='up'?-1:1);if(i<0||j<0||j>=slots.length)return;const tmp=slots[i];slots[i]=slots[j];slots[j]=tmp;const rr=await api('/control/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slots:slots})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)alert(d.error||'Queue update failed');else setTimeout(poll,250)};
 async function loadLibrary(){try{const r=await api('/control/library'),d=await r.json();library=d.items||[];renderLibrary()}catch(e){library=[]}}function renderLibrary(){const q=$('search').value.trim().toLowerCase();$('library').innerHTML=library.filter(function(x){return x.kind==='song'||x.kind==='temp_upload'}).filter(function(x){return !q||(String(x.title)+' '+String(x.album)).toLowerCase().includes(q)}).slice(0,250).map(function(x){return '<button class="track" data-path="'+esc(x.path)+'"><b>'+esc(x.picker_title||x.title)+'</b><span>'+esc(x.album||'')+'</span></button>'}).join('')}function openPicker(slot,title){targetSlot=slot;$('replaceWhich').textContent='Replacing '+title;$('picker').classList.add('show');renderLibrary()}$('closePicker').onclick=function(){$('picker').classList.remove('show')};$('search').oninput=renderLibrary;$('library').onclick=async function(e){const b=e.target.closest('.track');if(!b||!targetSlot)return;const rr=await api('/control/replace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:targetSlot,path:b.dataset.path})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Replace failed');return}$('picker').classList.remove('show');setTimeout(poll,250)};$('upload').onchange=async function(e){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;const rr=await api('/control/upload',{method:'POST',headers:{'Content-Type':'audio/mpeg','X-GE-File-Name':encodeURIComponent(f.name)},body:f});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Upload failed');return}await loadLibrary()};
@@ -8291,7 +8291,7 @@ async function pollRadioMeter(){
  }catch(e){updateRadioDiagnostics()}
  finally{radioMeterBusy=false}
 }
-function startRadioMeterPoll(){clearInterval(radioMeterPoller);pollRadioMeter();radioMeterPoller=setInterval(pollRadioMeter,1000)}
+function startRadioMeterPoll(){clearInterval(radioMeterPoller);pollRadioMeter();radioMeterPoller=setInterval(pollRadioMeter,15000)}
 async function warmRadio(){return true}
 function updateRadioButton(){
  const b=$('dockRadio');if(!b)return;

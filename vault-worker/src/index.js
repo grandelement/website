@@ -56,9 +56,9 @@ function adminAuthorized(request, env) {
   return !!expected && !!token && constantTimeEqual(token, expected);
 }
 
-// Private Back Room bridge credential: accepts only the access-code admin
-// endpoints. It cannot authorize Vault analytics, users, playlists, ingest or
-// other general administrator operations. Existing Vault admin token still works.
+// Scoped Back Room credential authorizes access-code management, fan assignments,
+// and read-only fan geography and saved fan-playlist summaries. It does not
+// authorize exports, general fan detail, wider analytics, or ingestion.
 function accessCodesAuthorized(request,env){
   if(adminAuthorized(request,env))return true;
   const auth=String(request.headers.get("authorization")||"").trim();
@@ -1053,7 +1053,7 @@ async function fanMusicEndpoint(request,env){
  return json({ok:true,id:playlistId,name,songs,updated_at:t,storage:"GE_VAULT_D1"});
 }
 async function adminFanMusicPlaylists(request,env){
- if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
+ if(!accessCodesAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
  await ensureFanMusicPlaylistTable(env);
  await ensureAccessCodeTables(env);
  const rows=await env.VAULT_DB.prepare(
@@ -1589,6 +1589,108 @@ function analyticsEventCategory(eventType) {
   return "OTHER";
 }
 
+// Owner-only, read-only D1 fan geography; aggregate server-side to avoid large Worker responses.
+async function adminFanGeography(env,url){
+ const period=String(url.searchParams.get("period")||"1h");
+ const seconds={"1h":3600,"24h":86400,"7d":604800,"30d":2592000}[period]||3600;
+ const since=now()-seconds;
+ const country=String(url.searchParams.get("country")||"US").toUpperCase();
+ const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
+ const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const page=String(url.searchParams.get("page")||"ALL").trim().slice(0,250);
+ const filters=["occurred_at>=?","anon_id IS NOT NULL","anon_id<>''","anon_id<>'ge-radio-station'"];
+ const args=[since];
+ if(country==="US")filters.push("UPPER(COALESCE(country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ else if(country==="OTHER")filters.push("UPPER(COALESCE(country,'')) NOT IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ if(state!=="ALL"){filters.push("region=?");args.push(state)}
+ if(event!=="ALL"){filters.push("event_type=?");args.push(event)}
+ if(page!=="ALL"){filters.push("page_path=?");args.push(page)}
+ const where=filters.join(" AND ");
+ const statement=sql=>env.VAULT_DB.prepare(sql).bind(...args).all();
+ const [states,types,totals,ledger,pages,surfaces,songs,campaignSources,rawReferrers]=await Promise.all([
+  statement("SELECT COALESCE(NULLIF(region,''),'Unknown') AS state, COALESCE(NULLIF(country,''),'Unknown') AS country,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions FROM fan_events WHERE "+where+" GROUP BY country,region ORDER BY visitors DESC,events DESC LIMIT 120"),
+  statement("SELECT event_type,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY event_type ORDER BY events DESC LIMIT 70"),
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors,COUNT(DISTINCT session_id) AS sessions,MAX(occurred_at) AS last_seen FROM fan_events WHERE "+where).bind(...args).first(),
+  env.VAULT_DB.prepare("SELECT COUNT(*) AS events,MAX(occurred_at) AS last_seen FROM fan_events WHERE anon_id IS NOT NULL AND anon_id<>'' AND anon_id<>'ge-radio-station'").first(),
+  statement("SELECT COALESCE(NULLIF(page_path,''),'(no page recorded)') AS page,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY page_path ORDER BY events DESC LIMIT 60"),
+  statement("SELECT COALESCE(NULLIF(surface,''),'unknown') AS surface,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" GROUP BY surface ORDER BY events DESC LIMIT 20"),
+  statement("SELECT track_title AS song,COUNT(*) AS events,COUNT(DISTINCT anon_id) AS visitors FROM fan_events WHERE "+where+" AND track_title IS NOT NULL AND track_title<>'' GROUP BY track_title ORDER BY events DESC LIMIT 50"),
+  statement("SELECT utm_source AS source,COUNT(*) AS events FROM fan_events WHERE "+where+" AND utm_source IS NOT NULL AND utm_source<>'' GROUP BY utm_source ORDER BY events DESC LIMIT 30"),
+  statement("SELECT referrer,COUNT(*) AS events FROM fan_events WHERE "+where+" AND referrer IS NOT NULL AND referrer<>'' GROUP BY referrer ORDER BY events DESC LIMIT 250")
+ ]);
+ // Referrer URLs are reduced to hostnames; no tracking/query strings exposed.
+ const hosts=new Map();
+ for(const row of rawReferrers.results||[]){
+  try{
+   const parsed=new URL(String(row.referrer||""));
+   if(!["http:","https:"].includes(parsed.protocol))continue;
+   const host=parsed.hostname.toLowerCase().slice(0,120);
+   if(!host)continue;
+   hosts.set(host,(hosts.get(host)||0)+Number(row.events||0));
+  }catch(_){}
+ }
+ const referrerHosts=[...hosts].sort((a,b)=>b[1]-a[1]).slice(0,30)
+  .map(([host,events])=>({host,events}));
+ return {ok:true,period,country,state,event,page,generated_at:now(),
+  totals:totals||{},ledger:ledger||{events:0,last_seen:null},
+  states:states.results||[],event_types:types.results||[],
+  pages:pages.results||[],surfaces:surfaces.results||[],
+  songs:songs.results||[],campaign_sources:campaignSources.results||[],
+  referrer_hosts:referrerHosts,
+  note:"Recorded anonymous GE site activity only. Referral hostnames show arrival sources, not a visitor's unrelated web browsing. Regions are approximate."};
+}
+
+/* Back Room visitor drilldown. Owner-only scoped read, with one anonymous
+   visitor ID per row and a bounded timeline. Never expose IP, contact info,
+   user-agent, referrer, raw metadata or unrelated Vault tables. */
+async function adminFanVisitors(env,url){
+ const period=String(url.searchParams.get("period")||"24h");
+ const seconds={"1h":3600,"24h":86400,"7d":604800,"30d":2592000}[period];
+ if(!seconds)return {ok:false,error:"Invalid visitor activity period."};
+ const since=now()-seconds;
+ const anonParam=String(url.searchParams.get("anon_id")||"");
+ if(anonParam){
+  const anonId=safeAnonId(anonParam);
+  if(!anonId)return {ok:false,error:"Invalid anonymous visitor ID."};
+  const rows=await env.VAULT_DB.prepare(
+   "SELECT occurred_at,event_type,surface,page_path,track_title,album,playlist_id,share_target,session_id,fan_id,country,region,city FROM fan_events WHERE anon_id=? AND occurred_at>=? ORDER BY occurred_at DESC LIMIT 300"
+  ).bind(anonId,since).all();
+  const events=rows.results||[];
+  const fanId=String(events.find(row=>row.fan_id)?.fan_id||"");
+  let fanName="";
+  if(fanId){
+   const fan=await env.VAULT_DB.prepare("SELECT display_name FROM fans WHERE id=?").bind(fanId).first();
+   fanName=String(fan?.display_name||"");
+  }
+  return {ok:true,anon_id:anonId,period,events,fan_id:fanId,fan_name:fanName,
+   has_more:events.length===300,note:"Anonymous device activity, not a verified person."};
+ }
+ const country=String(url.searchParams.get("country")||"ALL").toUpperCase();
+ if(!["ALL","US","OTHER"].includes(country))return {ok:false,error:"Invalid visitor country filter."};
+ const state=String(url.searchParams.get("state")||"ALL").trim().slice(0,100);
+ const event=String(url.searchParams.get("event")||"ALL").trim().slice(0,80);
+ const page=String(url.searchParams.get("page")||"ALL").trim().slice(0,250);
+ const filters=["e.occurred_at>=?","e.anon_id IS NOT NULL","e.anon_id<>''","e.anon_id<>'ge-radio-station'"];
+ const binds=[since];
+ if(country==="US")filters.push("UPPER(COALESCE(e.country,'')) IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ else if(country==="OTHER")filters.push("UPPER(COALESCE(e.country,'')) NOT IN ('US','USA','UNITED STATES','UNITED STATES OF AMERICA')");
+ if(state!=="ALL"){
+  if(state==="Unknown")filters.push("(e.region IS NULL OR e.region='')");
+  else {filters.push("e.region=?");binds.push(state)}
+ }
+ if(event!=="ALL"){filters.push("e.event_type=?");binds.push(event)}
+ if(page!=="ALL"){filters.push("e.page_path=?");binds.push(page)}
+ const rows=await env.VAULT_DB.prepare(
+  "SELECT e.anon_id,MAX(e.occurred_at) AS last_activity,COUNT(*) AS events,"+
+  "COUNT(DISTINCT e.session_id) AS sessions,MAX(e.fan_id) AS fan_id,"+
+  "MAX(f.display_name) AS fan_name,MAX(e.country) AS country,MAX(e.region) AS region "+
+  "FROM fan_events e LEFT JOIN fans f ON f.id=e.fan_id WHERE "+
+  filters.join(" AND ")+" GROUP BY e.anon_id ORDER BY last_activity DESC LIMIT 300"
+ ).bind(...binds).all();
+ return {ok:true,period,country,state,event,page,visitors:rows.results||[],
+  note:"Each visitor is one anonymous browser identifier, not a verified person."};
+}
+
 async function adminAnalytics(env, url) {
   const range = analyticsWindow(url, 30);
   const { since, until, days } = range;
@@ -2075,20 +2177,22 @@ async function adminSetFanLabel(request, env) {
 // Owner-only fan/code directory. This records administrative assignments,
 // not authentication of an anonymous browser or proof of a person's identity.
 async function adminFanAccess(request,env){
- if(!adminAuthorized(request,env))
+ if(!accessCodesAuthorized(request,env))
   return json({ok:false,error:"Full Vault owner authorization required."},401);
  await ensureAccessCodeTables(env);
  if(request.method==="GET"){
+  const period=new URL(request.url).searchParams.get("period")||"24h";
+  const recentWindowSeconds=({"1h":3600,"24h":86400,"7d":604800})[period]||86400;
   const [fans,recent]=await Promise.all([
    env.VAULT_DB.prepare(
     "SELECT f.id,f.display_name,f.last_seen_at,l.code_id,a.label AS code_label FROM fans f LEFT JOIN fan_code_links l ON l.fan_id=f.id LEFT JOIN access_codes a ON a.id=l.code_id ORDER BY f.last_seen_at DESC LIMIT 300"
    ).all(),
    env.VAULT_DB.prepare(
     "SELECT anon_id,MAX(occurred_at) AS last_activity,MAX(fan_id) AS fan_id FROM fan_events WHERE occurred_at>=? AND anon_id IS NOT NULL GROUP BY anon_id ORDER BY last_activity DESC LIMIT 100"
-   ).bind(now()-120).all()
+   ).bind(now()-recentWindowSeconds).all()
   ]);
   return json({ok:true,fans:fans.results||[],recent:recent.results||[],
-   recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
+   recent_window_seconds:recentWindowSeconds,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
  }
  const body=await readBody(request);
  if(body.action==="create"){
@@ -2150,10 +2254,10 @@ async function adminExport(env) {
 }
 
 
-/* All Radio Gate codes live in D1, including migrated legacy LOVE. */
+/* Every Radio Gate code is a normal owner-managed D1 record. */
 // Offline, Legacy and Reload are optional owner-selected controls, not
 // independent entry grants. Radio Gate must still validate a radio/website scope.
-const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload","debug","iam"]);
+const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload","sunlab","debug","iam"]);
 function accessNormalizeCode(raw) {
   // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
   // prefix when followed by a separator, not from owner codes like GENTLE123.
@@ -2163,8 +2267,8 @@ async function accessCodeHash(raw, env) {
   const code = accessNormalizeCode(raw);
   // The original 32-hex codes remain valid; owner-chosen alphanumeric codes
   // use the same keyed HMAC and require a longer minimum for online safety.
-  // Owner-chosen codes (TEST1, TEST2, LOVE) share the existing keyed hash namespace.
-  // Short codes are less secure; owners should limit their scopes and uses.
+  // Every code, including LOVE, follows identical length, HMAC and D1 rules.
+  // No name alone grants scopes; only the owner-managed saved record does.
   if (!/^[A-Z0-9]{4,64}$/.test(code)) return null;
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
@@ -2316,44 +2420,9 @@ async function ensureAccessCodeTables(env){
     )`
   ];
   await env.VAULT_DB.batch(statements.map(statement=>env.VAULT_DB.prepare(statement)));
-  // D1 created these tables in an atomic batch. This query must succeed
-  // before LOVE is ever imported or any code is created.
+  // D1 created these tables in an atomic batch. Verify the schema before any code is issued.
   for(const query of required)await env.VAULT_DB.prepare(query).first();
   return true;
-}
-async function ensureLegacyLoveRecord(env){
-  const hash=await accessCodeHash("LOVE",env);
-  const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json,label FROM access_codes WHERE code_hash=?").bind(hash).first();
-  // New I AM is opt-in. Do not turn it on for the historical LOVE record.
-  const allScopes=JSON.stringify([...GE_ACCESS_SCOPES].filter(scope=>scope!=="iam"));
-  if(existing){
-    // Correct the original mistaken Radio-only import, but never revive or
-    // replace a suspended, revoked, deleted or owner-customized record.
-    if(existing.id==="access_legacy_love_v1" &&
-       existing.label==="LOVE · Original Radio Gate" &&
-       existing.scopes_json===JSON.stringify(["radio"])){
-      const upgraded=await env.VAULT_DB.prepare(
-        "UPDATE access_codes SET scopes_json=?,label=CASE WHEN label=? THEN ? ELSE label END,updated_at=? WHERE id=? AND code_hash=? AND scopes_json=? AND label=? AND revoked_at IS NULL"
-      ).bind(allScopes,"LOVE · Original Radio Gate","LOVE · Original All Access",now(),
-        existing.id,hash,JSON.stringify(["radio"]),"LOVE · Original Radio Gate").run();
-      if(upgraded.meta?.changes)
-        await audit(env,"system","access.legacy-love-all-access","access_code",existing.id,{});
-    }
-    return {id:existing.id,created:false};
-  }
-  const t=now(),codeId="access_legacy_love_v1";
-  await env.VAULT_DB.batch([
-    env.VAULT_DB.prepare(
-      "INSERT OR IGNORE INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(codeId,"LOVE · Original All Access",hash,"LOVE",allScopes,"none",0,null,null,t,0,0,1,null,t,t),
-    env.VAULT_DB.prepare(
-      "INSERT OR IGNORE INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)"
-    ).bind(codeId,"[]","[]",t)
-  ]);
-  await audit(env,"system","access.legacy-love-migrate","access_code",codeId,{
-    source:"original_all_access_code",scopes:[...GE_ACCESS_SCOPES],short_legacy_code:true
-  });
-  return {id:codeId,created:true};
 }
 function normalizedCodeExperience(body){
   if(!body||typeof body.experience!=="object"||body.experience===null)return null;
@@ -2373,22 +2442,13 @@ function codeExperienceStatement(env,codeId,x,t){
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   await ensureAccessCodeTables(env);
-  await ensureLegacyLoveRecord(env);
   await ensureAccessCodeDisplayNames(env);
-  const loveHash=await accessCodeHash("LOVE",env);
-  const [policy,rows,loveRecord]=await Promise.all([
+  const [policy,rows]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
-    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id,n.display_name AS display_name FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id LEFT JOIN access_code_display_names n ON n.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
-    env.VAULT_DB.prepare("SELECT a.id,a.enabled,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=? OR a.id=? ORDER BY CASE WHEN a.code_hash=? THEN 0 ELSE 1 END LIMIT 1").bind(loveHash,"access_legacy_love_v1",loveHash).first()
+    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id,n.display_name AS display_name FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id LEFT JOIN access_code_display_names n ON n.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all()
   ]);
-  const items=(rows.results||[]).map(accessPublicRow);
-  const state=!loveRecord?"MISSING":loveRecord.deleted_at?"DELETED":
-    loveRecord.revoked_at?"REVOKED":!loveRecord.enabled?"SUSPENDED":"ACTIVE";
-  // Owner-authenticated response only. This is an audit of the actual D1
-  // record, not proof from a cached label or successful network response.
-  return json({ok:true,master_enabled:policy?.enabled!==0,items,
-    legacy_love:{state,record_id:loveRecord?.id||null,
-      visible:items.some(item=>item.id===loveRecord?.id)}});
+  return json({ok:true,master_enabled:policy?.enabled!==0,
+    items:(rows.results||[]).map(accessPublicRow)});
 }
 async function accessAdminChange(request,env){
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
@@ -2409,13 +2469,6 @@ async function accessAdminChange(request,env){
     ).bind(codeId).first();
     if(!existing)return json({ok:false,error:"Saved access code not found."},404);
     if(existing.revoked_at)return json({ok:false,error:"Revoked access keys cannot be revealed."},409);
-    // Original LOVE is recoverable because its exact credential is already
-    // known and its HMAC is verified. Never guess other historical secrets.
-    const legacyHash=await accessCodeHash("LOVE",env);
-    if(codeId==="access_legacy_love_v1" && constantTimeEqual(existing.code_hash,legacyHash)){
-      await audit(env,"admin","access.reveal","access_code",codeId,{});
-      return json({ok:true,id:codeId,code:"LOVE",action:"reveal"});
-    }
     await ensureAccessCodeSecretStorage(env);
     const stored=await env.VAULT_DB.prepare("SELECT ciphertext FROM access_code_secrets WHERE code_id=?").bind(codeId).first();
     if(!stored?.ciphertext)
@@ -2427,7 +2480,11 @@ async function accessAdminChange(request,env){
     await audit(env,"admin","access.reveal","access_code",codeId,{});
     return json({ok:true,id:codeId,code,action:"reveal"});
   }
-  if(action==="issue"){
+  if(action==="issue"||action==="restore"){
+    // Restoring an intentionally removed code is never automatic: the owner
+    // must explicitly confirm and present the matching original key.
+    if(action==="restore"&&body.confirm_restore!==true)
+      return json({ok:false,error:"Explicit owner confirmation is required to restore an old key."},400);
     const label=String(body.label||"").trim().slice(0,100);
     if(!label)return json({ok:false,error:"Enter a code label."},400);
     const displayName=cleanAccessDisplayName(body.display_name);
@@ -2459,13 +2516,54 @@ async function accessAdminChange(request,env){
       return json({ok:false,error:"Use 4–64 letters or numbers; spaces are allowed."},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+    if(action==="restore"&&!requested)return json({ok:false,error:"Enter the exact old access code to restore."},400);
     const code=requested||("GE-"+hex.match(/.{4}/g).join("-"));
     const hash=await accessCodeHash(code,env);
     if(!hash)return json({ok:false,error:"Invalid access code."},400);
     // Code hashes are unique: never replace the secret or assignment of an
     // existing access code with a different person's typed value.
-    const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
-    if(collision)return json({ok:false,error:"This access code already exists. Enter a different code."},409);
+    const collision=await env.VAULT_DB.prepare(
+      "SELECT a.id,a.label,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=?"
+    ).bind(hash).first();
+    if(action==="restore"){
+      const codeId=String(body.id||"").slice(0,100);
+      if(!collision||collision.id!==codeId)return json({ok:false,error:"The old key does not match the selected Vault record."},409);
+      if(!collision.revoked_at&&!collision.deleted_at)
+        return json({ok:false,error:"This code is already in the saved list. Load and edit it instead."},409);
+      const activate=body.activate_now!==false;
+      const activatedAt=activate?t:null;
+      const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
+      const hint=accessNormalizeCode(code).slice(-4);
+      await ensureAccessCodeSecretStorage(env);
+      const encryptedCode=await encryptPrivate(code,env);
+      const batch=await env.VAULT_DB.batch([
+        env.VAULT_DB.prepare(
+          "UPDATE access_codes SET label=?,code_hint=?,scopes_json=?,duration_mode=?,duration_seconds=?,fixed_expires_at=?,expires_at=?,activated_at=?,first_used_at=NULL,max_uses=?,use_count=0,enabled=?,revoked_at=NULL,updated_at=? WHERE id=? AND code_hash=?"
+        ).bind(label,hint,JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,activate?1:0,t,codeId,hash),
+        env.VAULT_DB.prepare("DELETE FROM access_code_deletions WHERE code_id=?").bind(codeId),
+        // Do not silently reactivate old fan grants when an old key returns.
+        env.VAULT_DB.prepare("DELETE FROM fan_code_links WHERE code_id=?").bind(codeId),
+        env.VAULT_DB.prepare(
+          "INSERT INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET playlist_ids_json=excluded.playlist_ids_json,track_paths_json=excluded.track_paths_json,updated_at=excluded.updated_at"
+        ).bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
+        env.VAULT_DB.prepare(
+          "INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?) ON CONFLICT(code_id) DO UPDATE SET ciphertext=excluded.ciphertext,updated_at=excluded.updated_at"
+        ).bind(codeId,encryptedCode,t),
+        accessDisplayNameStatement(env,codeId,displayName||'',t),
+        ...(experience?[codeExperienceStatement(env,codeId,experience,t)]:[])
+      ]);
+      if(!batch[0]?.meta?.changes)
+        return json({ok:false,error:"Vault restore was not confirmed. Refresh saved codes."},409);
+      await audit(env,"admin","access.restore","access_code",codeId,{
+        owner_confirmed:true,previously_deleted:!!collision.deleted_at,previously_revoked:!!collision.revoked_at,
+        scopes,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length
+      });
+      return json({ok:true,id:codeId,code,action:"restore",restored:true});
+    }
+    if(collision)return json({ok:false,code_exists:true,existing_id:collision.id,
+      restore_available:!!(collision.deleted_at||collision.revoked_at),
+      existing_label:String(collision.label||'').slice(0,100),
+      error:"This access code already exists. Load or explicitly restore its saved record."},409);
     const hint=accessNormalizeCode(code).slice(-4);
     const activate=body.activate_now!==false;
     const activatedAt=activate?t:null;
@@ -2611,15 +2709,12 @@ async function accessMusicSession(request,env){
    LEFT JOIN access_code_deletions d ON d.code_id=a.id`;
   let row,sessionExpires=0;
   if(action==="redeem"){
-    // The original all-access LOVE code must also work on Music's session
-    // endpoint, not only the Radio Gate endpoint.
-    if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
     const hash=await accessCodeHash(body.code,env);
     if(!hash)return json({ok:false,error:"Invalid Music code."},403);
     row=await env.VAULT_DB.prepare(query+" WHERE a.code_hash=?").bind(hash).first();
   }else if(action==="verify"){
     const token=String(body.token||""),parts=token.split(".");
-    if(parts.length!==4||!(parts[0]==="access_legacy_love_v1"||/^access_[0-9a-f-]{36}$/.test(parts[0]))||
+    if(parts.length!==4||!/^access_[a-zA-Z0-9_-]{1,100}$/.test(parts[0])||
        !/^[0-9]{10}$/.test(parts[1])||!/^[0-9a-f]{32}$/.test(parts[2])||
        !/^[0-9a-f]{64}$/.test(parts[3]))
       return json({ok:false,error:"Music session invalid."},403);
@@ -2651,6 +2746,10 @@ async function accessMusicSession(request,env){
   if(expires&&Number(expires)<=t)
     return json({ok:false,error:"Music code expired."},403);
   if(action==="verify"){
+    // The MUSIC screen can verify OFFLINE rights without redeeming or
+    // consuming a code again. A Music-only session must not grant downloads.
+    if(body.require_offline===true&&!scopes.includes("offline"))
+      return json({ok:false,error:"This access code does not include OFFLINE downloads."},403);
     if(expires&&sessionExpires>Number(expires))
       return json({ok:false,error:"Music session expired."},403);
     const track=String(body.track_path||"");
@@ -2658,7 +2757,8 @@ async function accessMusicSession(request,env){
       return json({ok:false,error:"Invalid song path."},400);
     if(allowedPaths.length&&!allowedPaths.includes(track))
       return json({ok:false,error:"This code does not include that song."},403);
-    return json({ok:true,authorized:true,track_path:track,session_expires_at:sessionExpires});
+    return json({ok:true,authorized:true,track_path:track,session_expires_at:sessionExpires,
+      offline_enabled:scopes.includes("offline")});
   }
   if(row.max_uses>0&&row.use_count>=row.max_uses)
     return json({ok:false,error:"Code usage limit reached."},403);
@@ -2681,7 +2781,7 @@ async function accessMusicSession(request,env){
   const displayName=await codeListenerDisplayName(env,row.id);
   return json({ok:true,token:unsigned+"."+sig,session_expires_at:sessionExpires,
     restricted:allowedPaths.length>0,allowed_tracks:allowedPaths,playlist_ids:playlistIds,
-    display_name:displayName});
+    offline_enabled:scopes.includes("offline"),display_name:displayName});
 }
 
 // A device is one browser's random, opt-in visitor ID, not an IP address,
@@ -2750,7 +2850,7 @@ async function accessRestoreDevice(request,env){
     anon_id:deviceId,scope:"radio"
   });
   return json({ok:true,scope:"radio",scopes,expires_at:expiration||null,
-    capabilities:{sun_lab:row.id==="access_legacy_love_v1"},
+    capabilities:{sun_lab:scopes.includes("sunlab")},
     experience:{games_enabled:row.experience_games_enabled!==0,
       autopilot_enabled:row.experience_autopilot_enabled!==0,
       radio_playlist_id:String(row.experience_radio_playlist_id||"")},
@@ -2766,7 +2866,6 @@ async function accessRedeem(request,env){
   // Backwards-compatible first use: migrate the historic LOVE code into the
   // same D1 table BEFORE checking it, without requiring an owner to sign in
   // first. The migration never revives a revoked/suspended/deleted code.
-  if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
   const hash=await accessCodeHash(body.code,env);
   if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
   const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
@@ -2820,10 +2919,9 @@ async function accessRedeem(request,env){
       display_name:await codeListenerDisplayName(env,row.id)};
   }
   // A browser receipt is a convenience, not server-enforced paid-content access.
-  // The authentic historic LOVE record alone restores SUN LAB. This is
-  // server-verified, never inferred from the code text in browser JavaScript.
-  const sunLabAuthorized=scope==="radio"&&row.id==="access_legacy_love_v1"&&
-    accessNormalizeCode(body.code)==="LOVE";
+  // Sun Lab is an independent, owner-selected access-code scope.
+  // A current verified Radio grant is required; no code name is special.
+  const sunLabAuthorized=scope==="radio"&&scopes.includes("sunlab");
   const device_session=scope==="radio"
     ?await accessDeviceGrant(env,row,deviceId,expires):null;
   return json({ok:true,scope,scopes,expires_at:expires||null,
@@ -2974,6 +3072,17 @@ export default {
       if (url.pathname === "/v1/admin/owner-ux-summary" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminOwnerUxSummary(env, url), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-geography" && request.method === "GET") {
+        if (!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
+        return json(await adminFanGeography(env,url),200,cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-visitors" && request.method === "GET") {
+        if (!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401,cors);
+        const result=await adminFanVisitors(env,url);
+        return json(result,result.ok?200:400,cors);
       }
 
       if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {

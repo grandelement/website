@@ -1,0 +1,29 @@
+name: GE Radio Remove Broken Controls
+on:
+  pull_request:
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'radio/sw.js'
+      - 'tests/ge-radio-controls-removed.test.mjs'
+      - 'tests/ge-radio-controls-removed-browser.test.mjs'
+      - '.github/workflows/ge-radio-remove-controls.yml'
+  push:
+    branches: [main]
+jobs:
+  verify-removal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify removed controls and parse all Radio scripts
+        run: node tests/ge-radio-controls-removed.test.mjs
+      - name: Install headless browser
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Test actual phone and desktop controls
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-controls-removal.log 2>&1 &
+          node tests/ge-radio-controls-removed-browser.test.mjs

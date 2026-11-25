@@ -19,6 +19,73 @@ Preserve together:
 -->
 <html lang="en">
 <head>
+<script id="ge-offline-boot-recovery-v1">
+/* Independent offline boot and recovery. Runs before the large GE application. */
+(function(){
+  if(!('serviceWorker' in navigator)||!window.isSecureContext)return;
+  var root=new URL('./',location.href);
+  // Register immediately, not after the large application finishes loading.
+  navigator.serviceWorker.register(new URL('sw.js',root).href,{scope:root.pathname}).catch(function(e){
+    console.warn('GE offline auto-loader registration:',e);
+  });
+  function ready(){
+    if(!document.body)return;
+    var host=document.createElement('div');
+    host.id='ge-offline-rescue';
+    host.setAttribute('role','region');
+    host.setAttribute('aria-label','Offline site recovery');
+    host.style.cssText='display:none;position:fixed;z-index:2147483646;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:480px;margin:auto;padding:15px;background:#071421;color:#eaf5ff;border:1px solid #55b9e6;border-radius:14px;box-shadow:0 10px 36px #000;font:14px system-ui,sans-serif';
+    host.innerHTML='<div style="font-weight:800;font-size:17px;margin-bottom:7px">GE STUDIOS · OFFLINE</div>'+
+      '<div id="ge-offline-rescue-status" role="status" style="line-height:1.5;margin-bottom:12px">Checking saved website…</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button id="ge-rescue-load" type="button">LOAD SAVED SITE</button>'+
+      '<button id="ge-rescue-files" type="button">OFFLINE FILES</button>'+
+      '<button id="ge-rescue-radio" type="button">OPEN SAVED RADIO</button>'+
+      '<button id="ge-rescue-hide" type="button">HIDE</button></div>';
+    document.body.appendChild(host);
+    Array.prototype.forEach.call(host.querySelectorAll('button'),function(b){
+      b.style.cssText='padding:10px 11px;border-radius:9px;border:1px solid #76c4ee;background:#09283d;color:white;font-weight:700;min-height:42px';
+    });
+    var status=host.querySelector('#ge-offline-rescue-status');
+    function show(msg){host.style.display='block';status.textContent=msg;}
+    function appStarted(){
+      var sun=document.querySelector('.sunWrap,.sun,.planet');
+      if(!sun)return false;
+      var rect=sun.getBoundingClientRect();
+      return rect.width>0&&rect.height>0&&getComputedStyle(sun).visibility!=='hidden';
+    }
+    async function check(){
+      if(navigator.onLine){host.style.display='none';return;}
+      if(appStarted()){
+        show('Offline mode. The saved page is present; use these controls if content is missing or you need to manage stored files.');
+      }else{
+        show('The saved website did not start. You can reload the saved site or manage offline files here.');
+      }
+    }
+    host.querySelector('#ge-rescue-load').onclick=function(){
+      // Force a local navigation, served by the existing service worker when offline.
+      var target=new URL('index.html',root);
+      target.searchParams.set('ge_offline_load','1');
+      location.assign(target.href);
+    };
+    host.querySelector('#ge-rescue-files').onclick=function(){
+      var panel=document.getElementById('offlinePanel');
+      if(panel){panel.classList.add('show');panel.setAttribute('aria-hidden','false');host.style.display='none';}
+      else show('Offline settings did not load. Use OPEN SAVED RADIO or reconnect to repair the website.');
+    };
+    host.querySelector('#ge-rescue-radio').onclick=function(){
+      // Radio's separately installed worker restores the verified saved player.
+      location.assign(new URL('radio/index.html?ge_home=1',root).href);
+    };
+    host.querySelector('#ge-rescue-hide').onclick=function(){host.style.display='none';};
+    window.addEventListener('online',check);
+    window.addEventListener('offline',function(){setTimeout(check,1200);});
+    setTimeout(check,3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});
+  else ready();
+})();
+</script>
 <meta charset="utf-8" />
 <!-- Match GE Radio: lock accidental iPhone page pinch/double-tap zoom; keep per-panel scrolling and deliberate GE text/button sizing. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
@@ -91,23 +158,7 @@ Preserve together:
 })();
 </script>
 <script>try{window.GE_A11Y_ZOOM=localStorage.getItem('GE_ACCESS_ZOOM_V1')==='1'}catch(_e){window.GE_A11Y_ZOOM=false}</script>
-<script>
-(function(){
-  try{
-    var q=(window.location.search||'').toLowerCase();
-    if(q.indexOf('full=1')!==-1)return;
-    var lite=q.indexOf('lite=1')!==-1;
-    if(!lite){
-      try{new Function('var a={b:1};return a?.b;');}catch(e){lite=true;}
-    }
-    if(!lite&&window.screen&&screen.width&&screen.width<=280)lite=true;
-    var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-    if(!lite&&c&&(c.saveData||c.effectiveType==='slow-2g'||c.effectiveType==='2g'))lite=true;
-    if(!lite&&typeof navigator.deviceMemory==='number'&&navigator.deviceMemory<=1)lite=true;
-    if(lite&&window.location.pathname.indexOf('/lite/')===-1)window.location.replace('/lite/');
-  }catch(e){}
-})();
-</script>
+
 <title>Grand Element (Official Site) - Welcome!</title>
 <meta name="theme-color" content="#000000" />
 <meta name="application-name" content="Grand Element Website" />
@@ -250,6 +301,42 @@ Preserve together:
   .toggle{ pointer-events:auto; padding:6px 12px; border-radius:999px; border:1px solid rgba(220,240,255,.65);
            background:rgba(120,190,255,.85); cursor:pointer; }
   .toggle.active{ background:rgba(40,140,255,.65); }
+
+  /* Homepage sun controls: clean text-only labels without pill borders/icons. */
+  #sunWrap #aboutBtn,
+  #sunWrap #btnMusic{
+    appearance:none; -webkit-appearance:none;
+    background:transparent!important; background-image:none!important;
+    border:0!important; border-radius:0!important; box-shadow:none!important;
+    padding:8px 12px; color:#fff; font-weight:800;
+    text-shadow:0 1px 5px #001324,0 0 10px #145a92;
+    cursor:pointer; pointer-events:auto;
+  }
+  #sunWrap #aboutBtn::before,#sunWrap #aboutBtn::after,
+  #sunWrap #btnMusic::before,#sunWrap #btnMusic::after{
+    content:none!important; display:none!important;
+  }
+  #sunWrap #btnMusic.active{background:transparent!important;}
+
+  /* Phone-only proportions: reveal GRAND ELEMENT lettering on the blue
+     artwork without changing desktop, game physics, or radio orbit settings. */
+  @media (max-width:700px) and (orientation:portrait),
+         (max-height:500px) and (orientation:landscape){
+    body:not(.game-mode-active) #sunWrap{
+      width:calc(var(--sun-size) * 1.12);
+      height:calc(var(--sun-size) * 1.12);
+    }
+    #sunWrap #btnMusic{
+      font-size:13px!important;line-height:1.1!important;
+      padding:3px 9px!important;letter-spacing:.015em!important;
+    }
+    #sunWrap #aboutBtn{
+      font-size:10px!important;line-height:1.1!important;
+      padding:3px 7px!important;
+    }
+  }
+
+
 
   /* Now Playing ticker (scroll inside pill when needed) */
   .npTicker{position:relative; display:block; white-space:nowrap;}
@@ -1767,7 +1854,7 @@ body.nine-planet-active.nine-six-pocket #blueSunPoolPocket{display:none!importan
   window.GE_SITE_CONFIG=(cfg&&typeof cfg==='object')?cfg:{version:1,mode:repoMode};
   // Apply the same published settings in live, test and Back Room preview modes.
   const merch=window.GE_SITE_CONFIG.merchandise||{};
-  const clamp=(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback;
+  const clamp=(value,min,max,fallback)=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback;
   const size=clamp(merch.size,25,250,100)/100;
   const speed=clamp(merch.speed,25,400,100)/100;
   const rotation=clamp(merch.rotation,0,400,100)/100;
@@ -1782,7 +1869,7 @@ body.nine-planet-active.nine-six-pocket #blueSunPoolPocket{display:none!importan
   if(rotation===0)root.classList.add('ge-merch-no-spin');
 })();
 </script>
-<script src="./ge-vault-client.js?v=20261105-persistent-backoff-v3"></script>
+<script src="./ge-vault-client.js?v=20261112-emergency-fan-tracking-v4"></script>
 <script>
 /* ============================================================
    GRAND ELEMENT — EASY SETTINGS
@@ -4028,6 +4115,7 @@ body.ge-home-radio-ready #mini #geHomeRadioLink{
  #mini{box-shadow:0 14px 50px rgba(0,0,0,.45),0 0 18px rgba(55,155,230,.12)}
 }
 </style>
+<script src="./ge-offline-library.js" defer></script>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -4132,23 +4220,34 @@ body.ge-home-radio-ready #mini #geHomeRadioLink{
     const items=[...document.querySelectorAll('#geMerchFlybys .geMerchFlyby')];
     if(items.length!==2)return;
     let last=-1,timer=null;
-    const randomDelay=()=>45000+Math.random()*30000;
+    const settings=()=>window.GE_SITE_CONFIG?.merchandise||{};
+    const bounded=(v,fallback)=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?Math.max(5,Math.min(600,Number(v))):fallback;
+    const entryDelay=()=>{
+      const cfg=settings(),min=bounded(cfg.entryMinSeconds,45),max=Math.max(min,bounded(cfg.entryMaxSeconds,75));
+      return 1000*(cfg.entryTiming==='fixed'?min:min+Math.random()*(max-min));
+    };
+    const entryDirection=()=>{
+      const mode=settings().entryDirection;
+      return mode==='left'||mode==='right'?mode:(Math.random()<.5?'left':'right');
+    };
     const permitted=()=>!document.documentElement.classList.contains('ge-merch-hidden');
     const next=()=>{
-      if(!permitted()){timer=setTimeout(next,randomDelay());return}
+      if(!permitted()){timer=setTimeout(next,entryDelay());return}
       const quantity=Number(window.GE_SITE_CONFIG?.merchandise?.quantity??2);
       const choices=quantity===1?[1]:[0,1];
       const index=choices.length===1?choices[0]:(last===0?1:0);
       last=index;
       const el=items[index];
       el.classList.remove('ge-merch-flying');
+      const flyDirection=entryDirection();
       el.style.animation='none';
       void el.offsetWidth;
       el.style.animation='';
+      el.style.animationDirection=flyDirection==='right'?'reverse':'normal';
       el.classList.add('ge-merch-flying');
-      timer=setTimeout(next,randomDelay());
+      timer=setTimeout(next,entryDelay());
     };
-    // Begin soon, then randomly space consecutive entrances 45–75 seconds apart.
+    // First entrance soon; later entrances use the published fixed or random interval.
     timer=setTimeout(next,3000+Math.random()*9000);
     addEventListener('pagehide',()=>clearTimeout(timer),{once:true});
   })();
@@ -5959,7 +6058,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
             const url  = base + rel;
             const file  = decodeURIComponent(String(clean).split('/').pop()||'');
             const trackNum = (/(?:^|_)(\d{1,3})(?:_|\b)/.exec(file)?.[1]??'9999')|0;
-            const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/, '');
+            const track = file==='Aether_11_Countdown to the Droid Army.mp3'?'Aether_11_PEACE!':file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/, '');
             return { url, album, trackNum, track, path:clean };
           });
       }
@@ -15016,7 +15115,8 @@ document.head.appendChild(sheet);
 #geCourseMode.geGolfShapedCourse .geGolfFloor{fill:rgba(3,20,36,.46)!important}
 </style>
 <script src="./radio/website-live.js?v=20261103-ready-probe"></script>
-<script src="./radio/ge-home-gate-stop.js?v=20261027-vault-scoped-gate-1"></script>
+<script src="./radio/ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
+<script src="./radio/ge-home-gate-stop.js?v=20261113-gate-power-v1"></script>
 <style id="ge-code-experience-presentation">
 /* Presentation preferences from a Vault-redeemed Website code.
    Not a server-side Games entitlement or identity verification. */
@@ -15204,6 +15304,44 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
  const closeButton=document.getElementById('geSiteAlbumClose');
  if(!shell||!frame||!heading||!closeButton)return;
  let loading=false,ready=false,gated=false,pendingAlbum='';
+ // The album audio is inside a same-origin iframe, beyond document media capture.
+ // Track real play/pause/end messages without modifying audio or gating playback.
+ let albumEvent={path:'',title:'',album:'',started:false,activeAt:0,listenedMs:0,ended:false};
+ function geAlbumEventLog(type){
+  if(!albumEvent.path||!albumEvent.started||!window.GEVault?.website)return;
+  try{window.GEVault.website(type,{
+    track_id:albumEvent.path,track_title:albumEvent.title,album:albumEvent.album,
+    listened_seconds:Math.round(albumEvent.listenedMs/1000),source:'website_album_iframe'
+  });}catch(_e){}
+ }
+ function geAlbumMediaState(data){
+  const now=Date.now(),path=String(data.path||'').slice(0,300),title=String(data.title||'').slice(0,300);
+  if(albumEvent.path&&path!==albumEvent.path){
+   if(albumEvent.activeAt){albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;}
+   if(albumEvent.started&&!albumEvent.ended)geAlbumEventLog('track_stop');
+   albumEvent={path:'',title:'',album:'',started:false,activeAt:0,listenedMs:0,ended:false};
+  }
+  if(!path)return;
+  if(!albumEvent.path){
+   albumEvent.path=path;albumEvent.title=title||path.split('/').pop()||'';
+   albumEvent.album=(title.split(' • ')[0]||'Grand Element').slice(0,120);
+  }
+  if(data.ended){
+   if(albumEvent.activeAt){albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;}
+   if(albumEvent.started&&!albumEvent.ended)geAlbumEventLog('track_complete');
+   albumEvent.ended=true;return;
+  }
+  if(data.paused){
+   if(albumEvent.activeAt){
+    albumEvent.listenedMs+=now-albumEvent.activeAt;albumEvent.activeAt=0;
+    geAlbumEventLog('track_pause');
+   }
+  }else if(!albumEvent.activeAt){
+   const resume=albumEvent.started;
+   albumEvent.started=true;albumEvent.ended=false;albumEvent.activeAt=now;
+   geAlbumEventLog(resume?'track_resume':'track_start');
+  }
+ }
  function source(album){
   const url=new URL('./radio/preview-lab.html',location.href);
   url.searchParams.set('embed','website');
@@ -15244,6 +15382,9 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
   const payload=event.data||{};
+  if(payload.type==='ge-radio-music-state'){
+   geAlbumMediaState(payload);return;
+  }
   if(payload.type==='ge-site-album-ready'){
    ready=true;
    // Do NOT auto-play after the async load: Safari must receive an actual tap.
@@ -15298,7 +15439,7 @@ body.ge-resonance-ambient:not(.game-mode-active) .sunWrap{filter:drop-shadow(0 0
 body.ge-resonance-immersive:not(.game-mode-active) .sunWrap{filter:drop-shadow(0 0 calc(var(--ge-resonance-glow,45) * .45px) rgba(93,191,255,.85))}
 @media(prefers-reduced-motion:reduce){body.ge-resonance-ambient .sunWrap,body.ge-resonance-immersive .sunWrap{filter:none}}
 </style>
-<script id="ge-resonance-lab-controls-v1">
+<script id="ge-resonance-lab-init-v1">
 (()=>{
  const key='GE_RESONANCE_SUN_LAB_V1';
  const defaults={mode:'ambient',bass:55,field:48,glow:45};

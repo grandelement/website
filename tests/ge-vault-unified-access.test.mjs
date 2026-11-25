@@ -27,6 +27,13 @@ assert.match(publisher,/VAULT_ADMIN_TOKEN/);
 assert.doesNotMatch(back,/id="brCodeGames"|id="brCodeAutopilot"|id="brCodeRadioPlaylist"/,
   'Access Code presentation options were intentionally removed from the interface');
 assert.match(back,/name="brAccessScope" value="radio"/);
+assert.match(back,/name="brAccessScope" value="sunlab"/);
+assert.ok(back.includes('!editableScopes.has(scope)'), 'Disabled visible permissions must be revoked when saving');
+assert.ok(vault.includes('capabilities:{sun_lab:scopes.includes("sunlab")}'));
+assert.ok(vault.includes('const sunLabAuthorized=scope==="radio"&&scopes.includes("sunlab")'));
+assert.ok(radio.includes('body.view-ship.ge-sunlab-entitled #shipSunLabBtn'));
+assert.ok(radio.includes('sunLab:result.capabilities?.sun_lab===true'));
+
 assert.match(back,/existing\?\.scopes\|\|replacementLegacyScopes/,
   'Previously granted nonradio scope values are preserved on an edit');
 assert.match(back,/brCodeFansPanel/);

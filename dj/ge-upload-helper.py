@@ -161,7 +161,7 @@ def clean_upload_tags(raw):
 
 
 def process_job(job_id, source, workdir, original_name, kind, convert,
-                exact_name=False, tags=None, cover_token=None):
+                exact_name=False, tags=None, cover_token=None, replace_path=None):
     cover = None
     try:
         ffmpeg = find_ffmpeg()
@@ -246,10 +246,10 @@ def process_job(job_id, source, workdir, original_name, kind, convert,
             publisher = imp.load_source("ge_radio_github", publisher_path)
             def report_github(**changes):
                 job_update(job_id, **changes)
-            published_path = publisher.publish(source, upload_name, report_github)
+            published_path = publisher.publish(source, upload_name, report_github, replace_path=replace_path)
             job_update(job_id, phase="complete", percent=100,
-                       detail="GITHUB UPLOAD COMPLETE: " + published_path +
-                              ". Radio manifest refresh runs automatically.",
+                       detail="GITHUB VERIFIED: " + published_path +
+                              ". Website catalog updates separately; radio rotation is not automatic.",
                        name=upload_name)
             return
         job_update(job_id, file_size_bytes=actual_size,
@@ -532,12 +532,26 @@ class Handler(BaseHTTPRequestHandler):
             with GUARD:
                 state = dict(DRIVE_RECONNECT)
             return self.response(200, {"ok": True, "state": state})
+        if target.path == "/github/check":
+            publisher_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ge-radio-github.py")
+            if not os.path.isfile(publisher_path):
+                return self.response(503, {"ok": False, "error": "GitHub publisher not installed on iMac"})
+            try:
+                publisher = imp.load_source("ge_radio_github", publisher_path)
+                token = publisher._token()
+                head = publisher._api("GET", "git/ref/heads/main", token)
+                if not head.get("object", {}).get("sha"):
+                    raise RuntimeError("Repository branch not confirmed")
+                return self.response(200, {"ok": True, "repository": "grandelement/website",
+                                            "read_verified": True, "write_verified": False})
+            except Exception as error:
+                return self.response(503, {"ok": False, "error": "GitHub connection failed: " + as_text(str(error))[:260]})
         if target.path == "/health":
             return self.response(200, {"ok": True, "rclone_ready": os.path.isfile(RCLONE) and os.path.isfile(CONFIG),
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 10, "drive_reconnect_available": True,
+                                       "helper_version": 11, "github_check_available": True, "drive_reconnect_available": True,
                                         "rename_available": True, "copy_to_folder": True, "radio_folder": True,
                                         "cover_art_available": True,
                                         "filename_options_v2": True, "metadata_tags": True,
@@ -737,6 +751,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.response(503, {"ok": False, "error": "rclone or Google Drive config missing on iMac"})
         name = safe_name(params.get("name", [""])[0])
         convert = params.get("convert", ["0"])[0] == "1" or kind == "radio"
+        replace_path = params.get("replace", [""])[0]
+        if replace_path:
+            parts = replace_path.split("/")
+            if (kind != "radio" or not replace_path.startswith("ge-music/music/") or
+                    any(part in ("", ".", "..") for part in parts) or
+                    "\\" in replace_path or not replace_path.lower().endswith(".mp3") or
+                    len(replace_path) > 700):
+                return self.response(400, {"ok": False, "error": "Invalid replacement song path"})
         cover_token = params.get("cover", [""])[0]
         if cover_token and not re.match(r"^[a-f0-9]{32}$", cover_token):
             return self.response(400, {"ok": False, "error": "Invalid cover image token"})
@@ -790,7 +812,7 @@ class Handler(BaseHTTPRequestHandler):
         job = {"phase": "queued", "percent": 0, "detail": "Preparing upload", "name": name, "kind": kind}
         with GUARD:
             JOBS[job_id] = job
-        thread = threading.Thread(target=process_job, args=(job_id, local, workdir, name, kind, convert, exact_name, tags, cover_token))
+        thread = threading.Thread(target=process_job, args=(job_id, local, workdir, name, kind, convert, exact_name, tags, cover_token, replace_path))
         thread.daemon = True
         thread.start()
         self.response(202, {"ok": True, "id": job_id})

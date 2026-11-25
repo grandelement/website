@@ -1,0 +1,333 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+
+const source=readFileSync('radio/offline-manager.js','utf8');
+const sw=readFileSync('radio/sw.js','utf8');
+const workerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1];
+const music=readFileSync('radio/ge-music-v5.js','utf8');
+const html=readFileSync('radio/index.html','utf8');
+const radioLayoutCSS=readFileSync('radio/radio-layout.css','utf8');
+const BASE='https://example.test/radio/index.html';
+const songs=[
+ 'ge-music/music/Grand Element - Aether/Aether_01-Frequency.mp3',
+ 'ge-music/music/Grand Element - Aether/Aether_04-Prana.mp3',
+ 'ge-music/music/Grand Element - Aether/Aether_05-Nexus.mp3'
+];
+const station='ge-music/clips/GE Station Identification - 1.m4a';
+const files=[...songs,station];
+function makeHarness({safari=false}={}){
+ const values=new Map(),maps=new Map(),hits=new Map();
+ let failPrana=true,authorized=true,allowed=null,verifyGranted=true;
+ const k=value=>new URL(typeof value==='string'?value:value.url,BASE).href;
+ const cacheAPI={
+  keys:async()=>[...maps.keys()],
+  async open(name){
+   if(!maps.has(name))maps.set(name,new Map());
+   const map=maps.get(name);
+   return {
+    async match(url,{ignoreSearch=false}={}){
+     const key=k(url);
+     if(map.has(key))return map.get(key).clone();
+     if(ignoreSearch)for(const [u,response] of map)
+      if(new URL(u).pathname===new URL(key).pathname)return response.clone();
+     return undefined;
+    },
+    async put(url,response){map.set(k(url),response.clone())},
+    delete:async url=>map.delete(k(url)),
+    keys:async()=>[...map.keys()].map(u=>new Request(u))
+   };
+  },
+  async match(url,opts){
+   for(const name of maps.keys()){
+    const found=await (await this.open(name)).match(url,opts);
+    if(found)return found;
+   }
+   return undefined;
+  }
+ };
+ const localStorage={
+  getItem:key=>values.get(key)||null,
+  setItem:(key,value)=>values.set(key,String(value)),
+  removeItem:key=>values.delete(key)
+ };
+ const worker={
+  postMessage(data,ports){
+   if(data.type==='GE_RADIO_SHELL_STATUS')ports[0].postMessage({
+    type:data.type,ready:true,missing:[],version:workerVersion
+   });
+  }
+ };
+ const registration={active:worker,waiting:null,installing:null,update:async()=>{}};
+ class MessageChannel{
+  constructor(){
+   this.port1={onmessage:null,postMessage:data=>this.port2.onmessage?.({data}),close(){}};
+   this.port2={onmessage:null,postMessage:data=>this.port1.onmessage?.({data}),close(){}};
+  }
+ }
+ async function fetch(url){
+  const path=decodeURIComponent(new URL(url,BASE).pathname);
+  hits.set(path,(hits.get(path)||0)+1);
+  if(path==='/radio/manifest.json')
+   return new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}});
+  if(path.includes('Aether_04-Prana')&&failPrana)throw Error('Test network interruption');
+  if(/\.(mp3|m4a)$/i.test(path)){
+   const data=new Uint8Array(256);data.set([73,68,51]);
+   return new Response(data,{status:200,headers:{'content-type':'audio/mpeg'}});
+  }
+  throw Error('Unexpected network path: '+path);
+ }
+ const window={GERadioOfflineBridge:{
+   canDownload:()=>authorized,
+   allowedPaths:()=>allowed,
+   verify:async()=>verifyGranted,
+   rescan:()=>{},
+   promptCode:()=>{}
+  },matchMedia:()=>({matches:!safari})};
+ const navigator={
+  onLine:true,userAgent:safari?'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Mobile':'Desktop Chrome',platform:safari?'iPhone':'Linux',maxTouchPoints:safari?5:0,
+  serviceWorker:{getRegistration:async()=>registration,register:async()=>registration}
+ };
+ const context={window,navigator,localStorage,caches:cacheAPI,fetch,MessageChannel,
+  URL,Response,Request,Headers,AbortController,setTimeout,clearTimeout,console,Date,location:{href:BASE}};
+ runInNewContext(source,context);
+ return {
+  engine:window.GEOfflineDownloads,
+  succeedPrana:()=>{failPrana=false},
+  revoke:()=>{authorized=false},
+  setVerify:value=>{verifyGranted=value},
+  setAllowed:paths=>{allowed=paths},
+  setOnline:value=>{navigator.onLine=value},
+  has:async path=>!!(await cacheAPI.match(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).href,{ignoreSearch:true})),
+  count:path=>hits.get(decodeURIComponent(new URL('../'+path.split('/').map(encodeURIComponent).join('/'),BASE).pathname))||0,
+  storage:values,
+  primeCatalog:async()=>{
+   const shell=await cacheAPI.open('ge-radio-shell-'+workerVersion);
+   await shell.put(new URL('./manifest.json',BASE).href,
+    new Response(JSON.stringify({files}),{status:200,headers:{'content-type':'application/json'}}));
+  }
+ };
+}
+test('real worker version is allowed to differ from the downloader build',async()=>{
+ const managerVersion=/const VERSION='([^']+)'/.exec(source)?.[1];
+ assert.ok(workerVersion&&managerVersion);
+ assert.notEqual(workerVersion,managerVersion,'Versions must be managed independently to exercise the regression');
+ const h=makeHarness({safari:true});
+ h.succeedPrana();
+ const result=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(result.error,undefined,'Different service-worker version must not reject a valid shell');
+ assert.equal(result.ready,true);
+});
+test('download retains previous songs; partial failure repairs only missing media',async()=>{
+ const h=makeHarness();
+ const events=[];
+ const first=await h.engine.save({mode:'all',onProgress:e=>events.push(e)});
+ assert.equal(first.ready,false);
+ assert.equal(first.saved,2);
+ assert.equal(first.total,3);
+ assert.equal(first.missing.length,1);
+ assert.equal(h.engine.active(),true);
+ assert.equal(await h.has(station),true);
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[2]),true);
+ const n1=h.count(songs[0]),n3=h.count(songs[2]);
+ h.succeedPrana();
+ const fixed=await h.engine.repair();
+ assert.equal(fixed.ready,true);
+ assert.equal(fixed.saved,3);
+ assert.equal(fixed.missing.length,0);
+ assert.equal(h.count(songs[0]),n1);
+ assert.equal(h.count(songs[2]),n3);
+ assert.equal(await h.has(songs[1]),true);
+ assert.equal(h.engine.plan().length,3);
+ assert.ok(events.some(e=>e.phase==='audio'&&Number.isInteger(e.percent)));
+ assert.ok(events.every(e=>!('current' in e)&&!('total' in e)&&!('completed' in e)));
+});
+test('revoked access blocks new downloads but retains existing saved music',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(h.engine.active(),true);
+ h.revoke();
+ const denied=await h.engine.save({mode:'all'});
+ assert.equal(denied.error,'access');
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(h.engine.active(),true);
+});
+test('a new playlist never deletes older downloaded music or selections',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0]]});
+ const next=await h.engine.save({mode:'playlist',paths:[songs[2]]});
+ assert.equal(next.ready,true);
+ assert.equal(next.saved,1);
+ assert.equal(next.total,1);
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[2]),true);
+ assert.deepEqual([...h.engine.plan()], [songs[2]],'Only the new playlist is in the active request');
+});
+test('restricted codes cannot fetch unassigned songs or remove prior files',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ h.setAllowed([songs[0]]);
+ await h.engine.save({mode:'all'});
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[1]),false);
+ h.setAllowed([songs[2]]);
+ const result=await h.engine.save({mode:'playlist',paths:[songs[2]]});
+ assert.equal(await h.has(songs[0]),true);
+ assert.equal(await h.has(songs[2]),true);
+ assert.equal(result.ready,true);
+});
+test('new downloads require connectivity; cached downloads are never erased',async()=>{
+ const h=makeHarness();
+ h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0]]});
+ await h.primeCatalog();
+ h.setOnline(false);
+ assert.equal((await h.engine.inspect()).ready,true);
+ assert.equal((await h.engine.save({mode:'all'})).error,'offline');
+ assert.equal(await h.has(songs[0]),true);
+});
+test('iPhone Safari can download from its own browser tab and play offline',async()=>{
+ const h=makeHarness({safari:true});
+ h.succeedPrana();
+ assert.equal(h.engine.installed(),false,'Safari tab is not a Home Screen application');
+ const saved=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(saved.error,undefined,'Safari is not blocked by installation status');
+ assert.equal(saved.ready,true,'Verified Safari download is ready');
+ assert.equal(await h.has(songs[0]),true);
+ await h.primeCatalog();h.setOnline(false);
+ assert.equal((await h.engine.inspect()).ready,true,'Safari cached recording remains ready while offline');
+});
+test('unverified OFFLINE code never starts a download or changes saved selection',async()=>{
+ const h=makeHarness({safari:true});
+ h.succeedPrana();h.setVerify(false);
+ const denied=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(denied.error,'access');
+ assert.equal(await h.has(songs[0]),false);
+ assert.deepEqual([...h.engine.plan()],[]);
+ h.setVerify(true);
+ const accepted=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(accepted.ready,true,'server-authorized code allows Safari download');
+});
+test('OFFLINE is a nonblocking MUSIC dock and main Radio has verified readiness colors',()=>{
+ assert.match(music,/class="geOfflineDockToggle"/);
+ assert.match(music,/class="geOfflineWorkspace"/);
+ assert.match(music,/class="geOfflineProgress"/);
+ assert.match(music,/class="geOfflineChoices"[^>]*hidden/);
+ assert.doesNotMatch(music,/class="geOfflineStart"/);
+ assert.doesNotMatch(music,/class="geOfflineBack"/);
+ assert.doesNotMatch(music,/classList\.add\('geOfflineOpen'\)/);
+ assert.match(html,/ge-radio-offline-live-status/);
+ assert.match(html,/OFFLINE ✓/);
+ assert.match(radioLayoutCSS,/data-ge-state="ready"/);
+ assert.match(source,/GE_RADIO_OFFLINE_PENDING_V2/);
+ assert.match(source,/GE_RADIO_OFFLINE_STATUS_V2/);
+ assert.match(source,/ge-radio-offline-status/);
+ assert.match(source,/async function resume\(\)/);
+});
+test('UPDATE MISSING reuses the previous plan rather than downloading everything',async()=>{
+ const h=makeHarness({safari:true});h.succeedPrana();
+ const first=await h.engine.save({mode:'checked',paths:[songs[0]]});
+ assert.equal(first.ready,true);
+ const later=await h.engine.repair();
+ assert.equal(later.ready,true);
+ assert.equal(later.saved,1,'UPDATE MISSING keeps the chosen plan');
+ assert.equal(h.engine.plan().length,1);
+});
+test('MUSIC OFFLINE shows only percent, ETA, progress bar, not counts or filenames',()=>{
+ const start=music.indexOf('async function offlineCheck(){');
+ const end=music.indexOf("offlineToggle.addEventListener('click'",start);
+ const ui=music.slice(start,end);
+ assert.ok(start>=0&&end>start);
+ assert.ok(music.includes('class="geOfflinePercent"'));
+ assert.ok(music.includes('class="geOfflineEta"'));
+ assert.ok(music.includes('class="geOfflineProgress"'));
+ assert.doesNotMatch(ui,/result\.saved\s*\+|result\.total|result\.missing\.length|event\.current|event\.total|event\.completed/);
+ assert.match(ui,/READY/);
+ assert.match(ui,/PARTIAL/);
+ assert.match(ui,/UPDATE MISSING/);
+ assert.match(music,/document\.getElementById\('offlineLaunchBtn'\)\?\.addEventListener\('click',openOffline\)/);
+});
+test('one service worker caches essential art, startup code and catalog; not all backgrounds',()=>{
+ assert.match(sw,/GE_RADIO_SHELL_STATUS/);
+ assert.match(sw,/ge-radio-media-v4/);
+ assert.match(sw,/ge-music-v5\.js/);
+ assert.doesNotMatch(sw,/offline-spectrum\.js/);
+ assert.match(sw,/sun-pulse-engine\.js/);
+ assert.match(sw,/sun-eq-profile-share\.js/);
+ assert.match(sw,/iam-private-studio\.js/);
+ assert.match(sw,/playlists\/registry\.json/);
+ assert.match(sw,/ge-images\/img\/31\.gif/);
+ assert.match(sw,/const ARTWORK=/);
+ assert.match(sw,/offlineArtwork\(cache\)/,'Install validates the offline background package');
+ assert.match(sw,/offlineArtwork\(shell\)/,'READY verifies every required background');
+ assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
+ assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
+ assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
+ assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
+ assert.match(html,/sw\.js\?v=20261125-eq-offline-v4/);
+ assert.ok(workerVersion,'Service worker advertises a version');
+ assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
+});
+
+test('Sun EQ starts on iPhone, automatically recovers, and only explicit OFF persists',()=>{
+ const js=readFileSync('radio/live-spectrum.js','utf8');
+ const values=new Map();
+ function start(){
+  const handlers={},button={attrs:{},setAttribute(k,v){this.attrs[k]=v}};
+  const audio={paused:false,ended:false,currentSrc:'https://example.test/ge-music/music/test.mp3',addEventListener(k,v){handlers[k]=v}};
+  let arms=0,state='suspended';
+  const window={GEAudioGain:{arm(){arms++;state='running';return true},getStatus(){return {contextState:state,spectrumReady:true}},getSpectrumFrame(){return {bins:new Uint8Array(1024).fill(80),fftSize:2048,sampleRate:44100}}},addEventListener(k,v){handlers[k]=v}};
+  const document={hidden:false,getElementById(id){return id==='player'?audio:id==='sunLabBtn'?button:null},addEventListener(k,v){handlers[k]=v}};
+  runInNewContext(js,{window,document,navigator:{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:1},location:{search:'',href:BASE,origin:'https://example.test'},localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},setInterval:fn=>{handlers.timer=fn},performance:{now:()=>1000},URL,URLSearchParams});
+  return {eq:window.GELiveAudioEQ,button,handlers,arms:()=>arms,interrupt:()=>{state='interrupted'}};
+ }
+ const first=start();
+ assert.equal(first.eq.isEnabled(),true);
+ assert.equal(first.button.attrs['aria-pressed'],'true');
+ assert.equal(first.arms(),1);
+ assert.equal(first.eq.read().length,256);
+ first.interrupt();first.handlers.timer();assert.equal(first.arms(),2);
+ first.eq.setEnabled(false);assert.equal(first.button.attrs['aria-pressed'],'false');first.interrupt();first.handlers.playing();
+ assert.equal(first.arms(),2);assert.equal(first.eq.read(),null);
+ const reopened=start();assert.equal(reopened.eq.isEnabled(),false);assert.equal(reopened.arms(),0);
+ reopened.eq.setEnabled(true);assert.equal(reopened.eq.isEnabled(),true);assert.equal(reopened.arms(),1);
+});
+test('Sun EQ release contains no old reconnect button and rays start inside the image radius',()=>{
+ const js=readFileSync('radio/live-spectrum.js','utf8');
+ const css=readFileSync('radio/radio-components.css','utf8');
+ const marker=/const UI_MARKER='([^']+)'/.exec(sw)?.[1];
+ assert.ok(marker&&html.includes(marker));
+ assert.match(html,/id="sunEQAura"[^>]*style="inset:0!important"/);
+ assert.match(css,/#sunEQAura\{inset:0!important\}/);
+ assert.ok(Number(/const baseRadius=(\d+);/.exec(html)?.[1])<50);
+ assert.ok(!js.includes('RECONNECT LIVE EQ')&&!html.includes('id="geSunEQEnable"')&&!html.includes('id="geSunEQToggle"'));
+ assert.match(html,/if\(eq\.isEnabled\(\)\)\{eq\.setEnabled\(false\)/);
+ assert.match(html,/eq\.setEnabled\(true\)/);
+ assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
+});
+
+test('saved inventory includes actual cached recordings; single delete and reload preserve other files',async()=>{
+ const h=makeHarness();h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0],songs[1]]});
+ const inventory=await h.engine.listSaved();
+ assert.equal(inventory.length,2);
+ assert.ok(inventory.some(f=>f.path===songs[0]&&f.bytes===256));
+ const removed=await h.engine.removeSaved([songs[0]]);
+ assert.equal(removed.removed,1);
+ assert.equal(await h.has(songs[0]),false);
+ assert.equal(await h.has(songs[1]),true);
+ const before=h.count(songs[1]);
+ const reload=await h.engine.reloadSaved();
+ assert.equal(reload.completed,1);
+ assert.equal(h.count(songs[1]),before+1);
+ assert.equal(await h.has(songs[0]),false);
+ const cleared=await h.engine.removeSaved();
+ assert.equal(cleared.remaining,0);
+ assert.equal(h.engine.active(),false);
+ assert.equal((await h.engine.listSaved()).length,0);
+});

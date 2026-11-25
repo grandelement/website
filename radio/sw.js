@@ -1,364 +1,334 @@
-/* Grand Element Radio service worker */
+/* Grand Element Radio · One offline service worker.
+ * Atomic verified shell + existing media cache. No listener media/cache deletion.
+ * MUSIC is the only download interface; the worker only serves startup and files.
+ */
 'use strict';
-
-const VERSION='2026.11.08-music-offline-v99';
-const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
-const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
-
-const SHELL=[
-  './',
-  './index.html',
-  './preview-lab.html',
-  './ge-music-v5.js',
-  './ge-purchase-demo.js',
-  '../ge-vault-client.js',
-  '../ge-accessibility.js',
-  '../ge-accessibility.css',
-  './track-durations.json',
-  './loudness.json',
-  './manifest.json',
-  './iam-private-studio.js',
-  './ge-gate-audio.js',
-  './ge-gate-settings.js',
-  './manifest.webmanifest',
-  './favicon.ico',
-  './icons/favicon-16.png',
-  './icons/favicon-32.png',
-  './icons/apple-touch-icon.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './cockpit-landscape.png',
-  './cockpit-landscape.png?v=20260930-heartbeat-steering-1',
-  '../ge-images/images/ge-logo-2.jpg',
-  '../ge-images/img/31.gif',
-  './manifest.json',
-  '../config/site-live.json',
-  './loudness.json',
-  '../ge-images/img/manifest.json',
-  // Album artwork is optional for service-worker installation, but should
-  // be ready when MUSIC is opened offline after a full download.
-  ...['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles']
-    .map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
+const VERSION='2026.11.25-eq-offline-v4';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4';
+const SHELL_CACHE='ge-radio-shell-'+VERSION;
+const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
+const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
+ 'Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
+const REQUIRED=[
+ './radio-base.css','./radio-components.css','./radio-layout.css',
+  './ship-control-repair.css','./player-button-effects.css','./player-mobile-fit.css',
+  './sun-lab-transparency.css','./sun-lab-transparency.js',
+ './offline-home.html',
+ './ge-music-v5.js','./offline-manager.js','./live-spectrum.js',
+ './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
+ './ge-purchase-demo.js','./iam-private-studio.js',
+ './ge-gate-audio.js','./ge-gate-settings.js',
+ '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
+ './manifest.json','./track-durations.json','./loudness.json','./offline-assets.json',
+ '../playlists/registry.json','../config/site-live.json','../config/album-colors.js','../config/music-routing.js',
+ './manifest.webmanifest',
+ '../ge-images/images/ge-logo-2.jpg','../ge-images/img/31.gif',
+ ...ARTWORK.map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
 ];
-
-async function fetchFresh(requestOrURL){
-  return fetch(requestOrURL,{cache:'no-store'});
+const OPTIONAL=['./preview-lab.html','./favicon.ico',
+ './icons/favicon-16.png','./icons/favicon-32.png',
+ './icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
+ './icons/icon-maskable-512.png','./cockpit-landscape.png',
+ '../ge-images/img/manifest.json'];
+const IMAGE=/\.(?:gif|png|jpe?g|webp)$/i;
+const AUDIO=/\.(?:mp3|m4a|ogg|wav)$/i;
+const STATIC_JSON=/\.json$/i;
+function requestURL(path){return new URL(path,self.location.href).href;}
+async function timeoutFetch(request,options={},ms=4200){
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),ms);
+ try{return await fetch(request,{...options,signal:controller.signal})}
+ finally{clearTimeout(timeout)}
 }
-
-async function isValidRadioHTML(response){
-  if(!response || !response.ok) return false;
-  try{
-    const text=await response.clone().text();
-    const head=text.slice(0,4000).toLowerCase();
-    return head.includes('<!doctype html') &&
-           head.includes('<title>grand element radio</title>') &&
-           text.includes('id="shipStage"') &&
-           text.includes('id="player"');
-  }catch(_e){
-    return false;
-  }
+async function validIndex(response,strict=false){
+ if(!response?.ok||response.status!==200)return false;
+ try{
+  const html=await response.clone().text();
+  return html.slice(0,30000).toLowerCase().includes('<!doctype html')&&
+   html.includes('<title>Grand Element Radio</title>')&&
+   html.includes('id="shipStage"')&&html.includes('id="player"')&&
+   (!strict||html.includes(UI_MARKER));
+ }catch(_){return false}
 }
-
-async function fetchValidatedIndex(tag='recovery'){
-  const url=new URL('./index.html',self.location.href);
-  url.searchParams.set('_ge_'+tag,VERSION+'-'+Date.now());
-  const response=await fetch(url.href,{cache:'no-store'});
-  if(!(await isValidRadioHTML(response))) throw new Error('Fetched index.html is not the Grand Element Radio app');
-  return response;
+async function validAsset(path,response){
+ if(!response?.ok||response.status!==200)return false;
+ const type=response.headers.get('content-type')||'';
+ const pathname=new URL(requestURL(path)).pathname;
+ if(IMAGE.test(pathname)&&!type.toLowerCase().startsWith('image/'))return false;
+ if(STATIC_JSON.test(pathname)&&!/json/i.test(type))return false;
+ if(/\.js$/i.test(pathname)&&/text\/html|application\/json/i.test(type))return false;
+ if(/\.css$/i.test(pathname)&&/text\/html|application\/json/i.test(type))return false;
+ try{
+  const length=Number(response.headers.get('content-length'));
+  if(Number.isFinite(length)&&length>0)return true;
+  return (await response.clone().blob()).size>0;
+ }catch(_){return false}
 }
-
-async function putShell(requestOrURL,response){
-  if(!response || !response.ok) return;
-  const cache=await caches.open(SHELL_CACHE);
-  await cache.put(requestOrURL,response.clone());
+async function offlineArtwork(cache){
+ // One maintained source of truth for the deliberately compact set of
+ // pictures guaranteed to be playable without Wi-Fi.
+ const response=await cache.match('./offline-assets.json',{ignoreSearch:true});
+ if(!response?.ok)throw Error('Offline background inventory is missing');
+ const doc=await response.json();
+ const names=Array.isArray(doc?.backgrounds)?doc.backgrounds:[];
+ if(names.length<2||names.length>16)throw Error('Invalid offline background inventory');
+ if(!names.includes('31.gif')||!names.includes('47.gif'))throw Error('Required Radio background missing from inventory');
+ for(const name of names)
+  if(!/^[a-z0-9][a-z0-9_-]*\.(?:gif|png|jpe?g|webp)$/i.test(name))throw Error('Invalid background path');
+ return [...new Set(names)].map(name=>'../ge-images/img/'+name);
 }
-
+async function installShell(){
+ const cache=await caches.open(SHELL_CACHE);
+ const home=requestURL('./index.html');
+ const update=new URL(home);
+ update.searchParams.set('_ge_offline_install',VERSION);
+ const index=await timeoutFetch(update.href,{cache:'no-store'},25000);
+ if(!(await validIndex(index,true)))throw Error('Radio startup page did not pass validation');
+ // The app entry points reuse this one verified HTML body.
+ await cache.put('./index.html',index.clone());
+ await cache.put('./',index.clone());
+ // Required startup files, catalog and essential artwork all have to verify.
+ // An interrupted install fails instead of replacing the prior working worker.
+ await Promise.all(REQUIRED.map(async path=>{
+  const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
+  if(!(await validAsset(path,response)))throw Error('Required offline file not verified: '+path);
+  // Never promote a new EQ shell with the old manual-activation script.
+  if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
+  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
+  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
+  if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
+  await cache.put(path,response.clone());
+ }));
+ const offlinePictures=await offlineArtwork(cache);
+ await Promise.all(offlinePictures.map(async path=>{
+  const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
+  if(!(await validAsset(path,response)))throw Error('Required offline background failed: '+path);
+  await cache.put(path,response.clone());
+ }));
+ await Promise.allSettled(OPTIONAL.map(async path=>{
+  const response=await timeoutFetch(requestURL(path),{cache:'reload'},12000);
+  if(await validAsset(path,response))await cache.put(path,response.clone());
+ }));
+}
 self.addEventListener('install',event=>{
-  event.waitUntil((async()=>{
-    const cache=await caches.open(SHELL_CACHE);
-
-    // index.html is critical. Do not report a successful service-worker install
-    // unless the actual radio page itself is available offline.
-    const indexResponse=await fetchValidatedIndex('install');
-    await cache.put('./index.html',indexResponse.clone());
-    await cache.put('./',indexResponse.clone());
-
-    // The remaining shell files are useful but one missing icon must not block
-    // the radio from becoming usable offline.
-    const optional=SHELL.filter(url=>url!=='./' && url!=='./index.html');
-    await Promise.allSettled(optional.map(async url=>{
-      const response=await fetch(url,{cache:'reload'});
-      if(response.ok) await cache.put(url,response.clone());
-    }));
-
-    await self.skipWaiting();
-  })());
+ event.waitUntil((async()=>{await installShell();await self.skipWaiting()})());
 });
-
 self.addEventListener('activate',event=>{
-  event.waitUntil((async()=>{
-    const names=await caches.keys();
-    await Promise.all(
-      names
-        .filter(name=>name.startsWith('ge-radio-shell-') && name!==SHELL_CACHE)
-        .map(name=>caches.delete(name))
-    );
-    await self.clients.claim();
-  })());
+ event.waitUntil((async()=>{
+  const names=await caches.keys();
+  // Keep one previous working shell. Never delete any music, art or playlists.
+  const prior=names.filter(name=>name.startsWith('ge-radio-shell-')&&name!==SHELL_CACHE);
+  const keep=prior.at(-1);
+  await Promise.all(prior.filter(x=>x!==keep).map(x=>caches.delete(x)));
+  await self.clients.claim();
+ })());
 });
-
-function isMedia(request){
-  const url=new URL(request.url);
-  return request.destination==='audio' || request.destination==='image' || /\.(mp3|m4a|ogg|wav|gif|png|jpe?g|webp)$/i.test(url.pathname);
+async function cached(request,{media=false}={}){
+ const url=typeof request==='string'?request:request.url;
+ if(media){
+  const audio=await caches.open(MEDIA_CACHE);
+  const result=await audio.match(url,{ignoreSearch:true});
+  if(result?.ok)return result;
+ }
+ const shell=await caches.open(SHELL_CACHE);
+ const saved=await shell.match(url,{ignoreSearch:true});
+ if(saved?.ok)return saved;
+ const old=await caches.match(url,{ignoreSearch:true});
+ return old?.ok?old:null;
 }
-
-async function cachedResponse(request){
-  return (await caches.match(request,{ignoreSearch:true})) ||
-         (await caches.match(request.url,{ignoreSearch:true}));
+async function savedIndex(){
+ const shell=await caches.open(SHELL_CACHE);
+ for(const response of [
+  await shell.match('./index.html',{ignoreSearch:true}),
+  await shell.match('./',{ignoreSearch:true}),
+  await caches.match('./index.html',{ignoreSearch:true}),
+  await caches.match('./',{ignoreSearch:true})
+ ])if(await validIndex(response))return response;
+ return new Response('Open Radio online once to repair the saved app.',{status:503,
+  headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
 }
-
-async function rangeFromCache(request,response){
-  const range=request.headers.get('range');
-  if(!range || !response) return response;
-  const match=/bytes=(\d+)-(\d+)?/.exec(range);
-  if(!match) return response;
-
-  // Blob.slice serves only the requested range without constructing a second
-  // full-song ArrayBuffer in the service-worker JavaScript heap on iPhones.
-  const blob=await response.blob();
-  const total=blob.size;
-  const start=Number(match[1]);
-  const end=match[2] ? Math.min(Number(match[2]),total-1) : total-1;
-  if(start>=total || end<start){
-    return new Response(null,{status:416,headers:{'Content-Range':`bytes */${total}`}});
-  }
-
-  const headers=new Headers(response.headers);
-  headers.set('Content-Range',`bytes ${start}-${end}/${total}`);
-  headers.set('Accept-Ranges','bytes');
-  headers.set('Content-Length',String(end-start+1));
-  return new Response(blob.slice(start,end+1),{status:206,statusText:'Partial Content',headers});
+async function rangeResponse(request,response){
+ const range=request.headers.get('range');
+ if(!range||!response)return response;
+ const match=/^bytes=(\d+)-(\d*)$/.exec(range);
+ if(!match)return response;
+ const blob=await response.blob(),size=blob.size;
+ const from=Number(match[1]),to=match[2]?Number(match[2]):size-1;
+ if(!Number.isSafeInteger(from)||!Number.isSafeInteger(to)||from>=size||to<from)
+  return new Response(null,{status:416,headers:{'content-range':'bytes */'+size}});
+ const end=Math.min(to,size-1),headers=new Headers(response.headers);
+ headers.set('content-range','bytes '+from+'-'+end+'/'+size);
+ headers.set('accept-ranges','bytes');
+ headers.set('content-length',String(end-from+1));
+ return new Response(blob.slice(from,end+1),{status:206,headers});
 }
-
-async function offlineNavigationFallback(){
-  const shell=await caches.open(SHELL_CACHE);
-  const candidates=[
-    await shell.match('./index.html',{ignoreSearch:true}),
-    await shell.match('./',{ignoreSearch:true}),
-    await caches.match('./index.html',{ignoreSearch:true}),
-    await caches.match('./',{ignoreSearch:true})
-  ];
-  for(const candidate of candidates){
-    if(candidate && await isValidRadioHTML(candidate)) return candidate;
-  }
-  return new Response('Grand Element Radio needs to be opened once online to repair its offline app.',{
-    status:503,
-    headers:{'Content-Type':'text/plain;charset=utf-8','Cache-Control':'no-store'}
-  });
-}
-
-async function secondaryPageNavigationResponse(request){
-  // Preview Lab and other Radio HTML pages must not be validated against the
-  // main Radio index markup. The old handler replaced them with index.html.
+async function navigation(request){
+ const url=new URL(request.url),path=url.pathname;
+ // Existing iPhone Home Screen icons sometimes launch offline-home.html.
+ // Open the actual cached Radio player without a redirect or timer.
+ // Installed offline-home launchers still open the cached Radio directly.
+ // But ge_home=1 is also how the PUBLIC WEBSITE links into Radio. Always
+ // attempt the current GitHub Pages HTML when online instead of returning
+ // a months-old offline shell on every homepage click.
+ if((path.endsWith('/radio/offline-home.html')||url.searchParams.has('ge_home'))&&self.navigator?.onLine===false){
+  const saved=await savedIndex();
+  if(saved.ok)return saved;
+ }
+ if(!path.endsWith('/radio/')&&!path.endsWith('/radio/index.html')&&!path.endsWith('/radio/offline-home.html')){
+  if(self.navigator?.onLine===false)return await cached(request)||new Response('Page not saved offline',{status:503});
   try{
-    const response=await fetch(request,{cache:'no-store'});
-    if(response.ok && /text\/html/i.test(response.headers.get('content-type')||'')){
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put(request,response.clone()).catch(()=>{});
-    }
+   const response=await timeoutFetch(request,{cache:'no-store'});
+   if(response.ok){
+    const cache=await caches.open(SHELL_CACHE);
+    await cache.put(request,response.clone()).catch(()=>{});
     return response;
-  }catch(_error){
-    const cached=await cachedResponse(request);
-    if(cached)return cached;
-    return new Response('Music selection is unavailable offline until opened online.',{
-      status:503,
-      headers:{'Content-Type':'text/plain;charset=utf-8','Cache-Control':'no-store'}
-    });
+   }
+  }catch(_){}
+  return await cached(request)||new Response('Page not saved offline',{status:503});
+ }
+ if(self.navigator?.onLine===false)return savedIndex();
+ try{
+  const onlineRequest=path.endsWith('/radio/offline-home.html')?requestURL('./index.html'):request;
+  const fresh=await timeoutFetch(onlineRequest,{cache:'no-store'});
+  if(await validIndex(fresh,true)){
+   const cache=await caches.open(SHELL_CACHE);
+   await cache.put('./index.html',fresh.clone()).catch(()=>{});
+   await cache.put('./',fresh.clone()).catch(()=>{});
+   return fresh;
   }
+ }catch(_){}
+ return savedIndex();
 }
-
-async function navigationResponse(request){
-  const path=new URL(request.url).pathname;
-  // Only the home page can use the strict Grand Element Radio index validator.
-  // The separate music/preview page is a legitimate HTML document.
-  if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html')){
-    return secondaryPageNavigationResponse(request);
+async function media(request){
+ const url=new URL(request.url);
+ // Saved recordings are always local-first, even if iPhone Safari falsely
+ // reports online after Airplane Mode. Explicit RELOAD-MEDIA bypasses this
+ // via the fetch handler above; never delete listener downloads.
+ if(AUDIO.test(url.pathname)||url.pathname.includes('/ge-images/img/')){
+  // Offline pictures, like recordings, should never depend on a fresh network
+  // probe to appear after Radio is relaunched in Airplane Mode.
+  const saved=await cached(request,{media:true});
+  if(saved?.ok)return rangeResponse(request,saved);
+ }
+ if(self.navigator?.onLine===false||url.searchParams.has('ge_offline')){
+  const saved=await cached(request,{media:true});
+  return saved?rangeResponse(request,saved):new Response('This file has not been downloaded',{status:503});
+ }
+ // Online playback uses the current published recording. Offline stays local-first.
+ try{
+  const network=await timeoutFetch(request,{cache:'no-store'},7500);
+  if(network.ok){
+   if(AUDIO.test(url.pathname)&&network.status===200&&!request.headers.has('range')){
+    const cache=await caches.open(MEDIA_CACHE);
+    cache.put(url.href,network.clone()).catch(()=>{});
+   }
+   return network;
   }
-  // Network first, but never cache or display a poisoned/plain-text index.html.
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),3500);
-  try{
-    const network=await fetch(request,{cache:'no-store',signal:controller.signal});
-    clearTimeout(timeout);
-    if(await isValidRadioHTML(network)){
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put('./index.html',network.clone()).catch(()=>{});
-      await cache.put('./',network.clone()).catch(()=>{});
-      return network;
+ }catch(_){}
+ const saved=await cached(request,{media:true});
+ return saved?rangeResponse(request,saved):new Response('Media unavailable',{status:503});
+}
+async function staticFile(request){
+ // Cold boot must not depend on online probes for the installed app scripts:
+ // iOS sometimes reports online after Airplane Mode, and a stalled network
+ // request would otherwise block the Music player from loading at all.
+ const pathname=new URL(request.url).pathname;
+ const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
+ if(startup){
+  const shell=await caches.open(SHELL_CACHE);
+  // Versioned startup script URLs must not silently use an older cached JS.
+  // Fetch the exact new version online once; keep offline cache fallback.
+  const exact=await shell.match(request,{ignoreSearch:false});
+  if(exact?.ok)return exact;
+  if(self.navigator?.onLine!==false){
+   try{
+    const fresh=await timeoutFetch(request,{cache:'no-store'},2500);
+    if(fresh.ok&&await validAsset(new URL(request.url).pathname,fresh)){
+     await shell.put(request,fresh.clone()).catch(()=>{});
+     return fresh;
     }
-
-    // The CDN/browser may still have an old poisoned HTML body. Retry index.html
-    // with a unique recovery query before falling back to offline storage.
-    try{
-      const recovery=await fetchValidatedIndex('nav');
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put('./index.html',recovery.clone()).catch(()=>{});
-      await cache.put('./',recovery.clone()).catch(()=>{});
-      return recovery;
-    }catch(_e){}
-
-    return offlineNavigationFallback();
-  }catch(_error){
-    clearTimeout(timeout);
-    try{
-      const recovery=await fetchValidatedIndex('timeout');
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put('./index.html',recovery.clone()).catch(()=>{});
-      await cache.put('./',recovery.clone()).catch(()=>{});
-      return recovery;
-    }catch(_e){}
-    return offlineNavigationFallback();
+   }catch(_){}
   }
-}
-
-async function mediaResponse(request){
-  // Same-path song replacements must win while ONLINE. The earlier
-  // cache-first path kept playing obsolete recordings after an upload.
-  // Offline still falls back to the listener's existing saved music.
-  const url=new URL(request.url);
-  try{
-    const fresh=await fetch(request,{cache:'no-store'});
-    if(fresh.ok){
-      if(fresh.status===200 && request.method==='GET' &&
-         /^\/ge-music\/(?:music|clips)\//i.test(url.pathname)){
-        // Save audio, not every decorative JPG/GIF. Radio visuals can otherwise
-        // fill the browser cache before deliberate offline music downloads.
-        const cache=await caches.open(MEDIA_CACHE);
-        cache.put(request.url,fresh.clone()).catch(()=>{});
-      }
-      return fresh;
-    }
-  }catch(_e){}
-  const cached=url.searchParams.has('v')
-    ? (await caches.match(request,{ignoreSearch:false}))
-    : await cachedResponse(request);
-  if(cached)return rangeFromCache(request,cached);
-  return fetch(request,{cache:'no-store'});
-}
-
-async function staticResponse(request){
-  // Always fetch the studio engine freshly, even when a versioned URL was
-  // previously cached with ignoreSearch:true.
-  if(new URL(request.url).pathname.endsWith('/iam-private-studio.js')){
-    try{
-      const fresh=await fetch(request,{cache:'no-store'});
-      if(fresh.ok){
-        const cache=await caches.open(SHELL_CACHE);
-        cache.put(request,fresh.clone()).catch(()=>{});
-        return fresh;
-      }
-    }catch(_e){}
+  const saved=await cached(request);
+  if(saved?.ok)return saved;
+ }
+ if(self.navigator?.onLine===false)return await cached(request)||
+  new Response('Offline app file missing. Reconnect and repair.',{status:503});
+ try{
+  const fresh=await timeoutFetch(request,{cache:'no-store'});
+  if(fresh.ok){
+   const url=new URL(request.url);
+   if(await validAsset(url.pathname,fresh)){
+    const cache=await caches.open(SHELL_CACHE);
+    await cache.put(request,fresh.clone()).catch(()=>{});
+   }
+   return fresh;
   }
-  // UI architecture must update whenever online; cached UI is an
-  // offline fallback only. Audio downloads stay in MEDIA_CACHE.
-  try{
-    const response=await fetch(request,{cache:'no-store'});
-    if(response.ok){
-      const cache=await caches.open(SHELL_CACHE);
-      await cache.put(request,response.clone()).catch(()=>{});
-      return response;
-    }
-    if(response.status!==503 && response.status!==504)return response;
-  }catch(_e){}
-  const cached=await cachedResponse(request);
-  if(cached)return cached;
-  return new Response('Radio app file unavailable offline',{status:503});
+  if(fresh.status!==503&&fresh.status!==504)return fresh;
+ }catch(_){}
+ return await cached(request)||new Response('App resource unavailable',{status:503});
 }
-
+async function shellStatus(){
+ const result={type:'GE_RADIO_SHELL_STATUS',version:VERSION,ready:false,missing:[]};
+ try{
+  const shell=await caches.open(SHELL_CACHE);
+  const index=await shell.match('./index.html',{ignoreSearch:true});
+  if(!(await validIndex(index,true)))result.missing.push('Radio page');
+  for(const file of REQUIRED){
+   const saved=await shell.match(file,{ignoreSearch:true});
+   if(!(await validAsset(file,saved)))result.missing.push(file);
+  }
+  try{
+   for(const path of await offlineArtwork(shell)){
+    const saved=await shell.match(path,{ignoreSearch:true});
+    if(!(await validAsset(path,saved)))result.missing.push(path);
+   }
+  }catch(_){result.missing.push('Offline background inventory incomplete')}
+  result.ready=result.missing.length===0;
+ }catch(_){result.missing.push('Offline startup cache unavailable')}
+ return result;
+}
+self.addEventListener('message',event=>{
+ if(event.data?.type!=='GE_RADIO_SHELL_STATUS')return;
+ event.waitUntil((async()=>{
+  const result=await shellStatus();
+  try{event.ports?.[0]?.postMessage(result)}catch(_){}
+ })());
+});
 self.addEventListener('fetch',event=>{
-  const request=event.request;
-  if(request.method!=='GET') return;
-
-  const url=new URL(request.url);
-  if(url.origin!==self.location.origin) return;
-
-  if(request.headers.get('X-GE-Offline')==='1'){
-    event.respondWith(fetchFresh(request));
-    return;
-  }
-
-  if(request.headers.get('X-GE-Reload-Media')==='1'){
-    event.respondWith((async()=>{
-      const network=await fetchFresh(request);
-      if(network.ok && network.status===200){
-        const cache=await caches.open(MEDIA_CACHE);
-        await cache.put(request.url,network.clone()).catch(()=>{});
-      }
-      return network;
-    })());
-    return;
-  }
-
-  // Reload Library uses this header. It must bypass stale shell responses and
-  // replace the template while leaving ge-radio-media-v4 (downloaded music) intact.
-  if(request.headers.get('X-GE-Template-Reload')==='1' || request.headers.get('X-GE-Reload')==='1'){
-    event.respondWith((async()=>{
-      const network=await fetchFresh(request);
-      if(network.ok){
-        const shell=await caches.open(SHELL_CACHE);
-        await shell.put(request.url,network.clone()).catch(()=>{});
-      }
-      return network;
-    })());
-    return;
-  }
-
-  if(request.mode==='navigate'){
-    event.respondWith(navigationResponse(request));
-    return;
-  }
-
-  // Shared UI assets MUST be network-first. Previously they were cache-first
-  // with ignoreSearch:true, so iPhones could keep an old icon/layout stylesheet
-  // despite a fresh HTML page and a new ?v= cache-busting URL.
-  if(url.pathname==='/ge-accessibility.css' || url.pathname==='/ge-accessibility.js'){
-    event.respondWith((async()=>{
-      try{
-        const fresh=await fetchFresh(request);
-        if(fresh.ok){
-          const shell=await caches.open(SHELL_CACHE);
-          await shell.put(request,fresh.clone()).catch(()=>{});
-          return fresh;
-        }
-      }catch(_e){}
-      return await cachedResponse(request) ||
-        new Response('GE accessibility resource unavailable',{status:503});
-    })());
-    return;
-  }
-
-  // Song catalogs and published MUSIC playlists must be network-first,
-  // so newly published selections appear without stale SW shell caches.
-  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname) || url.pathname==='/config/site-live.json'){
-    event.respondWith((async()=>{
-      try{
-        const fresh=await fetchFresh(request);
-        if(fresh.ok){
-          const shell=await caches.open(SHELL_CACHE);
-          await shell.put(request,fresh.clone()).catch(()=>{});
-          return fresh;
-        }
-      }catch(_e){}
-      return await cachedResponse(request) || new Response('Music catalog unavailable',{status:503});
-    })());
-    return;
-  }
-
-  if(isMedia(request)){
-    event.respondWith(mediaResponse(request));
-    return;
-  }
-
-  event.respondWith(staticResponse(request));
+ const request=event.request;
+ if(request.method!=='GET')return;
+ const url=new URL(request.url);
+ if(url.origin!==self.location.origin)return;
+ // The one MUSIC offline engine alone writes explicit downloaded audio.
+ if(request.headers.get('X-GE-Offline-Download')==='1'){
+  event.respondWith(timeoutFetch(request,{cache:'no-store'},90000));
+  return;
+ }
+ if(request.headers.get('X-GE-Reload-Media')==='1'){
+  event.respondWith((async()=>{
+   const fresh=await timeoutFetch(request,{cache:'no-store'},90000);
+   if(fresh.ok&&fresh.status===200){
+    const cache=await caches.open(MEDIA_CACHE);
+    await cache.put(request.url,fresh.clone()).catch(()=>{});
+   }
+   return fresh;
+  })());
+  return;
+ }
+ if(request.headers.get('X-GE-Template-Reload')==='1'||request.headers.get('X-GE-Reload')==='1'){
+  event.respondWith((async()=>{
+   const fresh=await timeoutFetch(request,{cache:'no-store'},15000);
+   if(fresh.ok){
+    const cache=await caches.open(SHELL_CACHE);
+    await cache.put(request.url,fresh.clone()).catch(()=>{});
+   }
+   return fresh;
+  })());
+  return;
+ }
+ if(request.mode==='navigate'){event.respondWith(navigation(request));return}
+ if(AUDIO.test(url.pathname)||IMAGE.test(url.pathname)||request.destination==='audio'||request.destination==='image'){
+  event.respondWith(media(request));return;
+ }
+ event.respondWith(staticFile(request));
 });

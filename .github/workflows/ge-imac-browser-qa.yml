@@ -6,6 +6,10 @@ on:
     paths:
       - 'dj/imac.html'
       - 'dj/imac-workstation.js'
+      - 'dj/imac-library.js'
+      - 'dj/ge-upload-helper.py'
+      - 'dj/ge-radio-github.py'
+      - 'dj/GE_Studios_Library_Installer.zip'
       - 'dj/imac-upload-settings.js'
       - 'dj/imac-workstation.css'
       - 'tests/ge-imac-browser.test.mjs'
@@ -21,6 +25,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate Python uploader, offline ZIP and executable installer
+        run: |
+          python3 -m py_compile dj/ge-upload-helper.py dj/ge-radio-github.py
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("dj/GE_Studios_Library_Installer.zip") as z:
+              assert z.testzip() is None, "Corrupt Library installer ZIP"
+              files=set(z.namelist())
+              assert files == {"Install GE Library.command", "ge-upload-helper.py", "ge-radio-github.py"}
+              assert z.getinfo("Install GE Library.command").external_attr >> 16 & 0o111, "Installer not executable after unzip"
+              assert b"/usr/bin/python" in z.read("Install GE Library.command")
+              assert b"/github/check" in z.read("ge-upload-helper.py")
+              assert b"replace_path" in z.read("ge-radio-github.py")
+          PY
       - name: Install browser client
         run: npm install --no-save --ignore-scripts puppeteer-core@24
       - name: Serve website locally

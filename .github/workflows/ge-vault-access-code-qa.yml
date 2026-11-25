@@ -24,7 +24,10 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Verify health-driven idempotent D1 schema repair, LOVE lifecycle and revocation
-        run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify LOVE owner-only creation, scopes, persistence and ordinary Music entitlements
+        run: node tests/legacy-love-vault.test.mjs
       - name: Verify scoped Music sessions, use limits and forbidden content
-        run: node --experimental-default-type=module tests/access-music-session.test.mjs
+        run: node tests/access-music-session.test.mjs

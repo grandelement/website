@@ -1,0 +1,54 @@
+name: GE live Sun EQ FFT smoke
+on:
+  pull_request:
+    paths:
+      - 'radio/index.html'
+      - 'radio/live-spectrum.js'
+      - 'radio/sun-pulse-engine.js'
+      - 'radio/sun-eq-profile-share.js'
+      - 'radio/sun-lab-compact.js'
+      - 'radio/sw.js'
+      - 'tests/ge-live-sun-eq.test.mjs'
+      - 'tests/ge-live-sun-eq-browser.test.mjs'
+      - 'tests/ge-sun-pulse-transfer.test.mjs'
+      - '.github/workflows/ge-live-sun-eq.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/live-spectrum.js'
+      - 'radio/sun-pulse-engine.js'
+      - 'radio/sun-eq-profile-share.js'
+      - 'radio/sun-lab-compact.js'
+      - 'radio/sw.js'
+      - 'tests/ge-live-sun-eq.test.mjs'
+      - 'tests/ge-live-sun-eq-browser.test.mjs'
+      - 'tests/ge-sun-pulse-transfer.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-spectrum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify real EQ wiring
+        run: |
+          node --check radio/live-spectrum.js
+          node --check radio/sun-pulse-engine.js
+          node --check radio/sun-eq-profile-share.js
+          node tests/ge-live-sun-eq.test.mjs
+          node tests/ge-sun-pulse-transfer.test.mjs
+      - name: Install browser client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Start local GE Radio
+        run: python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-sun-eq-qa.log 2>&1 &
+      - name: Decode real Grand Element audio and verify changing FFT
+        run: node tests/ge-live-sun-eq-browser.test.mjs
+      - name: Protected Radio regression (release blocker)
+        if: always()
+        run: node tests/ge-radio-standard-guard.test.mjs
