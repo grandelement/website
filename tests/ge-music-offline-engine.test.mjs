@@ -35,6 +35,7 @@ function makeHarness({safari=false}={}){
      return undefined;
     },
     async put(url,response){map.set(k(url),response.clone())},
+    delete:async url=>map.delete(k(url)),
     keys:async()=>[...map.keys()].map(u=>new Request(u))
    };
   },
@@ -266,32 +267,32 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.match(sw,/\.\/offline-assets\.json/,'One background manifest is part of the startup shell');
  assert.match(radioLayoutCSS,/#offlineLaunchBtn\[data-ge-state="ready"\]/,'Live READY color must be defined in the maintained layout CSS');
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
- assert.match(html,/\.\/offline-manager\.js\?v=20261122-offline-manager-v10/);
+ assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261125-always-on-attached-eq-v3/);
+ assert.match(html,/sw\.js\?v=20261125-eq-offline-v4/);
  assert.ok(workerVersion,'Service worker advertises a version');
- assert.match(source,/const VERSION='2026\.11\.22-offline-manager-v10-exact-scope'/);
+ assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
 });
 
 test('Sun EQ starts on iPhone, automatically recovers, and only explicit OFF persists',()=>{
  const js=readFileSync('radio/live-spectrum.js','utf8');
  const values=new Map();
  function start(){
-  const handlers={},button={hidden:true,textContent:'',setAttribute(){}};
+  const handlers={},button={attrs:{},setAttribute(k,v){this.attrs[k]=v}};
   const audio={paused:false,ended:false,currentSrc:'https://example.test/ge-music/music/test.mp3',addEventListener(k,v){handlers[k]=v}};
   let arms=0,state='suspended';
   const window={GEAudioGain:{arm(){arms++;state='running';return true},getStatus(){return {contextState:state,spectrumReady:true}},getSpectrumFrame(){return {bins:new Uint8Array(1024).fill(80),fftSize:2048,sampleRate:44100}}},addEventListener(k,v){handlers[k]=v}};
-  const document={hidden:false,getElementById(id){return id==='player'?audio:id==='geSunEQToggle'?button:null},addEventListener(k,v){handlers[k]=v}};
+  const document={hidden:false,getElementById(id){return id==='player'?audio:id==='sunLabBtn'?button:null},addEventListener(k,v){handlers[k]=v}};
   runInNewContext(js,{window,document,navigator:{userAgent:'iPhone',platform:'iPhone',maxTouchPoints:1},location:{search:'',href:BASE,origin:'https://example.test'},localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)},setInterval:fn=>{handlers.timer=fn},performance:{now:()=>1000},URL,URLSearchParams});
   return {eq:window.GELiveAudioEQ,button,handlers,arms:()=>arms,interrupt:()=>{state='interrupted'}};
  }
  const first=start();
  assert.equal(first.eq.isEnabled(),true);
- assert.equal(first.button.textContent,'EQ EFFECTS: ON');
+ assert.equal(first.button.attrs['aria-pressed'],'true');
  assert.equal(first.arms(),1);
  assert.equal(first.eq.read().length,256);
  first.interrupt();first.handlers.timer();assert.equal(first.arms(),2);
- first.eq.setEnabled(false);first.interrupt();first.handlers.playing();
+ first.eq.setEnabled(false);assert.equal(first.button.attrs['aria-pressed'],'false');first.interrupt();first.handlers.playing();
  assert.equal(first.arms(),2);assert.equal(first.eq.read(),null);
  const reopened=start();assert.equal(reopened.eq.isEnabled(),false);assert.equal(reopened.arms(),0);
  reopened.eq.setEnabled(true);assert.equal(reopened.eq.isEnabled(),true);assert.equal(reopened.arms(),1);
@@ -304,6 +305,29 @@ test('Sun EQ release contains no old reconnect button and rays start inside the 
  assert.match(html,/id="sunEQAura"[^>]*style="inset:0!important"/);
  assert.match(css,/#sunEQAura\{inset:0!important\}/);
  assert.ok(Number(/const baseRadius=(\d+);/.exec(html)?.[1])<50);
- assert.ok(!js.includes('RECONNECT LIVE EQ')&&!html.includes('id="geSunEQEnable"'));
+ assert.ok(!js.includes('RECONNECT LIVE EQ')&&!html.includes('id="geSunEQEnable"')&&!html.includes('id="geSunEQToggle"'));
+ assert.match(html,/if\(eq\.isEnabled\(\)\)\{eq\.setEnabled\(false\)/);
+ assert.match(html,/eq\.setEnabled\(true\)/);
  assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/);
+});
+
+test('saved inventory includes actual cached recordings; single delete and reload preserve other files',async()=>{
+ const h=makeHarness();h.succeedPrana();
+ await h.engine.save({mode:'checked',paths:[songs[0],songs[1]]});
+ const inventory=await h.engine.listSaved();
+ assert.equal(inventory.length,2);
+ assert.ok(inventory.some(f=>f.path===songs[0]&&f.bytes===256));
+ const removed=await h.engine.removeSaved([songs[0]]);
+ assert.equal(removed.removed,1);
+ assert.equal(await h.has(songs[0]),false);
+ assert.equal(await h.has(songs[1]),true);
+ const before=h.count(songs[1]);
+ const reload=await h.engine.reloadSaved();
+ assert.equal(reload.completed,1);
+ assert.equal(h.count(songs[1]),before+1);
+ assert.equal(await h.has(songs[0]),false);
+ const cleared=await h.engine.removeSaved();
+ assert.equal(cleared.remaining,0);
+ assert.equal(h.engine.active(),false);
+ assert.equal((await h.engine.listSaved()).length,0);
 });
