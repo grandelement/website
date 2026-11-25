@@ -269,7 +269,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261125-eq-offline-v4/);
+ assert.match(html,/sw\.js\?v=20261125-published-eq-v5/);
  assert.ok(workerVersion,'Service worker advertises a version');
  assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
 });
@@ -330,4 +330,25 @@ test('saved inventory includes actual cached recordings; single delete and reloa
  assert.equal(cleared.remaining,0);
  assert.equal(h.engine.active(),false);
  assert.equal((await h.engine.listSaved()).length,0);
+});
+
+test('EQ preset publishing is owner-only, code scope is advanced editing only, and visitors retain local preferences',()=>{
+ assert.match(html,/id="sunLabSave"[^>]*hidden[^>]*>SAVE TO GITHUB/);
+ assert.ok(!html.includes('>SAVE ON DEVICE</button>'));
+ assert.match(html,/function geRadioSunLabAllowed\(\)\{return true;\}/);
+ assert.match(html,/if\(geSunOwnerVerified\)return true;/);
+ assert.match(html,/receipt\.sunLab===true/);
+ assert.match(html,/if\(!geRadioSunLabPrivateAllowed\(\)\)\{refresh\(\);return;\}/);
+ assert.match(html,/if\(!geSunOwnerVerified\|\|!button\|\|button\.disabled\)return;/);
+ assert.match(html,/changes:\{visual\},expected:\{visual:current\}/);
+ assert.match(html,/proof\.settings\?\.visual\?\.sunEQ/);
+ assert.match(html,/setPublishedSunEQ\(data\?\.visual\?\.sunEQ\)/);
+ assert.match(html,/setItem\(SUN_MODE_SELECTED_KEY,mode\)/);
+ assert.doesNotMatch(html,/localStorage\.setItem\(SUN_(?:LAB|MODE)_KEY,/);
+ assert.doesNotMatch(html,/<script[^>]+src="\.\/sun-(?:lab-compact|eq-profile-share)\.js/);
+ const css=readFileSync('radio/radio-components.css','utf8');
+ assert.match(css,/#sunLabPanel\.ge-sunlab-public #sunLabGrid \.sunlab-row/);
+ const backroom=readFileSync('backroom/index.html','utf8');
+ assert.match(backroom,/id="brTuneEQ" href="\.\.\/radio\/\?eq_admin=1"/);
+ assert.match(backroom,/ADVANCED EQ KNOBS · FOR THIS CODE ONLY/);
 });

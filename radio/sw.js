@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-eq-offline-v4';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4';
+const VERSION='2026.11.25-published-eq-v5';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_PUBLISHED_EQ_V5';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -94,6 +94,7 @@ async function installShell(){
   // Never promote a new EQ shell with the old manual-activation script.
   if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
+  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
   if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
   await cache.put(path,response.clone());
