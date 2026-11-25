@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4 -->
 <!-- GE_RADIO_UI_BUILD_20261125_ALWAYS_ON_ATTACHED_EQ_V3 -->
 <!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10 -->
 <!-- GE_RADIO_UI_BUILD_20261116_BACKGROUND_PINCH_V8 -->
@@ -859,7 +860,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="geUtilityRow" aria-label="Radio utility controls">
     <button id="offlineLaunchBtn" type="button" aria-controls="geMusicV5Host" aria-label="Offline music" title="Offline music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 19v2h16v-2"/></svg><span class="ge-radio-icon-label">OFFLINE</span></button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Buy Grand Element music at the GE Store" title="Buy Grand Element music"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 8h15l-1 13h-13l-1-13Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span class="ge-radio-icon-label">BUY MUSIC</span></a>
-    <button id="sunLabBtn" type="button" aria-label="EQ Effects" title="EQ Effects"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">EQ EFFECTS</span></button>
+    <button id="sunLabBtn" class="tgl" type="button" aria-pressed="true" aria-label="EQ Effects" title="EQ Effects"><svg class="ge-radio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg><span class="ge-radio-icon-label">EQ EFFECTS</span></button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
@@ -884,9 +885,6 @@ document.addEventListener('DOMContentLoaded',function(){
       <span id="sunLabShareStatus" role="status" style="font-size:11px;color:#9de5fe"></span>
     </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
-    <button id="geSunEQToggle" type="button" class="sunlab-mini" hidden
-      style="margin:5px auto 9px;padding:9px 16px;min-height:40px;max-width:100%;border:1px solid #5dbbde;border-radius:9px;color:#eefaff;background:#10476a;font-weight:800"
-      aria-label="Toggle live EQ effects" aria-pressed="true">EQ EFFECTS: ON</button>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
@@ -3393,12 +3391,13 @@ function syncRadioOfflineAccessUI(){
   };
   setUtility($('legacyBtn'),permissions.legacy);
   const sunLabUtility=$('sunLabBtn');
-  // Keep SUN LAB in the same utility slot for guests and all access codes.
-  // Its existing click handler checks Vault access and opens CODE when locked.
-  if(sunLabUtility){sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;sunLabUtility.dataset.locked=permissions.sunLab?'false':'true';}
   if(sunLabUtility){
-    sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open EQ Effects':'EQ Effects unavailable while public settings load');
-    sunLabUtility.title=permissions.sunLab?'Open EQ Effects':'EQ Effects are unavailable; check the published public profile';
+    sunLabUtility.hidden=false;sunLabUtility.removeAttribute('aria-hidden');sunLabUtility.tabIndex=0;
+    sunLabUtility.dataset.locked='false';
+    const on=window.GELiveAudioEQ?.isEnabled?.()!==false;
+    sunLabUtility.setAttribute('aria-pressed',String(on));
+    sunLabUtility.setAttribute('aria-label',on?'Turn EQ effects off':'Turn EQ effects on and choose effect');
+    sunLabUtility.title='EQ Effects';
   }
   setUtility($('iamLaunchRow'),permissions.iam);
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
@@ -3409,10 +3408,7 @@ function syncRadioOfflineAccessUI(){
     $('accessLaunchBtn').setAttribute('aria-label',permissions.legacy||permissions.sunLab?
       'Verified access code':'Enter your Inner Frequency access code');
   }
-  if(!permissions.sunLab){
-    const panel=$('sunLabPanel');
-    if(panel){panel.hidden=true;panel.classList.remove('show');}
-  }
+  // Public effects remain accessible; private controls are scoped in the editor.
 }
 // Keep all three existing control buttons, moving Legacy alongside the
 // bottom utilities rather than adding another player or duplicate button.
@@ -5588,7 +5584,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-always-on-attached-eq-v3',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-eq-offline-v4',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -5803,7 +5799,7 @@ async function registerServiceWorker(){
   }
   function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();if(document.body.classList.contains('view-ship'))void window.GEResumeLiveEQ?.();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
-  $('shipSunLabBtn')?.addEventListener('click',()=>{if(geRadioSunLabAllowed())$('sunLabBtn')?.click();});
+  $('shipSunLabBtn')?.addEventListener('click',()=>$('sunLabBtn')?.click());
   $('shipGateTestBtn')?.addEventListener('click',()=>{if(geRadioLocalTestAccess())$('gateTestBtn')?.click();});
   shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused){if(state.live||state.livePreparing)void requestRadioStart({userGesture:true});else resumeAudio();}else requestUserPause();});
   autoPilotBtn?.addEventListener('click',()=>{autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);if(autopilot)document.body.classList.remove('hud-hidden');});
@@ -5943,14 +5939,14 @@ async function registerServiceWorker(){
     setStatus(modeLabel(mode)+' active.');
   }
   function setPanelVisible(show){
-    if(show&&!geRadioSunLabAllowed())return;
     if(!sunLabPanel)return;
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
     sunLabPanel.classList.toggle('ge-sunlab-public',!geRadioSunLabPrivateAllowed());
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
-    sunLabBtn?.setAttribute('aria-pressed',on?'true':'false');
+    // Button state follows the effects, not whether the editor is open.
+    sunLabBtn?.setAttribute('aria-expanded',String(on));
     if(on)void ensureLiveEQ();
     else window.GEStopEQTapIfUnused?.();
   }
@@ -6102,7 +6098,16 @@ async function registerServiceWorker(){
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
-      sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed()){if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();else $('accessLaunchBtn')?.click();return;}const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      sunLabBtn.addEventListener('click',()=>{
+        const eq=window.GELiveAudioEQ;
+        if(!eq)return;
+        if(eq.isEnabled()){eq.setEnabled(false);saveCurrentSunMode();setPanelVisible(false);return;}
+        eq.setEnabled(true);
+        // Access only controls the private variables, not the public effects.
+        saveCurrentSunMode();
+        if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}
+        setPanelVisible(true);
+      });
       $('sunLabSave')?.addEventListener('click',()=>{
         saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
         const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE ON DEVICE';},1800);}
@@ -9058,7 +9063,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 });
 </script>
 <script defer src="../config/album-colors.js?v=20261116-a"></script>
-<script defer src="./ge-music-v5.js?v=20261125-rotation-v773"></script>
+<script defer src="./ge-music-v5.js?v=20261125-offline-library-v774"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
@@ -9247,7 +9252,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261119-radio-text-heartbeat-7d420a7" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261125-eq-toggle-v4" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-v1" data-ge-css="sun-lab-transparency">
@@ -9297,9 +9302,9 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="./sun-lab-compact.js?v=20261120-pulse-controls-v1"></script>
 <script defer src="./sun-eq-profile-share.js?v=20261120-transfer-v1"></script>
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
-<script defer src="./live-spectrum.js?v=20261125-always-on-attached-eq-v3"></script>
+<script defer src="./live-spectrum.js?v=20261125-eq-offline-v4"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
-<script defer src="./offline-manager.js?v=20261122-offline-manager-v10"></script>
+<script defer src="./offline-manager.js?v=20261125-library-v11"></script>
 
 
 

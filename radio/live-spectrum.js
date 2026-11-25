@@ -3,7 +3,7 @@
    second HTMLAudioElement, or second MediaElementAudioSourceNode. */
 (()=>{
 'use strict';
-const EQ_BUILD='20261125-always-on-attached-eq-v3';
+const EQ_BUILD='20261125-eq-offline-v4';
 const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -78,12 +78,12 @@ function status(){
   };
 }
 function showEnableControl(){
-  const button=document.getElementById('geSunEQToggle');
-  if(!button)return;
-  button.hidden=false;
-  button.textContent=enabled?'EQ EFFECTS: ON':'EQ EFFECTS: OFF';
-  button.setAttribute('aria-label','Toggle live EQ effects');
-  button.setAttribute('aria-pressed',String(enabled));
+  for(const id of ['sunLabBtn','shipSunLabBtn']){
+    const button=document.getElementById(id);
+    if(!button)continue;
+    button.setAttribute('aria-pressed',String(enabled));
+    button.setAttribute('aria-label',enabled?'Turn EQ effects off':'Turn EQ effects on and choose effect');
+  }
 }
 function setEnabled(value){
   enabled=!!value;
@@ -96,7 +96,6 @@ function setEnabled(value){
 function enable(){return setEnabled(true);}
 const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#shipStage [data-proxy="liveBtn"],#sunLabBtn,#shipSunLabBtn,#trackList';
 document.addEventListener('click',event=>{
-  if(event.target?.closest?.('#geSunEQToggle')){setEnabled(!enabled);return;}
   if(enabled&&event.target?.closest?.(triggers))arm();
 },true);
 function recover(){

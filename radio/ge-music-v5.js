@@ -1474,7 +1474,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
  max-height:min(38dvh,246px);overflow-y:auto;overflow-x:hidden;
  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
 }
-.geOfflineChoices[hidden]{display:none!important}
+.geOfflineChoices[hidden],.geOfflineLibrary[hidden]{display:none!important}
+.geOfflineLibrary{grid-column:1/-1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.geOfflineLibraryHead,.geOfflineLibraryActions,.geOfflineFileRow{display:flex;align-items:center;gap:6px;min-width:0}
+.geOfflineLibraryHead strong,.geOfflineFileName{flex:1;min-width:0;overflow-wrap:anywhere}
+.geOfflineLibraryActions button{flex:1;min-width:0;padding:6px;font-size:11px}
+.geOfflineFileRow{border-top:1px solid #31536a;padding:6px 0}
+.geOfflineFileName{font-size:12px;line-height:1.3}
+.geOfflineFileName small{display:block;color:#b5d3e4}
+.geOfflineFileRow button,.geOfflineListClose{flex:0 0 auto;min-height:36px;padding:5px 8px;font-size:11px}
+.geOfflineLibraryStatus{font-size:12px;color:#cceaff;margin:0;overflow-wrap:anywhere}
+.geOfflineRemoveAll{border-color:#de8d92!important;background:#542e37!important}
+.geOfflineChoices:has(.geOfflineLibrary:not([hidden])){max-height:min(57dvh,430px)}
+
 .geOfflineChoices > button{min-width:0;min-height:47px;font-size:clamp(11px,3vw,14px);
  background:#103c5d;border:1px solid #8dc9ec}
 .geOfflineChoices > button[aria-pressed="true"]{background:#126eaa;border-color:#e4f9ff}
@@ -1544,7 +1556,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
    <button type="button" data-ge-offline="all">ALL MUSIC</button>
    <button type="button" data-ge-offline="checked">CHECKED SONGS</button>
    <button type="button" data-ge-offline="playlist">PLAYLIST</button>
-   <button type="button" data-ge-offline="update">UPDATE MISSING</button>
+   <button type="button" class="geOfflineListBtn" aria-expanded="false">SAVED FILES</button>
+   <button type="button" class="geOfflineRemoveAll">REMOVE ALL FILES</button>
+   <section class="geOfflineLibrary" hidden aria-label="Downloaded recordings"><div class="geOfflineLibraryHead"><strong class="geOfflineFileCount">Saved files</strong><button type="button" class="geOfflineListClose">CLOSE</button></div><div class="geOfflineLibraryActions"><button type="button" class="geOfflineReload">RELOAD SAVED</button><button type="button" class="geOfflineUpdate">UPDATE MISSING</button></div><p class="geOfflineLibraryStatus" role="status"></p><div class="geOfflineFiles" role="list"></div></section>
    <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
   </div>
  </section>
@@ -3115,6 +3129,7 @@ function showOfflineChoices(open){
  offlineChoices.hidden=!visible;
  offlineToggle.setAttribute('aria-expanded',String(visible));
  if(visible)fillOfflinePlaylists();
+ else{el('.geOfflineLibrary').hidden=true;el('.geOfflineListBtn').setAttribute('aria-expanded','false');}
 }
 function openOffline(){
  if(!state.open)open();
@@ -3188,6 +3203,73 @@ async function offlineDownload(mode=offlineChoice){
  }catch(error){setOfflineMessage('DOWNLOAD INTERRUPTED · '+String(error?.message||error).slice(0,85))}
  finally{offlineBusy=false;offlineStop.hidden=true}
 }
+const offlineLibrary=el('.geOfflineLibrary');
+let inventoryBusy=false;
+function libraryMessage(message){el('.geOfflineLibraryStatus').textContent=message;}
+async function refreshOfflineLibrary(){
+ const engine=window.GEOfflineDownloads;
+ if(!engine?.listSaved){libraryMessage('File inventory unavailable. Reopen Radio online.');return;}
+ try{
+  const files=await engine.listSaved();
+  const list=el('.geOfflineFiles');list.replaceChildren();
+  const size=files.reduce((n,f)=>n+f.bytes,0);
+  el('.geOfflineFileCount').textContent=files.length+' saved · '+(size/1048576).toFixed(1)+' MB';
+  if(!files.length)list.append(elem('p','empty','No saved recordings on this device.'));
+  for(const file of files){
+   const row=elem('div','geOfflineFileRow');row.setAttribute('role','listitem');
+   const track=file.station?{title:file.path.split('/').pop(),album:'Station identification'}:details(file.path);
+   const label=elem('div','geOfflineFileName',track.title);
+   label.append(elem('small','',track.album+' · '+(file.bytes/1048576).toFixed(1)+' MB'));
+   const remove=elem('button','','DELETE');remove.type='button';remove.setAttribute('aria-label','Delete saved '+track.title);
+   remove.addEventListener('click',async()=>{
+    if(inventoryBusy||engine.isBusy())return libraryMessage('Stop the current download first.');
+    if(!confirm('Remove '+track.title+' from this device?'))return;
+    inventoryBusy=true;
+    try{
+     const result=await engine.removeSaved([file.path]);
+     libraryMessage(result.error?result.message:'Removed '+result.removed+' file(s).');
+     await refreshOfflineLibrary();void offlineCheck();
+    }finally{inventoryBusy=false;}
+   });
+   row.append(label,remove);list.append(row);
+  }
+ }catch(error){libraryMessage('Could not read saved files: '+String(error?.message||error));}
+}
+el('.geOfflineListBtn').addEventListener('click',()=>{
+ offlineLibrary.hidden=!offlineLibrary.hidden;
+ el('.geOfflineListBtn').setAttribute('aria-expanded',String(!offlineLibrary.hidden));
+ if(!offlineLibrary.hidden){libraryMessage('');void refreshOfflineLibrary();}
+});
+el('.geOfflineListClose').addEventListener('click',()=>{
+ offlineLibrary.hidden=true;el('.geOfflineListBtn').setAttribute('aria-expanded','false');
+});
+el('.geOfflineRemoveAll').addEventListener('click',async()=>{
+ const engine=window.GEOfflineDownloads;
+ if(!engine?.removeSaved)return;
+ if(inventoryBusy||engine.isBusy())return setOfflineMessage('STOP THE CURRENT DOWNLOAD FIRST');
+ if(!confirm('Remove all downloaded recordings from this device? Your playlists, settings and access codes will be kept.'))return;
+ inventoryBusy=true;
+ try{
+  const result=await engine.removeSaved();
+  setOfflineMessage(result.error?result.message:'REMOVED '+result.removed+' FILES');
+  if(!offlineLibrary.hidden)await refreshOfflineLibrary();
+  void offlineCheck();
+ }finally{inventoryBusy=false;}
+});
+el('.geOfflineReload').addEventListener('click',async()=>{
+ const engine=window.GEOfflineDownloads;
+ if(!engine?.reloadSaved||inventoryBusy||engine.isBusy())return;
+ if(!engine.canDownload()){libraryMessage('Connect online with an OFFLINE-enabled code to reload saved files.');return;}
+ if(!confirm('Reload only recordings already saved on this device? Existing copies are kept if a download fails.'))return;
+ inventoryBusy=true;offlineBusy=true;offlineStop.hidden=false;
+ try{
+  const result=await engine.reloadSaved({onProgress:event=>{offlineProgressUpdate(event);libraryMessage('Reloading saved recordings… '+(event.percent||0)+'%');}});
+  libraryMessage(result.error?result.message:result.stopped?'Reload stopped. Existing files are safe.':'Reloaded '+result.completed+' file(s) · '+(result.failures?.length||0)+' failed · '+(result.skipped||0)+' skipped');
+  await refreshOfflineLibrary();
+ }catch(error){libraryMessage(String(error?.message||error))}
+ finally{inventoryBusy=false;offlineBusy=false;offlineStop.hidden=true;void offlineCheck();}
+});
+el('.geOfflineUpdate').addEventListener('click',()=>void offlineDownload('update'));
 offlineToggle.addEventListener('click',()=>showOfflineChoices(offlineChoices.hidden));
 root.querySelectorAll('[data-ge-offline]').forEach(button=>button.addEventListener('click',()=>{
  offlineChoice=button.dataset.geOffline;

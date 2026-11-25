@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.22-offline-manager-v10-exact-scope';
+const VERSION='2026.11.25-offline-manager-v11-library';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
@@ -174,9 +174,9 @@ function stop(){
  report(null,{phase:'stopped',message:'Stopped. Previously saved recordings remain available.'});
  try{currentAbort?.abort()}catch(_){}
 }
-async function downloadAudio(path,cache){
+async function downloadAudio(path,cache,{force=false}={}){
  const url=address(path);
- if(await alreadySaved(url))return;
+ if(!force&&await alreadySaved(url))return;
  let last;
  for(let attempt=0;attempt<3&&!stopped;attempt++){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);
@@ -184,7 +184,7 @@ async function downloadAudio(path,cache){
   try{
    const response=await fetch(url,{cache:'no-store',signal:controller.signal,
     headers:{'X-GE-Offline-Download':'1'}});
-   if(!audioResponse(response))throw Error('Music file did not download correctly');
+   if(!audioResponse(response))throw Error('Music download returned HTTP '+response.status+' ('+(response.headers.get('content-type')||'unknown type')+')');
    const blob=await response.blob();
    if(blob.size<=128)throw Error('Music file is incomplete');
    const headers=new Headers(response.headers);
@@ -268,7 +268,7 @@ async function save({mode='all',paths=[],onProgress}={}){
   const quota=failures.some(f=>/quota|storage|space|disk/i.test(f.error));
   const result={...checked,mode,failures,stopped,completed,attempted:total,
    message:quota?'Device storage limit reached. Saved songs are safe. Free some space and use UPDATE MISSING.':
-    failures.length?'Some recordings could not be saved. Use UPDATE MISSING.':''
+    failures.length?failures.length+' file(s) failed: '+failures[0].path.split('/').pop()+' · '+failures[0].error:''
   };
   if(checked.ready||stopped||quota)clearPending();
   report(onProgress,{phase:'finished',percent:checked.ready?100:checked.percent,
@@ -282,6 +282,100 @@ async function save({mode='all',paths=[],onProgress}={}){
   report(onProgress,{phase:'error',message:detail});
   return {error:'download',message:detail,failures};
  }finally{busy=false;currentAbort=null}
+}
+// Inventory is read from actual Cache Storage keys, including earlier cache
+// versions. Never infer downloaded files from the current selection or plan.
+function recordingPath(request){
+ try{
+  const url=new URL(typeof request==='string'?request:request.url,location.href);
+  if(url.origin!==new URL(location.href).origin)return '';
+  const path=decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  return safe(path,SONG)||safe(path,STATION)?path:'';
+ }catch(_){return ''}
+}
+async function recordingEntries(){
+ const entries=[];
+ for(const name of await caches.keys()){
+  const cache=await caches.open(name);
+  for(const request of await cache.keys()){
+   const path=recordingPath(request);
+   if(path)entries.push({cache,request,path,name});
+  }
+ }
+ return entries;
+}
+async function listSaved(){
+ const files=new Map();
+ for(const {cache,request,path} of await recordingEntries()){
+  if(files.has(path))continue;
+  const response=await cache.match(request);
+  if(!audioResponse(response))continue;
+  let bytes=Number(response.headers.get('content-length'))||0;
+  if(bytes<=128){try{bytes=(await response.blob()).size}catch(_){continue}}
+  if(bytes>128)files.set(path,{path,bytes,station:safe(path,STATION)});
+ }
+ return [...files.values()].sort((a,b)=>a.path.localeCompare(b.path));
+}
+async function removeSaved(paths=null){
+ if(busy)return {error:'busy',message:'Stop the current download first.'};
+ busy=true;
+ try{
+  const targets=paths===null?null:new Set(unique(paths).filter(p=>safe(p,SONG)||safe(p,STATION)));
+  const removed=new Set();
+  for(const {cache,request,path} of await recordingEntries()){
+   if(targets&&!targets.has(path))continue;
+   if(await cache.delete(request,{ignoreSearch:false}))removed.add(path);
+  }
+  if(paths===null){setPlan([],'checked');clearPending();try{localStorage.removeItem(ACTIVATED)}catch(_){}}
+  else {
+   setPlan(plan().filter(p=>!targets.has(p)),planMode());
+   clearPending();
+  }
+  try{await bridge().rescan?.()}catch(_){}
+  const remaining=await listSaved();
+  if(!remaining.length)try{localStorage.removeItem(ACTIVATED)}catch(_){}
+  return {removed:removed.size,remaining:remaining.length};
+ }catch(error){return {error:'remove',message:String(error?.message||error)}}
+ finally{busy=false;void syncStatus()}
+}
+async function reloadSaved({paths=null,onProgress}={}){
+ if(busy)return {error:'busy',message:'Download already running'};
+ if(!canDownload())return {error:'access',message:'Connect online with an OFFLINE-enabled code to reload files.'};
+ busy=true;stopped=false;
+ const failures=[];let completed=0;
+ try{
+  const inventory=await listSaved(),catalogue=await catalog();
+  const chosen=paths===null?inventory.map(f=>f.path):unique(paths);
+  const present=new Set(inventory.map(f=>f.path)),allowed=new Set(authorized(catalogue.songs));
+  const stations=new Set(catalogue.stations);
+  const permitted=chosen.filter(p=>present.has(p)&&(allowed.has(p)||stations.has(p)));
+  if(!permitted.length)return {error:'selection',message:'No saved files eligible for reload.'};
+  if(typeof bridge().verify==='function'){
+   const first=permitted.find(p=>allowed.has(p))||[...allowed][0];
+   if(!first||await bridge().verify(first)!==true)return {error:'access',message:'OFFLINE permission could not be verified.'};
+  }
+  const cache=await caches.open(AUDIO);
+  report(onProgress,{phase:'preparing',percent:0});
+  for(const path of permitted){
+   if(stopped)break;
+   try{
+    // Replace only after a complete successful fetch, leaving the old copy on failure.
+    await downloadAudio(path,cache,{force:true});
+    const url=address(path);
+    // Remove older duplicate variants only AFTER the canonical replacement verifies.
+    for(const entry of await recordingEntries()){
+     if(entry.path===path&&!(entry.name===AUDIO&&entry.request.url===url))
+      await entry.cache.delete(entry.request,{ignoreSearch:false});
+    }
+   }catch(error){failures.push({path,error:String(error?.message||error)});}
+   completed++;
+   report(onProgress,{phase:'audio',percent:Math.floor(completed/permitted.length*98)});
+  }
+  try{await bridge().rescan?.()}catch(_){}
+  const checked=await inspect();
+  return {...checked,completed,failures,skipped:chosen.length-permitted.length,stopped};
+ }catch(error){return {error:'reload',message:String(error?.message||error),failures}}
+ finally{busy=false;void syncStatus()}
 }
 async function repair(args={}){return save({...args,mode:'update'})}
 async function syncStatus(){
@@ -306,7 +400,7 @@ try{
  if(document?.readyState==='complete')setTimeout(onReturn,0);
 }catch(_){}
 window.GEOffline={isActive:active};
-window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,
+window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,listSaved,removeSaved,reloadSaved,
  isBusy:()=>busy,resume,syncStatus,status:()=>({...lastStatus}),pending,
  promptCode:()=>bridge().promptCode?.()};
 })();
