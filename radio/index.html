@@ -82,14 +82,33 @@ window.addEventListener('unhandledrejection',function(e){
   const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
   const viewport=document.querySelector('meta[name="viewport"]');
+  // Restore the physical phone width used before the scale regression.
+  // Use device orientation rather than the potentially stale CSS viewport.
   function applyViewport(){
     if(!viewport)return;
-    // Keep one orientation-independent viewport. Safari owns device-width
-    // throughout rotation; never freeze the previous physical screen width.
-    const value=requestedDesktop?'width=1160,initial-scale=1,viewport-fit=cover':'width=device-width,initial-scale=1,viewport-fit=cover';
+    let value='width=device-width,initial-scale=1,viewport-fit=cover';
+    if(requestedDesktop){
+      value='width=1160,initial-scale=1,viewport-fit=cover';
+    }else if(layout==='mobile'&&phoneHardware){
+      const w=Number(screen.width)||390,h=Number(screen.height)||844;
+      const angle=typeof window.orientation==='number'?window.orientation:screen.orientation?.angle;
+      const landscape=Number.isFinite(angle)?Math.abs(angle)%180===90:
+        window.matchMedia?.('(orientation: landscape)').matches===true;
+      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
+      value='width='+width+',initial-scale=1,viewport-fit=cover';
+    }
     if(viewport.content!==value)viewport.content=value;
   }
   applyViewport();
+  let viewportTimers=[];
+  function settleDeviceViewport(){
+    viewportTimers.forEach(clearTimeout);
+    applyViewport();
+    viewportTimers=[100,350,700].map(delay=>setTimeout(applyViewport,delay));
+  }
+  window.addEventListener('orientationchange',settleDeviceViewport,{passive:true});
+  screen.orientation?.addEventListener?.('change',settleDeviceViewport);
+  window.addEventListener('pageshow',settleDeviceViewport,{passive:true});
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},
