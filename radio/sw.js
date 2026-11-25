@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.22-public-eq-live-home-v1';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10';
+const VERSION='2026.11.25-always-on-attached-eq-v3';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_ALWAYS_ON_ATTACHED_EQ_V3';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -91,6 +91,9 @@ async function installShell(){
  await Promise.all(REQUIRED.map(async path=>{
   const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
   if(!(await validAsset(path,response)))throw Error('Required offline file not verified: '+path);
+  // Never promote a new EQ shell with the old manual-activation script.
+  if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-always-on-attached-eq-v3'))throw Error('EQ script release mismatch');
+  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
   await cache.put(path,response.clone());
  }));
  const offlinePictures=await offlineArtwork(cache);
@@ -164,12 +167,11 @@ async function navigation(request){
  // But ge_home=1 is also how the PUBLIC WEBSITE links into Radio. Always
  // attempt the current GitHub Pages HTML when online instead of returning
  // a months-old offline shell on every homepage click.
- if(path.endsWith('/radio/offline-home.html')||
-    (url.searchParams.has('ge_home')&&self.navigator?.onLine===false)){
+ if((path.endsWith('/radio/offline-home.html')||url.searchParams.has('ge_home'))&&self.navigator?.onLine===false){
   const saved=await savedIndex();
   if(saved.ok)return saved;
  }
- if(!path.endsWith('/radio/')&&!path.endsWith('/radio/index.html')){
+ if(!path.endsWith('/radio/')&&!path.endsWith('/radio/index.html')&&!path.endsWith('/radio/offline-home.html')){
   if(self.navigator?.onLine===false)return await cached(request)||new Response('Page not saved offline',{status:503});
   try{
    const response=await timeoutFetch(request,{cache:'no-store'});
@@ -183,7 +185,8 @@ async function navigation(request){
  }
  if(self.navigator?.onLine===false)return savedIndex();
  try{
-  const fresh=await timeoutFetch(request,{cache:'no-store'});
+  const onlineRequest=path.endsWith('/radio/offline-home.html')?requestURL('./index.html'):request;
+  const fresh=await timeoutFetch(onlineRequest,{cache:'no-store'});
   if(await validIndex(fresh,true)){
    const cache=await caches.open(SHELL_CACHE);
    await cache.put('./index.html',fresh.clone()).catch(()=>{});

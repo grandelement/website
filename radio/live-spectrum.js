@@ -3,6 +3,7 @@
    second HTMLAudioElement, or second MediaElementAudioSourceNode. */
 (()=>{
 'use strict';
+const EQ_BUILD='20261125-always-on-attached-eq-v3';
 const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -77,7 +78,7 @@ function status(){
   };
 }
 function showEnableControl(){
-  const button=document.getElementById('geSunEQEnable');
+  const button=document.getElementById('geSunEQToggle');
   if(!button)return;
   button.hidden=false;
   button.textContent=enabled?'EQ EFFECTS: ON':'EQ EFFECTS: OFF';
@@ -95,21 +96,24 @@ function setEnabled(value){
 function enable(){return setEnabled(true);}
 const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#shipStage [data-proxy="liveBtn"],#sunLabBtn,#shipSunLabBtn,#trackList';
 document.addEventListener('click',event=>{
-  if(event.target?.closest?.('#geSunEQEnable')){setEnabled(!enabled);return;}
+  if(event.target?.closest?.('#geSunEQToggle')){setEnabled(!enabled);return;}
   if(enabled&&event.target?.closest?.(triggers))arm();
 },true);
 function recover(){
   const audio=element();
   if(!enabled||document.hidden||!audio||audio.paused||audio.ended)return;
   // Resume the existing graph; never create a competing audio element.
-  if(localSong()&&window.GEAudioGain?.getStatus?.()?.contextState!=='running')arm();
+  const graph=window.GEAudioGain?.getStatus?.();
+  if(localSong()&&(!graph?.spectrumReady||graph.contextState!=='running'))arm();
   if(!localSong())window.GEResumeLiveEQ?.();
 }
 showEnableControl();
-for(const event of ['playing','loadeddata','seeked','canplay'])element()?.addEventListener(event,recover);
+for(const event of ['play','playing','loadeddata','seeked','canplay'])element()?.addEventListener(event,recover);
 document.addEventListener('visibilitychange',recover);
 window.addEventListener('pageshow',recover);
 window.addEventListener('focus',recover);
 setInterval(recover,1500);
-window.GELiveAudioEQ={arm,enable,setEnabled,isEnabled:()=>enabled,read,status};
+window.GELiveAudioEQ={build:EQ_BUILD,arm,enable,setEnabled,isEnabled:()=>enabled,read,status};
+window.addEventListener('online',recover);
+recover();
 })();
