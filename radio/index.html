@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261125_PUBLISHED_EQ_V5 -->
 <!-- GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4 -->
 <!-- GE_RADIO_UI_BUILD_20261125_ALWAYS_ON_ATTACHED_EQ_V3 -->
 <!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10 -->
@@ -193,7 +194,7 @@ window.addEventListener('unhandledrejection',function(e){
 
 
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
-<link rel="stylesheet" href="./radio-components.css?v=20261125-always-on-attached-eq-v3" data-ge-css="components">
+<link rel="stylesheet" href="./radio-components.css?v=20261125-published-eq-v5" data-ge-css="components">
 
 
 
@@ -866,9 +867,9 @@ document.addEventListener('DOMContentLoaded',function(){
   <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
     <div class="sunlab-title">
       <h3>EQ EFFECTS</h3>
-      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" title="Save current EQ effect choices on this device, not to GitHub">SAVE ON DEVICE</button><button id="sunLabCopy" type="button" class="sunlab-mini" title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all eight EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
-    <p class="sunlab-sub">Choose an effect first. Its own controls will appear below. Each effect remembers its own settings.</p>
+    <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
       <button class="sunlab-modebtn" type="button" data-sun-mode="plasma">Plasma</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button>
@@ -880,9 +881,10 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
-    <div class="sunlab-share-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0">
-      <button id="sunLabCopyPhoneLink" type="button" class="sunlab-mini" title="Transfer the eight saved EQ effects to your other device">SEND EQ TO PHONE</button>
-      <span id="sunLabShareStatus" role="status" style="font-size:11px;color:#9de5fe"></span>
+    <div id="sunLabPublishTools" hidden>
+      <p id="sunLabPublishStatus" role="status" aria-live="polite">Advanced settings are not saved locally. Owner sign-in is required to publish to GitHub.</p>
+      <a id="sunLabOwnerLink" href="../backroom/">BACK ROOM OWNER SIGN-IN</a>
+      <button id="sunLabImportLegacy" type="button" class="sunlab-mini" hidden>IMPORT PREVIOUS DEVICE SETTINGS</button>
     </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
@@ -904,6 +906,7 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
       <div class="sunlab-checks"><label id="slRadialOnWrap"><input id="slRadialOn" type="checkbox" checked><span class="sunlab-checktext"><span id="slRadialOnLabel">Radial Outward</span><small id="slRadialOnHelp">The current sun pulse that expands away from the sun.</small></span></label><label id="slCascadeOnWrap"><input id="slCascadeOn" type="checkbox"><span class="sunlab-checktext"><span>Radial Waterfall</span><small>Copies each music snapshot and sends it outward along the spokes in order.</small></span></label><label id="slGlowOnlyWrap"><input id="slGlowOnly" type="checkbox"><span class="sunlab-checktext"><span>Glow Only</span><small>Hide the visible bars and keep only the glow, fog, and residue.</small></span></label></div>
       <div class="sunlab-row"><label for="slCascadeSpeed">Radial Waterfall Speed</label><output id="slCascadeSpeedVal"></output><input id="slCascadeSpeed" type="range" min="0" max="100" step="1" value="58"><small>Higher values push each pulse down the spokes faster like a falling light trail.</small></div>
+      <div class="sunlab-row"><label for="slPosition">Position / Origin</label><output id="slPositionVal"></output><input id="slPosition" type="range" min="-30" max="30" step="1" value="0"><small>Move the effect starting radius inward or outward.</small></div>
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
       <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
       <div class="sunlab-row"><label for="slContrast">Contrast</label><output id="slContrastVal"></output><input id="slContrast" type="range" min="0" max="280" step="1" value="40"><small>Widens the light-versus-dark difference so hits stand out more clearly.</small></div>
@@ -3342,23 +3345,16 @@ function geRadioUtilityAllowed(feature){
 }
 // The original LOVE grant comes from an authenticated Vault redemption,
 // never from typing the word LOVE or a locally guessed listener identity.
+let geSunOwnerVerified=false;
 function geRadioSunLabPrivateAllowed(){
-  // General public SUN LAB scopes must not expose developer reset/testing controls.
-  if(geRadioLocalTestAccess())return true;
+  // Only the verified code scope or authenticated owner can edit presets.
+  if(geSunOwnerVerified)return true;
   try{
     const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     return !!receipt&&receipt.verifiedFor==='radio'&&Number(receipt.until)>Date.now()&&receipt.sunLab===true;
   }catch(_){return false}
 }
-function geRadioSunLabAllowed(){
-  if(window.GEOffline?.isActive?.())return true;
-  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
-  try{
-    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
-    return !!receipt&&receipt.verifiedFor==='radio'&&
-      Number(receipt.until)>Date.now()&&receipt.sunLab===true;
-  }catch(_){return false}
-}
+function geRadioSunLabAllowed(){return true;}
 // I AM is opt-in even for local demos and historic LOVE. A saved code with
 // the 'iam' permission is required before the button can become available.
 function geRadioIAMAllowed(){
@@ -5584,7 +5580,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-eq-offline-v4',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-published-eq-v5',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -5817,7 +5813,7 @@ async function registerServiceWorker(){
 
   const SUN_LAB_KEY='GE_SUN_LAB_V7';
   const SUN_LAB_DEFAULTS=Object.freeze({
-    waveType:'mirrorflip',distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
+    waveType:'mirrorflip',position:0,distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
     blueDepth:40,outerFade:50,tipWhite:56,brightness:145,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
     pulseDepth:82,pulseSensitivity:70,pulseAttack:85,pulseRelease:72,pulseNoiseFloor:12,
@@ -5827,16 +5823,6 @@ async function registerServiceWorker(){
   const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip',
     pulse:'plasma',ripples:'mirrorflip',orbit:'spectrum',aurora:'glow'};
   const SUN_MODE_SELECTED_KEY='GE_SUN_LAB_SELECTED_MODE_V1';
-  const SUN_MODE_PUBLIC_CONTROLS={
-    plasma:['slThickness','slBrightness'],
-    spectrum:['slSpectrumSpeed','slSpectrumGain'],
-    glow:['slInnerGlowStrength','slOuterGlowStrength'],
-    waterfall:['slCascadeSpeed','slBrightness'],
-    pulse:['slThickness','slBrightness'],
-    ripples:['slCascadeSpeed','slBrightness'],
-    orbit:['slSpectrumSpeed','slSpectrumGain'],
-    aurora:['slInnerGlowStrength','slOuterGlowStrength']
-  };
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
     spectrum:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slDistance','slThickness','slContrast','slDynamics','slBass','slMid','slTreble'],
@@ -5862,56 +5848,143 @@ async function registerServiceWorker(){
     orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
     aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:145,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:145,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
   };
-  let sunLab={...SUN_MODE_DEFAULTS.waterfall};
-  let sunLabEditMode=null;
-  let sunModeProfiles={};
-  function loadSunLab(){
-    try{const raw=localStorage.getItem(SUN_LAB_KEY);if(!raw)return;const parsed=JSON.parse(raw);if(parsed&&typeof parsed==='object')sunLab={...SUN_LAB_DEFAULTS,...parsed};}catch(_e){}
+  let sunLab={...SUN_MODE_DEFAULTS.waterfall},sunLabEditMode=null,sunModeProfiles={};
+  let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
+  const SUN_EQ_PUBLISH_API='https://ge-backroom-publisher.grandelement.workers.dev';
+  const SUN_EQ_PUBLISH_SESSION='GE_BACKROOM_PUBLISH_SESSION_V1';
+  function validSunMode(mode){return Object.hasOwn(SUN_MODE_WAVE,mode);}
+  function sunModePreference(){try{return localStorage.getItem(SUN_MODE_SELECTED_KEY)}catch(_){return null}}
+  function selectSunPreference(mode){try{localStorage.setItem(SUN_MODE_SELECTED_KEY,mode)}catch(_){}}
+  function normalizedSunProfile(mode,source){
+    const base={...SUN_MODE_DEFAULTS[mode]};
+    for(const [key,value] of Object.entries(source||{})){
+      if(key==='waveType'||key==='__proto__'||key==='constructor'||key==='prototype')continue;
+      const control=$('sl'+key.charAt(0).toUpperCase()+key.slice(1));
+      if(!control)continue;
+      if(control.type==='checkbox'){if(typeof value==='boolean')base[key]=value;continue;}
+      if(typeof value==='number'&&Number.isFinite(value))base[key]=Math.max(Number(control.min),Math.min(Number(control.max),value));
+    }
+    return {...base,waveType:SUN_MODE_WAVE[mode]};
   }
-  function saveSunLab(){try{localStorage.setItem(SUN_LAB_KEY,JSON.stringify(sunLab));}catch(_e){}}
-  function loadSunModeProfiles(){try{const raw=localStorage.getItem(SUN_MODE_KEY);const parsed=raw?JSON.parse(raw):{};if(parsed&&typeof parsed==='object')sunModeProfiles=parsed;}catch(_e){sunModeProfiles={};}}
-  function saveSunModeProfiles(){try{localStorage.setItem(SUN_MODE_KEY,JSON.stringify(sunModeProfiles));}catch(_e){}}
-
-  // Older updates forced maximum brightness. Balance previously saved modes once,
-  // preserving songs, downloads, colors, distances and other listener data.
-  const SUN_LAB_BALANCE_KEY='GE_SUN_EQ_BRIGHTNESS_BALANCED_20261119_V1';
-  function balanceSunLabVisibility(){
-    try{if(localStorage.getItem(SUN_LAB_BALANCE_KEY)==='1')return;}catch(_e){}
-    const capProfile=profile=>{
-      const out={...profile};
-      for(const [name,max] of Object.entries({
-        brightness:165,thickness:105,spectrumGain:155,
-        innerGlowStrength:150,outerGlowStrength:150
-      }))if(Number.isFinite(Number(out[name]))&&Number(out[name])>max)out[name]=max;
-      return out;
-    };
-    for(const mode of Object.keys(sunModeProfiles))
-      if(SUN_MODE_WAVE[mode])sunModeProfiles[mode]=capProfile(sunModeProfiles[mode]);
-    sunLab=capProfile(sunLab);
-    saveSunModeProfiles();saveSunLab();
-    try{localStorage.setItem(SUN_LAB_BALANCE_KEY,'1');}catch(_e){}
+  function setPublishedSunEQ(raw){
+    publishedSunEQ=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:null;
+    const selected=validSunMode(sunModePreference())?sunModePreference():
+      validSunMode(raw?.defaultMode)?raw.defaultMode:'waterfall';
+    sunModeProfiles=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,raw?.profiles?.[mode])]));
+    sunLabEditMode=selected;sunLab={...sunModeProfiles[selected]};sunEQDraft=false;
+    applySunLabUI();setSunModeVisibility(selected);ensureSunEQ(sunLab.waveType);
+    sunEQLastPaint=0;sunEQCascadeHistory=[];
   }
-
-  function saveCurrentSunMode(){if(!sunLabEditMode)return;sunModeProfiles[sunLabEditMode]={...sunLab};saveSunModeProfiles();}
+  function saveSunLab(){/* Advanced presets are memory-only until owner publishes. */}
+  function saveSunModeProfiles(){/* Never save advanced values to listener storage. */}
+  function saveCurrentSunMode(){if(sunLabEditMode&&geRadioSunLabPrivateAllowed())sunModeProfiles[sunLabEditMode]={...sunLab};}
+  function updateSunEditorAccess(){
+    const editor=geRadioSunLabPrivateAllowed();
+    if(sunEQWasEditor&&!editor)setPublishedSunEQ(publishedSunEQ);
+    sunEQWasEditor=editor;
+    sunLabPanel?.classList.toggle('ge-sunlab-public',!editor);
+    const publish=$('sunLabSave'),tools=$('sunLabPublishTools'),copy=$('sunLabCopy'),legacy=$('sunLabImportLegacy'),link=$('sunLabOwnerLink');
+    if(publish)publish.hidden=!geSunOwnerVerified;
+    if(copy)copy.hidden=!editor;
+    if(tools)tools.hidden=!editor;
+    if(legacy)legacy.hidden=!geSunOwnerVerified;
+    if(link)link.hidden=geSunOwnerVerified;
+    const test=$('sunLabAdvancedToggle');if(test)test.hidden=!geRadioLocalTestAccess();
+    const testTools=$('sunLabAdvancedTools');if(testTools)testTools.hidden=!geRadioLocalTestAccess();
+    if(sunLabEditMode)setSunModeVisibility(sunLabEditMode);
+  }
+  function sunPublishStatus(message){const target=$('sunLabPublishStatus');if(target)target.textContent=message;}
+  function sunOwnerToken(){try{return sessionStorage.getItem(SUN_EQ_PUBLISH_SESSION)||''}catch(_){return ''}}
+  async function sunPublisher(method='GET',body){
+    const token=sunOwnerToken();if(!token)throw Error('Sign in to Back Room and use TUNE EQ EFFECTS.');
+    const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),28000);
+    try{
+      const response=await fetch(SUN_EQ_PUBLISH_API+'/manage/public-settings',{method,cache:'no-store',
+       headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},signal:abort.signal,
+       ...(body?{body:JSON.stringify(body)}:{})});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok||result.ok!==true){
+        if(response.status===401){geSunOwnerVerified=false;updateSunEditorAccess();}
+        throw Error(result.error||'GitHub publisher HTTP '+response.status);
+      }
+      return result;
+    }finally{clearTimeout(timer)}
+  }
+  async function loadPublishedSunEQ(){
+    try{
+      if(sunOwnerToken()){
+        try{
+          const owner=await sunPublisher();
+          geSunOwnerVerified=true;
+          setPublishedSunEQ(owner.settings?.visual?.sunEQ);
+          updateSunEditorAccess();
+          sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all eight presets.');
+          if(new URLSearchParams(location.search).get('eq_admin')==='1'){window.GELiveAudioEQ?.setEnabled?.(true);setPanelVisible(true);}
+          return;
+        }catch(_){geSunOwnerVerified=false;}
+      }
+      const response=await fetch('../config/site-live.json?sun_eq='+Date.now(),{cache:'no-store'});
+      if(!response.ok)throw Error('Published EQ unavailable');
+      const data=await response.json();
+      if(!sunEQDraft)setPublishedSunEQ(data?.visual?.sunEQ);
+    }catch(_){/* Built-in presets remain usable if published file is unavailable. */}
+    updateSunEditorAccess();
+  }
+  async function publishSunEQ(){
+    const button=$('sunLabSave');if(!geSunOwnerVerified||!button||button.disabled)return;
+    button.disabled=true;
+    try{
+      saveCurrentSunMode();
+      const next={version:1,defaultMode:sunLabEditMode||'waterfall',profiles:Object.fromEntries(
+        Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,sunModeProfiles[mode])]))};
+      const latest=await sunPublisher(),current=latest.settings?.visual;
+      if(!current||typeof current!=='object')throw Error('Published visual settings are missing.');
+      if(JSON.stringify(current.sunEQ??null)!==JSON.stringify(publishedSunEQ??null))throw Error('EQ defaults changed on GitHub. Reload before editing again.');
+      const visual={...current,sunEQ:next};
+      sunPublishStatus('SAVING ALL EIGHT EQ EFFECTS TO GITHUB…');
+      const result=await sunPublisher('POST',{changes:{visual},expected:{visual:current}});
+      if(!result.commit)throw Error('No GitHub commit confirmed.');
+      const proof=await sunPublisher();
+      if(JSON.stringify(proof.settings?.visual?.sunEQ)!==JSON.stringify(next))throw Error('Commit made, but EQ readback did not match. Check GitHub before saving again.');
+      publishedSunEQ=next;sunEQDraft=false;
+      sunPublishStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+' · Public deployment follows.');
+    }catch(error){sunPublishStatus('SAVE FAILED · '+String(error?.message||error));}
+    finally{button.disabled=false;}
+  }
+  function importLegacySunEQ(){
+    if(!geSunOwnerVerified)return;
+    try{
+      const old=JSON.parse(localStorage.getItem(SUN_MODE_KEY)||'{}');
+      const current=JSON.parse(localStorage.getItem(SUN_LAB_KEY)||'null'),selected=sunModePreference();
+      if(validSunMode(selected)&&current)old[selected]=current;
+      if(!Object.keys(SUN_MODE_WAVE).some(mode=>old[mode]))throw Error('No previous device EQ settings found.');
+      for(const mode of Object.keys(SUN_MODE_WAVE))if(old[mode])sunModeProfiles[mode]=normalizedSunProfile(mode,old[mode]);
+      const position=localStorage.getItem('GE_SUN_LAB_SPECTRUM_POSITION_V1');
+      if(position!==null&&Number.isFinite(Number(position))&&validSunMode(selected))sunModeProfiles[selected].position=Math.max(-30,Math.min(30,Number(position)));
+      sunLab={...sunModeProfiles[sunLabEditMode]};sunEQDraft=true;
+      applySunLabUI();setSunModeVisibility(sunLabEditMode);
+      sunPublishStatus('PREVIOUS DEVICE SETTINGS IMPORTED · Unsaved until SAVE TO GITHUB.');
+    }catch(error){sunPublishStatus(String(error?.message||error));}
+  }
   function modeLabel(mode){return ({plasma:'Plasma',spectrum:'Spectrum',glow:'Glow',waterfall:'Waterfall',
     pulse:'Pulse',ripples:'Ripples',orbit:'Orbit',aurora:'Aurora'})[mode]||mode;}
   function setSunModeVisibility(mode){
     const grid=$('sunLabGrid'),hint=$('sunLabModeHint');
     grid?.classList.toggle('no-mode',!mode);
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
-    if(hint)hint.textContent=mode?modeLabel(mode)+' controls':'Tap an effect to edit it.';
+    if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+' · published preset'):'Choose an effect.';
     // Public EQ presets are always usable when the public profile permits Sun Lab.
     // Only a VERIFIED Vault code with the sunlab scope unlocks the full variables.
     const publicOnly=!geRadioSunLabPrivateAllowed();
-    const baseControls=mode?((publicOnly?SUN_MODE_PUBLIC_CONTROLS:SUN_MODE_CONTROLS)[mode]||[]):[];
-    const pulseControls=mode?(publicOnly?['slPulseDepth']:
-      ['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']):[];
+    const baseControls=mode&&!publicOnly?(SUN_MODE_CONTROLS[mode]||[]):[];
+    const pulseControls=mode&&!publicOnly?['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']:[];
     const ids=new Set([...baseControls,...pulseControls]);
+    if(!publicOnly&&mode&&SUN_MODE_WAVE[mode]!=='glow')ids.add('slPosition');
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
     const checks=$('slRadialOn')?.closest('.sunlab-checks');if(checks){checks.style.display=[...checks.querySelectorAll('label')].some(l=>l.style.display!=='none')?'grid':'none';}
-    const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=mode!=='spectrum';
+    const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=publicOnly||mode!=='spectrum';
     const radialLabel=$('slRadialOnLabel'),radialHelp=$('slRadialOnHelp');
     if(radialLabel)radialLabel.textContent=mode==='waterfall'?'Combine Radial Pulse':'Radial Outward';
     if(radialHelp)radialHelp.textContent=mode==='waterfall'?'Layer the normal outward pulse underneath the radial waterfall.':'The current sun pulse that expands away from the sun.';
@@ -5922,9 +5995,7 @@ async function registerServiceWorker(){
     sunLabEditMode=mode;
     const base=SUN_MODE_DEFAULTS[mode]||SUN_LAB_DEFAULTS;
     sunLab={...base,...(sunModeProfiles[mode]||{}),waveType:SUN_MODE_WAVE[mode]};
-    if(mode==='waterfall'||mode==='ripples'){sunLab.cascadeOn=true;sunLab.glowOnly=false;}
-    else {sunLab.cascadeOn=false;sunLab.glowOnly=false;}
-    try{localStorage.setItem(SUN_MODE_SELECTED_KEY,mode);}catch(_e){}
+    selectSunPreference(mode);
     // Force the visual renderer to rebuild now instead of waiting for an old mode DOM to age out.
     sunEQLastPaint=0;
     sunEQCascadeHistory=[];
@@ -5943,7 +6014,7 @@ async function registerServiceWorker(){
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
-    sunLabPanel.classList.toggle('ge-sunlab-public',!geRadioSunLabPrivateAllowed());
+    updateSunEditorAccess();
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
     // Button state follows the effects, not whether the editor is open.
     sunLabBtn?.setAttribute('aria-expanded',String(on));
@@ -5957,7 +6028,7 @@ async function registerServiceWorker(){
     const refresh=()=>{ input.value=String(sunLab[key]); if(out) out.textContent=formatter(sunLab[key]); };
     if(!input.dataset.bound){
       input.dataset.bound='1';
-      input.addEventListener('input',()=>{ sunLab[key]=input.type==='range'?Number(input.value):input.value; if(out) out.textContent=formatter(sunLab[key]); saveSunLab(); saveCurrentSunMode(); });
+      input.addEventListener('input',()=>{ if(!geRadioSunLabPrivateAllowed()){refresh();return;} sunLab[key]=input.type==='range'?Number(input.value):input.value; sunEQDraft=true; if(out) out.textContent=formatter(sunLab[key]); saveCurrentSunMode(); });
     }
     refresh();
   }
@@ -5966,7 +6037,7 @@ async function registerServiceWorker(){
     const refresh=()=>{ input.checked=!!sunLab[key]; };
     if(!input.dataset.bound){
       input.dataset.bound='1';
-      input.addEventListener('change',()=>{ sunLab[key]=!!input.checked; saveSunLab(); saveCurrentSunMode(); });
+      input.addEventListener('change',()=>{ if(!geRadioSunLabPrivateAllowed()){refresh();return;} sunLab[key]=!!input.checked; sunEQDraft=true; saveCurrentSunMode(); });
     }
     refresh();
   }
@@ -5978,6 +6049,7 @@ async function registerServiceWorker(){
     bindSunLabToggle('slGlowOnly','glowOnly');
     const slRadial=$('slRadialOn'); if(slRadial) slRadial.checked=!!sunLab.radialOn;
     const slCascade=$('slCascadeOn'); if(slCascade) slCascade.checked=!!sunLab.cascadeOn;
+    bindSunLabControl('slPosition','position',v=>String(Math.round(Number(v)||0)));
     bindSunLabControl('slDistance','distance');
     bindSunLabControl('slThickness','thickness');
     bindSunLabControl('slContrast','contrast');
@@ -6081,20 +6153,12 @@ async function registerServiceWorker(){
         advancedToggle.textContent=open?'HIDE TESTING & RESET TOOLS ▴':'TESTING & RESET TOOLS ▾';
       });
     }
-    const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
-    loadSunLab();loadSunModeProfiles();balanceSunLabVisibility();
-    if(!hadSavedSun){
-      sunLabEditMode='waterfall';
-      sunLab={...SUN_MODE_DEFAULTS.waterfall};
-      sunModeProfiles.waterfall={...sunLab};
-      saveSunModeProfiles();saveSunLab();
-      applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);
-    }else{
-      const remembered=(()=>{try{return localStorage.getItem(SUN_MODE_SELECTED_KEY);}catch(_e){return null}})();
-      sunLabEditMode=remembered&&SUN_MODE_WAVE[remembered]?remembered:
-        Object.keys(SUN_MODE_WAVE).find(mode=>SUN_MODE_WAVE[mode]===sunLab.waveType)||'waterfall';
-      applySunLabUI();setSunModeVisibility(sunLabEditMode);ensureSunEQ(sunLab.waveType);
-    }
+    setPublishedSunEQ(null);
+    updateSunEditorAccess();
+    window.addEventListener('ge-access-experience-updated',updateSunEditorAccess);
+    window.addEventListener('pageshow',updateSunEditorAccess);
+    setInterval(updateSunEditorAccess,60000);
+    void loadPublishedSunEQ();
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
@@ -6108,12 +6172,10 @@ async function registerServiceWorker(){
         if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}
         setPanelVisible(true);
       });
-      $('sunLabSave')?.addEventListener('click',()=>{
-        saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
-        const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE ON DEVICE';},1800);}
-        setStatus('Sun Lab settings saved on this device for desktop and mobile layouts.');
-      });
+      $('sunLabSave')?.addEventListener('click',()=>void publishSunEQ());
+      $('sunLabImportLegacy')?.addEventListener('click',importLegacySunEQ);
       $('sunLabCopy')?.addEventListener('click',async()=>{
+        if(!geRadioSunLabPrivateAllowed())return;
         saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
         const payload=JSON.stringify({format:'GE_SUN_LAB_EXPORT_V1',selectedMode:localStorage.getItem(SUN_MODE_SELECTED_KEY),profiles:sunModeProfiles,current:sunLab},null,2);
         let copied=false;
@@ -6130,7 +6192,7 @@ async function registerServiceWorker(){
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
-      sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
+      sunLabReset?.addEventListener('click',()=>{if(!geRadioSunLabPrivateAllowed())return;if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab=normalizedSunProfile(sunLabEditMode,publishedSunEQ?.profiles?.[sunLabEditMode]);sunEQDraft=true;sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
   function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,28000000,Math.pow(1-approach.distance,3.1))));}
@@ -6954,7 +7016,7 @@ Vector ${vector}. ${pair[1]}.`;
     const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
     const distance=sunNum('distance',-220);
     const reachNorm=clamp((distance+440)/660,0,1);
-    const position=clamp(Number(sunEQAura.dataset.gePosition||0),-30,30)/50;
+    const position=clamp(sunNum('position',0),-30,30)/50;
     const innerScale=.96+position;
     const outerScale=innerScale+.36+reachNorm*1.35;
     const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
@@ -7149,7 +7211,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(barMode && rays.length){
       const angleOffset=-90;
       const baseRadius=46;
-      const radiusPush=clamp(Number(sunEQAura.dataset.gePosition||0),-30,30);
+      const radiusPush=clamp(sunNum('position',0),-30,30);
       const radialOn=sunLab.radialOn!==false;
       const cascadeOn=!!sunLab.cascadeOn;
       const cascadeSpeed=clamp(sunNum('cascadeSpeed',58)/100,0,1);
@@ -9299,8 +9361,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
  });
 })();
 </script>
-<script defer src="./sun-lab-compact.js?v=20261120-pulse-controls-v1"></script>
-<script defer src="./sun-eq-profile-share.js?v=20261120-transfer-v1"></script>
+<!-- Advanced position now lives in the scoped, published preset editor. -->
+<!-- Global EQ presets use GitHub, not device-import links. -->
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
 <script defer src="./live-spectrum.js?v=20261125-eq-offline-v4"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
