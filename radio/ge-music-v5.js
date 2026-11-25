@@ -2467,7 +2467,6 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
- const simpleBrowser=state.view==='browse-songs'||state.view.startsWith('album:')||state.view==='playlist-display';
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -2478,6 +2477,8 @@ function appendSong(parent,track){
    saveSelected();updateMeta();
    say(state.selected.size+' SONG'+(state.selected.size===1?'':'S')+' SELECTED');
    row.classList.toggle('selectedSong',checkbox.checked);
+   songText.setAttribute('aria-pressed',String(checkbox.checked));
+   songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
    if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
@@ -2497,24 +2498,12 @@ function appendSong(parent,track){
     checkbox.checked=!state.selected.has(track.path);
     checkbox.dispatchEvent(new Event('change',{bubbles:true}));
    });
-  label.append(checkbox,songText);
+  songText.setAttribute('aria-pressed',String(checkbox.checked));
+  label.append(songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
- // Song title itself remains the play control; no duplicate PLAY button.
+ // The title is the only per-song selection control; PLAY remains explicit.
  row.append(label);
- if(simpleBrowser){
-  const add=elem('button','geSongAdd',state.selected.has(track.path)?'✓':'');
-  add.type='button';add.classList.toggle('isAdded',state.selected.has(track.path));
-  add.setAttribute('aria-label',(state.selected.has(track.path)?'Remove ':'Add ')+track.title+' from working playlist');
-  add.addEventListener('click',()=>{
-   if(state.selected.has(track.path))state.selected.delete(track.path);else state.selected.add(track.path);
-   // Editing a loaded list creates a working copy; the existing Vault record is untouched until SAVE.
-   saveSelected();updateMeta();render();
-   recordPlaylistInteraction('control_change',{control:'quick_playlist_toggle',track_id:track.path,album:track.album});
-  });
-  // Invisible left hit target until selected; selection is independent of playback.
-  row.insertBefore(add,label);
- }
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
