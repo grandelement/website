@@ -7,10 +7,10 @@ const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const GE_IOS_PREVIEW=new URLSearchParams(location.search).get('eq_preview')==='1';
-const IOS_OPT_IN_KEY='GE_IOS_LIVE_EQ_ENABLED_V1';
-let savedIOSOptIn=false;
-try{savedIOSOptIn=localStorage.getItem(IOS_OPT_IN_KEY)==='1';}catch(_){}
-let geIOSLiveOptIn=GE_IOS_PREVIEW||savedIOSOptIn,lastError='',lastSignal=0;
+// Default ON for every listener. Only an explicit OFF survives reloads.
+const EQ_OFF_KEY='GE_SUN_EQ_EXPLICIT_OFF_V1';
+let enabled=true,lastError='',lastSignal=0;
+try{enabled=localStorage.getItem(EQ_OFF_KEY)!=='1';}catch(_){}
 const bins=new Uint8Array(256);
 const element=()=>document.getElementById('player');
 function localSong(){
@@ -25,10 +25,7 @@ function localSong(){
   }catch(_){return false;}
 }
 function arm(){
-  if(GE_IS_IOS&&!geIOSLiveOptIn){
-    lastError='Tap ENABLE LIVE EQ in Sun Lab to activate on iPhone';
-    return false;
-  }
+  if(!enabled)return false;
   if(!localSong())return false;
   const gate=window.GEAudioGain;
   if(!gate?.arm||!gate?.getSpectrumFrame){
@@ -47,7 +44,7 @@ function arm(){
 function read(){
   const audio=element();
   if(!audio||audio.paused||audio.ended||document.hidden||!localSong()||
-     (GE_IS_IOS&&!geIOSLiveOptIn))return null;
+     !enabled)return null;
   const frame=window.GEAudioGain?.getSpectrumFrame?.();
   if(!frame?.bins?.length)return null;
   const raw=frame.bins;
@@ -75,35 +72,44 @@ function status(){
     context:graph?.contextState||'off',
     live:lastSignal>0&&performance.now()-lastSignal<1500,
     iosPreview:GE_IOS_PREVIEW,
-    iosEnabled:!GE_IS_IOS||geIOSLiveOptIn,
+    iosEnabled:enabled,enabled,
     error:lastError||graph?.spectrumError||''
   };
 }
 function showEnableControl(){
   const button=document.getElementById('geSunEQEnable');
   if(!button)return;
-  button.hidden=!GE_IS_IOS;
-  if(!GE_IS_IOS)return;
-  button.textContent=geIOSLiveOptIn?'RECONNECT LIVE EQ':'ENABLE LIVE EQ';
-  button.setAttribute('aria-label',geIOSLiveOptIn?
-    'Reconnect real time iPhone audio analyzer':'Enable real time iPhone music visualizer');
+  button.hidden=false;
+  button.textContent=enabled?'EQ EFFECTS: ON':'EQ EFFECTS: OFF';
+  button.setAttribute('aria-label','Toggle live EQ effects');
+  button.setAttribute('aria-pressed',String(enabled));
 }
-function enable(){
-  geIOSLiveOptIn=true;
-  try{localStorage.setItem(IOS_OPT_IN_KEY,'1');}catch(_){}
-  lastError='';
-  showEnableControl();
-  return arm();
+function setEnabled(value){
+  enabled=!!value;
+  try{localStorage.setItem(EQ_OFF_KEY,enabled?'0':'1');}catch(_){}
+  lastError='';lastSignal=0;showEnableControl();
+  if(enabled){arm();window.GEResumeLiveEQ?.();}
+  else window.GEStopEQTapIfUnused?.();
+  return enabled;
 }
-const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#sunLabBtn,#shipSunLabBtn';
+function enable(){return setEnabled(true);}
+const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#shipStage [data-proxy="liveBtn"],#sunLabBtn,#shipSunLabBtn,#trackList';
 document.addEventListener('click',event=>{
-  if(event.target?.closest?.('#geSunEQEnable')){enable();return;}
-  if(event.target?.closest?.(triggers))arm();
+  if(event.target?.closest?.('#geSunEQEnable')){setEnabled(!enabled);return;}
+  if(enabled&&event.target?.closest?.(triggers))arm();
 },true);
+function recover(){
+  const audio=element();
+  if(!enabled||document.hidden||!audio||audio.paused||audio.ended)return;
+  // Resume the existing graph; never create a competing audio element.
+  if(localSong()&&window.GEAudioGain?.getStatus?.()?.contextState!=='running')arm();
+  if(!localSong())window.GEResumeLiveEQ?.();
+}
 showEnableControl();
-element()?.addEventListener('playing',()=>{if(localSong())arm();});
-document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden&&!element()?.paused&&localSong())arm();
-});
-window.GELiveAudioEQ={arm,enable,read,status};
+for(const event of ['playing','loadeddata','seeked','canplay'])element()?.addEventListener(event,recover);
+document.addEventListener('visibilitychange',recover);
+window.addEventListener('pageshow',recover);
+window.addEventListener('focus',recover);
+setInterval(recover,1500);
+window.GELiveAudioEQ={arm,enable,setEnabled,isEnabled:()=>enabled,read,status};
 })();
