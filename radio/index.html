@@ -191,7 +191,7 @@ window.addEventListener('unhandledrejection',function(e){
 
 
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
-<link rel="stylesheet" href="./radio-components.css?v=20261119-radio-clean-1e390f3" data-ge-css="components">
+<link rel="stylesheet" href="./radio-components.css?v=20261125-sun-attached-v2" data-ge-css="components">
 
 
 
@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
     <button id="geSunEQEnable" type="button" class="sunlab-mini" hidden
       style="margin:5px auto 9px;padding:9px 16px;min-height:40px;max-width:100%;border:1px solid #5dbbde;border-radius:9px;color:#eefaff;background:#10476a;font-weight:800"
-      aria-label="Enable real time audio visualizer on iPhone">ENABLE LIVE EQ</button>
+      aria-label="Toggle live EQ effects" aria-pressed="true">EQ EFFECTS: ON</button>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
@@ -972,7 +972,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="../ge-vault-client.js?v=20261112-emergency-fan-tracking-v4"></script>
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
-<script src="./ge-gate-audio.js?v=20261119-shared-live-fft-v2"></script>
+<script src="./ge-gate-audio.js?v=20261125-shared-recovery-v3"></script>
 <script src="./sun-pulse-engine.js?v=20261120-pulse-v1"></script>
 <script>
 'use strict';
@@ -6584,14 +6584,14 @@ Vector ${vector}. ${pair[1]}.`;
     context:eqAudioCtx?.state||'off',error:eqTapFailure
   })};
   function eqTapIsNeeded(){
-    return fxTapWanted || !!sunLabPanel?.classList.contains('show') ||
-      (document.body.classList.contains('view-ship')&&geRadioLocalTestAccess());
+    return fxTapWanted || window.GELiveAudioEQ?.isEnabled?.()!==false;
   }
   function stopEQTapIfUnused(){
     if(eqTapIsNeeded())return;
     try{eqTapAudio?.pause()}catch(_e){}
   }
   async function ensureLiveEQ(){
+    if(!fxTapWanted&&window.GELiveAudioEQ?.isEnabled?.()===false)return false;
     // GE Bangers is a local, time-synchronized music station, not the old
     // BLITZ live stream. Analyze the one audible player in real time.
     if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource()){
@@ -6687,6 +6687,7 @@ Vector ${vector}. ${pair[1]}.`;
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{
+    if(window.GELiveAudioEQ?.isEnabled?.()===false)return null;
     if(geInlineMusicActive)return inlineSpectrumData();
     if(audio.paused||audio.ended)return null;
     // Prefer the spectrum sampled directly from the actually audible player.
@@ -6707,8 +6708,8 @@ Vector ${vector}. ${pair[1]}.`;
     for(let i=0;i<48;i++){
       const bar=document.createElementNS(ns,'line'),angle=i/48*Math.PI*2-Math.PI/2;
       const ux=Math.cos(angle),uy=Math.sin(angle);
-      bar.setAttribute('x1',(120+ux*127).toFixed(2));
-      bar.setAttribute('y1',(120+uy*127).toFixed(2));
+      bar.setAttribute('x1',(120+ux*115).toFixed(2));
+      bar.setAttribute('y1',(120+uy*115).toFixed(2));
       bar.setAttribute('x2',(120+ux*137).toFixed(2));
       bar.setAttribute('y2',(120+uy*137).toFixed(2));
       bar.setAttribute('class','ship-sun-eq-bar');
@@ -6947,8 +6948,9 @@ Vector ${vector}. ${pair[1]}.`;
     const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
     const distance=sunNum('distance',-220);
     const reachNorm=clamp((distance+440)/660,0,1);
-    const innerScale=1.008;
-    const outerScale=1.32+reachNorm*1.35;
+    const position=clamp(Number(sunEQAura.dataset.gePosition||0),-30,30)/50;
+    const innerScale=.96+position;
+    const outerScale=innerScale+.36+reachNorm*1.35;
     const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
     const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
     const colorMix=clamp(sunNum('bandColorMix',70)/100,0,1);
@@ -7006,6 +7008,7 @@ Vector ${vector}. ${pair[1]}.`;
 
   function updateSunEQ(live){
     if(!sunEQAura||!sunEQFog)return;
+    if(window.GELiveAudioEQ?.isEnabled?.()===false){sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';return;}
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
     // Hide fixed bars unless genuine live FFT data exists.
@@ -7139,7 +7142,7 @@ Vector ${vector}. ${pair[1]}.`;
     const cascadeLines = cascadeGroup ? [...cascadeGroup.children] : [];
     if(barMode && rays.length){
       const angleOffset=-90;
-      const baseRadius=50.4;
+      const baseRadius=48;
       const radiusPush=clamp(Number(sunEQAura.dataset.gePosition||0),-30,30);
       const radialOn=sunLab.radialOn!==false;
       const cascadeOn=!!sunLab.cascadeOn;
@@ -7303,6 +7306,9 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
+    const effectsOn=window.GELiveAudioEQ?.isEnabled?.()!==false;
+    const halo=$('shipSunEQHalo');if(halo)halo.style.visibility=effectsOn?'visible':'hidden';
+    if(!effectsOn){eqMessage('MUSIC EQ · OFF');updateSunEQ(false);return;}
     let live=false;
     const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
     // Source-of-truth priority: measured PCM from the audible native player.
@@ -7358,8 +7364,6 @@ Vector ${vector}. ${pair[1]}.`;
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
-      else if(GE_IOS_AUDIO&&!window.GELiveAudioEQ?.status?.()?.iosEnabled)
-        eqMessage('MUSIC EQ · OFF · TAP ENABLE LIVE EQ');
       else if(inlinePlaying)eqMessage('MUSIC EQ · LIVE MUSIC AUDIO SIGNAL UNAVAILABLE');
       else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
@@ -7894,11 +7898,20 @@ Vector ${vector}. ${pair[1]}.`;
   if(analysisText)analysisText.textContent='Passive scan active.';
   // The music visualizer MUST have its own animation loop. If a planet/Ship
   // UI callback fails, Sun EQ still samples the current audio and animates.
-  let lastGEAudioFrame=0,lastGEAudioWarning=0;
+  let lastGEAudioFrame=0,lastGEAudioWarning=0,lastGEInlineRecovery=0;
   function animateGEAudio(ts){
     if(!document.hidden&&ts-lastGEAudioFrame>=32){
       lastGEAudioFrame=ts;
-      try{updateEQ();}
+      try{
+        if(window.GELiveAudioEQ?.isEnabled?.()!==false&&geInlineMusicActive&&!geInlineMusicPaused&&ts-lastGEInlineRecovery>=1500){
+          lastGEInlineRecovery=ts;
+          const frame=geInlineMusicFrame?.contentWindow;
+          const transport=frame?.GEGetMusicTransport?.();
+          const graph=frame?.GEAudioGain;
+          if(transport&&!transport.paused&&!transport.ended&&graph?.getStatus?.()?.contextState!=='running')graph?.arm?.();
+        }
+        updateEQ();
+      }
       catch(error){
         if(ts-lastGEAudioWarning>12000){
           lastGEAudioWarning=ts;
@@ -9283,7 +9296,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="./sun-lab-compact.js?v=20261120-pulse-controls-v1"></script>
 <script defer src="./sun-eq-profile-share.js?v=20261120-transfer-v1"></script>
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
-<script defer src="./live-spectrum.js?v=20261120-ios-persistent-v1"></script>
+<script defer src="./live-spectrum.js?v=20261125-default-on-v2"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
 <script defer src="./offline-manager.js?v=20261122-offline-manager-v10"></script>
 
