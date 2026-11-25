@@ -955,7 +955,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 /* Public MUSIC cleanup: keep checkbox on each album heading; preserve song-title playback. */
 .window:not(.arranging) .songSelectAll{display:none!important}
-.window:not(.arranging) .selectionBar .shareSelected{display:none!important}
+.window:not(.arranging) .selectionBar .shareSelected{display:inline-flex!important}
 .window:not(.arranging) .selectionBar .selectionActions{display:flex;flex:1;justify-content:flex-end;gap:10px}
 .window:not(.arranging) .selectionBar .selectionActions .buySelected,
 .window:not(.arranging) .selectionBar .selectionActions .playSelected{flex:1;max-width:240px}
@@ -1830,6 +1830,7 @@ function selectedTracks(){
  return [...state.selected].map(path=>byPath.get(path)).filter(Boolean);
 }
 function updateMeta(){
+ const reload=el('.geMusicReload');if(reload)reload.hidden=!musicAccessActive();
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').innerHTML='<span class="geSelectedNumber">'+count+'</span>';
   const selectLabel=el('.songSelectAll');
@@ -2497,24 +2498,12 @@ function appendSong(parent,track){
     checkbox.checked=!state.selected.has(track.path);
     checkbox.dispatchEvent(new Event('change',{bubbles:true}));
    });
-  label.append(checkbox,songText);
+  songText.setAttribute('aria-pressed',String(checkbox.checked));
+  label.append(songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
  // Song title itself remains the play control; no duplicate PLAY button.
  row.append(label);
- if(simpleBrowser){
-  const add=elem('button','geSongAdd',state.selected.has(track.path)?'✓':'');
-  add.type='button';add.classList.toggle('isAdded',state.selected.has(track.path));
-  add.setAttribute('aria-label',(state.selected.has(track.path)?'Remove ':'Add ')+track.title+' from working playlist');
-  add.addEventListener('click',()=>{
-   if(state.selected.has(track.path))state.selected.delete(track.path);else state.selected.add(track.path);
-   // Editing a loaded list creates a working copy; the existing Vault record is untouched until SAVE.
-   saveSelected();updateMeta();render();
-   recordPlaylistInteraction('control_change',{control:'quick_playlist_toggle',track_id:track.path,album:track.album});
-  });
-  // Invisible left hit target until selected; selection is independent of playback.
-  row.insertBefore(add,label);
- }
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
@@ -2643,6 +2632,8 @@ document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDr
 function openAlbumInSongs(album){
  // Cover opens only this album. SONGS always restores the complete catalog.
  state.browseBackgroundAlbum=album;
+ for(const track of selectableAlbumTracks(album))state.selected.add(track.path);
+ state.lastSelectedAlbum=album;saveSelected();
  setView('album:'+album);
 }
 function setView(view){
@@ -3467,6 +3458,9 @@ const shareSelectedButton=elem('button','shareSelected','SHARE');
 shareSelectedButton.type='button';
 shareSelectedButton.setAttribute('aria-label','Share selected songs or current playlist');
 el('.selectionActions').insertBefore(shareSelectedButton,el('.buySelected'));
+const musicReload=elem('button','geMusicReload','RELOAD');musicReload.type='button';musicReload.hidden=true;
+shareSelectedButton.after(musicReload);
+musicReload.addEventListener('click',async()=>{if(!musicAccessActive())return;try{await loadCatalogRouting();await fetchCatalog({strict:true});render();say('MUSIC RELOADED')}catch(e){say('RELOAD FAILED')}});
 shareSelectedButton.addEventListener('click',()=>{
  const selected=shareSelection();
  if(!selected){say('Select an album, playlist or songs to share.');return}
@@ -3582,7 +3576,7 @@ function shareSelection(){
   return paths.length?{name:String(name||'Music playlist').slice(0,80),paths,kind,id:String(id||'').slice(0,100)}:null;
  };
  if(state.view.startsWith('album:')){
-  const album=state.view.slice(6),tracks=state.tracks.filter(t=>t.album===album);
+  const album=state.view.slice(6),tracks=selectableAlbumTracks(album).filter(t=>state.selected.has(t.path));
   return make(album,tracks.map(t=>t.path),'album');
  }
  const viewId=state.view.replace(/^(?:vault|local):/,'');
