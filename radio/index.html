@@ -877,7 +877,7 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
-      <p id="sunLabPublishStatus" role="status" aria-live="polite">Advanced settings are not saved locally. Owner sign-in is required to publish to GitHub.</p>
+      <p id="sunLabPublishStatus" role="status" aria-live="polite">Owner sign-in is required to publish to GitHub. Unsaved edits are retained in this tab during owner sign-in.</p>
       <a id="sunLabOwnerLink" href="../backroom/">BACK ROOM OWNER SIGN-IN</a>
       <button id="sunLabImportLegacy" type="button" class="sunlab-mini" hidden>IMPORT PREVIOUS DEVICE SETTINGS</button>
     </div>
@@ -5844,7 +5844,7 @@ async function registerServiceWorker(){
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:90,dynamics:105,brightness:160,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:140,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:155,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:"spectrum",position:2,distance:220,thickness:30,contrast:115,dynamics:284,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:155,hue:1,hueMix:0,altHue:-17,bass:200,mid:188,treble:159,compression:51,smoothing:0,pulseDepth:98,pulseSensitivity:0,pulseAttack:100,pulseRelease:100,pulseNoiseFloor:8,radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false,spectrumSpeed:47,spectrumGain:118,bandColorMix:42,lowHue:255,midHue:220,highHue:171},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
     glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:140,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:140,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
@@ -5855,10 +5855,35 @@ async function registerServiceWorker(){
     orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
     aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:145,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:145,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
   };
-  let sunLab={...SUN_MODE_DEFAULTS.waterfall},sunLabEditMode=null,sunModeProfiles={};
+  let sunLab={...SUN_MODE_DEFAULTS.spectrum},sunLabEditMode=null,sunModeProfiles={};
   let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
   const SUN_EQ_PUBLISH_API='https://ge-backroom-publisher.grandelement.workers.dev';
   const SUN_EQ_PUBLISH_SESSION='GE_BACKROOM_PUBLISH_SESSION_V1';
+  const SUN_EQ_PENDING_DRAFT='GE_SUN_EQ_OWNER_HANDOFF_V1';
+  // Only retain an explicitly handed-off editor draft in this tab; never publish without verified owner access.
+  function stashSunOwnerDraft(){
+    if(!sunEQDraft||!geRadioSunLabPrivateAllowed())return;
+    saveCurrentSunMode();
+    try{sessionStorage.setItem(SUN_EQ_PENDING_DRAFT,JSON.stringify({base:publishedSunEQ??null,mode:sunLabEditMode,profiles:sunModeProfiles}));}
+    catch(_){sunPublishStatus('Unable to retain draft in this tab. COPY SETTINGS before leaving.');}
+  }
+  function restoreSunOwnerDraft(){
+    if(!geSunOwnerVerified)return false;
+    try{
+      const draft=JSON.parse(sessionStorage.getItem(SUN_EQ_PENDING_DRAFT)||'null');
+      if(!draft||!validSunMode(draft.mode))return false;
+      if(JSON.stringify(draft.base??null)!==JSON.stringify(publishedSunEQ??null)){
+        sunPublishStatus('Published EQ changed while signing in. Previous tab draft retained; do not overwrite without review.');
+        return true;
+      }
+      sunModeProfiles=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,draft.profiles?.[mode])]));
+      sunLabEditMode=draft.mode;sunLab={...sunModeProfiles[draft.mode]};sunEQDraft=true;
+      selectSunPreference(draft.mode);applySunLabUI();setSunModeVisibility(draft.mode);ensureSunEQ(sunLab.waveType);
+      sunEQLastPaint=0;sunEQCascadeHistory=[];
+      sunPublishStatus('UNSAVED EQ DRAFT RESTORED · SAVE TO GITHUB to publish.');
+      return true;
+    }catch(_){return false;}
+  }
   function validSunMode(mode){return Object.hasOwn(SUN_MODE_WAVE,mode);}
   function sunModePreference(){try{return localStorage.getItem(SUN_MODE_SELECTED_KEY)}catch(_){return null}}
   function selectSunPreference(mode){try{localStorage.setItem(SUN_MODE_SELECTED_KEY,mode)}catch(_){}}
@@ -5876,7 +5901,7 @@ async function registerServiceWorker(){
   function setPublishedSunEQ(raw){
     publishedSunEQ=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:null;
     const selected=validSunMode(sunModePreference())?sunModePreference():
-      validSunMode(raw?.defaultMode)?raw.defaultMode:'waterfall';
+      validSunMode(raw?.defaultMode)?raw.defaultMode:'spectrum';
     sunModeProfiles=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,raw?.profiles?.[mode])]));
     sunLabEditMode=selected;sunLab={...sunModeProfiles[selected]};sunEQDraft=false;
     applySunLabUI();setSunModeVisibility(selected);ensureSunEQ(sunLab.waveType);
@@ -5925,7 +5950,7 @@ async function registerServiceWorker(){
           geSunOwnerVerified=true;
           setPublishedSunEQ(owner.settings?.visual?.sunEQ);
           updateSunEditorAccess();
-          sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all three presets.');
+          if(!restoreSunOwnerDraft())sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all three presets.');
           if(new URLSearchParams(location.search).get('eq_admin')==='1'){window.GELiveAudioEQ?.setEnabled?.(true);setPanelVisible(true);}
           return;
         }catch(_){geSunOwnerVerified=false;}
@@ -5941,8 +5966,8 @@ async function registerServiceWorker(){
     const button=$('sunLabSave');if(!geSunOwnerVerified||!button||button.disabled)return;
     button.disabled=true;
     try{
-      saveCurrentSunMode();
-      const next={version:1,defaultMode:sunLabEditMode||'waterfall',profiles:Object.fromEntries(
+      saveCurrentSunMode();stashSunOwnerDraft();
+      const next={version:1,defaultMode:sunLabEditMode||'spectrum',profiles:Object.fromEntries(
         Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,sunModeProfiles[mode])]))};
       const latest=await sunPublisher(),current=latest.settings?.visual;
       if(!current||typeof current!=='object')throw Error('Published visual settings are missing.');
@@ -5953,7 +5978,7 @@ async function registerServiceWorker(){
       if(!result.commit)throw Error('No GitHub commit confirmed.');
       const proof=await sunPublisher();
       if(JSON.stringify(proof.settings?.visual?.sunEQ)!==JSON.stringify(next))throw Error('Commit made, but EQ readback did not match. Check GitHub before saving again.');
-      publishedSunEQ=next;sunEQDraft=false;
+      publishedSunEQ=next;sunEQDraft=false;try{sessionStorage.removeItem(SUN_EQ_PENDING_DRAFT)}catch(_){}
       sunPublishStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+' · Public deployment follows.');
     }catch(error){sunPublishStatus('SAVE FAILED · '+String(error?.message||error));}
     finally{button.disabled=false;}
@@ -6202,10 +6227,11 @@ async function registerServiceWorker(){
         eq.setEnabled(true);
         // Access only controls the private variables, not the public effects.
         saveCurrentSunMode();
-        if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}
+        if(!sunLabEditMode){sunLabEditMode='spectrum';sunLab={...SUN_MODE_DEFAULTS.spectrum,...(sunModeProfiles.spectrum||{})};applySunLabUI();setSunModeVisibility('spectrum');ensureSunEQ(sunLab.waveType);}
         setPanelVisible(true);
       });
       $('sunLabSave')?.addEventListener('click',()=>void publishSunEQ());
+      $('sunLabOwnerLink')?.addEventListener('click',stashSunOwnerDraft);
       $('sunLabImportLegacy')?.addEventListener('click',importLegacySunEQ);
       $('sunLabCopy')?.addEventListener('click',async()=>{
         if(!geRadioSunLabPrivateAllowed())return;
