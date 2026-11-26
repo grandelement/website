@@ -2376,14 +2376,18 @@ function clearMusicAccess(){
  musicAccessStatus();say('Music code cleared. Guest previews remain available.');render();
 }
 async function musicCodeRequest(body){
- const response=await fetch(musicSessionEndpoint,{
-   method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
-   body:JSON.stringify(body)
- });
- const data=await response.json().catch(()=>({ok:false,error:'Invalid Vault response'}));
- if(!response.ok||data?.ok!==true)
-   throw Error(String(data.error||('Vault HTTP '+response.status)));
- return data;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(musicSessionEndpoint,{
+    method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify(body),signal:controller.signal
+  });
+  const data=await response.json().catch(()=>({ok:false,error:'Invalid Vault response'}));
+  if(!response.ok||data?.ok!==true)
+    throw Error(String(data.error||('Vault HTTP '+response.status)));
+  return data;
+ }catch(error){if(error?.name==='AbortError')throw Error('Vault request timed out. Try again online.');throw error;}
+ finally{clearTimeout(timer);}
 }
 async function redeemMusicCode(){
  if(state.redeemBusy)return;
