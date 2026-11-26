@@ -938,10 +938,10 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slCompression">EQ Compression</label><output id="slCompressionVal"></output><input id="slCompression" type="range" min="0" max="120" step="1" value="0"><small>Raises weaker mids/highs and flattens giant bass spikes for a more balanced visual.</small></div>
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
       <div class="sunlab-row"><label for="slSpectrumGain">Master Pulse Signal</label><output id="slSpectrumGainVal"></output><input id="slSpectrumGain" type="range" min="0" max="300" step="1" value="100"><small>Raises or lowers the single combined pulse after Low, Mid, and High are blended together.</small></div>
-      <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue spectrum. Higher values reveal whether each ring is being driven mostly by Low, Mid, or High frequencies.</small></div>
-      <div class="sunlab-row"><label for="slLowHue">Low Color</label><output id="slLowHueVal"></output><span class="sun-hue-swatch" id="slLowHuePreview" aria-hidden="true"></span><input id="slLowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="215"><small>Color used when bass and low frequencies dominate the captured pulse.</small></div>
-      <div class="sunlab-row"><label for="slMidHue">Mid Color</label><output id="slMidHueVal"></output><span class="sun-hue-swatch" id="slMidHuePreview" aria-hidden="true"></span><input id="slMidHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="155"><small>Color used when the middle frequencies dominate the captured pulse.</small></div>
-      <div class="sunlab-row"><label for="slHighHue">High Color</label><output id="slHighHueVal"></output><span class="sun-hue-swatch" id="slHighHuePreview" aria-hidden="true"></span><input id="slHighHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="320"><small>Color used when treble and high frequencies dominate the captured pulse.</small></div>
+      <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue field. Higher values reveal separate, flowing Low, Mid and High colors.</small></div>
+      <div class="sunlab-row"><label for="slLowHue">Low Color</label><output id="slLowHueVal"></output><span class="sun-hue-swatch" id="slLowHuePreview" aria-hidden="true"></span><input id="slLowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="215"><small>Color used by bass and low frequencies in the continuous field.</small></div>
+      <div class="sunlab-row"><label for="slMidHue">Mid Color</label><output id="slMidHueVal"></output><span class="sun-hue-swatch" id="slMidHuePreview" aria-hidden="true"></span><input id="slMidHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="155"><small>Color used by middle frequencies in the continuous field.</small></div>
+      <div class="sunlab-row"><label for="slHighHue">High Color</label><output id="slHighHueVal"></output><span class="sun-hue-swatch" id="slHighHuePreview" aria-hidden="true"></span><input id="slHighHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="320"><small>Color used by treble and high frequencies in the continuous field.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowReach">Inner Glow Reach</label><output id="slInnerGlowReachVal"></output><input id="slInnerGlowReach" type="range" min="0" max="100" step="1" value="18"><small>Sets the tight corona immediately around the sun.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowStrength">Inner Glow Strength</label><output id="slInnerGlowStrengthVal"></output><input id="slInnerGlowStrength" type="range" min="0" max="220" step="1" value="150"><small>Controls the strength of the close glow.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowHue">Inner Glow Color</label><output id="slInnerGlowHueVal"></output><span class="sun-hue-swatch" id="slInnerGlowHuePreview" aria-hidden="true"></span><input id="slInnerGlowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="205"><small>Changes the color of the close glow.</small></div>
@@ -6710,7 +6710,9 @@ Vector ${vector}. ${pair[1]}.`;
   const GE_IOS_AUDIO=/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const sunEQAura=$('sunEQAura'),sunEQFog=$('sunEQFog');
   const SUN_EQ_RINGS=12;
-  const SUN_SPECTRUM_RINGS=110;
+  const SUN_SPECTRUM_RINGS=110; // history samples, not visible rings
+  const SUN_FIELD_PIXELS=360, SUN_FIELD_ANGLES=128, SUN_FIELD_RADII=220;
+  let sunFieldMap=null,sunFieldFrame=null,sunFieldTexture=null;
   const SUN_EQ_BARS=72;
   const SUN_FOG_BLOBS=28;
   const sunEQLevels=Array(SUN_EQ_RINGS).fill(.03);
@@ -6984,24 +6986,18 @@ Vector ${vector}. ${pair[1]}.`;
     if(!sunEQAura)return;
 
     if(mode==='spectrum'){
-      if(sunEQAura.dataset.mode!=='spectrum' || sunEQAura.childElementCount!==SUN_SPECTRUM_RINGS){
-        sunEQAura.dataset.mode='spectrum';
-        sunEQAura.innerHTML='';
-        for(let i=0;i<SUN_SPECTRUM_RINGS;i++){
-          const ring=document.createElement('span');
-          ring.className='sun-spectrum-ring';
-          ring.style.setProperty('--spectrum-scale','1');
-          ring.style.setProperty('--spectrum-color','rgba(2,20,70,.55)');
-          ring.style.setProperty('--spectrum-width','1px');
-          ring.style.opacity='0';
-          sunEQAura.appendChild(ring);
-        }
-        sunSpectrumHistory=[];
-        sunSpectrumBandHistory=[];
+      if(sunEQAura.dataset.mode!=='spectrum'||!sunEQAura.querySelector('canvas.sun-spectrum-field')){
+        sunEQAura.dataset.mode='spectrum';sunEQAura.innerHTML='';
+        const canvas=document.createElement('canvas');
+        canvas.className='sun-spectrum-field';canvas.width=canvas.height=SUN_FIELD_PIXELS;
+        canvas.setAttribute('aria-hidden','true');
+        canvas.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;max-width:none;max-height:none;border:0;opacity:1;';
+        sunEQAura.appendChild(canvas);
+        sunFieldMap=null;sunFieldFrame=null;sunFieldTexture=null;
+        sunSpectrumHistory=[];sunSpectrumBandHistory=[];
         sunSpectrumSampleAt=0;sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
       }
-      ensureSunFog();
-      return;
+      ensureSunFog();return;
     }
 
     if(mode==='glow'){
@@ -7118,21 +7114,61 @@ Vector ${vector}. ${pair[1]}.`;
     return [hue2rgb(p,q,h+1/3),hue2rgb(p,q,h),hue2rgb(p,q,h-1/3)].map(v=>Math.round(v*255));
   }
 
-  function spectrumBandColor(bands,energy){
-    const total=Math.max(.0001,bands.low+bands.mid+bands.high);
-    const lowW=bands.low/total,midW=bands.mid/total,highW=bands.high/total;
-    const low=hslRgb(sunNum('lowHue',215)),mid=hslRgb(sunNum('midHue',155)),high=hslRgb(sunNum('highHue',320));
-    const band=[
-      low[0]*lowW+mid[0]*midW+high[0]*highW,
-      low[1]*lowW+mid[1]*midW+high[1]*highW,
-      low[2]*lowW+mid[2]*midW+high[2]*highW
-    ];
-    const base=hslRgb(214,.95,.48);
-    const mix=clamp(sunNum('bandColorMix',70)/100,0,1);
-    // Strong visible colors even when the spectrum has no active signal.
-    const brightness=.72+energy*.28;
-    const rgb=band.map((v,i)=>Math.round((base[i]*(1-mix)+v*mix)*brightness));
-    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  // Continuous color field: independent audio-band hues, no master pulse hue.
+  function sunFieldSmooth(x){x=clamp(x,0,1);return x*x*(3-2*x);}
+  function drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now){
+    const ctx=canvas.getContext('2d');if(!ctx)return;
+    const N=SUN_FIELD_PIXELS,A=SUN_FIELD_ANGLES,R=SUN_FIELD_RADII;
+    const ratio=clamp(innerScale/outerScale,0,.98),size=(outerScale*100).toFixed(2)+'%';
+    if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
+    canvas.style.opacity='1';
+    if(!sunFieldMap||Math.abs(sunFieldMap.ratio-ratio)>.0005){
+      const rows=new Int16Array(N*N),angles=new Uint8Array(N*N);rows.fill(-1);
+      for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+        const dx=(x+.5-N/2)/(N/2),dy=(y+.5-N/2)/(N/2),r=Math.hypot(dx,dy);
+        if(r<ratio||r>1)continue;
+        const i=y*N+x;rows[i]=Math.min(R-1,Math.round((r-ratio)/(1-ratio)*(R-1)));
+        angles[i]=Math.floor(((Math.atan2(dy,dx)/(2*Math.PI)+1)%1)*A);
+      }
+      sunFieldMap={ratio,rows,angles};
+    }
+    if(!sunFieldFrame)sunFieldFrame=ctx.createImageData(N,N);
+    if(!sunFieldTexture)sunFieldTexture=new Uint8ClampedArray(R*A*4);
+    const tex=sunFieldTexture,colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
+    const mix=clamp(sunNum('bandColorMix',70)/100,0,1),base=hslRgb(214,.95,.48);
+    const paletteMix=sunFieldSmooth(mix/.35),thick=clamp(sunNum('thickness',55)/260,0,1);
+    const softness=lerp(.13,.025,mix),fadeWidth=lerp(.03,.11,thick),zero={low:0,mid:0,high:0};
+    for(let r=0;r<R;r++){
+      const q=r/(R-1),index=Math.max(0,q*(SUN_SPECTRUM_RINGS-1)-phase),lo=Math.floor(index),t=index-lo;
+      const aa=lo===0?bands:(sunSpectrumBandHistory[lo-1]||zero),bb=sunSpectrumBandHistory[lo]||zero;
+      const ea=lo===0?energy:(sunSpectrumHistory[lo-1]||0),eb=sunSpectrumHistory[lo]||0;
+      const vals=[lerp(aa.low,bb.low,t),lerp(aa.mid,bb.mid,t),lerp(aa.high,bb.high,t)],sum=vals[0]+vals[1]+vals[2];
+      const e=clamp(lerp(ea,eb,t),0,1),offset=r*A*4;
+      if(sum<.001||e<.001){tex.fill(0,offset,offset+A*4);continue;}
+      // Each color occupies a share proportional to its measured band energy.
+      // Soft, moving boundaries avoid discrete rings, bars and rigid sectors.
+      const widths=vals.map(v=>v/sum),centers=[widths[0]/2,widths[0]+widths[1]/2,1-widths[2]/2];
+      const edge=sunFieldSmooth(q/fadeWidth)*sunFieldSmooth((1-q)/.09);
+      const twist=.20*Math.sin(q*5.2-now*.00022)+q*.22+now*.000035;
+      const blur=widths.map(v=>Math.min(softness,Math.max(.012,v*.42)));
+      for(let a=0;a<A;a++){
+        const angle=((a/A+twist)%1+1)%1;
+        const weight=k=>{if(widths[k]<.001)return 0;let d=Math.abs(angle-centers[k]);d=Math.min(d,1-d);return sunFieldSmooth((widths[k]/2+blur[k]-d)/(2*blur[k]));};
+        let w0=weight(0),w1=weight(1),w2=weight(2),total=w0+w1+w2;
+        if(total<.00001){const k=vals.indexOf(Math.max(...vals));w0=k===0?1:0;w1=k===1?1:0;w2=k===2?1:0;total=1;}
+        w0/=total;w1/=total;w2/=total;
+        const p=offset+a*4,local=w0*vals[0]+w1*vals[1]+w2*vals[2];
+        for(let c=0;c<3;c++){const hue=w0*colors[0][c]+w1*colors[1][c]+w2*colors[2][c];tex[p+c]=lerp(base[c],hue,paletteMix)*(.65+.35*local);}
+        tex[p+3]=255*edge*clamp(e*(.28+.65*local)*(.55+.45*thick),0,.90);
+      }
+    }
+    const out=sunFieldFrame.data,{rows,angles}=sunFieldMap;
+    for(let i=0;i<rows.length;i++){
+      const p=i*4,r=rows[i];if(r<0){out[p+3]=0;continue;}
+      const t=(r*A+angles[i])*4;
+      out[p]=tex[t];out[p+1]=tex[t+1];out[p+2]=tex[t+2];out[p+3]=tex[t+3];
+    }
+    ctx.putImageData(sunFieldFrame,0,0);
   }
 
   function updateSpectrumMeter(bands,pulse){
@@ -7153,12 +7189,12 @@ Vector ${vector}. ${pair[1]}.`;
       if(line){line.style.setProperty('--ge-band-color',color);line.title='Selected '+name+' hue: '+Math.round(hue)+'°';}
     }
     const combined=$('spectrumPulseMeter');
-    if(combined)combined.style.background=spectrumBandColor(bands,pulse);
+    if(combined)combined.style.background='linear-gradient(90deg,#59778f,#d9eaff)';
   }
 
   function updateSpectrumSun(live,now){
-    const rings=[...sunEQAura.children];
-    if(rings.length!==SUN_SPECTRUM_RINGS)return;
+    const canvas=sunEQAura.querySelector('canvas.sun-spectrum-field');
+    if(!canvas)return;
     if(sunEQFog)sunEQFog.style.opacity='0';
     sunEQAura.style.filter='none';
 
@@ -7184,7 +7220,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(elapsed>0){
       const steps=Math.min(SUN_SPECTRUM_RINGS,elapsed);
       for(let i=0;i<steps;i++){
-        const measured=i===steps-1&&sunSpectrumPeak>.001&&dt<interval*2;
+        const measured=sunSpectrumPeak>.001&&dt<interval*2;
         sunSpectrumHistory.unshift(measured?sunSpectrumPeak:null);
         sunSpectrumBandHistory.unshift(measured?sunSpectrumPeakBands:null);
       }
@@ -7210,32 +7246,7 @@ Vector ${vector}. ${pair[1]}.`;
     const viewport=window.visualViewport;
     const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
     const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
-    const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
-    const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
-    const colorMix=clamp(sunNum('bandColorMix',70)/100,0,1);
-
-    rings.forEach((ring,i)=>{
-      const captured=sunSpectrumHistory[i];
-      if(captured==null||captured<=.001){ring.style.opacity='0';return;}
-      const e=clamp(captured,0,1);
-      const b=sunSpectrumBandHistory[i]||{low:e,mid:e,high:e};
-      const position=Math.min(SUN_SPECTRUM_RINGS-1,i+phase);
-      const scale=innerScale+position*spacing;
-      const light=clamp(58+e*34,58,96);
-      const sat=clamp(88+e*12,82,100);
-      const alpha=clamp(.34+e*.66,0,1);
-      const originalBlue=`hsla(${clamp(214+sunNum('hue',1)*.35,170,260).toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`;
-      const bandColor=spectrumBandColor(b,e);
-      // Real border thickness remains constant as diameter grows; scaling the
-      // border itself was producing an opaque oversized circular sheet.
-      ring.style.setProperty('--spectrum-scale',scale.toFixed(4));
-      ring.style.width=ring.style.height=(scale*100).toFixed(3)+'%';
-      ring.style.transform='translate(-50%,-50%)';
-      ring.style.setProperty('--spectrum-width',(thickness*(.82+e*.38)).toFixed(2)+'px');
-      ring.style.setProperty('--spectrum-color',colorMix<=.001?originalBlue:bandColor);
-      const exitFade=clamp((SUN_SPECTRUM_RINGS-1-position)/10,0,1);
-      ring.style.opacity=String(alpha*exitFade);
-    });
+    drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
   }
 
   let glowEnvelope=0;
@@ -9195,30 +9206,47 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
   window.GEQRIntroTest={website:()=>open('../qr/'),radio:()=>open('../qr/radio/'),close:shut};
 })();
 
-// iOS Sun Lab fallback: ensure vertical finger drags move the settings even
-// when Safari's page-level gesture suppression disables native scrolling.
-// Ignore sliders and buttons so adjustment and Save/Close remain functional.
+// Sun Lab: direct vertical thumb scrolling and horizontal slider adjustment.
 (function enableSunLabTouchScroll(){
- const panel=document.getElementById('sunLabPanel');
- if(!panel)return;
- let lastY=null,active=false;
- panel.addEventListener('touchstart',event=>{
-  const target=event.target;
-  active=panel.classList.contains('show')&&event.touches.length===1&&
-   !target.closest('input,button,select,textarea,[contenteditable="true"]');
-  lastY=active?event.touches[0].clientY:null;
- },{passive:true});
- panel.addEventListener('touchmove',event=>{
-  if(!active||lastY===null||event.touches.length!==1)return;
-  const y=event.touches[0].clientY;
-  const delta=lastY-y;
-  lastY=y;
-  if(panel.scrollHeight<=panel.clientHeight+1)return;
-  panel.scrollTop+=delta;
-  if(event.cancelable)event.preventDefault();
-  event.stopPropagation();
+ const panel=document.getElementById('sunLabPanel'),grid=document.getElementById('sunLabGrid');
+ if(!panel||!grid)return;
+ let gesture=null;
+ function sliderAt(input,x){
+   const rect=input.getBoundingClientRect(),min=Number(input.min||0),max=Number(input.max||100),step=Number(input.step)||1;
+   const inset=Math.min(13,rect.width/4);
+   let f=Math.max(0,Math.min(1,(x-rect.left-inset)/Math.max(1,rect.width-2*inset)));
+   if(getComputedStyle(input).direction==='rtl')f=1-f;
+   const value=Math.max(min,Math.min(max,min+Math.round(f*(max-min)/step)*step));
+   if(Number(input.value)!==value){input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));}
+ }
+ grid.addEventListener('touchstart',event=>{
+   if(!panel.classList.contains('show')||event.touches.length!==1){gesture=null;return;}
+   const target=event.target,input=target.closest('input[type="range"]');
+   if(input?.disabled||target.closest('textarea,select,[contenteditable="true"]')){gesture=null;return;}
+   const t=event.touches[0];gesture={x:t.clientX,y:t.clientY,lastY:t.clientY,input,mode:null};
+   if(input&&event.cancelable)event.preventDefault();
  },{passive:false});
- for(const type of ['touchend','touchcancel'])panel.addEventListener(type,()=>{active=false;lastY=null},{passive:true});
+ grid.addEventListener('touchmove',event=>{
+   if(!gesture||event.touches.length!==1)return;
+   const t=event.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
+   if(!gesture.mode&&Math.max(Math.abs(dx),Math.abs(dy))>=6)gesture.mode=gesture.input&&Math.abs(dx)>Math.abs(dy)?'slider':'scroll';
+   if(gesture.mode==='slider'){
+     sliderAt(gesture.input,t.clientX);if(event.cancelable)event.preventDefault();event.stopPropagation();
+   }else if(gesture.mode==='scroll'&&event.cancelable){
+     grid.scrollTop+=gesture.lastY-t.clientY;event.preventDefault();event.stopPropagation();
+   }
+   gesture.lastY=t.clientY;
+ },{passive:false});
+ grid.addEventListener('touchend',event=>{
+   if(!gesture)return;
+   if(gesture.input&&gesture.mode!=='scroll'){
+     if(!gesture.mode&&event.changedTouches.length)sliderAt(gesture.input,event.changedTouches[0].clientX);
+     gesture.input.dispatchEvent(new Event('change',{bubbles:true}));
+     if(event.cancelable)event.preventDefault();
+   }
+   gesture=null;
+ },{passive:false});
+ grid.addEventListener('touchcancel',()=>{gesture=null},{passive:true});
 })();
 
 // Native iPhone portrait must not rubber-band the entire Radio dashboard.
@@ -9668,6 +9696,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
 <style id="ge-sunlab-control-room-v1">
+/* Allow axis-locked touch adjustments and scrolling on the same controls. */
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type=range]{touch-action:none!important}
 /* No empty publish box; preserve owner sign-in and real save feedback. */
 html.ge-radio-ui body #sunLabPanel.show #sunLabPublishTools:not(:has(> :not([hidden]))){display:none!important}
 @media(max-width:819px),(pointer:coarse){
