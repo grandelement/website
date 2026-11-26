@@ -1288,7 +1288,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
  background:transparent!important;box-shadow:none!important;
  text-shadow:none!important;
 }
-.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongTitleGlow{
+.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongTitleGlow,
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading[aria-pressed="true"] .geAlbumTitleGlow,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle[aria-pressed="true"] .geAlbumTitleGlow{
  background:rgba(255,255,255,.22)!important;
  box-shadow:0 0 12px 3px rgba(255,255,255,.58)!important;
  text-shadow:0 0 9px rgba(255,255,255,.92),0 1px 3px #000!important;
@@ -1528,12 +1530,22 @@ button:disabled{opacity:.5;cursor:not-allowed}
  touch-action:manipulation!important;
 }
 
-/* Selection is visible at album level, including in the full Songs list. */
-.window.geSimpleSongBrowser .scroll button.albumBrowseHeading[aria-pressed="true"],
-.window.geAlbumDetailClean > .scroll button.albumDetailTitle[aria-pressed="true"]{
- color:#fff!important;background:rgba(255,255,255,.22)!important;
- box-shadow:inset 0 0 0 2px #fff,0 0 15px rgba(255,255,255,.7)!important;
- text-shadow:0 0 8px #fff,0 2px 5px #000!important;border-radius:8px!important;
+/* Album title uses the same text-sized soft halo as a selected song.
+   The larger heading and its full-width selection target remain unchanged. */
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle{
+ color:#fff!important;background:transparent!important;
+ border:0!important;box-shadow:none!important;overflow:visible!important;
+}
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading .geAlbumTitleGlow,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle .geAlbumTitleGlow{
+ display:inline-block;box-sizing:border-box;max-width:100%;padding:5px 10px;
+ border:0;border-radius:11px;background:transparent;
+ box-shadow:none;overflow-wrap:anywhere;
+}
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading:focus-visible,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle:focus-visible{
+ outline:2px solid #b9eeff!important;outline-offset:2px;
 }
 .geUniverseAlbum.geAlbumAllSelected{outline:2px solid #fff!important;outline-offset:-3px!important;box-shadow:inset 0 0 14px #fff,0 0 16px #fff!important;}
 </style>
@@ -3079,7 +3091,8 @@ function render(){
         art.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href;
         art.addEventListener('error',()=>console.warn('Album artwork unavailable:',art.src),{once:true});
         section.append(art);
-        const heading=elem('button','albumBrowseHeading',track.album);
+        const heading=elem('button','albumBrowseHeading');
+        heading.append(elem('span','geAlbumTitleGlow',track.album));
         heading.type='button';heading.dataset.album=track.album;
         const complete=albumFullySelected(track.album);
         heading.setAttribute('aria-pressed',String(complete));
@@ -3093,7 +3106,8 @@ function render(){
   }else if(state.view.startsWith('album:')){
     const name=state.view.slice(6);
     const bar=elem('div','albumCollectionHeading');
-    const albumTitle=elem('button','albumDetailTitle',name);
+    const albumTitle=elem('button','albumDetailTitle');
+    albumTitle.append(elem('span','geAlbumTitleGlow',name));
     albumTitle.type='button';
     const allSelected=albumFullySelected(name);
     albumTitle.setAttribute('aria-pressed',String(allSelected));
