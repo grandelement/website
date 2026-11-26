@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn">Shuffle</button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><span class="ge-radio-heartbeat" aria-hidden="true"></span></button>
+    <button data-proxy="shuffleBtn">Shuffle</button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn" type="button" aria-label="Next song" title="Next song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 10 7-10 7V5Zm10 0 7 7-7 7V5Z"/></svg><span class="ge-radio-icon-label">NEXT</span></button>
     <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c5 0 7-12 12-12h5M2 6h3c2.6 0 4.3 2.7 5.5 5M14 17c.8.7 1.8 1 3 1h5"/></svg><span class="ge-radio-icon-label">SHUFFLE</span></button>
-    <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><span class="ge-radio-heartbeat" aria-hidden="true"></span></button>
+    <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
        rel="external" hidden
@@ -7549,11 +7549,71 @@ Vector ${vector}. ${pair[1]}.`;
     }
     return geMusicFFT.some(bin=>bin>1)?geMusicFFT:null;
   }
+  // R21 · Broadcast. The selected 74% speed maps to the preview's travel
+  // rate (.19 * (.1 + 74/80) per second). Only measured audio emits rings.
+  const GE_RADIO_R21_SPEED=74;
+  const geRadioR21Rate=.19*(.1+GE_RADIO_R21_SPEED/80);
+  const geRadioR21Motion=matchMedia('(prefers-reduced-motion: reduce)');
+  const geRadioR21Canvases=[...document.querySelectorAll('.ge-radio-broadcast-r21')];
+  const geRadioR21Surfaces=geRadioR21Canvases.map(canvas=>({canvas,ctx:canvas.getContext('2d')}));
+  let geRadioR21Waves=[],geRadioR21Last=0,geRadioR21Emit=0,geRadioR21Envelope=0,geRadioR21Previous=0;
+  function updateRadioBroadcastR21(bins,now=performance.now()){
+    const dt=geRadioR21Last?Math.min(.12,Math.max(0,(now-geRadioR21Last)/1000)):0;
+    geRadioR21Last=now;
+    const active=state.live&&!geInlineMusicActive&&!audio.paused&&!audio.ended&&!audio.muted&&!audio.seeking&&audio.readyState>=2&&!document.hidden&&!geRadioR21Motion.matches;
+    // The FFT is from the actual active Radio transport. Never substitute
+    // local playlist PCM, a timer-generated beat, or stale BLITZ fallback.
+    let signal=0;
+    if(active&&bins?.length){
+      let total=0,peak=0;
+      const count=Math.max(1,Math.floor(bins.length*.78));
+      for(let i=0;i<count;i++){const v=clamp(Number(bins[i])||0,0,255)/255;total+=v;peak=Math.max(peak,v);}
+      signal=clamp(total/count*.76+peak*.24,0,1);
+    }
+    if(!state.live||geInlineMusicActive||geRadioR21Motion.matches){
+      geRadioR21Waves=[];geRadioR21Envelope=0;geRadioR21Previous=0;geRadioR21Emit=0;
+    }else{
+      geRadioR21Envelope+=(signal-geRadioR21Envelope)*(1-Math.exp(-dt*(signal>geRadioR21Envelope?6:3)));
+      // New wavefronts need real audio. Strong rises can emit sooner;
+      // sustained measured signal emits at the selected travel spacing.
+      const elapsed=now-geRadioR21Emit;
+      if(signal>.025&&(geRadioR21Emit===0||elapsed>=1280||
+          (elapsed>=700&&signal-geRadioR21Previous>.065))){
+        geRadioR21Waves.push({progress:0,energy:signal});
+        if(geRadioR21Waves.length>6)geRadioR21Waves.shift();
+        geRadioR21Emit=now;
+      }
+      geRadioR21Previous=signal;
+      for(const wave of geRadioR21Waves)wave.progress+=dt*geRadioR21Rate;
+      geRadioR21Waves=geRadioR21Waves.filter(wave=>wave.progress<1);
+    }
+    for(const {canvas,ctx} of geRadioR21Surfaces){
+      if(!ctx)continue;
+      const width=canvas.clientWidth,height=canvas.clientHeight;
+      if(!width||!height)continue;
+      const dpr=Math.min(window.devicePixelRatio||1,2),pw=Math.round(width*dpr),ph=Math.round(height*dpr);
+      if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
+      ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+      if(geRadioR21Motion.matches)continue;
+      if(geRadioR21Envelope>.002){
+        const glow=ctx.createRadialGradient(width*.5,height*.5,0,width*.5,height*.5,width*.7);
+        glow.addColorStop(0,'rgba(255,50,75,'+(geRadioR21Envelope*.22).toFixed(3)+')');
+        glow.addColorStop(1,'rgba(255,30,60,0)');
+        ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
+      }
+      for(const wave of geRadioR21Waves){
+        const p=wave.progress,fadeIn=Math.min(1,p/.045),alpha=fadeIn*(1-p)*(.10+wave.energy*.44);
+        ctx.beginPath();ctx.arc(width*.5,height*.5,3+p*width*.72,0,Math.PI*2);
+        ctx.strokeStyle='rgba(255,'+Math.round(95+wave.energy*90)+',120,'+alpha.toFixed(3)+')';
+        ctx.lineWidth=1+wave.energy;ctx.stroke();
+      }
+    }
+  }
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     const effectsOn=window.GELiveAudioEQ?.isEnabled?.()!==false;
     const halo=$('shipSunEQHalo');if(halo)halo.style.visibility=effectsOn?'visible':'hidden';
-    if(!effectsOn){eqMessage('MUSIC EQ · OFF');updateSunEQ(false);return;}
+    if(!effectsOn){updateRadioBroadcastR21(null);eqMessage('MUSIC EQ · OFF');updateSunEQ(false);return;}
     let live=false;
     const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
     // Source-of-truth priority: measured PCM from the audible native player.
@@ -7595,6 +7655,10 @@ Vector ${vector}. ${pair[1]}.`;
         if(live)eqLastSignalAt=performance.now();
       }catch(_e){}
     }
+    // Use unmodified measured FFT before the Sun Lab's transient processor.
+    // On a fallback station, do not use Radio 1's remote BLITZ feed.
+    const radioBins=live&&!inlinePlaying&&(!GE_IOS_AUDIO||GE_STATIC_RADIO_PRIMARY||!radio2.active||currentBins)?eqData:null;
+    updateRadioBroadcastR21(radioBins);
     // Visual transient processor is driven exclusively by measured live FFT;
     // this never changes the audible track, volume, or Gate.
     if(live&&eqData?.length&&window.GESunPulseEngine?.process){
@@ -9553,7 +9617,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-spectrum-trails-flight-v5" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-radio-r21-broadcast-v6" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
