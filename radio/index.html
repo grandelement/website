@@ -880,6 +880,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
       <p id="sunLabPublishStatus" role="status" aria-live="polite" hidden></p>
+      <button id="sunLabPublishDismiss" type="button" class="sunlab-mini" hidden aria-label="Dismiss save notification">DISMISS</button>
       <form id="sunLabOwnerForm" hidden style="margin:8px 0;display:none" aria-label="Owner sign-in for publishing EQ">
         <label for="sunLabOwnerPassword" style="display:block;margin-bottom:5px">Back Room owner password</label>
         <input id="sunLabOwnerPassword" type="password" autocomplete="current-password" required style="box-sizing:border-box;width:100%;min-height:42px;padding:8px;color:white;background:#101e35;border:1px solid #7096b4;border-radius:6px">
@@ -888,7 +889,6 @@ document.addEventListener('DOMContentLoaded',function(){
           <button id="sunLabOwnerCancel" type="button" class="sunlab-mini">CANCEL</button>
         </div>
       </form>
-      <button id="sunLabImportLegacy" type="button" class="sunlab-mini" hidden>IMPORT PREVIOUS DEVICE SETTINGS</button>
     </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
       <div id="spectrumMeter" class="spectrum-meter" hidden aria-label="Live spectrum band meter">
@@ -948,6 +948,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slOuterGlowReach">Outer Glow Reach</label><output id="slOuterGlowReachVal"></output><input id="slOuterGlowReach" type="range" min="0" max="100" step="1" value="42"><small>Sets how far the soft outer glow reaches into space.</small></div>
       <div class="sunlab-row"><label for="slOuterGlowStrength">Outer Glow Strength</label><output id="slOuterGlowStrengthVal"></output><input id="slOuterGlowStrength" type="range" min="0" max="220" step="1" value="185"><small>Controls the strength of the soft outer glow.</small></div>
       <div class="sunlab-row"><label for="slOuterGlowHue">Outer Glow Color</label><output id="slOuterGlowHueVal"></output><span class="sun-hue-swatch" id="slOuterGlowHuePreview" aria-hidden="true"></span><input id="slOuterGlowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="188"><small>Changes the color of the outer glow independently.</small></div>
+      <button id="sunLabImportLegacy" type="button" class="sunlab-mini" hidden>IMPORT PREVIOUS DEVICE SETTINGS</button>
     </div>
     <div id="geSunLabScrollRail" hidden><input id="geSunLabScrollPosition" type="range" min="0" max="1000" value="0" step="1" aria-label="Scroll EQ controls from top to bottom" orient="vertical"></div>
     </div>
@@ -5983,7 +5984,27 @@ async function registerServiceWorker(){
     const testTools=$('sunLabAdvancedTools');if(testTools)testTools.hidden=!geRadioLocalTestAccess();
     if(sunLabEditMode)setSunModeVisibility(sunLabEditMode);
   }
-  function sunPublishStatus(message){const target=$('sunLabPublishStatus');if(target){target.textContent=message;target.hidden=!message;}}
+  let sunPublishStatusTimer=0,sunPublishButtonTimer=0;
+  function sunPublishStatus(message,temporary=false){
+    clearTimeout(sunPublishStatusTimer);
+    const target=$('sunLabPublishStatus'),dismiss=$('sunLabPublishDismiss'),form=$('sunLabOwnerForm');
+    if(target){target.textContent=message;target.hidden=!message;}
+    if(dismiss)dismiss.hidden=!message||!form?.hidden;
+    if(temporary&&message)sunPublishStatusTimer=setTimeout(()=>sunPublishStatus(''),2400);
+  }
+  function showSunSaveVerified(commit){
+    showSunOwnerForm(false);sunPublishStatus('');
+    const button=$('sunLabSave');if(!button)return;
+    clearTimeout(sunPublishButtonTimer);
+    button.textContent='SAVED ✓';
+    button.title='GITHUB SAVE VERIFIED · '+String(commit).slice(0,12)+' · Public deployment follows.';
+    button.setAttribute('aria-label',button.title);
+    sunPublishButtonTimer=setTimeout(()=>{
+      button.textContent='SAVE TO GITHUB';
+      button.title='Publish all three EQ presets to GitHub for every listener';
+      button.removeAttribute('aria-label');
+    },2400);
+  }
   function sunOwnerToken(){try{return sessionStorage.getItem(SUN_EQ_PUBLISH_SESSION)||''}catch(_){return ''}}
   async function sunPublisher(method='GET',body){
     const token=sunOwnerToken();if(!token)throw Error('Owner sign-in required. Use SAVE TO GITHUB here.');
@@ -6024,9 +6045,15 @@ async function registerServiceWorker(){
     const form=$('sunLabOwnerForm'),password=$('sunLabOwnerPassword');
     if(!form)return;
     form.hidden=!show;form.style.display=show?'block':'none';
-    if(show){password?.focus();}else if(password)password.value='';
+    const dismiss=$('sunLabPublishDismiss'),status=$('sunLabPublishStatus');
+    if(dismiss)dismiss.hidden=!!show||!status||status.hidden;
+    if(show){password?.focus();}else if(password){password.blur();password.value='';}
+    requestAnimationFrame(syncSunLabScrollRail);
   }
   function requestSunEQSave(){
+    clearTimeout(sunPublishButtonTimer);
+    const button=$('sunLabSave');if(button){button.textContent='SAVE TO GITHUB';button.removeAttribute('aria-label');}
+    sunPublishStatus('');
     if(geSunOwnerVerified){void publishSunEQ();return;}
     stashSunOwnerDraft();
     sunPublishStatus('Enter your Back Room owner password here to publish. Radio stays open.');
@@ -6080,7 +6107,7 @@ async function registerServiceWorker(){
       const proof=await sunPublisher();
       if(JSON.stringify(proof.settings?.visual?.sunEQ)!==JSON.stringify(next))throw Error('Commit made, but EQ readback did not match. Check GitHub before saving again.');
       publishedSunEQ=next;sunEQDraft=false;try{sessionStorage.removeItem(SUN_EQ_PENDING_DRAFT)}catch(_){}
-      sunPublishStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+' · Public deployment follows.');
+      showSunSaveVerified(result.commit);
     }catch(error){sunPublishStatus('SAVE FAILED · '+String(error?.message||error));if(!geSunOwnerVerified){sunPublishStatus('Owner session expired. Sign in here to retry saving.');showSunOwnerForm(true);}}
     finally{button.disabled=false;}
   }
@@ -6096,7 +6123,7 @@ async function registerServiceWorker(){
       if(position!==null&&Number.isFinite(Number(position))&&validSunMode(selected))sunModeProfiles[selected].position=Math.max(-30,Math.min(30,Number(position)));
       sunLab={...sunModeProfiles[sunLabEditMode]};sunEQDraft=true;
       applySunLabUI();setSunModeVisibility(sunLabEditMode);
-      sunPublishStatus('PREVIOUS DEVICE SETTINGS IMPORTED · Unsaved until SAVE TO GITHUB.');
+      sunPublishStatus('PREVIOUS DEVICE SETTINGS IMPORTED · Unsaved until SAVE TO GITHUB.',true);
     }catch(error){sunPublishStatus(String(error?.message||error));}
   }
   function modeLabel(mode){return ({plasma:'Plasma',spectrum:'Spectrum',glow:'Glow',waterfall:'Waterfall',
@@ -6170,7 +6197,7 @@ async function registerServiceWorker(){
     // Button state follows the effects, not whether the editor is open.
     sunLabBtn?.setAttribute('aria-expanded',String(on));
     if(on)void ensureLiveEQ();
-    else window.GEStopEQTapIfUnused?.();
+    else{showSunOwnerForm(false);sunPublishStatus('');window.GEStopEQTapIfUnused?.();}
   }
   function fmtPct(v){return Math.round(Number(v)||0)+'%';}
   function fmtDeg(v){const n=Math.round(Number(v)||0); return `${n}°`;}
@@ -6334,7 +6361,8 @@ async function registerServiceWorker(){
       });
       $('sunLabSave')?.addEventListener('click',requestSunEQSave);
       $('sunLabOwnerForm')?.addEventListener('submit',event=>void signInAndSaveSunEQ(event));
-      $('sunLabOwnerCancel')?.addEventListener('click',()=>{showSunOwnerForm(false);sunPublishStatus('Sign-in cancelled. Your edits remain in Sun Lab.');});
+      $('sunLabOwnerCancel')?.addEventListener('click',()=>{showSunOwnerForm(false);sunPublishStatus('');});
+      $('sunLabPublishDismiss')?.addEventListener('click',()=>sunPublishStatus(''));
       $('sunLabImportLegacy')?.addEventListener('click',importLegacySunEQ);
       $('sunLabCopy')?.addEventListener('click',async()=>{
         if(!geRadioSunLabPrivateAllowed())return;
@@ -9698,8 +9726,16 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <style id="ge-sunlab-control-room-v1">
 /* Allow axis-locked touch adjustments and scrolling on the same controls. */
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type=range]{touch-action:none!important}
-/* No empty publish box; preserve owner sign-in and real save feedback. */
+/* Save/auth feedback is an overlay, never a row consuming slider space. */
+html.ge-radio-ui body #sunLabPanel.show > #sunLabPublishTools{
+ position:absolute!important;top:48px!important;bottom:auto!important;left:8px!important;right:8px!important;
+ z-index:30!important;margin:0!important;padding:8px!important;max-height:calc(100% - 56px)!important;
+ overflow:auto!important;background:#0b1929!important;box-shadow:0 4px 20px #0009;
+}
 html.ge-radio-ui body #sunLabPanel.show #sunLabPublishTools:not(:has(> :not([hidden]))){display:none!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabPublishStatus{margin:0 0 4px!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabPublishDismiss{min-height:32px!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid > #sunLabImportLegacy:not([hidden]){align-self:flex-start!important;margin:8px 0!important;max-width:100%!important;white-space:normal!important}
 @media(max-width:819px),(pointer:coarse){
  html.ge-radio-ui body #sunLabPanel.show{height:min(65dvh,620px)!important;max-height:65dvh!important}
 }
