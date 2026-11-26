@@ -7247,7 +7247,13 @@ Vector ${vector}. ${pair[1]}.`;
 
   function updateSunEQ(live){
     if(!sunEQAura||!sunEQFog)return;
-    if(window.GELiveAudioEQ?.isEnabled?.()===false){sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;return;}
+    if(window.GELiveAudioEQ?.isEnabled?.()===false){
+      sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';
+      if(sunSpectrumSampleAt&&sunEQAura.dataset.mode==='spectrum'){
+        for(const ring of sunEQAura.children)ring.style.opacity='0';
+      }
+      sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;return;
+    }
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
     // Hide fixed bars unless genuine live FFT data exists.
