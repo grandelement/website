@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.26-network-fresh-v1';
+const VERSION='2026.11.26-album-art-recovery-v2';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -33,6 +33,41 @@ const OPTIONAL=['./favicon.ico',
 const IMAGE=/\.(?:gif|png|jpe?g|webp)$/i;
 const AUDIO=/\.(?:mp3|m4a|ogg|wav)$/i;
 const STATIC_JSON=/\.json$/i;
+function isAlbumCover(path){return /\/ge-images\/images\/Grand(?:%20| )Element(?:%20| )-(?:%20| ).+\.jpg$/i.test(path);}
+async function validAlbumCover(response){
+ if(!response?.ok||response.status!==200||!/^image\/jpeg(?:;|$)/i.test(response.headers.get('content-type')||''))return false;
+ try{
+  const blob=await response.clone().blob();
+  if(blob.size<100)return false;
+  const signature=new Uint8Array(await blob.slice(0,3).arrayBuffer());
+  return signature[0]===255&&signature[1]===216&&signature[2]===255;
+ }catch(_){return false;}
+}
+async function albumCover(request){
+ const url=new URL(request.url),canonical=new URL(url);canonical.search='';
+ const shell=await caches.open(SHELL_CACHE);
+ // Verify image type and signature before replacing a known-good cover.
+ if(self.navigator?.onLine!==false&&!url.searchParams.has('ge_offline')){
+  try{
+   const fresh=await timeoutFetch(request,{cache:'no-store'},15000);
+   if(await validAlbumCover(fresh)){
+    await shell.put(canonical.href,fresh.clone()).catch(()=>{});
+    return fresh;
+   }
+  }catch(_){}
+ }
+ const current=await shell.match(canonical.href);
+ if(await validAlbumCover(current))return current;
+ for(const name of await caches.keys()){
+  const cache=await caches.open(name);
+  const old=await cache.match(canonical.href,{ignoreSearch:true});
+  if(await validAlbumCover(old)){
+   await shell.put(canonical.href,old.clone()).catch(()=>{});
+   return old;
+  }
+ }
+ return new Response('Album artwork unavailable',{status:503});
+}
 function requestURL(path){return new URL(path,self.location.href).href;}
 async function timeoutFetch(request,options={},ms=4200){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),ms);
@@ -53,6 +88,7 @@ async function validAsset(path,response){
  if(!response?.ok||response.status!==200)return false;
  const type=response.headers.get('content-type')||'';
  const pathname=new URL(requestURL(path)).pathname;
+ if(isAlbumCover(pathname))return validAlbumCover(response);
  if(IMAGE.test(pathname)&&!type.toLowerCase().startsWith('image/'))return false;
  if(STATIC_JSON.test(pathname)&&!/json/i.test(type))return false;
  if(/\.js$/i.test(pathname)&&/text\/html|application\/json/i.test(type))return false;
@@ -390,6 +426,7 @@ self.addEventListener('fetch',event=>{
   return;
  }
  if(request.mode==='navigate'){event.respondWith(navigation(request));return}
+ if(isAlbumCover(url.pathname)){event.respondWith(albumCover(request));return;}
  if(AUDIO.test(url.pathname)||IMAGE.test(url.pathname)||request.destination==='audio'||request.destination==='image'){
   event.respondWith(media(request));return;
  }
