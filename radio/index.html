@@ -2145,7 +2145,7 @@ function syncModeButtons(){
   // SHOW THE ACTUAL MODE: green means shuffle; neutral means album order.
   setPressed(toggle,!!state.shuffle);
   if(toggle){
-    toggle.textContent='SHUFFLE';
+    // Keep the approved Shuffle artwork intact across state changes.
     toggle.setAttribute('aria-label',state.shuffle?'Shuffle on; tap for album order':'Album order; tap for shuffle');
     toggle.title=state.shuffle?'Shuffle ON; tap for album order':'Album order; tap to shuffle';
   }
@@ -2441,7 +2441,7 @@ function updateRadioStartupCue(){
   const connected=!!(playing&&!audio.muted);
   // ReadyState/canplay may fire for an audio response that never plays.
   // No connection color until this native player actually advances.
-  const signalReady=connected;
+  const signalReady=connected||liveState.signalReady;
   // Ready to tap is not the same as verified audible playback. Keep Radio
   // visibly available on a network-connected page without auto-streaming.
   // The separate signal-ready/audible classes still require real audio proof.
@@ -2449,6 +2449,7 @@ function updateRadioStartupCue(){
     navigator.onLine!==false&&liveStreamConfigured();
   document.body.classList.toggle('ge-radio-tap-ready',tapReady);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
+  syncRadioStandbyCue();
   document.body.classList.toggle('ge-radio-audible',connected);
   document.body.classList.toggle('ge-radio-verified',connected);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
@@ -2710,6 +2711,51 @@ function radio2ProgramKind(program){
 const GE_STATIC_REGISTRY='../playlists/registry.json';
 const GE_STATIC_DURATIONS='./track-durations.json';
 let geStaticProgram=null,geStaticLoading=null;
+let geRadioStandbyProofUntil=0,geRadioStandbyProbe=null,geRadioStandbyPulseTimer=0,geRadioStandbyEndTimer=0;
+function radioStandbyAllowed(){
+ return !state.live&&!state.livePreparing&&navigator.onLine!==false&&!document.hidden&&
+  !window.GEIAmStudio?.isRadioSuspended?.()&&Date.now()<geRadioStandbyProofUntil;
+}
+function syncRadioStandbyCue(){
+ const ready=radioStandbyAllowed(),body=document.body;
+ body.classList.toggle('ge-radio-standby-ready',ready);
+ if(!ready){
+  clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);
+  geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;body.classList.remove('ge-radio-standby-flash');return;
+ }
+ if(geRadioStandbyPulseTimer||geRadioStandbyEndTimer)return;
+ geRadioStandbyPulseTimer=setTimeout(()=>{
+  geRadioStandbyPulseTimer=0;if(!radioStandbyAllowed()){syncRadioStandbyCue();return;}
+  body.classList.add('ge-radio-standby-flash');
+  geRadioStandbyEndTimer=setTimeout(()=>{
+   geRadioStandbyEndTimer=0;body.classList.remove('ge-radio-standby-flash');syncRadioStandbyCue();
+  },2100);
+ },500+Math.random()*4200);
+}
+async function verifyRadioStandby(){
+ if(geRadioStandbyProbe||state.live||state.livePreparing||navigator.onLine===false||document.hidden)return;
+ if(!GE_STATIC_RADIO_PRIMARY)return; // Current deployed source is the static clock, not BLITZ.
+ geRadioStandbyProbe=(async()=>{
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+  try{
+   const program=await preloadStaticRadio();
+   if(!program||!Number.isFinite(Number(program.cycle_duration_ms))||Number(program.cycle_duration_ms)<=0||
+      !Number.isFinite(Number(program.epoch_utc_ms)))throw Error('Station schedule unavailable');
+   let position=((Date.now()-Number(program.epoch_utc_ms))%Number(program.cycle_duration_ms)+Number(program.cycle_duration_ms))%Number(program.cycle_duration_ms);
+   let track=program.tracks[0];
+   for(const item of program.tracks){if(position<Number(item.duration_ms)){track=item;break;}position-=Number(item.duration_ms);}
+   if(!radio2ValidTrack(track))throw Error('Invalid station track');
+   // HEAD confirms the actual scheduled media is available without starting
+   // playback, creating another player, or downloading the song.
+   const response=await fetch(new URL(track.url,location.origin),{method:'HEAD',cache:'no-store',signal:controller.signal});
+   const type=response.headers.get('content-type')||'';
+   if(!response.ok||!/^audio\\//i.test(type))throw Error('Station audio unavailable');
+   geRadioStandbyProofUntil=Date.now()+75000;
+  }catch(_){geRadioStandbyProofUntil=0;}
+  finally{clearTimeout(timeout);syncRadioStandbyCue();}
+ })();
+ try{await geRadioStandbyProbe;}finally{geRadioStandbyProbe=null;}
+}
 // Public, unlisted Bangers contains the exact owner-approved song order.
 // The duration catalog is measured by ffprobe during publishing.
 async function fetchStaticBangers(){
@@ -4666,7 +4712,8 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   // RADIO is a true start/stop control, including while connecting.
-  document.body.classList.add('ge-radio-pulse-ack');
+  document.body.classList.remove('ge-radio-standby-ready','ge-radio-standby-flash');
+  clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;
   document.body.classList.toggle('ge-radio-on',!(state.live||state.livePreparing));
   if(state.live||state.livePreparing){
     exitLiveMode('RADIO STOPPED');
@@ -4678,9 +4725,7 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
-  // One acknowledgment per page visit. Once the signal is verified, the
-  // button stays solid red even if playback is deliberately paused.
-  document.body.classList.add('ge-radio-pulse-ack');
+  // Pressing RADIO stops the standby beacon; the active control is solid.
   audio.muted=false;audio.defaultMuted=false;
   updateRadioStartupCue();
   if(browserWakeOnRadioTap())return;
@@ -7982,6 +8027,7 @@ Vector ${vector}. ${pair[1]}.`;
     }
     return geMusicFFT.some(bin=>bin>1)?geMusicFFT:null;
   }
+  // Retired playback-driven R21 canvas; connection beacon is independent of EQ.
   // R21 · Broadcast. The selected 74% speed maps to the preview's travel
   // rate (.19 * (.1 + 74/80) per second). Only measured audio emits rings.
   const GE_RADIO_R21_SPEED=74;
@@ -7993,7 +8039,7 @@ Vector ${vector}. ${pair[1]}.`;
   function updateRadioBroadcastR21(bins,now=performance.now()){
     const dt=geRadioR21Last?Math.min(.12,Math.max(0,(now-geRadioR21Last)/1000)):0;
     geRadioR21Last=now;
-    const active=state.live&&!geInlineMusicActive&&!audio.paused&&!audio.ended&&!audio.muted&&!audio.seeking&&audio.readyState>=2&&!document.hidden&&!geRadioR21Motion.matches;
+    const active=false; // The connection beacon runs before playback, never from song FFT.
     // The FFT is from the actual active Radio transport. Never substitute
     // local playlist PCM, a timer-generated beat, or stale BLITZ fallback.
     let signal=0;
@@ -9709,7 +9755,10 @@ gateTestBtn?.addEventListener('click',()=>{
   // Prefetch only playlist metadata. Never select a RADIO source or request
   // audio until the listener actually presses RADIO. This avoids showing a
   // station title for an inaudible browser-blocked autoplay attempt.
-  if(!offlinePlaybackMode())void preloadStaticRadio();
+  if(!offlinePlaybackMode())void verifyRadioStandby();
+  setInterval(()=>{syncRadioStandbyCue();void verifyRadioStandby();},45000);
+  window.addEventListener('online',()=>void verifyRadioStandby());
+  document.addEventListener('visibilitychange',()=>{syncRadioStandbyCue();if(!document.hidden)void verifyRadioStandby();});
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
   if(offlinePlaybackMode())setStatus('OFFLINE · loading saved Grand Element songs');
   else{
@@ -10073,10 +10122,10 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-dock-key-offline-swap-v1" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-standby-beacon-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
-<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
+<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-unified-dock-v2" data-ge-css="sun-lab-transparency">
 <style id="ge-sunlab-control-room-v1">
 /* Allow axis-locked touch adjustments and scrolling on the same controls. */
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type=range]{touch-action:none!important}

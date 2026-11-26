@@ -542,8 +542,7 @@ html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"]{
  }
 }
 
-/* RADIO CONTROL · R21 Broadcast: no CSS heartbeat or autonomous flash.
-   The existing measured audio FFT drives the canvas rings at 74% speed. */
+/* RADIO CONTROL: a verified standby signal flashes before playback only. */
 html.ge-radio-ui[class] body[class] #musicGroup > #liveBtn,
 html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]{
   position:relative!important;isolation:isolate!important;
@@ -667,3 +666,37 @@ html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #musicGroup > #ge
 }
 #geMusicV5Button > :is(svg,.ge-radio-icon-label){position:relative;z-index:1;pointer-events:none}
 @media(prefers-reduced-motion:reduce){.ge-sun-motion-trace{display:none!important}}
+
+/* The standby beacon never moves the button or obscures its label. */
+html.ge-radio-ui[class] body[class] #musicGroup > #liveBtn .ge-radio-broadcast-r21,
+html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"] .ge-radio-broadcast-r21{display:none!important}
+html.ge-radio-ui[class] body.ge-radio-standby-ready:not(.ge-radio-on) #musicGroup > #liveBtn,
+html.ge-radio-ui[class] body.ge-radio-standby-ready:not(.ge-radio-on) #shipStage button[data-proxy="liveBtn"]{
+ border-color:#ff6574!important;outline-color:#ff6574!important;
+}
+html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #musicGroup > #liveBtn,
+html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #shipStage button[data-proxy="liveBtn"]{
+ animation:geRadioStandbyHeartbeat 2.1s ease-out both!important;
+}
+html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #musicGroup > #liveBtn::after,
+html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #shipStage button[data-proxy="liveBtn"]::after{
+ content:""!important;display:block!important;position:absolute!important;inset:0;border:1px solid #ff6476;border-radius:inherit;pointer-events:none;
+ animation:geRadioStandbyBroadcast 2.1s ease-out both!important;
+}
+@keyframes geRadioStandbyHeartbeat{
+ 0%,22%,42%,100%{box-shadow:none}
+ 12%{box-shadow:inset 0 0 20px #ff3559aa,0 0 10px #ff355980}
+ 33%{box-shadow:inset 0 0 25px #ff4269bb,0 0 14px #ff426980}
+ 63%{box-shadow:inset 0 0 12px #ff355965,0 0 20px #ff355955}
+}
+@keyframes geRadioStandbyBroadcast{
+ 0%,30%{opacity:0;transform:scale(1)}
+ 42%{opacity:.65;transform:scale(1)}
+ 100%{opacity:0;transform:scale(1.22)}
+}
+@media(prefers-reduced-motion:reduce){
+ html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #musicGroup > #liveBtn,
+ html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #shipStage button[data-proxy="liveBtn"],
+ html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #musicGroup > #liveBtn::after,
+ html.ge-radio-ui[class] body.ge-radio-standby-flash:not(.ge-radio-on) #shipStage button[data-proxy="liveBtn"]::after{animation:none!important}
+}
