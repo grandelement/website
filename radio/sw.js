@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-hue-preview-v8';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_HUE_PREVIEW_V8';
+const VERSION='2026.11.26-network-fresh-v1';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -147,7 +147,10 @@ async function cached(request,{media=false}={}){
   if(result?.ok)return result;
  }
  const shell=await caches.open(SHELL_CACHE);
- const saved=await shell.match(url,{ignoreSearch:true});
+ const exact=await shell.match(url);
+ if(exact?.ok)return exact;
+ const canonical=new URL(url,self.location.href);canonical.search='';
+ const saved=await shell.match(canonical.href);
  if(saved?.ok)return saved;
  const old=await caches.match(url,{ignoreSearch:true});
  return old?.ok?old:null;
@@ -206,7 +209,7 @@ async function navigation(request){
  try{
   const onlineRequest=path.endsWith('/radio/offline-home.html')?requestURL('./index.html'):request;
   const fresh=await timeoutFetch(onlineRequest,{cache:'no-store'});
-  if(await validIndex(fresh,true)){
+  if(await validIndex(fresh)){
    const cache=await caches.open(SHELL_CACHE);
    await cache.put('./index.html',fresh.clone()).catch(()=>{});
    await cache.put('./',fresh.clone()).catch(()=>{});
@@ -244,43 +247,27 @@ async function media(request){
  const saved=await cached(request,{media:true});
  return saved?rangeResponse(request,saved):new Response('Media unavailable',{status:503});
 }
+// Always revalidate application code online. An exact cached URL is not
+// evidence that its contents are current. Offline uses the last verified shell.
 async function staticFile(request){
- // Cold boot must not depend on online probes for the installed app scripts:
- // iOS sometimes reports online after Airplane Mode, and a stalled network
- // request would otherwise block the Music player from loading at all.
- const pathname=new URL(request.url).pathname;
- const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
- if(startup){
-  const shell=await caches.open(SHELL_CACHE);
-  // Versioned startup script URLs must not silently use an older cached JS.
-  // Fetch the exact new version online once; keep offline cache fallback.
-  const exact=await shell.match(request,{ignoreSearch:false});
-  if(exact?.ok)return exact;
-  if(self.navigator?.onLine!==false){
-   try{
-    const fresh=await timeoutFetch(request,{cache:'no-store'},2500);
-    if(fresh.ok&&await validAsset(new URL(request.url).pathname,fresh)){
-     await shell.put(request,fresh.clone()).catch(()=>{});
-     return fresh;
-    }
-   }catch(_){}
-  }
-  const saved=await cached(request);
-  if(saved?.ok)return saved;
- }
- if(self.navigator?.onLine===false)return await cached(request)||
+ const url=new URL(request.url);
+ const application=/\.(?:js|css|json|webmanifest|html)$/i.test(url.pathname);
+ const explicitOffline=url.searchParams.has('ge_offline')||url.searchParams.has('ge_offline_load');
+ if(self.navigator?.onLine===false||explicitOffline)return await cached(request)||
   new Response('Offline app file missing. Reconnect and repair.',{status:503});
  try{
-  const fresh=await timeoutFetch(request,{cache:'no-store'});
-  if(fresh.ok){
-   const url=new URL(request.url);
-   if(await validAsset(url.pathname,fresh)){
-    const cache=await caches.open(SHELL_CACHE);
-    await cache.put(request,fresh.clone()).catch(()=>{});
+  const fresh=await timeoutFetch(request,{cache:'no-store'},application?3000:4200);
+  if(await validAsset(url.pathname,fresh)){
+   const cache=await caches.open(SHELL_CACHE);
+   await cache.put(request,fresh.clone()).catch(()=>{});
+   // Versioned static files also replace the canonical offline copy.
+   if(application&&url.searchParams.has('v')&&[...url.searchParams.keys()].every(key=>key==='v')){
+    const canonical=new URL(url);canonical.search='';
+    await cache.put(canonical.href,fresh.clone()).catch(()=>{});
    }
    return fresh;
   }
-  if(fresh.status!==503&&fresh.status!==504)return fresh;
+  if(!application&&fresh.status!==503&&fresh.status!==504)return fresh;
  }catch(_){}
  return await cached(request)||new Response('App resource unavailable',{status:503});
 }
@@ -289,7 +276,7 @@ async function shellStatus(){
  try{
   const shell=await caches.open(SHELL_CACHE);
   const index=await shell.match('./index.html',{ignoreSearch:true});
-  if(!(await validIndex(index,true)))result.missing.push('Radio page');
+  if(!(await validIndex(index)))result.missing.push('Radio page');
   for(const file of REQUIRED){
    const saved=await shell.match(file,{ignoreSearch:true});
    if(!(await validRepairAsset(file,saved)))result.missing.push(file);
@@ -305,30 +292,35 @@ async function shellStatus(){
  return result;
 }
 // Repair the installed release in place. Never clear storage, delete music,
-// unregister workers or fetch audio. Valid files are reused.
+// unregister workers or fetch audio. Compare application code with the server.
 let shellRepairTask=null;
 async function repairShell(){
  const before=await shellStatus();
- if(before.ready)return {...before,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired:0};
  if(self.navigator?.onLine===false)return {...before,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired:0,error:'Reconnect to repair missing application files.'};
  let repaired=0;
  const errors=[];
  try{
   const cache=await caches.open(SHELL_CACHE);
   const index=await cache.match('./index.html',{ignoreSearch:true});
-  if(!(await validIndex(index,true))){
-   const fresh=await timeoutFetch(requestURL('./index.html'),{cache:'no-store'},25000);
-   if(!(await validIndex(fresh,true)))throw Error('A different website version is available. Reopen Radio online to update safely.');
+  const fresh=await timeoutFetch(requestURL('./index.html'),{cache:'no-store'},12000);
+  if(!(await validIndex(fresh)))throw Error('Current Radio page could not be verified; saved page retained.');
+  if(!(await validIndex(index))||(await index.clone().text())!==(await fresh.clone().text())){
    await cache.put('./index.html',fresh.clone());
    await cache.put('./',fresh.clone());repaired++;
   }
   async function restore(path){
    try{
     const old=await cache.match(path,{ignoreSearch:true});
-    if(await validRepairAsset(path,old))return;
-    const response=await timeoutFetch(requestURL(path),{cache:'no-store'},25000);
-    if(!(await validRepairAsset(path,response)))throw Error('File could not be verified for this release');
-    await cache.put(path,response.clone());repaired++;
+    const app=/\.(?:js|css|json|webmanifest|html)$/i.test(path);
+    if(!app&&await validRepairAsset(path,old))return;
+    const response=await timeoutFetch(requestURL(path),{cache:'no-store'},12000);
+    if(!(await validRepairAsset(path,response)))throw Error('File could not be verified; saved file retained');
+    if(app&&old?.ok&&(await old.clone().text())===(await response.clone().text()))return;
+    await cache.put(path,response.clone());
+    if(app){const target=new URL(requestURL(path)).pathname;for(const key of await cache.keys()){
+      const u=new URL(key.url);if(u.pathname===target&&u.searchParams.has('v')&&[...u.searchParams.keys()].every(k=>k==='v'))await cache.put(key,response.clone());
+    }}
+    repaired++;
    }catch(error){errors.push(path+': '+String(error?.message||error));}
   }
   await Promise.all(REQUIRED.map(restore));
