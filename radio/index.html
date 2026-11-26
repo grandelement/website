@@ -7404,6 +7404,10 @@ Vector ${vector}. ${pair[1]}.`;
       energy=live&&drive>0?clamp(Math.pow(1-Math.exp(-drive*(.9+dynamics*.55)),1/(.65+contrast*.35)),0,1):0;
     }
     updateSpectrumMeter(bands,spectrum?raw:energy);
+    if(spectrum){
+      updateMeasuredTravelingSpectrum(canvas,bands,live,now);
+      return;
+    }
 
     // 100% retains the former fastest rate (45ms per ring spacing).
     // At 5% it takes 900ms; at 1% it takes 4500ms. Integrate phase so
@@ -7449,47 +7453,114 @@ Vector ${vector}. ${pair[1]}.`;
     const viewport=window.visualViewport;
     const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
     const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
-    if(sunLab.waveType==='aurora')drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
-    else drawTravelingSpectrum(canvas,bands,energy,innerScale,sunWidth,phase);
+    drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
   }
-  // Fixed radial pitch: the viewport determines how far waves travel, not their spacing.
-  function drawTravelingSpectrum(canvas,bands,energy,innerScale,sunWidth,phase){
+  // The traveling Spectrum records measured levels in physical distance.
+  // Speed changes propagation only, never the FFT sampling or live brightness.
+  function spectrumLight(level,master,dynamics,contrast){
+    const v=clamp(level,0,1),m=clamp(master,0,3);
+    const gamma=clamp(1+(contrast-1)*.30-(dynamics-1)*.10,.65,1.7);
+    const shaped=Math.pow(v,gamma);
+    // No shared pulse, baseline glow or hard clipping. Each band goes dark at zero.
+    return m<=1?shaped*m:1-Math.pow(1-shaped,1+(m-1)*.18);
+  }
+  function updateMeasuredTravelingSpectrum(canvas,bands,live,now){
+    const speed=clamp(sunNum('spectrumSpeed',55),1,100)/100;
+    const pitch=8+clamp(sunNum('thickness',30)/260,0,1)*16;
+    const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
+    sunSpectrumSampleAt=now;
+    if(dt>500){sunSpectrumBandHistory=[];sunSpectrumPhase=0;}
+    sunSpectrumPhase+=Math.min(dt,100)*pitch*speed/45;
+    const head=live?{low:bands.low,mid:bands.mid,high:bands.high}:{low:0,mid:0,high:0};
+    // Keep a live head every paint. Older samples are spaced in CSS pixels,
+    // not in stretched rings. A slow wave never slows the live meter response.
+    const last=sunSpectrumBandHistory[0];
+    if(!last||sunSpectrumPhase-last.distance>=.6){
+      sunSpectrumBandHistory.unshift({...head,distance:sunSpectrumPhase});
+      while(sunSpectrumBandHistory.length>8500||
+        (sunSpectrumBandHistory.length>1&&sunSpectrumPhase-sunSpectrumBandHistory[sunSpectrumBandHistory.length-1].distance>5000))sunSpectrumBandHistory.pop();
+    }
+    const position=clamp(sunNum('position',0),-30,30)/50;
+    const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
+    drawTravelingSpectrum(canvas,head,.96+position,sunWidth,pitch);
+  }
+  function drawTravelingSpectrum(canvas,head,innerScale,sunWidth,pitch){
     const ctx=canvas.getContext('2d');if(!ctx)return;
     const vp=window.visualViewport,rect=sunEQAura.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
     const width=vp?.width||window.innerWidth,height=vp?.height||window.innerHeight;
     const edge=Math.hypot(Math.max(Math.abs(cx),Math.abs(width-cx)),Math.max(Math.abs(cy),Math.abs(height-cy)));
-    const inner=Math.max(1,innerScale*sunWidth/2),pitch=8+clamp(sunNum('thickness',30)/260,0,1)*16;
-    const outer=lerp(inner+32,Math.max(inner+32,edge+pitch),spectrumSize/100);
-    const cssSize=outer*2,px=Math.max(64,Math.min(1200,Math.ceil(cssSize)));
-    if(canvas.width!==px||canvas.height!==px)canvas.width=canvas.height=px;
-    const size=cssSize+'px';if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
-    canvas.style.opacity='1';ctx.clearRect(0,0,px,px);
-    const scale=px/cssSize,center=px/2,range=outer-inner;
-    const grad=ctx.createRadialGradient(center,center,inner*scale,center,center,outer*scale);
-    const colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
-    const separation=clamp(sunNum('bandColorMix',70)/100,0,1);
-    const mix=sunFieldSmooth(separation/.35),base=hslRgb(214,.95,.48);
-    const transition=lerp(.42,.04,separation);
-    const gap=clamp(sunNum('gap',0)/100,0,.85),zero={low:0,mid:0,high:0};
-    const count=Math.min(400,Math.ceil(range/pitch)+1),fade=x=>sunFieldSmooth((range-x)/Math.max(pitch*2,1));
-    function stop(x,col,alpha){grad.addColorStop(clamp(x/range,0,1),'rgba('+col.map(v=>Math.round(v)).join(',')+','+clamp(alpha*fade(x),0,.95).toFixed(4)+')');}
-    for(let i=0;i<count;i++){
-      const b=i===0?bands:(sunSpectrumBandHistory[i-1]||zero),e=i===0?energy:(sunSpectrumHistory[i-1]||0);
-      const vals=[b.low,b.mid,b.high],total=vals.reduce((a,v)=>a+v,0);
-      const start=Math.max(0,(i-1+phase)*pitch),end=Math.min(range,(i+phase)*pitch);
-      if(end<=start)continue;
-      if(total<=.001||e<=.001){stop(start,base,0);stop(end,base,0);continue;}
-      const visibleEnd=end-(end-start)*gap;let cursor=start;
-      for(let k=0;k<3;k++){
-        if(vals[k]<=.001)continue;
-        const span=(visibleEnd-start)*vals[k]/total,color=colors[k].map((v,j)=>lerp(base[j],v,mix)),alpha=clamp(e*(.25+.70*vals[k]),0,.95);
-        stop(cursor+span*transition,color,alpha);stop(cursor+span*(1-transition),color,alpha);cursor+=span;
+    const inner=Math.max(1,innerScale*sunWidth/2),outer=lerp(inner+32,Math.max(inner+32,edge+pitch),spectrumSize/100);
+    const range=outer-inner,cssSize=outer*2,size=cssSize+'px';
+    const N=440,A=96,R=256,ratio=clamp(inner/outer,0,.98);
+    if(canvas.width!==N||canvas.height!==N){canvas.width=canvas.height=N;sunFieldFrame=null;sunFieldMap=null;}
+    if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
+    canvas.style.opacity='1';
+    if(!sunFieldMap||sunFieldMap.n!==N||Math.abs(sunFieldMap.ratio-ratio)>.001){
+      const rows=new Int16Array(N*N),angles=new Uint8Array(N*N);rows.fill(-1);
+      for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+        const dx=(x+.5-N/2)/(N/2),dy=(y+.5-N/2)/(N/2),r=Math.hypot(dx,dy);
+        if(r<ratio||r>1)continue;
+        const i=y*N+x;rows[i]=Math.min(R-1,Math.round((r-ratio)/(1-ratio)*(R-1)));
+        angles[i]=Math.floor(((Math.atan2(dy,dx)/(2*Math.PI)+1)%1)*A);
       }
-      if(gap>0){stop(visibleEnd,base,0);stop(end,base,0);}
+      sunFieldMap={n:N,ratio,rows,angles};
     }
-    stop(range,base,0);
-    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(center,center,center,0,Math.PI*2);
-    ctx.arc(center,center,inner*scale,0,Math.PI*2,true);ctx.fill('evenodd');
+    if(!sunFieldFrame||sunFieldFrame.data.length!==N*N*4)sunFieldFrame=ctx.createImageData(N,N);
+    if(!sunFieldTexture||sunFieldTexture.length!==R*A*4)sunFieldTexture=new Uint8ClampedArray(R*A*4);
+    const tex=sunFieldTexture,colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
+    const separation=clamp(sunNum('bandColorMix',70)/100,0,1),palette=sunFieldSmooth(separation/.35),base=hslRgb(214,.95,.48);
+    for(let k=0;k<3;k++)colors[k]=colors[k].map((v,j)=>lerp(base[j],v,palette));
+    const master=sunNum('spectrumGain',100)/100,dynamics=sunNum('dynamics',79)/100,contrast=sunNum('contrast',111)/100;
+    const gap=clamp(sunNum('gap',0)/100,0,.85),history=sunSpectrumBandHistory;
+    const current={...head,distance:sunSpectrumPhase};
+    let newer=current,older=history[0]||null,index=0;
+    for(let r=0;r<R;r++){
+      const d=r/(R-1)*range,target=sunSpectrumPhase-d;
+      while(older&&older.distance>target&&index<history.length-1){newer=older;older=history[++index];}
+      let vals=[0,0,0];
+      if(older&&target>=older.distance-1e-6){
+        const t=clamp((newer.distance-target)/Math.max(.00001,newer.distance-older.distance),0,1);
+        vals=['low','mid','high'].map(k=>lerp(newer[k],older[k],t));
+      }else if(d<.6)vals=[head.low,head.mid,head.high];
+      // The near-Sun area responds on every measured frame, even at slow speed.
+      const liveMix=1-sunFieldSmooth(d/Math.max(3,pitch*.6));
+      vals=vals.map((v,k)=>lerp(v,[head.low,head.mid,head.high][k],liveMix));
+      const total=vals[0]+vals[1]+vals[2],offset=r*A*4;
+      if(total<.0001||master<=0){tex.fill(0,offset,offset+A*4);continue;}
+      const levels=vals.map(v=>spectrumLight(v,master,dynamics,contrast));
+      // One continuous traveling field, not a repeated LOW/MID/HIGH triplet
+      // at every radial interval. Stronger bands occupy more of the field.
+      const widths=vals.map(v=>v/total),centers=[widths[0]/2,widths[0]+widths[1]/2,1-widths[2]/2];
+      const softness=lerp(.16,.025,separation),blur=widths.map(v=>Math.min(softness,Math.max(.008,v*.38)));
+      const outerFade=sunFieldSmooth((range-d)/Math.max(pitch*1.5,1));
+      const wavePhase=((sunSpectrumPhase-d)%pitch+pitch)%pitch/pitch;
+      const gapMask=gap===0?1:sunFieldSmooth(wavePhase/.08)*sunFieldSmooth((1-gap-wavePhase)/.08);
+      for(let a=0;a<A;a++){
+        const angle=a/A;
+        let w0=0,w1=0,w2=0;
+        for(let k=0;k<3;k++){
+          if(widths[k]<.0001)continue;
+          let dist=Math.abs(angle-centers[k]);dist=Math.min(dist,1-dist);
+          const w=sunFieldSmooth((widths[k]/2+blur[k]-dist)/(2*blur[k]));
+          if(k===0)w0=w;else if(k===1)w1=w;else w2=w;
+        }
+        const weight=w0+w1+w2,p=offset+a*4;
+        if(weight<.00001){tex[p+3]=0;continue;}
+        // Premultiply each selected hue by ITS OWN measured intensity.
+        // The master pulse and other bands cannot light a silent color.
+        const c0=w0*levels[0]/weight,c1=w1*levels[1]/weight,c2=w2*levels[2]/weight,alpha=c0+c1+c2;
+        if(alpha<.00001){tex[p+3]=0;continue;}
+        for(let c=0;c<3;c++)tex[p+c]=(c0*colors[0][c]+c1*colors[1][c]+c2*colors[2][c])/alpha;
+        tex[p+3]=255*clamp(alpha*outerFade*gapMask,0,1);
+      }
+    }
+    const out=sunFieldFrame.data,{rows,angles}=sunFieldMap;
+    for(let i=0;i<rows.length;i++){
+      const p=i*4,r=rows[i];if(r<0){out[p+3]=0;continue;}
+      const t=(r*A+angles[i])*4;
+      out[p]=tex[t];out[p+1]=tex[t+1];out[p+2]=tex[t+2];out[p+3]=tex[t+3];
+    }
+    ctx.putImageData(sunFieldFrame,0,0);
   }
 
   let glowEnvelope=0;
