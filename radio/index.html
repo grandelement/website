@@ -873,10 +873,10 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
-      <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
+      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="spectrum" aria-label="Enable Spectrum effect"><span>ON</span></label></div>
+      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="aurora" aria-label="Enable Aurora effect"><span>ON</span></label></div>
+      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="glow" aria-label="Enable Glow effect"><span>ON</span></label></div>
+      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="waterfall" aria-label="Enable Waterfall effect"><span>ON</span></label></div>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
@@ -986,7 +986,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
 <script src="./ge-gate-audio.js?v=20261125-shared-recovery-v3"></script>
-<script src="./sun-pulse-engine.js?v=20261120-pulse-v1"></script>
+<script src="./sun-pulse-engine.js?v=20261126-independent-effects-v2"></script>
 <script>
 'use strict';
 
@@ -3402,7 +3402,7 @@ function syncRadioOfflineAccessUI(){
     sunLabUtility.dataset.locked='false';
     const on=window.GELiveAudioEQ?.isEnabled?.()!==false;
     sunLabUtility.setAttribute('aria-pressed',String(on));
-    sunLabUtility.setAttribute('aria-label',on?'Turn EQ effects off':'Turn EQ effects on and choose effect');
+    sunLabUtility.setAttribute('aria-label','Open EQ Effects — '+(on?'effects on':'effects off'));
     sunLabUtility.title='EQ Effects';
   }
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -5918,6 +5918,41 @@ async function registerServiceWorker(){
   };
   let sunLab={...SUN_MODE_DEFAULTS.spectrum},sunLabEditMode=null,sunModeProfiles={};
   let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
+  const SUN_ENABLED_KEY='GE_SUN_ENABLED_MODES_V1';
+  let sunEnabledModes=new Set(['spectrum']),sunEnabledInitialized=false;
+  function initializeSunEnabled(){
+    if(sunEnabledInitialized)return;
+    sunEnabledInitialized=true;
+    try{
+      const saved=localStorage.getItem(SUN_ENABLED_KEY);
+      if(saved!==null){const modes=JSON.parse(saved);if(Array.isArray(modes))sunEnabledModes=new Set(modes.filter(validSunMode));}
+      else if(localStorage.getItem('GE_SUN_EQ_EXPLICIT_OFF_V1')==='1')sunEnabledModes.clear();
+      else sunEnabledModes=new Set([validSunMode(sunModePreference())?sunModePreference():'spectrum']);
+    }catch(_){}
+    syncSunEnabledUI();
+  }
+  function syncSunEnabledUI(){
+    const on=sunEnabledModes.size>0;
+    document.querySelectorAll('[data-sun-enabled]').forEach(input=>{input.checked=sunEnabledModes.has(input.dataset.sunEnabled);});
+    for(const id of ['sunLabBtn','shipSunLabBtn']){
+      const button=$(id);if(button){button.setAttribute('aria-pressed',String(on));button.setAttribute('aria-label','Open EQ Effects — '+(on?'effects on':'effects off'));}
+    }
+  }
+  function syncSunEnabledAudio(){
+    const eq=window.GELiveAudioEQ;
+    if(eq&&eq.isEnabled()!==(sunEnabledModes.size>0))eq.setEnabled(sunEnabledModes.size>0);
+    syncSunEnabledUI();
+  }
+  function changeSunEnabled(mode,on){
+    if(!validSunMode(mode))return;
+    if(on)sunEnabledModes.add(mode);else sunEnabledModes.delete(mode);
+    try{localStorage.setItem(SUN_ENABLED_KEY,JSON.stringify([...sunEnabledModes]));}catch(_){}
+    syncSunEnabledAudio();
+    if(on)void ensureLiveEQ();
+    // Hide unchecked layers immediately, without waiting for the next animation frame.
+    const layer=sunRenderLayers.get(mode);
+    if(layer&&!on){layer.aura.style.display='none';layer.fog.style.display='none';}
+  }
   // Private, tab-local history; a slider drag is one undo step, not one step per pixel.
   const sunUndoHistory=[];
   let sunUndoGesture=null,sunUndoRestoring=false;
@@ -5957,7 +5992,7 @@ async function registerServiceWorker(){
       const active=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,sunModeProfiles[mode])]));
       const baseline=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,publishedSunEQ?.profiles?.[mode])]));
       sunEQDraft=JSON.stringify(active)!==JSON.stringify(baseline)||before.mode!==(publishedSunEQ?.defaultMode||'spectrum');
-      if(previousMode!==before.mode&&sunEQAura){sunEQAura.dataset.mode='';sunEQAura.innerHTML='';}
+      // Each active effect keeps its own rendering history when the editor changes.
       applySunLabUI();setSunModeVisibility(before.mode);ensureSunEQ(sunLab.waveType);
       sunEQLastPaint=0;sunEQCascadeHistory=[];
       if(sunEQDraft)stashSunOwnerDraft();else try{sessionStorage.removeItem(SUN_EQ_PENDING_DRAFT);}catch(_){}
@@ -6102,7 +6137,7 @@ async function registerServiceWorker(){
           if(!sunEQDraft){setPublishedSunEQ(owner.settings?.visual?.sunEQ);updateSunEditorAccess();
             if(!restoreSunOwnerDraft())sunPublishStatus('');
           }else{updateSunEditorAccess();sunPublishStatus('');}
-          if(new URLSearchParams(location.search).get('eq_admin')==='1'){window.GELiveAudioEQ?.setEnabled?.(true);setPanelVisible(true);}
+          if(new URLSearchParams(location.search).get('eq_admin')==='1'){setPanelVisible(true);}
           return;
         }catch(_){geSunOwnerVerified=false;}
       }
@@ -6205,7 +6240,8 @@ async function registerServiceWorker(){
     const grid=$('sunLabGrid'),hint=$('sunLabModeHint');
     syncSpectrumSizeControl(mode);
     grid?.classList.toggle('no-mode',!mode);
-    document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
+    document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{const selected=btn.dataset.sunMode===mode;btn.classList.toggle('active',selected);btn.setAttribute('aria-pressed',String(selected));});
+    syncSunEnabledUI();
     if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+' · published preset'):'Choose an effect.';
     // Public EQ presets are always usable when the public profile permits Sun Lab.
     // Only a VERIFIED Vault code with the sunlab scope unlocks the full variables.
@@ -6251,7 +6287,7 @@ async function registerServiceWorker(){
     sunEQLastPaint=0;
     sunEQCascadeHistory=[];
     randomizeSunEQMap();
-    if(sunEQAura){sunEQAura.dataset.mode='';sunEQAura.innerHTML='';}
+    // Choosing an editor tab never destroys another effect's layer.
     saveSunLab();
     applySunLabUI();
     setSunModeVisibility(mode);
@@ -6419,6 +6455,9 @@ async function registerServiceWorker(){
       });
     }
     bindSunUndoHistory();
+    initializeSunEnabled();
+    document.querySelectorAll('[data-sun-enabled]').forEach(input=>input.addEventListener('change',()=>changeSunEnabled(input.dataset.sunEnabled,input.checked)));
+    window.addEventListener('DOMContentLoaded',syncSunEnabledAudio,{once:true});
     setPublishedSunEQ(null);
     updateSunEditorAccess();
     window.addEventListener('ge-access-experience-updated',updateSunEditorAccess);
@@ -6429,14 +6468,9 @@ async function registerServiceWorker(){
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
       sunLabBtn.addEventListener('click',()=>{
-        const eq=window.GELiveAudioEQ;
-        if(!eq)return;
-        if(eq.isEnabled()){eq.setEnabled(false);saveCurrentSunMode();setPanelVisible(false);return;}
-        eq.setEnabled(true);
-        // Access only controls the private variables, not the public effects.
         saveCurrentSunMode();
-        if(!sunLabEditMode){sunLabEditMode='spectrum';sunLab={...SUN_MODE_DEFAULTS.spectrum,...(sunModeProfiles.spectrum||{})};applySunLabUI();setSunModeVisibility('spectrum');ensureSunEQ(sunLab.waveType);}
         setPanelVisible(true);
+        syncSunEnabledUI();
       });
       $('sunLabSave')?.addEventListener('click',requestSunEQSave);
       $('sunLabOwnerForm')?.addEventListener('submit',event=>void signInAndSaveSunEQ(event));
@@ -6816,17 +6850,19 @@ Vector ${vector}. ${pair[1]}.`;
     finally{geBlitzSpectrumPending=false;}
   }
   const GE_IOS_AUDIO=/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  const sunEQAura=$('sunEQAura'),sunEQFog=$('sunEQFog');
+  const sunAuraRoot=$('sunEQAura'),sunFogRoot=$('sunEQFog');
+  let sunEQAura=sunAuraRoot,sunEQFog=sunFogRoot;
+  const sunRenderLayers=new Map();let sunRenderingMode=null;
   const SUN_EQ_RINGS=12;
   const SUN_SPECTRUM_RINGS=110; // history samples, not visible rings
   const SUN_FIELD_PIXELS=360, SUN_FIELD_ANGLES=128, SUN_FIELD_RADII=220;
   let sunFieldMap=null,sunFieldFrame=null,sunFieldTexture=null;
   const SUN_EQ_BARS=72;
   const SUN_FOG_BLOBS=28;
-  const sunEQLevels=Array(SUN_EQ_RINGS).fill(.03);
-  const sunEQPulseFlow=Array(SUN_EQ_RINGS).fill(.02);
-  const sunEQFloor=Array(SUN_EQ_RINGS).fill(.018);
-  const sunEQPeak=Array(SUN_EQ_RINGS).fill(.28);
+  let sunEQLevels=Array(SUN_EQ_RINGS).fill(.03);
+  let sunEQPulseFlow=Array(SUN_EQ_RINGS).fill(.02);
+  let sunEQFloor=Array(SUN_EQ_RINGS).fill(.018);
+  let sunEQPeak=Array(SUN_EQ_RINGS).fill(.28);
   let sunEQImpactFloor=.02,sunEQImpactPeak=.34;
   let sunSpectrumHistory=[];
   let sunSpectrumBandHistory=[];
@@ -7036,7 +7072,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(actual)return actual;
     if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource())
       return null;
-    if(GE_IOS_AUDIO)return eqData&&geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?eqData:null;
+    if(GE_IOS_AUDIO)return geBlitzSpectrumAt>0&&performance.now()-geBlitzSpectrumAt<2500?geBlitzRawBins:null;
     if(!eqAnalyser||!eqData)return null;
     try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
   };
@@ -7091,7 +7127,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function isBarWave(mode){return mode==='bars'||mode==='mirror'||mode==='mirrorflip';}
   function ensureSunEQ(mode=sunLab.waveType||'plasma'){
-    if(!sunEQAura)return;
+    if(!sunEQAura||!sunRenderingMode)return;
 
     if(mode==='spectrum'||mode==='aurora'){
       if(sunEQAura.dataset.mode!==mode||!sunEQAura.querySelector('canvas.sun-spectrum-field')){
@@ -7304,6 +7340,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function updateSpectrumMeter(bands,pulse){
+    if(sunRenderingMode&&sunRenderingMode!==sunLabEditMode)return;
     const values={Low:bands.low,Mid:bands.mid,High:bands.high,Pulse:pulse};
     for(const [name,value] of Object.entries(values)){
       const cap=name==='Pulse'?100:100;
@@ -7476,7 +7513,60 @@ Vector ${vector}. ${pair[1]}.`;
     outer.style.boxShadow='0 0 '+outerSize.toFixed(1)+'px '+(3+pulse*16).toFixed(1)+'px hsla('+outerHue+',100%,62%,'+outerAlpha.toFixed(3)+')';
   }
 
+  // Each effect owns its DOM, history, pulse processor and animation timing.
+  function captureSunRenderState(){
+    return {sunFieldMap,sunFieldFrame,sunFieldTexture,sunEQLevels,sunEQPulseFlow,sunEQFloor,sunEQPeak,sunEQImpactFloor,sunEQImpactPeak,
+      sunSpectrumHistory,sunSpectrumBandHistory,sunSpectrumSampleAt,sunSpectrumPhase,sunSpectrumPeak,sunSpectrumPeakBands,sunEQLastPaint,
+      sunEQCascadeHistory,sunEQCascadeTick,glowEnvelope};
+  }
+  function restoreSunRenderState(v){
+    ({sunFieldMap,sunFieldFrame,sunFieldTexture,sunEQLevels,sunEQPulseFlow,sunEQFloor,sunEQPeak,sunEQImpactFloor,sunEQImpactPeak,
+      sunSpectrumHistory,sunSpectrumBandHistory,sunSpectrumSampleAt,sunSpectrumPhase,sunSpectrumPeak,sunSpectrumPeakBands,sunEQLastPaint,
+      sunEQCascadeHistory,sunEQCascadeTick,glowEnvelope}=v);
+  }
+  function newSunRenderLayer(mode){
+    const make=(parent,kind)=>{
+      const node=document.createElement('span');node.className='ge-sun-effect-layer ge-sun-'+kind+'-layer';node.dataset.effect=mode;
+      node.style.cssText='position:absolute;inset:0;overflow:visible;pointer-events:none;border-radius:50%;';
+      parent.appendChild(node);return node;
+    };
+    return {aura:make(sunAuraRoot,'aura'),fog:make(sunFogRoot,'fog'),pulse:window.GESunPulseEngine?.create?.(),
+      state:{sunFieldMap:null,sunFieldFrame:null,sunFieldTexture:null,
+        sunEQLevels:Array(SUN_EQ_RINGS).fill(.03),sunEQPulseFlow:Array(SUN_EQ_RINGS).fill(.02),
+        sunEQFloor:Array(SUN_EQ_RINGS).fill(.018),sunEQPeak:Array(SUN_EQ_RINGS).fill(.28),
+        sunEQImpactFloor:.02,sunEQImpactPeak:.34,sunSpectrumHistory:[],sunSpectrumBandHistory:[],
+        sunSpectrumSampleAt:0,sunSpectrumPhase:0,sunSpectrumPeak:0,sunSpectrumPeakBands:null,sunEQLastPaint:0,
+        sunEQCascadeHistory:[],sunEQCascadeTick:0,glowEnvelope:0}};
+  }
   function updateSunEQ(live){
+    if(!sunAuraRoot||!sunFogRoot)return;
+    const editor=sunLab,raw=eqData,previous=captureSunRenderState();
+    const on=sunEnabledModes.size>0&&window.GELiveAudioEQ?.isEnabled?.()!==false;
+    sunAuraRoot.style.opacity=sunFogRoot.style.opacity=on?'1':'0';
+    for(const [mode,layer] of sunRenderLayers)if(!on||!sunEnabledModes.has(mode)){
+      layer.aura.remove();layer.fog.remove();sunRenderLayers.delete(mode);
+    }
+    if(!on){updateSpectrumMeter({low:0,mid:0,high:0},0);return;}
+    try{
+      for(const mode of Object.keys(SUN_MODE_WAVE)){
+        if(!sunEnabledModes.has(mode))continue;
+        let layer=sunRenderLayers.get(mode);
+        if(!layer){layer=newSunRenderLayer(mode);sunRenderLayers.set(mode,layer);}
+        sunRenderingMode=mode;sunEQAura=layer.aura;sunEQFog=layer.fog;
+        restoreSunRenderState(layer.state);
+        sunLab=mode===sunLabEditMode?editor:(sunModeProfiles[mode]||SUN_MODE_DEFAULTS[mode]);
+        eqData=raw;
+        if(live&&raw?.length&&mode!=='spectrum'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
+        else if(!live)layer.pulse?.reset();
+        try{renderSunEffect(live);}finally{layer.state=captureSunRenderState();}
+      }
+      if(!sunEnabledModes.has(sunLabEditMode))updateSpectrumMeter({low:0,mid:0,high:0},0);
+    }finally{
+      sunLab=editor;eqData=raw;sunEQAura=sunAuraRoot;sunEQFog=sunFogRoot;sunRenderingMode=null;restoreSunRenderState(previous);
+    }
+    if(!sunEnabledModes.has(sunLabEditMode))updateSpectrumMeter({low:0,mid:0,high:0},0);
+  }
+  function renderSunEffect(live){
     if(!sunEQAura||!sunEQFog)return;
     if(window.GELiveAudioEQ?.isEnabled?.()===false){
       sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';
@@ -7902,17 +7992,7 @@ Vector ${vector}. ${pair[1]}.`;
     updateRadioBroadcastR21(radioBins);
     // Spectrum uses original measured FFT; other visual modes keep their transient response.
     spectrumRawBins=live?eqData:null;spectrumRawLayout=rawLayout;
-    // Visual transient processor is driven exclusively by measured live FFT;
-    // this never changes the audible track, volume, or Gate.
-    if(live&&eqData?.length&&window.GESunPulseEngine?.process&&sunLab.waveType!=='spectrum'){
-      eqData=window.GESunPulseEngine.process(eqData,{
-        pulseDepth:sunLab.pulseDepth,
-        pulseSensitivity:sunLab.pulseSensitivity,
-        pulseAttack:sunLab.pulseAttack,
-        pulseRelease:sunLab.pulseRelease,
-        pulseNoiseFloor:sunLab.pulseNoiseFloor
-      },performance.now())||eqData;
-    }else if(!live||sunLab.waveType==='spectrum')window.GESunPulseEngine?.reset?.();
+    // Per-effect transient processing happens inside updateSunEQ; all layers share the same measured FFT.
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
@@ -9957,6 +10037,13 @@ html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input.sun-hue-slider::-webki
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input.sun-hue-slider::-moz-range-track{height:12px;background:var(--ge-hue-gradient)!important}
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{overflow-wrap:anywhere!important}
 #sunEQAura[data-mode="aurora"]{inset:-2%;filter:none!important}
+#sunEQAura,#sunEQFog{overflow:visible!important}
+.ge-sun-effect-layer{position:absolute;inset:0;overflow:visible;pointer-events:none}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-cell{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:1px}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-cell .sunlab-modebtn{width:100%!important;min-height:28px!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;min-height:24px;cursor:pointer}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch input{width:19px;height:19px;margin:0;accent-color:#42d9ff}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch:has(input:checked){color:#8de9ff}
 </style>
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
@@ -10004,7 +10091,7 @@ html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{overflow-w
 <!-- Advanced position now lives in the scoped, published preset editor. -->
 <!-- Global EQ presets use GitHub, not device-import links. -->
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
-<script defer src="./live-spectrum.js?v=20261125-eq-offline-v4"></script>
+<script defer src="./live-spectrum.js?v=20261126-panel-opener-v5"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
 <script defer src="./offline-manager.js?v=20261125-library-v11"></script>
 

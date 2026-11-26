@@ -82,7 +82,7 @@ function showEnableControl(){
     const button=document.getElementById(id);
     if(!button)continue;
     button.setAttribute('aria-pressed',String(enabled));
-    button.setAttribute('aria-label',enabled?'Turn EQ effects off':'Turn EQ effects on and choose effect');
+    button.setAttribute('aria-label','Open EQ Effects — '+(enabled?'effects on':'effects off'));
   }
 }
 function setEnabled(value){

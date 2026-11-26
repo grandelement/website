@@ -4,6 +4,7 @@
 (()=>{
 'use strict';
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,Number(x)||0));
+function create(){
 let floor=[],peak=[],previous=[],envelope=[],result=null,lastTime=0;
 function reset(){floor=[];peak=[];previous=[];envelope=[];result=null;lastTime=0;}
 function process(raw,opts={},time=performance.now()){
@@ -47,5 +48,7 @@ function process(raw,opts={},time=performance.now()){
   }
   return result;
 }
-window.GESunPulseEngine={process,reset};
+return {process,reset};
+}
+window.GESunPulseEngine={...create(),create};
 })();
