@@ -206,6 +206,9 @@ async function save({mode='all',paths=[],onProgress}={}){
   return {error:'selection',message:'Choose a valid download option.'};
  if(navigator.onLine===false)return {error:'offline',message:'Connect online to download new music'};
  if(!canDownload())return {error:'access',message:'Enter your OFFLINE access code before downloading. Saved music stays available.'};
+ // Best-effort browser persistence, requested only during an explicit download.
+ // A denied request must not interrupt downloads or imply storage is guaranteed.
+ if(mode!=='update'){try{void navigator.storage?.persist?.()?.catch(()=>{});}catch(_){}}
  busy=true;stopped=false;
  let failures=[],completed=0;
  const start=Date.now();
