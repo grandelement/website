@@ -873,10 +873,10 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
-      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="spectrum" aria-label="Enable Spectrum effect"><span>ON</span></label></div>
-      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="aurora" aria-label="Enable Aurora effect"><span>ON</span></label></div>
-      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="glow" aria-label="Enable Glow effect"><span>ON</span></label></div>
-      <div class="ge-sun-mode-cell"><button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button><label class="ge-sun-mode-switch"><input type="checkbox" data-sun-enabled="waterfall" aria-label="Enable Waterfall effect"><span>ON</span></label></div>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum" aria-pressed="false" title="Tap to switch on or off. Hold to select for editing without switching.">Spectrum</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="aurora" aria-pressed="false" title="Tap to switch on or off. Hold to select for editing without switching.">Aurora</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="glow" aria-pressed="false" title="Tap to switch on or off. Hold to select for editing without switching.">Glow</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall" aria-pressed="false" title="Tap to switch on or off. Hold to select for editing without switching.">Waterfall</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
@@ -5938,7 +5938,13 @@ async function registerServiceWorker(){
   }
   function syncSunEnabledUI(){
     const on=sunEnabledModes.size>0;
-    document.querySelectorAll('[data-sun-enabled]').forEach(input=>{input.checked=sunEnabledModes.has(input.dataset.sunEnabled);});
+    document.querySelectorAll('.sunlab-modebtn[data-sun-mode]').forEach(btn=>{
+      const enabled=sunEnabledModes.has(btn.dataset.sunMode),editing=btn.dataset.sunMode===sunLabEditMode;
+      btn.classList.toggle('active',enabled);
+      btn.classList.toggle('ge-sun-editing',editing);
+      btn.setAttribute('aria-pressed',String(enabled));
+      btn.setAttribute('aria-label',modeLabel(btn.dataset.sunMode)+(enabled?' on':' off')+(editing?', selected for editing':''));
+    });
     for(const id of ['sunLabBtn','shipSunLabBtn']){
       const button=$(id);if(button){button.setAttribute('aria-pressed',String(on));button.setAttribute('aria-label','Open EQ Effects — '+(on?'effects on':'effects off'));}
     }
@@ -5956,7 +5962,7 @@ async function registerServiceWorker(){
     if(on)void ensureLiveEQ();
     // Hide unchecked layers immediately, without waiting for the next animation frame.
     const layer=sunRenderLayers.get(mode);
-    if(layer&&!on){layer.aura.style.display='none';layer.fog.style.display='none';}
+    if(layer&&!on){layer.aura.remove();layer.fog.remove();sunRenderLayers.delete(mode);}
   }
   // Private, tab-local history; a slider drag is one undo step, not one step per pixel.
   const sunUndoHistory=[];
@@ -5970,7 +5976,7 @@ async function registerServiceWorker(){
   }
   function sunUndoSnapshot(){
     return {mode:sunLabEditMode,profiles:JSON.parse(JSON.stringify(sunModeProfiles)),
-      current:{...sunLab},size:spectrumSize,reaches:{...sunEffectReach},transparency:window.GERadioTransparency?.get?.()||null};
+      current:{...sunLab},enabled:[...sunEnabledModes],size:spectrumSize,reaches:{...sunEffectReach},transparency:window.GERadioTransparency?.get?.()||null};
   }
   function recordSunUndo(){
     if(sunUndoRestoring||!sunLabEditMode||!geRadioSunLabPrivateAllowed())return;
@@ -5987,6 +5993,7 @@ async function registerServiceWorker(){
       const previousMode=sunLabEditMode;
       sunModeProfiles=before.profiles;sunLabEditMode=before.mode;sunLab={...before.current};
       sunModeProfiles[before.mode]={...sunLab};selectSunPreference(before.mode);
+      if(Array.isArray(before.enabled)){sunEnabledModes=new Set(before.enabled.filter(validSunMode));try{localStorage.setItem(SUN_ENABLED_KEY,JSON.stringify([...sunEnabledModes]));}catch(_){}syncSunEnabledAudio();}
       spectrumSize=before.size;if(before.reaches)sunEffectReach={...before.reaches};persistSunEffectReach();
       if(before.transparency)for(const [key,id] of Object.entries({sun:'geAlphaSun',music:'geAlphaMusic',other:'geAlphaOther'})){
         const input=$(id);if(input&&Number(input.value)!==before.transparency[key]){
@@ -6245,7 +6252,6 @@ async function registerServiceWorker(){
     const grid=$('sunLabGrid'),hint=$('sunLabModeHint');
     syncSpectrumSizeControl(mode);
     grid?.classList.toggle('no-mode',!mode);
-    document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{const selected=btn.dataset.sunMode===mode;btn.classList.toggle('active',selected);btn.setAttribute('aria-pressed',String(selected));});
     syncSunEnabledUI();
     if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+' · published preset'):'Choose an effect.';
     // Public EQ presets are always usable when the public profile permits Sun Lab.
@@ -6461,7 +6467,6 @@ async function registerServiceWorker(){
     }
     bindSunUndoHistory();
     initializeSunEnabled();
-    document.querySelectorAll('[data-sun-enabled]').forEach(input=>input.addEventListener('change',()=>changeSunEnabled(input.dataset.sunEnabled,input.checked)));
     window.addEventListener('DOMContentLoaded',syncSunEnabledAudio,{once:true});
     setPublishedSunEQ(null);
     updateSunEditorAccess();
@@ -6469,7 +6474,21 @@ async function registerServiceWorker(){
     window.addEventListener('pageshow',updateSunEditorAccess);
     setInterval(updateSunEditorAccess,60000);
     void loadPublishedSunEQ();
-    document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
+    document.querySelectorAll('.sunlab-modebtn[data-sun-mode]').forEach(btn=>{
+      if(btn.dataset.bound)return;btn.dataset.bound='1';
+      let downAt=0,held=false;
+      btn.addEventListener('pointerdown',()=>{downAt=performance.now();held=false;});
+      btn.addEventListener('pointerup',()=>{held=downAt>0&&performance.now()-downAt>=450;downAt=0;});
+      btn.addEventListener('pointercancel',()=>{downAt=0;held=false;});
+      btn.addEventListener('contextmenu',event=>event.preventDefault());
+      btn.addEventListener('click',event=>{
+        const mode=btn.dataset.sunMode,editOnly=held||event.shiftKey;held=false;
+        if(editOnly){chooseSunMode(mode);return;}
+        sunUndoGesture=null;recordSunUndo();
+        if(mode!==sunLabEditMode)chooseSunMode(mode);
+        changeSunEnabled(mode,!sunEnabledModes.has(mode));
+      });
+    });
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
       sunLabBtn.addEventListener('click',()=>{
@@ -10045,11 +10064,20 @@ html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{overflow-w
 #sunEQAura[data-mode="aurora"]{inset:-2%;filter:none!important}
 #sunEQAura,#sunEQFog{overflow:visible!important}
 .ge-sun-effect-layer{position:absolute;inset:0;overflow:visible;pointer-events:none}
-html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-cell{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:1px}
-html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-cell .sunlab-modebtn{width:100%!important;min-height:28px!important}
-html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;min-height:24px;cursor:pointer}
-html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch input{width:19px;height:19px;margin:0;accent-color:#42d9ff}
-html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .ge-sun-mode-switch:has(input:checked){color:#8de9ff}
+/* Exactly four buttons, with illumination for active effects and a thin
+   white underline for the selected editor. No additional controls or rows. */
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .sunlab-modebtn{
+ position:relative;min-height:32px!important;touch-action:manipulation;-webkit-touch-callout:none;user-select:none;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .sunlab-modebtn.active{
+ background:#174967!important;border-color:#63dfff!important;box-shadow:inset 0 0 9px #42d9ff38,0 0 7px #42d9ff35!important;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .sunlab-modebtn:not(.active){
+ background:#14202d!important;border-color:#344b60!important;box-shadow:none!important;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar .sunlab-modebtn.ge-sun-editing::after{
+ content:"";position:absolute;bottom:3px;left:25%;right:25%;height:2px;border-radius:2px;background:#fff;pointer-events:none;
+}
 </style>
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
