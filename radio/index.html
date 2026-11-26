@@ -879,7 +879,7 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
-      <p id="sunLabPublishStatus" role="status" aria-live="polite">Press SAVE TO GITHUB to publish. If needed, owner sign-in opens here without leaving Radio.</p>
+      <p id="sunLabPublishStatus" role="status" aria-live="polite" hidden></p>
       <form id="sunLabOwnerForm" hidden style="margin:8px 0;display:none" aria-label="Owner sign-in for publishing EQ">
         <label for="sunLabOwnerPassword" style="display:block;margin-bottom:5px">Back Room owner password</label>
         <input id="sunLabOwnerPassword" type="password" autocomplete="current-password" required style="box-sizing:border-box;width:100%;min-height:42px;padding:8px;color:white;background:#101e35;border:1px solid #7096b4;border-radius:6px">
@@ -5983,7 +5983,7 @@ async function registerServiceWorker(){
     const testTools=$('sunLabAdvancedTools');if(testTools)testTools.hidden=!geRadioLocalTestAccess();
     if(sunLabEditMode)setSunModeVisibility(sunLabEditMode);
   }
-  function sunPublishStatus(message){const target=$('sunLabPublishStatus');if(target)target.textContent=message;}
+  function sunPublishStatus(message){const target=$('sunLabPublishStatus');if(target){target.textContent=message;target.hidden=!message;}}
   function sunOwnerToken(){try{return sessionStorage.getItem(SUN_EQ_PUBLISH_SESSION)||''}catch(_){return ''}}
   async function sunPublisher(method='GET',body){
     const token=sunOwnerToken();if(!token)throw Error('Owner sign-in required. Use SAVE TO GITHUB here.');
@@ -6007,8 +6007,8 @@ async function registerServiceWorker(){
           const owner=await sunPublisher();
           geSunOwnerVerified=true;
           if(!sunEQDraft){setPublishedSunEQ(owner.settings?.visual?.sunEQ);updateSunEditorAccess();
-            if(!restoreSunOwnerDraft())sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all three presets.');
-          }else{updateSunEditorAccess();sunPublishStatus('OWNER · Unsaved edits retained. SAVE TO GITHUB when ready.');}
+            if(!restoreSunOwnerDraft())sunPublishStatus('');
+          }else{updateSunEditorAccess();sunPublishStatus('');}
           if(new URLSearchParams(location.search).get('eq_admin')==='1'){window.GELiveAudioEQ?.setEnabled?.(true);setPanelVisible(true);}
           return;
         }catch(_){geSunOwnerVerified=false;}
@@ -9667,6 +9667,13 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
+<style id="ge-sunlab-control-room-v1">
+/* No empty publish box; preserve owner sign-in and real save feedback. */
+html.ge-radio-ui body #sunLabPanel.show #sunLabPublishTools:not(:has(> :not([hidden]))){display:none!important}
+@media(max-width:819px),(pointer:coarse){
+ html.ge-radio-ui body #sunLabPanel.show{height:min(65dvh,620px)!important;max-height:65dvh!important}
+}
+</style>
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
