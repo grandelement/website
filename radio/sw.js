@@ -135,7 +135,22 @@ self.addEventListener('activate',event=>{
   // Keep one previous working shell. Never delete any music, art or playlists.
   const prior=names.filter(name=>name.startsWith('ge-radio-shell-')&&name!==SHELL_CACHE);
   const keep=prior.at(-1);
-  await Promise.all(prior.filter(x=>x!==keep).map(x=>caches.delete(x)));
+  // Legacy shells sometimes contain listener recordings. Never delete one
+  // unless its contents have been inspected and contain no audio at all.
+  for(const name of prior.filter(x=>x!==keep)){
+   try{
+    const previous=await caches.open(name);
+    let protectsMedia=false;
+    for(const request of await previous.keys()){
+     const url=new URL(request.url);
+     const response=await previous.match(request);
+     if(AUDIO.test(url.pathname)||/^audio\//i.test(response?.headers.get('content-type')||'')){
+      protectsMedia=true;break;
+     }
+    }
+    if(!protectsMedia)await caches.delete(name);
+   }catch(_){/* Fail closed: retain an uninspectable cache. */}
+  }
   await self.clients.claim();
  })());
 });
