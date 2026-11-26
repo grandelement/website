@@ -645,3 +645,41 @@ html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #bottomActions > 
 html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn:active{
  background:rgba(23,77,119,.85)!important;
 }
+
+/* Full-screen Spectrum is an artwork layer, never a clickable overlay.
+   Keep the entire interface above it; do not alter the reserved center gap. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > header{
+ position:relative!important;z-index:0!important;overflow:visible!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > :not(header){
+ z-index:32;
+}
+html.ge-radio-ui body #sunEQAura[data-mode="spectrum"] .sun-spectrum-ring{
+ will-change:auto!important;pointer-events:none!important;
+ background:transparent!important;
+}
+html.ge-radio-ui #geSpectrumSizeRow[hidden]{display:none!important}
+html.ge-radio-ui #geSpectrumSizeRow:not([hidden]){
+ display:grid!important;margin:6px 0 10px;padding:8px;
+ border:1px solid rgba(66,217,255,.32);border-radius:9px;
+}
+#geSpectrumSize{touch-action:pan-x;accent-color:#42d9ff;width:100%}
+.ge-sun-motion-trace{
+ position:fixed;z-index:31009;pointer-events:none;border-radius:50%;
+ transform:translate(-50%,-50%);border:1px solid rgba(87,212,255,.48);
+ box-shadow:0 0 16px rgba(49,167,255,.30),inset 0 0 9px rgba(86,216,255,.20);
+ animation:geSunTraceDissolve 1s ease-out forwards;
+}
+@keyframes geSunTraceDissolve{
+ from{opacity:.48;transform:translate(-50%,-50%) scale(.98)}
+ to{opacity:0;transform:translate(-50%,-50%) scale(1.12)}
+}
+body:not(.hud-hidden) .ge-sun-motion-trace,body.sun-faded .ge-sun-motion-trace{display:none!important}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button{
+ position:relative!important;isolation:isolate!important;overflow:hidden!important;
+}
+#geMusicV5Button > .ge-music-album-flight{
+ position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;border-radius:inherit;
+}
+#geMusicV5Button > :is(svg,.ge-radio-icon-label){position:relative;z-index:1;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.ge-sun-motion-trace{display:none!important}}
