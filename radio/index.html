@@ -934,13 +934,13 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slHue">Hue Shift</label><output id="slHueVal"></output><span class="sun-hue-swatch" id="slHuePreview" aria-hidden="true"></span><input id="slHue" class="sun-hue-slider" type="range" min="-180" max="180" step="1" value="0"><small>Slides the whole color family around the spectrum while keeping the same pattern.</small></div>
       <div class="sunlab-row"><label for="slHueMix">Color Spectrum</label><output id="slHueMixVal"></output><input id="slHueMix" type="range" min="0" max="100" step="1" value="0"><small>Blend a second color into the blue pulse without losing the blue default.</small></div>
       <div class="sunlab-row"><label for="slAltHue">Secondary Hue</label><output id="slAltHueVal"></output><span class="sun-hue-swatch" id="slAltHuePreview" aria-hidden="true"></span><input id="slAltHue" class="sun-hue-slider" type="range" min="-180" max="180" step="1" value="68"><small>The second color blended in by Color Spectrum.</small></div>
-      <div class="sunlab-row"><label for="slBass">Bass Gain</label><output id="slBassVal"></output><input id="slBass" type="range" min="0" max="200" step="1" value="20"><small>Lower this when the bass is overpowering the rest of the visual.</small></div>
-      <div class="sunlab-row"><label for="slMid">Mid Gain</label><output id="slMidVal"></output><input id="slMid" type="range" min="0" max="220" step="1" value="20"><small>Boosts the center of the music so vocals and body push the effect harder.</small></div>
-      <div class="sunlab-row"><label for="slTreble">Treble Gain</label><output id="slTrebleVal"></output><input id="slTreble" type="range" min="0" max="220" step="1" value="20"><small>Boosts the crisp high-end detail so hats and shine are more visible.</small></div>
+      <div class="sunlab-row"><label for="slBass">Bass Gain</label><output id="slBassVal"></output><input id="slBass" type="range" min="0" max="1000" step="1" value="20"><small>Lower this when the bass is overpowering the rest of the visual.</small></div>
+      <div class="sunlab-row"><label for="slMid">Mid Gain</label><output id="slMidVal"></output><input id="slMid" type="range" min="0" max="1000" step="1" value="20"><small>Boosts the center of the music so vocals and body push the effect harder.</small></div>
+      <div class="sunlab-row"><label for="slTreble">Treble Gain</label><output id="slTrebleVal"></output><input id="slTreble" type="range" min="0" max="1000" step="1" value="20"><small>Boosts the crisp high-end detail so hats and shine are more visible.</small></div>
       <div class="sunlab-row"><label for="slCompression">EQ Compression</label><output id="slCompressionVal"></output><input id="slCompression" type="range" min="0" max="120" step="1" value="0"><small>Raises weaker mids/highs and flattens giant bass spikes for a more balanced visual.</small></div>
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
-      <div class="sunlab-row"><label for="slSpectrumGain">Master Pulse Signal</label><output id="slSpectrumGainVal"></output><input id="slSpectrumGain" type="range" min="0" max="300" step="1" value="100"><small>Raises or lowers the single combined pulse after Low, Mid, and High are blended together.</small></div>
-      <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue field. Higher values reveal separate, flowing Low, Mid and High colors.</small></div>
+      <div class="sunlab-row"><label for="slSpectrumGain">Master Pulse Signal</label><output id="slSpectrumGainVal"></output><input id="slSpectrumGain" type="range" min="0" max="300" step="1" value="100"><small>Controls overall visual intensity. It does not change the individual Low, Mid or High readings.</small></div>
+      <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue field. Higher values make the individual frequency colors more distinct.</small></div>
       <div class="sunlab-row"><label for="slLowHue">Low Color</label><output id="slLowHueVal"></output><span class="sun-hue-swatch" id="slLowHuePreview" aria-hidden="true"></span><input id="slLowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="215"><small>Color used by bass and low frequencies in the continuous field.</small></div>
       <div class="sunlab-row"><label for="slMidHue">Mid Color</label><output id="slMidHueVal"></output><span class="sun-hue-swatch" id="slMidHuePreview" aria-hidden="true"></span><input id="slMidHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="155"><small>Color used by middle frequencies in the continuous field.</small></div>
       <div class="sunlab-row"><label for="slHighHue">High Color</label><output id="slHighHueVal"></output><span class="sun-hue-swatch" id="slHighHuePreview" aria-hidden="true"></span><input id="slHighHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="320"><small>Color used by treble and high frequencies in the continuous field.</small></div>
@@ -6021,7 +6021,10 @@ async function registerServiceWorker(){
       const control=$('sl'+key.charAt(0).toUpperCase()+key.slice(1));
       if(!control)continue;
       if(control.type==='checkbox'){if(typeof value==='boolean')base[key]=value;continue;}
-      if(typeof value==='number'&&Number.isFinite(value))base[key]=Math.max(Number(control.min),Math.min(Number(control.max),value));
+      if(typeof value==='number'&&Number.isFinite(value)){
+        const max=['bass','mid','treble'].includes(key)?(mode==='spectrum'?1000:key==='bass'?200:220):Number(control.max);
+        base[key]=Math.max(Number(control.min),Math.min(max,value));
+      }
     }
     return {...base,waveType:SUN_MODE_WAVE[mode]};
   }
@@ -6318,6 +6321,9 @@ async function registerServiceWorker(){
   }
   function refreshSunLabSelect(){ const input=$('slWaveType'), out=$('slWaveTypeVal'); if(!input) return; input.value=sunLab.waveType; if(out) out.textContent=input.options[input.selectedIndex]?.textContent||sunLab.waveType; }
   function applySunLabUI(){
+    for(const [id,oldMax] of [['slBass',200],['slMid',220],['slTreble',220]]){
+      const input=$(id);if(input)input.max=String(sunLabEditMode==='spectrum'?1000:oldMax);
+    }
     bindSunLabControl('slCascadeSpeed','cascadeSpeed');
     bindSunLabToggle('slRadialOn','radialOn');
     bindSunLabToggle('slCascadeOn','cascadeOn');
@@ -6787,6 +6793,8 @@ Vector ${vector}. ${pair[1]}.`;
   // master feed. It never creates a second HTMLAudioElement on iOS, and failure
   // never interrupts the native <audio> player or its Gate/volume.
   let geBlitzSpectrumAt=0,geBlitzSpectrumRequestAt=0,geBlitzSpectrumPending=false;
+  const geBlitzRawBins=new Uint8Array(256);
+  let spectrumRawBins=null,spectrumRawLayout='unknown';
   async function pollBlitzSpectrum(){
     if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
     const now=performance.now();
@@ -6802,8 +6810,7 @@ Vector ${vector}. ${pair[1]}.`;
       if(!packet||packet.ready!==true||!Array.isArray(packet.bins)||packet.bins.length!==256
           ||!Number.isFinite(Number(packet.updated_ms))
           ||Math.abs(Date.now()-Number(packet.updated_ms))>2500)return;
-      if(!eqData||eqData.length!==256)eqData=new Uint8Array(256);
-      for(let i=0;i<256;i++)eqData[i]=Math.min(255,Math.max(0,Number(packet.bins[i])||0));
+      for(let i=0;i<256;i++)geBlitzRawBins[i]=Math.min(255,Math.max(0,Number(packet.bins[i])||0));
       geBlitzSpectrumAt=performance.now();
     }catch(_){/* The spectrum service is optional, native BLITZ audio remains untouched. */}
     finally{geBlitzSpectrumPending=false;}
@@ -7174,7 +7181,31 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function sunNum(key,fallback){const value=Number(sunLab[key]);return Number.isFinite(value)?value:fallback;}
 
+  // Native MUSIC bins are logarithmic from 32 Hz to 16 kHz;
+  // browser fallback FFT is linear. Remote bin layout is not declared.
+  function measuredSpectrumBands(data,layout,sampleRate,gains,compression){
+    const n=data?.length||0;if(!n)return {low:0,mid:0,high:0};
+    const cap=Math.min(16000,sampleRate/2);
+    const toIndex=hz=>layout==='log'?Math.log(Math.max(32,hz)/32)/Math.log(cap/32):
+      layout==='linear'?hz/(sampleRate/2):0;
+    const ranges=layout==='unknown'?[[0,.18],[.18,.52],[.52,.94]]:
+      [[layout==='linear'?toIndex(32):0,toIndex(250)],[toIndex(250),toIndex(4000)],[toIndex(4000),toIndex(cap)]];
+    const sample=(bounds,gain)=>{
+      const lo=Math.max(0,Math.min(n-1,Math.floor(n*bounds[0]))),hi=Math.max(lo+1,Math.min(n,Math.ceil(n*bounds[1])));
+      let sum=0,peak=0;for(let i=lo;i<hi;i++){const v=(data[i]||0)/255;sum+=v;peak=Math.max(peak,v);}
+      const measured=sum/(hi-lo)*.55+peak*.45;
+      const shaped=lerp(measured,Math.pow(measured,.52),clamp(compression,0,1));
+      return clamp(shaped*clamp(gain,0,10),0,1);
+    };
+    return {low:sample(ranges[0],gains[0]),mid:sample(ranges[1],gains[1]),high:sample(ranges[2],gains[2])};
+  }
   function spectrumBandLevels(live){
+    if(sunLab.waveType==='spectrum'){
+      if(!live||!spectrumRawBins)return {low:0,mid:0,high:0};
+      return measuredSpectrumBands(spectrumRawBins,spectrumRawLayout,
+        spectrumRawLayout==='linear'?(eqAudioCtx?.sampleRate||44100):44100,
+        [sunNum('bass',100)/100,sunNum('mid',100)/100,sunNum('treble',100)/100],sunNum('compression',0)/100);
+    }
     const len=eqData?.length||0;
     if(live&&len){
       const sample=(from,to,gain=1)=>{
@@ -7196,7 +7227,7 @@ Vector ${vector}. ${pair[1]}.`;
 
   function combineSpectrumBands(bands){
     const weighted=clamp(bands.low*.34+bands.mid*.39+bands.high*.27,0,1);
-    const comp=clamp(sunNum('compression',0)/100,0,1);
+    const comp=sunLab.waveType==='spectrum'?0:clamp(sunNum('compression',0)/100,0,1);
     // Compression lifts weaker detail toward the peaks without changing the band gains themselves.
     const compressed=lerp(weighted,Math.pow(weighted,.52),comp);
     const master=clamp(sunNum('spectrumGain',100)/100,0,3);
@@ -7303,10 +7334,15 @@ Vector ${vector}. ${pair[1]}.`;
     const raw=combineSpectrumBands(bands);
     const dynamics=clamp(sunNum('dynamics',79)/100,0,3.8);
     const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
+    const spectrum=sunLab.waveType==='spectrum';
     let energy=clamp(raw*(.90+dynamics*1.15),0,1);
     energy=clamp(.5+(energy-.5)*contrast,0,1);
     energy=live&&raw>0?Math.pow(energy,.82):0;
-    updateSpectrumMeter(bands,energy);
+    if(spectrum){
+      const drive=Math.max(bands.low,bands.mid,bands.high)*clamp(sunNum('spectrumGain',100)/100,0,3);
+      energy=live&&drive>0?clamp(Math.pow(1-Math.exp(-drive*(.9+dynamics*.55)),1/(.65+contrast*.35)),0,1):0;
+    }
+    updateSpectrumMeter(bands,spectrum?raw:energy);
 
     // 100% retains the former fastest rate (45ms per ring spacing).
     // At 5% it takes 900ms; at 1% it takes 4500ms. Integrate phase so
@@ -7316,7 +7352,11 @@ Vector ${vector}. ${pair[1]}.`;
     const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
     sunSpectrumSampleAt=now;
     sunSpectrumPhase+=dt/interval;
-    if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+    if(spectrum){
+      // Capture the current measured frequency frame, not just the biggest pulse.
+      if(live&&energy>.001){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+      else{sunSpectrumPeak=0;sunSpectrumPeakBands=null;}
+    }else if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
     const elapsed=Math.floor(sunSpectrumPhase);
     if(elapsed>0){
       const historyLimit=sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400;
@@ -7366,7 +7406,9 @@ Vector ${vector}. ${pair[1]}.`;
     const scale=px/cssSize,center=px/2,range=outer-inner;
     const grad=ctx.createRadialGradient(center,center,inner*scale,center,center,outer*scale);
     const colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
-    const mix=sunFieldSmooth(clamp(sunNum('bandColorMix',70)/100,0,1)/.35),base=hslRgb(214,.95,.48);
+    const separation=clamp(sunNum('bandColorMix',70)/100,0,1);
+    const mix=sunFieldSmooth(separation/.35),base=hslRgb(214,.95,.48);
+    const transition=lerp(.42,.04,separation);
     const gap=clamp(sunNum('gap',0)/100,0,.85),zero={low:0,mid:0,high:0};
     const count=Math.min(400,Math.ceil(range/pitch)+1),fade=x=>sunFieldSmooth((range-x)/Math.max(pitch*2,1));
     function stop(x,col,alpha){grad.addColorStop(clamp(x/range,0,1),'rgba('+col.map(v=>Math.round(v)).join(',')+','+clamp(alpha*fade(x),0,.95).toFixed(4)+')');}
@@ -7380,7 +7422,7 @@ Vector ${vector}. ${pair[1]}.`;
       for(let k=0;k<3;k++){
         if(vals[k]<=.001)continue;
         const span=(visibleEnd-start)*vals[k]/total,color=colors[k].map((v,j)=>lerp(base[j],v,mix)),alpha=clamp(e*(.25+.70*vals[k]),0,.95);
-        stop(cursor+span*.28,color,alpha);stop(cursor+span*.72,color,alpha);cursor+=span;
+        stop(cursor+span*transition,color,alpha);stop(cursor+span*(1-transition),color,alpha);cursor+=span;
       }
       if(gap>0){stop(visibleEnd,base,0);stop(end,base,0);}
     }
@@ -7811,27 +7853,27 @@ Vector ${vector}. ${pair[1]}.`;
     const effectsOn=window.GELiveAudioEQ?.isEnabled?.()!==false;
     const halo=$('shipSunEQHalo');if(halo)halo.style.visibility=effectsOn?'visible':'hidden';
     if(!effectsOn){updateRadioBroadcastR21(null);eqMessage('MUSIC EQ · OFF');updateSunEQ(false);return;}
-    let live=false;
+    let live=false,rawLayout='unknown';
     const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
     // Source-of-truth priority: measured PCM from the audible native player.
     // A stale iframe / Radio mode flag previously suppressed this real signal,
     // leaving the rays fixed even when the browser FFT had strong energy.
     const currentBins=!audio.paused&&!audio.ended?window.GELiveAudioEQ?.read?.():null;
     if(currentBins&&currentBins.some(bin=>bin>1)){
-      eqData=currentBins;
+      eqData=currentBins;rawLayout='log';
       live=true;
       eqLastSignalAt=performance.now();
     }else if(inlinePlaying){
       const bins=inlineSpectrumData();
       if(bins){
-        eqData=bins;
+        eqData=bins;rawLayout='log';
         live=bins.some(bin=>bin>1);
         if(live)eqLastSignalAt=performance.now();
       }
     }else if((GE_STATIC_RADIO_PRIMARY&&state.live)||localSpectrumSource()){
       const bins=window.GELiveAudioEQ?.read?.();
       if(bins){
-        eqData=bins;
+        eqData=bins;rawLayout='log';
         live=bins.some(bin=>bin>1);
         if(live)eqLastSignalAt=performance.now();
       }
@@ -7839,14 +7881,16 @@ Vector ${vector}. ${pair[1]}.`;
       // Poll only while the real Radio 1 <audio> is playing. Never infer a
       // valid signal from a button tap, playlist metadata, or mock animation.
       void pollBlitzSpectrum();
-      if(state.live&&!audio.paused&&eqData&&geBlitzSpectrumAt>0
+      if(state.live&&!audio.paused&&geBlitzSpectrumAt>0
           &&performance.now()-geBlitzSpectrumAt<2500){
+        eqData=geBlitzRawBins;
         live=eqData.some(bin=>bin>1);
         if(live)eqLastSignalAt=performance.now();
       }
     }else if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'&&!eqTapAudio?.paused){
       try{
-        eqAnalyser.getByteFrequencyData(eqData);
+        if(eqData===geBlitzRawBins||!eqData||eqData.length!==eqAnalyser.frequencyBinCount)eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
+        eqAnalyser.getByteFrequencyData(eqData);rawLayout='linear';
         const energy=eqData.reduce((total,bin)=>total+bin,0);
         live=energy>eqData.length*.5;
         if(live)eqLastSignalAt=performance.now();
@@ -7856,9 +7900,11 @@ Vector ${vector}. ${pair[1]}.`;
     // On a fallback station, do not use Radio 1's remote BLITZ feed.
     const radioBins=live&&!inlinePlaying&&(!GE_IOS_AUDIO||GE_STATIC_RADIO_PRIMARY||!radio2.active||currentBins)?eqData:null;
     updateRadioBroadcastR21(radioBins);
+    // Spectrum uses original measured FFT; other visual modes keep their transient response.
+    spectrumRawBins=live?eqData:null;spectrumRawLayout=rawLayout;
     // Visual transient processor is driven exclusively by measured live FFT;
     // this never changes the audible track, volume, or Gate.
-    if(live&&eqData?.length&&window.GESunPulseEngine?.process){
+    if(live&&eqData?.length&&window.GESunPulseEngine?.process&&sunLab.waveType!=='spectrum'){
       eqData=window.GESunPulseEngine.process(eqData,{
         pulseDepth:sunLab.pulseDepth,
         pulseSensitivity:sunLab.pulseSensitivity,
@@ -7866,7 +7912,7 @@ Vector ${vector}. ${pair[1]}.`;
         pulseRelease:sunLab.pulseRelease,
         pulseNoiseFloor:sunLab.pulseNoiseFloor
       },performance.now())||eqData;
-    }else if(!live)window.GESunPulseEngine?.reset?.();
+    }else if(!live||sunLab.waveType==='spectrum')window.GESunPulseEngine?.reset?.();
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
