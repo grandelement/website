@@ -957,8 +957,8 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <div class="sunlab-access-tools">
       <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local test access only; keep downloaded music">RESET CODES</button>
-      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Erase local listener settings and offline downloads on this device">RESET SITE</button>
-      <span>RESET CODES keeps downloads. RESET SITE deletes offline music and local settings.</span>
+      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Check for current application files without erasing listener data">UPDATE SITE</button>
+      <span>UPDATE SITE keeps downloaded music, playlists, codes and personal settings. RESET CODES changes only local access.</span>
     </div>
     </div><!-- sunLabAdvancedTools -->
   </section>
@@ -1310,11 +1310,11 @@ async function cachedFileLooksChanged(url,cache){
   }
   return false;
 }
-async function purgeCachedMediaPath(cache,path){
+async function purgeCachedMediaPath(cache,path,keepURL){
   const keys=await cache.keys();
   let removed=0;
   for(const request of keys){
-    if(urlToRepoPath(request.url)===path){
+    if(urlToRepoPath(request.url)===path&&request.url!==keepURL){
       if(await cache.delete(request,{ignoreSearch:false})) removed++;
     }
   }
@@ -1325,7 +1325,7 @@ async function fetchFreshMedia(url){
     cache:'no-store',
     headers:{'X-GE-Reload-Media':'1'}
   });
-  if(!response.ok) throw new Error(`${response.status} ${url}`);
+  if(!response.ok||response.status!==200||/text\/html|application\/json|text\/plain/i.test(response.headers.get('content-type')||'')) throw new Error('Media replacement failed validation: '+url);
   return response;
 }
 async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=false}={}){
@@ -1382,17 +1382,16 @@ async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=fals
   let removed=0;
   let failed=0;
 
-  for(const path of removedPaths){
-    removed+=await purgeCachedMediaPath(cache,path);
-  }
+  // Catalog removals do not delete a listener's saved media. Only explicit
+  // authorized download removal may remove it; the catalog controls playback.
 
   const refreshSet=[...new Set(changedPaths)];
   for(const path of refreshSet){
     const url=repoPathToVersionedURL(path,newShaMap[path]||'');
     try{
-      await purgeCachedMediaPath(cache,path);
       const response=await fetchFreshMedia(url);
       await cache.put(url,response.clone());
+      await purgeCachedMediaPath(cache,path,url);
       refreshed++;
     }catch(_e){ failed++; }
   }
@@ -1402,9 +1401,9 @@ async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=fals
     for(const path of addSet){
       const url=repoPathToVersionedURL(path,newShaMap[path]||'');
       try{
-        await purgeCachedMediaPath(cache,path);
         const response=await fetchFreshMedia(url);
         await cache.put(url,response.clone());
+        await purgeCachedMediaPath(cache,path,url);
         addedOffline++;
       }catch(_e){ failed++; }
     }
@@ -6229,48 +6228,31 @@ async function registerServiceWorker(){
     bindSunLabControl('slOuterGlowHue','outerGlowHue',fmtDeg);
     refreshSunLabSelect();
   }
-  // Fresh visitor on this device only. No server account, issued access
-  // code, subscription, or private Back Room draft is changed.
+  // Application repair is not a visitor-data reset. Never clear storage,
+  // media caches, credentials, or unregister a working offline service worker.
   async function resetLocalSite(){
-    const ok=confirm('RESET SITE on this device?\\n\\nClear Radio, Music, games, play/test accounts, guest listening clocks, personal settings, downloaded songs and offline caches.\\n\\nThis cannot be undone. Back Room administration and real server accounts are kept.');
-    if(!ok)return;
-    window.GE_RESET_SITE_IN_PROGRESS=true;
+    if(navigator.onLine===false){setStatus('Connect online to update the website. Your saved data is unchanged.');return;}
+    if(!confirm('Check for the latest website and Radio? Downloaded music, playlists, access and personal settings will be kept.'))return;
     const button=$('sunLabResetSite');
-    if(button){button.disabled=true;button.textContent='RESETTING…';}
-    try{audio.pause();audio.removeAttribute('src');audio.load();}catch(_e){}
-    // Preserve private unpublished administrator work.
-    for(const storage of [localStorage,sessionStorage]){
-      try{
-        const keys=[];
-        for(let i=0;i<storage.length;i++)keys.push(storage.key(i));
-        for(const key of keys){
-          if(!key||key.startsWith('GE_BACKROOM_'))continue;
-          storage.removeItem(key);
-        }
-      }catch(error){console.warn('RESET SITE storage:',error);}
-    }
-    if('caches' in window){
-      try{
-        const names=await caches.keys();
-        await Promise.all(names.filter(name=>{
-          const lower=String(name).toLowerCase();
-          return lower.startsWith('ge-')||lower.startsWith('ge_')||lower.startsWith('grandelement')||lower.startsWith('grand-element');
-        }).map(name=>caches.delete(name)));
-      }catch(error){console.warn('RESET SITE caches:',error);}
-    }
-    if('serviceWorker' in navigator){
-      try{
+    if(button){button.disabled=true;button.textContent='CHECKING…';}
+    try{
+      if('serviceWorker' in navigator){
         const registrations=await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.filter(r=>r.scope.startsWith(location.origin+'/'))
-          .map(r=>r.unregister()));
-      }catch(error){console.warn('RESET SITE worker:',error);}
-    }
-    // Background playback timers can otherwise repopulate visitor keys while
-    // Cache Storage and service workers are being removed.
-    for(const storage of [localStorage,sessionStorage]){
-      try{const keys=[];for(let i=0;i<storage.length;i++)keys.push(storage.key(i));for(const key of keys){if(key&&!key.startsWith('GE_BACKROOM_'))storage.removeItem(key);}}catch(_e){}
-    }
-    location.replace('./?fresh='+Date.now());
+        await Promise.allSettled(registrations.filter(reg=>reg.scope.startsWith(location.origin+'/')).map(reg=>reg.update()));
+      }
+      const worker=navigator.serviceWorker?.controller;
+      if(worker&&typeof MessageChannel!=='undefined'){
+        await new Promise(resolve=>{
+          const channel=new MessageChannel();let done=false;
+          const finish=()=>{if(done)return;done=true;clearTimeout(timer);channel.port1.close();resolve();};
+          const timer=setTimeout(finish,8000);
+          channel.port1.onmessage=finish;
+          try{worker.postMessage({type:'GE_RADIO_SHELL_REPAIR'},[channel.port2]);}catch(_){finish();}
+        });
+      }
+    }catch(error){console.warn('UPDATE SITE:',error);}
+    const target=new URL(location.href);target.searchParams.set('fresh',String(Date.now()));
+    location.replace(target.href);
   }
   function resetLocalAccessCodes(){
     if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
