@@ -46,7 +46,7 @@ window.addEventListener('unhandledrejection',function(e){
   if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
 });
 </script>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <link rel="stylesheet" href="./radio-base.css?v=20261125-album-eq-v7" data-ge-css="base">
 <script id="ge-radio-first-style">document.documentElement.classList.add('ge-radio-ui');</script>
 <script id="ge-safari-request-website-mode">
@@ -90,7 +90,7 @@ window.addEventListener('unhandledrejection',function(e){
     if(!viewport)return;
     // Keep one orientation-independent viewport. Safari owns device-width
     // throughout rotation; never freeze the previous physical screen width.
-    const value=requestedDesktop?'width=1160,initial-scale=1,viewport-fit=cover':'width=device-width,initial-scale=1,viewport-fit=cover';
+    const value=requestedDesktop?'width=1160,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover':'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
     if(viewport.content!==value)viewport.content=value;
   }
   applyViewport();
@@ -116,6 +116,7 @@ window.addEventListener('unhandledrejection',function(e){
   document.addEventListener('gesturestart',function(e){if(e.cancelable)e.preventDefault()},{passive:false});
   document.addEventListener('gesturechange',function(e){if(e.cancelable)e.preventDefault()},{passive:false});
   document.addEventListener('gestureend',function(e){if(e.cancelable)e.preventDefault()},{passive:false});
+  document.addEventListener('touchmove',function(e){if(e.touches.length>1&&!e.target.closest?.('#geFloatingSun')&&e.cancelable)e.preventDefault();},{passive:false});
 })();
 </script>
 
@@ -877,6 +878,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
+    <div id="geSpectrumSizeRow" class="sunlab-row" hidden style="display:none"><label for="geSpectrumSize">Spectrum size · record to universe</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
     <div id="sunLabPublishTools" hidden>
       <p id="sunLabPublishStatus" role="status" aria-live="polite">Press SAVE TO GITHUB to publish. If needed, owner sign-in opens here without leaving Radio.</p>
       <form id="sunLabOwnerForm" hidden style="margin:8px 0;display:none" aria-label="Owner sign-in for publishing EQ">
@@ -5860,6 +5862,19 @@ async function registerServiceWorker(){
   function clamp(v,min,max){return Math.max(min,Math.min(max,v));}function lerp(a,b,t){return a+(b-a)*t;}function rand(min,max){return Math.random()*(max-min)+min;}
 
   const SUN_LAB_KEY='GE_SUN_LAB_V7';
+  const GE_SPECTRUM_SIZE_KEY='GE_RADIO_SPECTRUM_SIZE_V1';
+  let spectrumSize=100;
+  try{const saved=localStorage.getItem(GE_SPECTRUM_SIZE_KEY);if(saved!==null&&Number.isFinite(Number(saved)))spectrumSize=clamp(Number(saved),0,100);}catch(_){}
+  function syncSpectrumSizeControl(mode){
+    const row=$('geSpectrumSizeRow'),input=$('geSpectrumSize'),out=$('geSpectrumSizeValue');
+    if(!row||!input)return;
+    row.hidden=mode!=='spectrum';row.style.display=mode==='spectrum'?'grid':'none';
+    input.value=String(spectrumSize);if(out)out.textContent=Math.round(spectrumSize)+'%';
+    if(!input.dataset.bound){input.dataset.bound='1';input.addEventListener('input',()=>{
+      spectrumSize=clamp(Number(input.value),0,100);if(out)out.textContent=Math.round(spectrumSize)+'%';
+      try{localStorage.setItem(GE_SPECTRUM_SIZE_KEY,String(spectrumSize));}catch(_){}
+    });}
+  }
   const SUN_LAB_DEFAULTS=Object.freeze({
     waveType:'mirrorflip',position:0,distance:55,thickness:42,contrast:80,dynamics:140,glow:0,mist:0,
     blueDepth:40,outerFade:50,tipWhite:56,brightness:145,hue:0,hueMix:0,altHue:68,
@@ -6085,6 +6100,7 @@ async function registerServiceWorker(){
     pulse:'Pulse',ripples:'Ripples',orbit:'Orbit',aurora:'Aurora'})[mode]||mode;}
   function setSunModeVisibility(mode){
     const grid=$('sunLabGrid'),hint=$('sunLabModeHint');
+    syncSpectrumSizeControl(mode);
     grid?.classList.toggle('no-mode',!mode);
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>btn.classList.toggle('active',btn.dataset.sunMode===mode));
     if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+' · published preset'):'Choose an effect.';
@@ -6682,8 +6698,8 @@ Vector ${vector}. ${pair[1]}.`;
   const sunEQFloor=Array(SUN_EQ_RINGS).fill(.018);
   const sunEQPeak=Array(SUN_EQ_RINGS).fill(.28);
   let sunEQImpactFloor=.02,sunEQImpactPeak=.34;
-  let sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
-  let sunSpectrumBandHistory=Array.from({length:SUN_SPECTRUM_RINGS},()=>({low:.04,mid:.04,high:.04}));
+  let sunSpectrumHistory=[];
+  let sunSpectrumBandHistory=[];
   let sunSpectrumSampleAt=0;
   let sunEQLastPaint=0;
   const SUN_EQ_CASCADE_STEPS=7;
@@ -6957,11 +6973,12 @@ Vector ${vector}. ${pair[1]}.`;
           ring.style.setProperty('--spectrum-scale','1');
           ring.style.setProperty('--spectrum-color','rgba(2,20,70,.55)');
           ring.style.setProperty('--spectrum-width','1px');
+          ring.style.opacity='0';
           sunEQAura.appendChild(ring);
         }
-        sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
-        sunSpectrumBandHistory=Array.from({length:SUN_SPECTRUM_RINGS},()=>({low:.04,mid:.04,high:.04}));
-        sunSpectrumSampleAt=performance.now();
+        sunSpectrumHistory=[];
+        sunSpectrumBandHistory=[];
+        sunSpectrumSampleAt=0;
       }
       ensureSunFog();
       return;
@@ -7057,7 +7074,7 @@ Vector ${vector}. ${pair[1]}.`;
       };
     }
     // No synthetic bass/mid/treble masquerading as music during debugging.
-    return {low:.015,mid:.015,high:.015};
+    return {low:0,mid:0,high:0};
   }
 
   function combineSpectrumBands(bands){
@@ -7125,18 +7142,24 @@ Vector ${vector}. ${pair[1]}.`;
     const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
     let energy=clamp(raw*(.90+dynamics*1.15),0,1);
     energy=clamp(.5+(energy-.5)*contrast,0,1);
-    energy=Math.pow(energy,.82);
+    energy=live&&raw>0?Math.pow(energy,.82):0;
     updateSpectrumMeter(bands,energy);
 
     const speed=clamp(sunNum('spectrumSpeed',55)/100,0,1);
     const interval=lerp(180,45,speed);
-    if(!sunSpectrumSampleAt)sunSpectrumSampleAt=now;
-    while(now-sunSpectrumSampleAt>=interval){
-      sunSpectrumHistory.unshift(energy);
-      sunSpectrumBandHistory.unshift({...bands});
-      if(sunSpectrumHistory.length>SUN_SPECTRUM_RINGS)sunSpectrumHistory.length=SUN_SPECTRUM_RINGS;
-      if(sunSpectrumBandHistory.length>SUN_SPECTRUM_RINGS)sunSpectrumBandHistory.length=SUN_SPECTRUM_RINGS;
-      sunSpectrumSampleAt+=interval;
+    // Empty history is genuinely empty; no pre-filled disc, no silent rings.
+    // Age the existing wavefronts even during loading, silence and song changes.
+    const elapsed=sunSpectrumSampleAt?Math.floor((now-sunSpectrumSampleAt)/interval):1;
+    if(elapsed>0){
+      const steps=Math.min(SUN_SPECTRUM_RINGS,elapsed);
+      for(let i=0;i<steps;i++){
+        const measured=i===steps-1&&live&&energy>.001;
+        sunSpectrumHistory.unshift(measured?energy:null);
+        sunSpectrumBandHistory.unshift(measured?{...bands}:null);
+      }
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumSampleAt=now-(sunSpectrumSampleAt?(now-sunSpectrumSampleAt)%interval:0);
     }
 
     const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
@@ -7144,25 +7167,36 @@ Vector ${vector}. ${pair[1]}.`;
     const reachNorm=clamp((distance+440)/660,0,1);
     const position=clamp(sunNum('position',0),-30,30)/50;
     const innerScale=.96+position;
-    const outerScale=innerScale+.36+reachNorm*1.35;
+    const compactScale=innerScale+.22+reachNorm*.12;
+    const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
+    const viewport=window.visualViewport;
+    const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
+    const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
     const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
     const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
     const colorMix=clamp(sunNum('bandColorMix',70)/100,0,1);
 
     rings.forEach((ring,i)=>{
-      const e=clamp(sunSpectrumHistory[i]??.04,0,1);
+      const captured=sunSpectrumHistory[i];
+      if(captured==null||captured<=.001){ring.style.opacity='0';return;}
+      const e=clamp(captured,0,1);
       const b=sunSpectrumBandHistory[i]||{low:e,mid:e,high:e};
       const position=Math.min(SUN_SPECTRUM_RINGS-1,i+phase);
       const scale=innerScale+position*spacing;
       const light=clamp(58+e*34,58,96);
       const sat=clamp(88+e*12,82,100);
-      const alpha=clamp(.76+e*.24,.76,1);
+      const alpha=clamp(.34+e*.66,0,1);
       const originalBlue=`hsla(${clamp(214+sunNum('hue',1)*.35,170,260).toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`;
       const bandColor=spectrumBandColor(b,e);
+      // Real border thickness remains constant as diameter grows; scaling the
+      // border itself was producing an opaque oversized circular sheet.
       ring.style.setProperty('--spectrum-scale',scale.toFixed(4));
+      ring.style.width=ring.style.height=(scale*100).toFixed(3)+'%';
+      ring.style.transform='translate(-50%,-50%)';
       ring.style.setProperty('--spectrum-width',(thickness*(.82+e*.38)).toFixed(2)+'px');
       ring.style.setProperty('--spectrum-color',colorMix<=.001?originalBlue:bandColor);
-      ring.style.opacity=String(alpha);
+      const exitFade=clamp((SUN_SPECTRUM_RINGS-1-position)/10,0,1);
+      ring.style.opacity=String(alpha*exitFade);
     });
   }
 
@@ -7213,11 +7247,11 @@ Vector ${vector}. ${pair[1]}.`;
 
   function updateSunEQ(live){
     if(!sunEQAura||!sunEQFog)return;
-    if(window.GELiveAudioEQ?.isEnabled?.()===false){sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';return;}
+    if(window.GELiveAudioEQ?.isEnabled?.()===false){sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;return;}
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
     // Hide fixed bars unless genuine live FFT data exists.
-    sunEQAura.style.opacity=live?'1':'.075';
+    sunEQAura.style.opacity=waveType==='spectrum'?'1':live?'1':'.075';
     const now=performance.now();
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
