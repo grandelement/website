@@ -5373,7 +5373,7 @@ window.addEventListener('online',()=>{
   let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':savedHud===null?true:savedHud==='1';
   let shipAutoEnabled=localStorage.getItem('GE_SHIP_AUTO_HIDE_V1')==='1';
   let lastActivity=Date.now();
-  let sunFadeTimer=0;
+  let sunFadeTimer=0,sunPinned=false;
   const SUN_GRACE_MS=6000;
   const floatingSun=$('geFloatingSun');
   const floatingSunImg=$('geFloatingSunImg');
@@ -5387,7 +5387,12 @@ window.addEventListener('online',()=>{
     if(!target||!anchor)return;
     for(const layer of effectLayers)if(layer.parentNode!==target)target.insertBefore(layer,anchor);
   }
-  new MutationObserver(syncHiddenSunEffects).observe(document.body,{attributes:true,attributeFilter:['class']});
+  new MutationObserver(()=>{
+    if(!document.body.classList.contains('hud-hidden')||!document.body.classList.contains('view-player')||document.body.classList.contains('iam-studio-open')){
+      sunPinned=false;clearSunFade();
+    }
+    syncHiddenSunEffects();
+  }).observe(document.body,{attributes:true,attributeFilter:['class']});
 
   function clearSunFade(){if(sunFadeTimer){clearTimeout(sunFadeTimer);sunFadeTimer=0;}}
   function positionFloatingSunFromLogo(){
@@ -5408,11 +5413,11 @@ window.addEventListener('online',()=>{
   }
   function scheduleSunFade(delay){
     clearSunFade();
-    if(document.body.classList.contains('iam-studio-open'))return;
+    if(document.body.classList.contains('iam-studio-open')||sunPinned)return;
     document.body.classList.remove('sun-faded');
     sunFadeTimer=setTimeout(()=>{
       sunFadeTimer=0;
-      if(!document.body.classList.contains('iam-studio-open')&&document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
+      if(!sunPinned&&!document.body.classList.contains('iam-studio-open')&&document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
         document.body.classList.add('sun-faded');
       }
     },Math.max(0,Number(delay)||0));
@@ -5423,7 +5428,7 @@ window.addEventListener('online',()=>{
     if(shipAuto)shipAuto.checked=shipAutoEnabled;
   }
   function show(){
-    clearSunFade();
+    sunPinned=false;clearSunFade();
     document.body.classList.remove('hud-hidden','sun-faded');
     syncHiddenSunEffects();
     lastActivity=Date.now();
@@ -5432,14 +5437,20 @@ window.addEventListener('online',()=>{
     if(document.body.classList.contains('iam-studio-open'))return;
     if(window.GEMusicV5?.state?.().open)return;
     if(document.body.classList.contains('hud-hidden'))return;
+    sunPinned=false;
     if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
     document.body.classList.add('hud-hidden');
     document.body.classList.remove('sun-faded');
     syncHiddenSunEffects();
     if(document.body.classList.contains('view-player'))scheduleSunFade(SUN_GRACE_MS);
   }
+  function pinSun(){
+    const body=document.body;
+    if(!body.classList.contains('view-player')||!body.classList.contains('hud-hidden')||body.classList.contains('iam-studio-open'))return;
+    sunPinned=true;clearSunFade();body.classList.remove('sun-faded');lastActivity=Date.now();
+  }
   function sunActivity(){
-    if(document.body.classList.contains('iam-studio-open'))return;
+    if(document.body.classList.contains('iam-studio-open')||sunPinned)return;
     lastActivity=Date.now();
     if(document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
       scheduleSunFade(CONFIG.HUD_IDLE_MS);
@@ -5480,7 +5491,7 @@ window.addEventListener('online',()=>{
     if(shouldAutoHide&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();
   },1000);
   syncChecks();
-  window.GEHUD={show,hide:hideNow,sunActivity,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
+  window.GEHUD={show,hide:hideNow,sunActivity,pinSun,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
 })();;
 
 
@@ -9335,6 +9346,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
   sun.addEventListener('pointerdown',function(e){
     if(e.pointerType==='touch')return;
+    window.GEHUD?.pinSun();
     begin(e.clientX,e.clientY);sun.setPointerCapture&&sun.setPointerCapture(e.pointerId);e.preventDefault();
   });
   sun.addEventListener('pointermove',function(e){
@@ -9342,12 +9354,11 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   });
   sun.addEventListener('pointerup',function(e){
     if(e.pointerType==='touch')return;
-    const tapped=dragging&&!moved;
-    end();
-    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+    end(); // A floating Sun tap pins it; the normal Home link remains unchanged.
   });
 
   sun.addEventListener('touchstart',function(e){
+    window.GEHUD?.pinSun();
     stop();
     if(e.touches.length>=2){dragging=false;pinchDistance=dist(e.touches);pinchScale=scale;moved=true;activity();}
     else if(e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);}
@@ -9362,9 +9373,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
   sun.addEventListener('touchend',function(e){
     if(e.touches&&e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);return;}
-    const tapped=dragging&&!moved&&(!e.touches||e.touches.length===0);
     pinchDistance=0;end();if(e.cancelable)e.preventDefault();
-    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+    // Keep the floating Sun pinned on tap; background tap restores the controls.
   },{passive:false});
 
   sun.addEventListener('wheel',function(e){
