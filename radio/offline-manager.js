@@ -225,7 +225,17 @@ async function save({mode='all',paths=[],onProgress}={}){
   const chosen=mode==='all'?allowed:
    mode==='update'?previous.filter(p=>allow.has(p)):
    unique(paths).filter(p=>safe(p,SONG)&&allow.has(p));
-  if(!chosen.length)return {error:'selection',message:'Choose songs or a playlist inside MUSIC.'};
+  if(mode==='checked'||mode==='playlist'){
+   const requested=unique(paths);
+   const known=new Set(list.songs);
+   const missing=requested.filter(p=>!known.has(p));
+   const denied=requested.filter(p=>known.has(p)&&!allow.has(p));
+   if(missing.length||denied.length)return {error:'selection',message:
+    (missing.length?missing.length+' selected song(s) not in the current catalog. ':'')+
+    (denied.length?denied.length+' selected song(s) not covered by this offline code. ':'')+
+    'Selection kept; no partial download started.'};
+  }
+  if(!chosen.length)return {error:'selection',message:'No authorized selected songs. Check your selection and offline code.'};
   // A valid MUSIC code alone is not proof of OFFLINE entitlement. Ask the
   // existing server to verify a signed OFFLINE-enabled session before saving.
   if(typeof bridge().verify==='function'){
