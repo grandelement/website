@@ -25,7 +25,16 @@ Preserve together:
   if(!('serviceWorker' in navigator)||!window.isSecureContext)return;
   var root=new URL('./',location.href);
   // Register immediately, not after the large application finishes loading.
-  navigator.serviceWorker.register(new URL('sw.js',root).href,{scope:root.pathname}).catch(function(e){
+  navigator.serviceWorker.register(new URL('sw.js',root).href,{scope:root.pathname,updateViaCache:'none'}).then(function(registration){
+    var lastCheck=0;
+    function check(){if(navigator.onLine===false||document.hidden||Date.now()-lastCheck<30000)return;
+      lastCheck=Date.now();registration.update().catch(function(){});
+    }
+    window.addEventListener('online',check);
+    window.addEventListener('pageshow',check);
+    document.addEventListener('visibilitychange',check);
+    check();
+  }).catch(function(e){
     console.warn('GE offline auto-loader registration:',e);
   });
   function ready(){
@@ -12105,7 +12114,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(!('serviceWorker' in navigator)||!window.isSecureContext)
       return Promise.resolve(null);
     if(!siteSWPromise){
-      siteSWPromise=navigator.serviceWorker.register(new URL('sw.js',base).href,{scope:base.pathname})
+      siteSWPromise=navigator.serviceWorker.register(new URL('sw.js',base).href,{scope:base.pathname,updateViaCache:'none'})
         .catch(e=>{siteSWPromise=null;console.warn('Grand Element offline worker registration failed',e);return null;});
     }
     return siteSWPromise;
