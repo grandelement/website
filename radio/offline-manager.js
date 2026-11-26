@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.25-offline-manager-v11-library';
+const VERSION='2026.11.26-offline-manager-v12-deep-removal';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
@@ -298,56 +298,89 @@ async function save({mode='all',paths=[],onProgress}={}){
 }
 // Inventory is read from actual Cache Storage keys, including earlier cache
 // versions. Never infer downloaded files from the current selection or plan.
+// Scan all browser cache namespaces, including historical GE repository URLs.
+const LEGACY_AUDIO=/^ge-music\/(?:music|clips)\/.+\.(?:mp3|wav|m4a|ogg|aac|flac|opus|webm)$/i;
 function recordingPath(request){
  try{
   const url=new URL(typeof request==='string'?request:request.url,location.href);
-  if(url.origin!==new URL(location.href).origin)return '';
-  const path=decodeURIComponent(url.pathname).replace(/^\/+/, '');
-  return safe(path,SONG)||safe(path,STATION)?path:'';
+  let path=decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  if(url.origin===location.origin)path=path.replace(/^(?:website|radio)\/(?=ge-music\/)/i,'');
+  else if(url.hostname==='raw.githubusercontent.com'){
+   const match=path.match(/^grandelement\/website\/[^/]+\/(ge-music\/.+)$/i);
+   if(!match)return '';path=match[1];
+  }else if(url.hostname==='grandelement.github.io')path=path.replace(/^website\//i,'');
+  else return '';
+  return safe(path,LEGACY_AUDIO)?path:'';
  }catch(_){return ''}
 }
-async function recordingEntries(){
+async function recordingEntries(errors=[]){
  const entries=[];
+ if(typeof caches==='undefined')throw Error('This browser does not expose website Cache Storage.');
  for(const name of await caches.keys()){
-  const cache=await caches.open(name);
-  for(const request of await cache.keys()){
-   const path=recordingPath(request);
-   if(path)entries.push({cache,request,path,name});
-  }
+  try{
+   const cache=await caches.open(name);
+   for(const request of await cache.keys()){
+    const path=recordingPath(request);
+    if(path)entries.push({cache,request,path,name});
+   }
+  }catch(error){errors.push(name+': '+String(error?.message||error))}
  }
  return entries;
 }
-async function listSaved(){
- const files=new Map();
- for(const {cache,request,path} of await recordingEntries()){
-  if(files.has(path))continue;
-  const response=await cache.match(request);
-  if(!audioResponse(response))continue;
-  let bytes=Number(response.headers.get('content-length'))||0;
-  if(bytes<=128){try{bytes=(await response.blob()).size}catch(_){continue}}
-  if(bytes>128)files.set(path,{path,bytes,station:safe(path,STATION)});
- }
- return [...files.values()].sort((a,b)=>a.path.localeCompare(b.path));
+async function storageEstimate(){
+ try{const e=await navigator.storage?.estimate?.();return Number.isFinite(e?.usage)?e.usage:null}
+ catch(_){return null}
 }
+async function entryBytes(cache,request){
+ const response=await cache.match(request,{ignoreSearch:false,ignoreVary:true});
+ const n=Number(response?.headers.get('content-length'));
+ return Number.isFinite(n)&&n>0?n:0;
+}
+async function inspectStorage(){
+ const errors=[],entries=await recordingEntries(errors),files=new Map();
+ let bytes=0,unknown=0;
+ for(const {cache,request,path} of entries){
+  let size=0;
+  try{size=await entryBytes(cache,request)}catch(error){errors.push(path+': '+String(error?.message||error))}
+  if(!size)unknown++;
+  bytes+=size;
+  const record=files.get(path)||{path,bytes:0,copies:0,unknownCopies:0,station:!safe(path,SONG)};
+  record.bytes+=size;record.copies++;if(!size)record.unknownCopies++;
+  files.set(path,record);
+ }
+ return {files:[...files.values()].sort((a,b)=>a.path.localeCompare(b.path)),copies:entries.length,bytes,unknown,
+  cachesScanned:(await caches.keys()).length,errors,usage:await storageEstimate()};
+}
+async function listSaved(){return (await inspectStorage()).files}
 async function removeSaved(paths=null){
  if(busy)return {error:'busy',message:'Stop the current download first.'};
  busy=true;
  try{
-  const targets=paths===null?null:new Set(unique(paths).filter(p=>safe(p,SONG)||safe(p,STATION)));
-  const removed=new Set();
-  for(const {cache,request,path} of await recordingEntries()){
-   if(targets&&!targets.has(path))continue;
-   if(await cache.delete(request,{ignoreSearch:false}))removed.add(path);
+  const beforeUsage=await storageEstimate();
+  const targets=paths===null?null:new Set(unique(paths).filter(p=>safe(p,LEGACY_AUDIO)));
+  const removed=new Set(),errors=[];
+  let removedCopies=0,removedBytes=0,unknownBytes=0;
+  for(let pass=0;pass<3;pass++){
+   const entries=(await recordingEntries(errors)).filter(e=>!targets||targets.has(e.path));
+   if(!entries.length)break;
+   for(const {cache,request,path} of entries){
+    try{
+     const size=await entryBytes(cache,request).catch(()=>0);
+     if(await cache.delete(request,{ignoreSearch:false,ignoreVary:true})){
+      removed.add(path);removedCopies++;removedBytes+=size;if(!size)unknownBytes++;
+     }
+    }catch(error){errors.push(path+': '+String(error?.message||error))}
+   }
   }
   if(paths===null){setPlan([],'checked');clearPending();try{localStorage.removeItem(ACTIVATED)}catch(_){}}
-  else {
-   setPlan(plan().filter(p=>!targets.has(p)),planMode());
-   clearPending();
-  }
+  else{setPlan(plan().filter(p=>!targets.has(p)),planMode());clearPending();}
   try{await bridge().rescan?.()}catch(_){}
-  const remaining=await listSaved();
-  if(!remaining.length)try{localStorage.removeItem(ACTIVATED)}catch(_){}
-  return {removed:removed.size,remaining:remaining.length};
+  const remaining=await inspectStorage();
+  if(!remaining.copies)try{localStorage.removeItem(ACTIVATED)}catch(_){}
+  const left=targets?remaining.files.filter(f=>targets.has(f.path)).reduce((n,f)=>n+f.copies,0):remaining.copies;
+  return {removed:removed.size,removedCopies,removedBytes,unknownBytes,remaining:remaining.files.length,
+   remainingCopies:remaining.copies,targetCopiesRemaining:left,cachesScanned:remaining.cachesScanned,
+   beforeUsage,afterUsage:remaining.usage,errors:[...new Set([...errors,...remaining.errors])]};
  }catch(error){return {error:'remove',message:String(error?.message||error)}}
  finally{busy=false;void syncStatus()}
 }
@@ -413,7 +446,7 @@ try{
  if(document?.readyState==='complete')setTimeout(onReturn,0);
 }catch(_){}
 window.GEOffline={isActive:active};
-window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,listSaved,removeSaved,reloadSaved,
+window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,listSaved,inspectStorage,removeSaved,reloadSaved,
  isBusy:()=>busy,resume,syncStatus,status:()=>({...lastStatus}),pending,
  promptCode:()=>bridge().promptCode?.()};
 })();

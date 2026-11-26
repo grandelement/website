@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.26-album-art-recovery-v2';
+const VERSION='2026.11.26-deep-media-cleanup-v3';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -288,10 +288,7 @@ async function media(request){
  try{
   const network=await timeoutFetch(request,{cache:'no-store'},7500);
   if(network.ok){
-   if(AUDIO.test(url.pathname)&&network.status===200&&!request.headers.has('range')){
-    const cache=await caches.open(MEDIA_CACHE);
-    cache.put(url.href,network.clone()).catch(()=>{});
-   }
+   // Ordinary listening must not silently refill the persistent download cache.
    return network;
   }
  }catch(_){}

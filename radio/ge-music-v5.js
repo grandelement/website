@@ -3285,16 +3285,18 @@ async function refreshOfflineLibrary(){
  const engine=window.GEOfflineDownloads;
  if(!engine?.listSaved){libraryMessage('File inventory unavailable. Reopen Radio online.');return;}
  try{
-  const files=await engine.listSaved();
+  const scan=engine.inspectStorage?await engine.inspectStorage():null;
+  const files=scan?scan.files:await engine.listSaved();
   const list=el('.geOfflineFiles');list.replaceChildren();
   const size=files.reduce((n,f)=>n+f.bytes,0);
-  el('.geOfflineFileCount').textContent=files.length+' saved · '+(size/1048576).toFixed(1)+' MB';
+  el('.geOfflineFileCount').textContent=files.length+' recordings · '+(scan?.copies??files.length)+' copies · '+(size/1048576).toFixed(1)+' MB'+(scan?.unknown?' + unknown size':'');
+  if(scan)list.append(elem('p','empty','Scanned '+scan.cachesScanned+' browser caches'+(Number.isFinite(scan.usage)?' · total website storage '+(scan.usage/1048576).toFixed(1)+' MB':'')+(scan.errors.length?' · some caches could not be read':'')));
   if(!files.length)list.append(elem('p','empty','No saved recordings on this device.'));
   for(const file of files){
    const row=elem('div','geOfflineFileRow');row.setAttribute('role','listitem');
    const track=file.station?{title:file.path.split('/').pop(),album:'Station identification'}:details(file.path);
    const label=elem('div','geOfflineFileName',track.title);
-   label.append(elem('small','',track.album+' · '+(file.bytes/1048576).toFixed(1)+' MB'));
+   label.append(elem('small','',track.album+' · '+(file.bytes/1048576).toFixed(1)+' MB'+(file.unknownCopies?' + unknown size':'')+(file.copies>1?' · '+file.copies+' copies':'')));
    const remove=elem('button','','DELETE');remove.type='button';remove.setAttribute('aria-label','Delete saved '+track.title);
    remove.addEventListener('click',async()=>{
     if(inventoryBusy||engine.isBusy())return libraryMessage('Stop the current download first.');
@@ -3322,12 +3324,17 @@ el('.geOfflineRemoveAll').addEventListener('click',async()=>{
  const engine=window.GEOfflineDownloads;
  if(!engine?.removeSaved)return;
  if(inventoryBusy||engine.isBusy())return setOfflineMessage('STOP THE CURRENT DOWNLOAD FIRST');
- if(!confirm('Remove all downloaded recordings from this device? Your playlists, settings and access codes will be kept.'))return;
+ if(!confirm('Deep scan and remove all GE recordings, including older cached copies, from this browser? Playlists, settings and access codes will be kept.'))return;
  inventoryBusy=true;
  try{
   const result=await engine.removeSaved();
-  setOfflineMessage(result.error?result.message:'REMOVED '+result.removed+' FILES');
-  if(!offlineLibrary.hidden)await refreshOfflineLibrary();
+  const message=result.error?result.message:
+   'REMOVED '+(result.removedCopies??result.removed)+' COPIES · '+((result.removedBytes||0)/1048576).toFixed(1)+' MB'+(result.unknownBytes?' + unknown size':'')+
+   ' · '+(result.targetCopiesRemaining??result.remaining)+' LEFT'+(result.errors?.length?' · CHECK SCAN ERRORS':'');
+  setOfflineMessage(message);
+  offlineLibrary.hidden=false;el('.geOfflineListBtn').setAttribute('aria-expanded','true');
+  libraryMessage(message+(Number.isFinite(result.afterUsage)?' · total website storage '+(result.afterUsage/1048576).toFixed(1)+' MB':'')+'. Android system/browser cache may require device settings.');
+  await refreshOfflineLibrary();
   void offlineCheck();
  }finally{inventoryBusy=false;}
 });
