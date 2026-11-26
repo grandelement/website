@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.70-20261122-EXACT-SELECTION';
+const BUILD='GE-MUSIC-V7.71-20261126-ALBUM-HIT-AND-OFFLINE-RESUME';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1336,6 +1336,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
  margin-top:-72px!important;
  padding-top:92px!important;
 }
+/* Album artwork may overlap visually, but must never intercept a previous
+   album's last track. Only actual controls participate in hit testing. */
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{pointer-events:none!important}
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > :is(.albumBrowseHeading,.song),
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .songTitlePlay{
+ pointer-events:auto!important;touch-action:manipulation!important;
+}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare > .geAlbumSectionArt,
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare::before{
  -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
@@ -2398,11 +2405,12 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set()}
+     // Access changes playback/download permission, not deliberate selections.
+     // A pending offline request owns an immutable copy of the chosen tracks.
      saveSelected();void loadPublished();
      say('Code verified. Assigned songs unlocked in the same Music screen.');
    }else{
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
+     saveSelected();
      say('Music code verified for the full library.');
    }
    // Notify the embedded audio engine that the SAME Music UI verified a code.
@@ -2414,14 +2422,20 @@ async function redeemMusicCode(){
    // A code changes permissions, not pages, tabs or music screen designs.
    render();
    if(offlineResumeAfterAccess){
-    if(access.offlineEnabled===true){
+    if(window.GEOfflineDownloads?.canDownload?.()){
      window.dispatchEvent(new Event('ge-access-experience-updated'));
+     resumeRequestedOffline();
     }else{
-     say('This code opens MUSIC, but does not include OFFLINE downloads.');
+     const message='CODE VERIFIED · OFFLINE PERMISSION NOT INCLUDED. Checked songs kept.';
+     setOfflineMessage(message);say(message);
+     el('.musicCodeTools').hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');
+     el('.musicCodeState').hidden=false;el('.musicCodeState').textContent=message;
     }
    }
  }catch(error){
-   clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
+   const message='CODE NOT VERIFIED · '+String(error.message||error);
+   say(message);el('.musicCodeState').hidden=false;el('.musicCodeState').textContent=message;
+   if(offlineResumeAfterAccess)setOfflineMessage(message+' · Checked songs kept.');
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
 function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
@@ -3130,7 +3144,7 @@ function render(){
 
 // The single OFFLINE downloader is controlled from a thin MUSIC dock.
 // Playback, selections, playlists and Radio transport stay available while it runs.
-let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[];
+let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[],offlinePendingRequest=null,offlineMessageHold=false;
 const offlinePanel=el('.geOfflineWorkspace');
 const offlineStatus=el('.geOfflineStatus');
 const offlineStop=el('.geOfflineStop');
@@ -3168,6 +3182,7 @@ function showOfflineChoices(open){
  else{el('.geOfflineLibrary').hidden=true;el('.geOfflineListBtn').setAttribute('aria-expanded','false');}
 }
 function openOffline(){
+ if(!offlineResumeAfterAccess)offlineMessageHold=false;
  if(!state.open)open();
  // The ALBUMS universe has no bottom controls by design: jump to songs to
  // show the existing MUSIC footer and its inline OFFLINE strip.
@@ -3193,11 +3208,11 @@ async function offlineCheck(){
  if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE');return}
  try{
   const result=await engine.inspect();
-  if(offlineBusy||engine.isBusy())return;
+  if(offlineBusy||engine.isBusy()||offlineMessageHold)return;
   setOfflineProgress(result.ready?100:result.percent);
   setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
    result.partial?'PARTIAL · UPDATE MISSING':'NOT READY · TAP OFFLINE');
- }catch(_){setOfflineMessage('NOT READY · RECONNECT TO REPAIR')}
+ }catch(_){if(!offlineMessageHold)setOfflineMessage('NOT READY · RECONNECT TO REPAIR')}
 }
 function offlineProgressUpdate(event){
  if(Number.isFinite(event.percent))setOfflineProgress(event.percent,event.etaSeconds);
@@ -3206,24 +3221,25 @@ function offlineProgressUpdate(event){
  else if(event.phase==='verifying'||event.phase==='checking')setOfflineMessage('VERIFYING…');
  else if(event.phase==='error')setOfflineMessage(event.message||'DOWNLOAD INTERRUPTED');
 }
-async function offlineDownload(mode=offlineChoice){
+async function offlineDownload(mode=offlineChoice,requestedPaths=null){
  if(offlineBusy||window.GEOfflineDownloads?.isBusy?.())return;
  const engine=window.GEOfflineDownloads;
  if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE · RECONNECT');return}
  offlineChoice=mode;
  let paths=[];
- if(mode==='checked')paths=[...state.selected];
- if(mode==='playlist')paths=offlinePlaylistPaths();
+ if(mode==='checked')paths=requestedPaths===null?[...state.selected]:[...requestedPaths];
+ if(mode==='playlist')paths=requestedPaths===null?offlinePlaylistPaths():[...requestedPaths];
  if((mode==='checked'||mode==='playlist')&&!paths.length){
   setOfflineMessage(mode==='checked'?'CHECK SONGS FIRST':'CHOOSE A PLAYLIST FIRST');
   return;
  }
  if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
-  offlineResumeAfterAccess=true;
-  setOfflineMessage('CODE NEEDS OFFLINE PERMISSION');
+  offlineResumeAfterAccess=true;offlinePendingRequest={mode,paths:[...paths]};offlineMessageHold=true;
+  setOfflineMessage('ENTER AN OFFLINE-ENABLED CODE · '+(mode==='all'?'ALL MUSIC':paths.length+' SONGS QUEUED'));
   openCodeEntry();return;
  }
+ offlineResumeAfterAccess=false;offlinePendingRequest=null;offlineMessageHold=true;
  showOfflineChoices(false);
  offlineBusy=true;
  offlineStop.hidden=false;
@@ -3334,10 +3350,10 @@ window.addEventListener('ge-radio-offline-status',event=>{
   offlineStop.hidden=false;
   offlineProgressUpdate({phase:info.percent>0?'audio':'preparing',
    percent:info.percent,etaSeconds:info.etaSeconds});
- }else if(info.state==='ready'){
+ }else if(info.state==='ready'&&!offlineMessageHold){
   offlineBusy=false;offlineStop.hidden=true;
   setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
- }else if(info.state==='partial'||info.state==='missing'){
+ }else if((info.state==='partial'||info.state==='missing')&&!offlineMessageHold){
   if(!window.GEOfflineDownloads?.isBusy?.()){
    offlineBusy=false;offlineStop.hidden=true;
    if(Number.isFinite(info.percent))setOfflineProgress(info.percent);
@@ -3345,13 +3361,15 @@ window.addEventListener('ge-radio-offline-status',event=>{
   }
  }
 });
-window.addEventListener('ge-access-experience-updated',()=>{
- if(!offlineResumeAfterAccess)return;
- if(window.GEOfflineDownloads?.canDownload?.()){
-  offlineResumeAfterAccess=false;
-  void offlineDownload(offlineChoice);
- }
-});
+function resumeRequestedOffline(){
+ if(!offlineResumeAfterAccess||!offlinePendingRequest)return;
+ if(!window.GEOfflineDownloads?.canDownload?.())return;
+ const request=offlinePendingRequest;
+ offlineResumeAfterAccess=false;offlinePendingRequest=null;
+ void offlineDownload(request.mode,request.paths);
+}
+window.addEventListener('ge-access-experience-updated',resumeRequestedOffline);
+window.addEventListener('ge-vault-music-access-updated',resumeRequestedOffline);
 const persistedOfflineState=window.GEOfflineDownloads?.status?.();
 if(persistedOfflineState?.state==='ready'){
  setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
@@ -3672,10 +3690,8 @@ musicAccessStatus();
 window.addEventListener('ge-vault-music-access-updated',()=>{
  const access=musicAccessActive();
  if(access?.restricted){
-  if(!restoreWorkingOrder()){
-    state.activePlaylist=null;state.playlistDraftName='';
-    state.selected=new Set([...state.selected].filter(path=>access.allowed.includes(path)));
-   }
+  // Preserve the user's checked songs, even if this particular code cannot
+  // download or play all of them. The entitlement boundary enforces access.
   saveSelected();void loadPublished();
  }
  // Access update must never switch to another Music interface.
