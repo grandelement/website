@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-access-repair-v6';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_ACCESS_REPAIR_V6';
+const VERSION='2026.11.25-album-eq-v7';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_ALBUM_EQ_V7';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -13,7 +13,7 @@ const REQUIRED=[
  './radio-base.css','./radio-components.css','./radio-layout.css',
   './ship-control-repair.css','./player-button-effects.css','./player-mobile-fit.css',
   './sun-lab-transparency.css','./sun-lab-transparency.js',
- './offline-home.html',
+ './offline-home.html','./preview-lab.html',
  './ge-music-v5.js','./offline-manager.js','./live-spectrum.js',
  './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
@@ -25,7 +25,7 @@ const REQUIRED=[
  '../ge-images/images/ge-logo-2.jpg','../ge-images/img/31.gif',
  ...ARTWORK.map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
 ];
-const OPTIONAL=['./preview-lab.html','./favicon.ico',
+const OPTIONAL=['./favicon.ico',
  './icons/favicon-16.png','./icons/favicon-32.png',
  './icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
  './icons/icon-maskable-512.png','./cockpit-landscape.png',
@@ -67,7 +67,8 @@ async function validAsset(path,response){
 async function validRepairAsset(path,response){
  if(!(await validAsset(path,response)))return false;
  const markers={
-  './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite'],
+  './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite','albumFullySelected'],
+  './preview-lab.html':['Use the canonical same-origin recording for every album'],
   './live-spectrum.js':['20261125-eq-offline-v4'],
   './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}'],
   './offline-manager.js':['2026.11.25-offline-manager-v11-library']
@@ -111,6 +112,7 @@ async function installShell(){
   if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
+  if(!(await validRepairAsset(path,response)))throw Error('Application release mismatch: '+path);
   await cache.put(path,response.clone());
  }));
  const offlinePictures=await offlineArtwork(cache);

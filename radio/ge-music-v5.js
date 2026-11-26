@@ -1527,6 +1527,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
  flex:1 1 0!important;min-width:0!important;min-height:44px!important;
  touch-action:manipulation!important;
 }
+
+/* Selection is visible at album level, including in the full Songs list. */
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading[aria-pressed="true"],
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle[aria-pressed="true"]{
+ color:#fff!important;background:rgba(255,255,255,.22)!important;
+ box-shadow:inset 0 0 0 2px #fff,0 0 15px rgba(255,255,255,.7)!important;
+ text-shadow:0 0 8px #fff,0 2px 5px #000!important;border-radius:8px!important;
+}
+.geUniverseAlbum.geAlbumAllSelected{outline:2px solid #fff!important;outline-offset:-3px!important;box-shadow:inset 0 0 14px #fff,0 0 16px #fff!important;}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1769,7 +1778,9 @@ function renderStandaloneAlbums(){
  for(const name of names){
   const item=document.createElement('button');item.type='button';item.className='geUniverseAlbum';
   item.dataset.album=name;
-  item.setAttribute('aria-label','Open '+name+' album');
+  const complete=albumFullySelected(name);
+  item.classList.toggle('geAlbumAllSelected',complete);
+  item.setAttribute('aria-label','Open '+name+' album'+(complete?' · All songs selected':''));
   const image=document.createElement('img');
   image.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
   image.alt='';image.loading='eager';image.decoding='async';image.setAttribute('fetchpriority','high');image.onerror=()=>image.remove();
@@ -2706,6 +2717,10 @@ function selectableAlbumTracks(album){
  const allowed=access?.restricted?new Set(access.allowed):null;
  return state.tracks.filter(track=>track.album===album&&(!allowed||allowed.has(track.path)));
 }
+function albumFullySelected(album){
+ const available=selectableAlbumTracks(album);
+ return available.length>0&&available.every(track=>state.selected.has(track.path));
+}
 function toggleAlbumTracks(album){
  const tracks=selectableAlbumTracks(album);
  if(!tracks.length){say('No available songs on '+album);return;}
@@ -2797,7 +2812,8 @@ function render(){
  allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
  allCheck.indeterminate=allCount>0&&allCount<allTracks.length;
  // The dropdown always reflects the album currently displayed.
- const albumNames=[...new Set(allTracks.filter(t=>t.album!=='Singles').map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
+ const catalogScope=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ const albumNames=[...new Set(catalogScope.filter(t=>t.album!=='Singles').map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
  songFilter.replaceChildren(new Option('ALBUMS','albums'));
  for(const name of albumNames)songFilter.add(new Option('ALBUM · '+name,'album:'+name));
  songFilter.value=albumDetail?state.view:'albums';
@@ -3065,7 +3081,9 @@ function render(){
         section.append(art);
         const heading=elem('button','albumBrowseHeading',track.album);
         heading.type='button';heading.dataset.album=track.album;
-        heading.setAttribute('aria-label','Select all songs on '+track.album);
+        const complete=albumFullySelected(track.album);
+        heading.setAttribute('aria-pressed',String(complete));
+        heading.setAttribute('aria-label',(complete?'Deselect':'Select')+' all songs on '+track.album);
         heading.addEventListener('click',()=>toggleAlbumTracks(track.album));
         section.append(heading);
         scroller.append(section);
@@ -3077,8 +3095,7 @@ function render(){
     const bar=elem('div','albumCollectionHeading');
     const albumTitle=elem('button','albumDetailTitle',name);
     albumTitle.type='button';
-    const selectable=selectableAlbumTracks(name);
-    const allSelected=selectable.length>0&&selectable.every(track=>state.selected.has(track.path));
+    const allSelected=albumFullySelected(name);
     albumTitle.setAttribute('aria-pressed',String(allSelected));
     albumTitle.setAttribute('aria-label',(allSelected?'Deselect':'Select')+' all songs on '+name);
     albumTitle.title=(allSelected?'Deselect':'Select')+' all songs on '+name;

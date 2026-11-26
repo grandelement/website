@@ -1,4 +1,4 @@
-<!-- GE_RADIO_UI_BUILD_20261125_ACCESS_REPAIR_V6 -->
+<!-- GE_RADIO_UI_BUILD_20261125_ALBUM_EQ_V7 -->
 <!-- GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4 -->
 <!-- GE_RADIO_UI_BUILD_20261125_ALWAYS_ON_ATTACHED_EQ_V3 -->
 <!-- GE_RADIO_UI_BUILD_20261116_OFFLINE_DOCK_VIEWPORT_V10 -->
@@ -46,7 +46,7 @@ window.addEventListener('unhandledrejection',function(e){
 });
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="stylesheet" href="./radio-base.css?v=20261125-planet-outline-v1" data-ge-css="base">
+<link rel="stylesheet" href="./radio-base.css?v=20261125-album-eq-v7" data-ge-css="base">
 <script id="ge-radio-first-style">document.documentElement.classList.add('ge-radio-ui');</script>
 <script id="ge-safari-request-website-mode">
 /* One shared device-view contract on Home and Radio.
@@ -867,18 +867,13 @@ document.addEventListener('DOMContentLoaded',function(){
   <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
     <div class="sunlab-title">
       <h3>EQ EFFECTS</h3>
-      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all eight EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all three EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
-      <button class="sunlab-modebtn" type="button" data-sun-mode="plasma">Plasma</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="pulse">Pulse</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="ripples">Ripples</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="orbit">Orbit</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabPublishTools" hidden>
@@ -3742,7 +3737,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261120-live-music-fft-v1';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261125-canonical-album-v7';
   // Keep the preview document's licensed gate and transport, but mount
   // MUSIC's audio element in the top document BEFORE any track starts.
   // Safari can suspend media owned by an embedded frame in the background.
@@ -5375,6 +5370,17 @@ window.addEventListener('online',()=>{
   const SUN_GRACE_MS=6000;
   const floatingSun=$('geFloatingSun');
   const floatingSunImg=$('geFloatingSunImg');
+  const normalSun=$('homeLink'),sunArt=$('geLogo');
+  const effectLayers=[$('sunEQFog'),$('sunEQAura')].filter(Boolean);
+  // Keep the actual live effect nodes, not a static copy of the Sun.
+  function syncHiddenSunEffects(){
+    const body=document.body;
+    const floating=body.classList.contains('view-player')&&body.classList.contains('hud-hidden')&&!body.classList.contains('iam-studio-open');
+    const target=floating?floatingSun:normalSun,anchor=floating?floatingSunImg:sunArt;
+    if(!target||!anchor)return;
+    for(const layer of effectLayers)if(layer.parentNode!==target)target.insertBefore(layer,anchor);
+  }
+  new MutationObserver(syncHiddenSunEffects).observe(document.body,{attributes:true,attributeFilter:['class']});
 
   function clearSunFade(){if(sunFadeTimer){clearTimeout(sunFadeTimer);sunFadeTimer=0;}}
   function positionFloatingSunFromLogo(){
@@ -5412,6 +5418,7 @@ window.addEventListener('online',()=>{
   function show(){
     clearSunFade();
     document.body.classList.remove('hud-hidden','sun-faded');
+    syncHiddenSunEffects();
     lastActivity=Date.now();
   }
   function hideNow(){
@@ -5421,6 +5428,7 @@ window.addEventListener('online',()=>{
     if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
     document.body.classList.add('hud-hidden');
     document.body.classList.remove('sun-faded');
+    syncHiddenSunEffects();
     if(document.body.classList.contains('view-player'))scheduleSunFade(SUN_GRACE_MS);
   }
   function sunActivity(){
@@ -5580,7 +5588,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-access-repair-v6',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-album-eq-v7',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -5820,8 +5828,7 @@ async function registerServiceWorker(){
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
-  const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip',
-    pulse:'plasma',ripples:'mirrorflip',orbit:'spectrum',aurora:'glow'};
+  const SUN_MODE_WAVE={spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
   const SUN_MODE_SELECTED_KEY='GE_SUN_LAB_SELECTED_MODE_V1';
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
@@ -5918,7 +5925,7 @@ async function registerServiceWorker(){
           geSunOwnerVerified=true;
           setPublishedSunEQ(owner.settings?.visual?.sunEQ);
           updateSunEditorAccess();
-          sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all eight presets.');
+          sunPublishStatus('OWNER · Edit any effect, then SAVE TO GITHUB to publish all three presets.');
           if(new URLSearchParams(location.search).get('eq_admin')==='1'){window.GELiveAudioEQ?.setEnabled?.(true);setPanelVisible(true);}
           return;
         }catch(_){geSunOwnerVerified=false;}
@@ -5941,7 +5948,7 @@ async function registerServiceWorker(){
       if(!current||typeof current!=='object')throw Error('Published visual settings are missing.');
       if(JSON.stringify(current.sunEQ??null)!==JSON.stringify(publishedSunEQ??null))throw Error('EQ defaults changed on GitHub. Reload before editing again.');
       const visual={...current,sunEQ:next};
-      sunPublishStatus('SAVING ALL EIGHT EQ EFFECTS TO GITHUB…');
+      sunPublishStatus('SAVING ALL THREE EQ EFFECTS TO GITHUB…');
       const result=await sunPublisher('POST',{changes:{visual},expected:{visual:current}});
       if(!result.commit)throw Error('No GitHub commit confirmed.');
       const proof=await sunPublisher();
@@ -7040,38 +7047,49 @@ Vector ${vector}. ${pair[1]}.`;
     });
   }
 
+  let glowEnvelope=0;
   function updateGlowSun(live,now){
     if(sunEQFog)sunEQFog.style.opacity='0';
     sunEQAura.style.filter='none';
-    const inner=sunEQAura.querySelector('.sun-glow-inner');
-    const outer=sunEQAura.querySelector('.sun-glow-outer');
+    const inner=sunEQAura.querySelector('.sun-glow-inner'),outer=sunEQAura.querySelector('.sun-glow-outer');
     if(!inner||!outer)return;
-    const raw=currentAudioEnergy(live);
-    // Change radius perceptibly with live transients; leave color independent.
-    const pulse=.74+Math.pow(clamp(raw*1.8,0,1),.75)*.64;
+    // Drive the corona from measured FFT energy; no fabricated beat.
+    const n=eqData?.length||0;
+    let sum=0,peak=0,count=0;
+    if(live&&n){
+      for(let i=0;i<Math.ceil(n*.25);i++){
+        const v=(eqData[i]||0)/255;
+        sum+=v;peak=Math.max(peak,v);count++;
+      }
+    }
+    const bass=count?sum/count*.75+peak*.25:0;
+    const broadband=live?currentAudioEnergy(true):0;
+    const sensitivity=clamp(sunNum('pulseSensitivity',70)/100,0,2);
+    const depth=clamp(sunNum('pulseDepth',82)/100,0,2);
+    const signal=live?clamp((bass*.72+broadband*.28)*(.5+sensitivity*1.4),0,1):0;
+    const floor=clamp(sunNum('pulseNoiseFloor',12)/100,0,.95);
+    const target=Math.max(0,signal-floor)/Math.max(.05,1-floor);
+    const rate=target>glowEnvelope?lerp(.15,.95,clamp(sunNum('pulseAttack',85)/100,0,1)):lerp(.05,.75,clamp(sunNum('pulseRelease',72)/100,0,1));
+    glowEnvelope=lerp(glowEnvelope,target,rate);
+    const pulse=clamp(glowEnvelope*depth,0,1.5);
     const innerReach=clamp(sunNum('innerGlowReach',18)/100,0,1);
     const outerReach=clamp(sunNum('outerGlowReach',42)/100,0,1);
-    const innerStrength=clamp(sunNum('innerGlowStrength',150)/220,0,1);
-    const outerStrength=clamp(sunNum('outerGlowStrength',185)/220,0,1);
+    const innerStrength=clamp(sunNum('innerGlowStrength',140)/220,0,1);
+    const outerStrength=clamp(sunNum('outerGlowStrength',140)/220,0,1);
     const innerHue=((sunNum('innerGlowHue',205)%360)+360)%360;
     const outerHue=((sunNum('outerGlowHue',188)%360)+360)%360;
-
-    const innerScale=1.00+innerReach*.24+raw*.12;
-    const outerScale=1.02+outerReach*.48+raw*.18;
-    const innerAlpha=clamp(innerStrength*(.18+raw*.88),.06,1);
-    const outerAlpha=clamp(outerStrength*(.12+raw*.92),.05,1);
-    const innerBlur=3+innerReach*11;
-    const outerBlur=8+outerReach*26;
-
-    inner.style.transform=`translate(-50%,-50%) scale(${(innerScale*pulse).toFixed(4)})`;
-    inner.style.background=`radial-gradient(circle,hsla(${innerHue},100%,74%,${(innerAlpha*.58).toFixed(3)}) 0%,hsla(${innerHue},100%,61%,${(innerAlpha*.30).toFixed(3)}) 48%,transparent 76%)`;
-    inner.style.filter=`blur(${innerBlur.toFixed(1)}px)`;
-    inner.style.opacity=String(innerAlpha);
-
-    outer.style.transform=`translate(-50%,-50%) scale(${(outerScale*(.96+pulse*.04)).toFixed(4)})`;
-    outer.style.background=`radial-gradient(circle,hsla(${outerHue},100%,72%,${(outerAlpha*.30).toFixed(3)}) 0%,hsla(${outerHue},96%,56%,${(outerAlpha*.22).toFixed(3)}) 48%,transparent 78%)`;
-    outer.style.filter=`blur(${outerBlur.toFixed(1)}px)`;
-    outer.style.opacity=String(outerAlpha);
+    // The glow starts at the Sun surface; the outer corona expands with audio.
+    const innerSize=3+innerReach*18+pulse*24,outerSize=6+outerReach*35+pulse*48;
+    const innerAlpha=clamp(innerStrength*(.24+pulse*.95),0,1);
+    const outerAlpha=clamp(outerStrength*(.16+pulse*.85),0,1);
+    inner.style.transform='translate(-50%,-50%)';
+    inner.style.background='transparent';
+    inner.style.filter='none';inner.style.opacity='1';
+    inner.style.boxShadow='inset 0 0 '+(innerSize*.65).toFixed(1)+'px hsla('+innerHue+',100%,75%,'+innerAlpha.toFixed(3)+'), 0 0 '+innerSize.toFixed(1)+'px '+(2+pulse*10).toFixed(1)+'px hsla('+innerHue+',100%,66%,'+innerAlpha.toFixed(3)+')';
+    outer.style.transform='translate(-50%,-50%)';
+    outer.style.background='transparent';
+    outer.style.filter='none';outer.style.opacity='1';
+    outer.style.boxShadow='0 0 '+outerSize.toFixed(1)+'px '+(3+pulse*16).toFixed(1)+'px hsla('+outerHue+',100%,62%,'+outerAlpha.toFixed(3)+')';
   }
 
   function updateSunEQ(live){
@@ -9125,7 +9143,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 });
 </script>
 <script defer src="../config/album-colors.js?v=20261116-a"></script>
-<script defer src="./ge-music-v5.js?v=20261125-access-repair-v6"></script>
+<script defer src="./ge-music-v5.js?v=20261125-album-eq-v7"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
@@ -9317,7 +9335,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <link rel="stylesheet" href="./radio-layout.css?v=20261125-eq-toggle-v4" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
-<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-v1" data-ge-css="sun-lab-transparency">
+<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261125-album-eq-v7" data-ge-css="sun-lab-transparency">
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
