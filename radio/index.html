@@ -9351,19 +9351,23 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
  const panel=document.getElementById('sunLabPanel'),grid=document.getElementById('sunLabGrid');
  if(!panel||!grid)return;
  let gesture=null;
- function sliderAt(input,x){
+ // Relative fine adjustment: grabbing anywhere on the slider never jumps its value.
+ // One full track of thumb movement changes at most half the parameter range.
+ function sliderDragValue(start,delta,width,min,max,step,direction){
+   const travel=Math.max(100,width-36),sign=direction==='rtl'?-1:1;
+   const raw=start+sign*delta/travel*(max-min)*.5;
+   return Math.max(min,Math.min(max,min+Math.round((raw-min)/step)*step));
+ }
+ function sliderAt(input,delta,start){
    const rect=input.getBoundingClientRect(),min=Number(input.min||0),max=Number(input.max||100),step=Number(input.step)||1;
-   const inset=Math.min(13,rect.width/4);
-   let f=Math.max(0,Math.min(1,(x-rect.left-inset)/Math.max(1,rect.width-2*inset)));
-   if(getComputedStyle(input).direction==='rtl')f=1-f;
-   const value=Math.max(min,Math.min(max,min+Math.round(f*(max-min)/step)*step));
+   const value=sliderDragValue(start,delta,rect.width,min,max,step,getComputedStyle(input).direction);
    if(Number(input.value)!==value){input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));}
  }
  grid.addEventListener('touchstart',event=>{
    if(!panel.classList.contains('show')||event.touches.length!==1){gesture=null;return;}
    const target=event.target,input=target.closest('input[type="range"]');
    if(input?.disabled||target.closest('textarea,select,[contenteditable="true"]')){gesture=null;return;}
-   const t=event.touches[0];gesture={x:t.clientX,y:t.clientY,lastY:t.clientY,input,mode:null};
+   const t=event.touches[0];gesture={x:t.clientX,y:t.clientY,lastY:t.clientY,input,startValue:input?Number(input.value):0,mode:null};
    if(input&&event.cancelable)event.preventDefault();
  },{passive:false});
  grid.addEventListener('touchmove',event=>{
@@ -9371,7 +9375,7 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
    const t=event.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
    if(!gesture.mode&&Math.max(Math.abs(dx),Math.abs(dy))>=6)gesture.mode=gesture.input&&Math.abs(dx)>Math.abs(dy)?'slider':'scroll';
    if(gesture.mode==='slider'){
-     sliderAt(gesture.input,t.clientX);if(event.cancelable)event.preventDefault();event.stopPropagation();
+     sliderAt(gesture.input,dx,gesture.startValue);if(event.cancelable)event.preventDefault();event.stopPropagation();
    }else if(gesture.mode==='scroll'&&event.cancelable){
      grid.scrollTop+=gesture.lastY-t.clientY;event.preventDefault();event.stopPropagation();
    }
@@ -9380,7 +9384,7 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
  grid.addEventListener('touchend',event=>{
    if(!gesture)return;
    if(gesture.input&&gesture.mode!=='scroll'){
-     if(!gesture.mode&&event.changedTouches.length)sliderAt(gesture.input,event.changedTouches[0].clientX);
+     // A tap alone is intentionally harmless; only a horizontal drag changes a value.
      gesture.input.dispatchEvent(new Event('change',{bubbles:true}));
      if(event.cancelable)event.preventDefault();
    }
@@ -9869,7 +9873,7 @@ html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollRail:not([hidden]){flex-b
 html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollPosition{width:38px!important}
 html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollPosition::-webkit-slider-thumb{width:24px!important;height:32px!important}
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row:not([style*="display: none"]){
- grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 40px!important;align-items:center!important;gap:4px!important;padding:2px 0!important;min-height:36px!important
+ grid-template-columns:minmax(0,.72fr) minmax(0,1.42fr) 36px!important;align-items:center!important;gap:4px!important;padding:2px 0!important;min-height:36px!important
 }
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{grid-column:1!important;grid-row:1!important;text-align:left!important;font-size:11px!important;line-height:1.15!important}
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row input[type=range]{grid-column:2!important;grid-row:1!important;width:100%!important;min-width:0!important;height:34px!important;margin:0!important}
@@ -9880,10 +9884,32 @@ html.ge-radio-ui body #sunLabPanel.show #spectrumMeter:not([hidden]){grid-templa
 html.ge-radio-ui body #sunLabPanel.show #spectrumMeter .spectrum-meter-line{grid-template-columns:35px minmax(0,1fr) 29px!important;gap:3px!important;font-size:10px!important}
 html.ge-radio-ui body #sunLabPanel.show #spectrumMeter .spectrum-meter-line.combined{padding:0!important;margin:0!important;border:0!important}
 html.ge-radio-ui body #sunLabPanel.show #sunEQSourceStatus{font-size:10px!important;padding:0!important}
-html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow:not([hidden]){padding:3px!important;margin:0!important;border:0!important;font-size:11px!important;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 40px!important;align-items:center!important;gap:4px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow:not([hidden]){padding:3px!important;margin:0!important;border:0!important;font-size:11px!important;grid-template-columns:minmax(0,.72fr) minmax(0,1.42fr) 36px!important;align-items:center!important;gap:4px!important}
 html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow label{grid-column:1!important;grid-row:1!important;font-size:11px!important}
 html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow input{grid-column:2!important;grid-row:1!important;min-width:0!important;height:34px!important}
 html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow output{grid-column:3!important;grid-row:1!important;font-size:11px!important}
+/* Larger thumb targets with the same 36px mixer row pitch. */
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type="range"]{
+ -webkit-appearance:none!important;appearance:none!important;background:transparent!important;
+ border:0!important;box-shadow:none!important;padding:0!important;height:34px!important;min-height:34px!important;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type="range"]::-webkit-slider-runnable-track{
+ height:9px;border-radius:8px;background:#7499b4;border:1px solid #bed8e9;box-sizing:border-box;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type="range"]::-webkit-slider-thumb{
+ -webkit-appearance:none;appearance:none;width:36px;height:27px;margin-top:-10px;border:1px solid #d3e7f2;
+ border-radius:12px;background:#fff;box-shadow:0 1px 4px #0008;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type="range"]::-moz-range-track{
+ height:8px;border-radius:8px;background:#7499b4;border:1px solid #bed8e9;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input[type="range"]::-moz-range-thumb{
+ width:34px;height:25px;border:1px solid #d3e7f2;border-radius:12px;background:#fff;box-shadow:0 1px 4px #0008;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input.sun-hue-slider::-webkit-slider-runnable-track{height:12px;background:var(--ge-hue-gradient)!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input.sun-hue-slider::-webkit-slider-thumb{margin-top:-8px}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid input.sun-hue-slider::-moz-range-track{height:12px;background:var(--ge-hue-gradient)!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{overflow-wrap:anywhere!important}
 #sunEQAura[data-mode="aurora"]{inset:-2%;filter:none!important}
 </style>
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
