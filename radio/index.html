@@ -196,7 +196,7 @@ window.addEventListener('unhandledrejection',function(e){
 
 
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
-<link rel="stylesheet" href="./radio-components.css?v=20261125-hue-preview-v8" data-ge-css="components">
+<link rel="stylesheet" href="./radio-components.css?v=20261126-fixed-meter-scroll-v9" data-ge-css="components">
 
 
 
@@ -878,7 +878,6 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
-    <div id="geSpectrumSizeRow" class="sunlab-row" hidden style="display:none"><label for="geSpectrumSize">Spectrum size · record to universe</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
     <div id="sunLabPublishTools" hidden>
       <p id="sunLabPublishStatus" role="status" aria-live="polite">Press SAVE TO GITHUB to publish. If needed, owner sign-in opens here without leaving Radio.</p>
       <form id="sunLabOwnerForm" hidden style="margin:8px 0;display:none" aria-label="Owner sign-in for publishing EQ">
@@ -892,7 +891,17 @@ document.addEventListener('DOMContentLoaded',function(){
       <button id="sunLabImportLegacy" type="button" class="sunlab-mini" hidden>IMPORT PREVIOUS DEVICE SETTINGS</button>
     </div>
     <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
+      <div id="spectrumMeter" class="spectrum-meter" hidden aria-label="Live spectrum band meter">
+        <div class="spectrum-meter-title">LIVE SPECTRUM METER</div>
+        <div class="spectrum-meter-line"><span>LOW</span><div class="spectrum-meter-track"><i id="spectrumLowMeter"></i></div><b id="spectrumLowReadout">0%</b></div>
+        <div class="spectrum-meter-line"><span>MID</span><div class="spectrum-meter-track"><i id="spectrumMidMeter"></i></div><b id="spectrumMidReadout">0%</b></div>
+        <div class="spectrum-meter-line"><span>HIGH</span><div class="spectrum-meter-track"><i id="spectrumHighMeter"></i></div><b id="spectrumHighReadout">0%</b></div>
+        <div class="spectrum-meter-line combined"><span>PULSE</span><div class="spectrum-meter-track"><i id="spectrumPulseMeter"></i></div><b id="spectrumPulseReadout">0%</b></div>
+      </div>
+    <div id="geSunLabScrollArea">
     <div id="sunLabGrid" class="sunlab-grid no-mode">
+    <div id="geSpectrumSizeRow" class="ge-spectrum-size-row" hidden style="display:none"><label for="geSpectrumSize">Spectrum size · record to universe</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
+      <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Travel Speed · 1–100%</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="1" max="100" step="1" value="55"><small>1% = extremely slow; 5–10% = slow motion; 100% = original maximum speed.</small></div>
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
         <div id="geSunLabTransparencyFields" hidden>
@@ -902,13 +911,6 @@ document.addEventListener('DOMContentLoaded',function(){
           <p id="geSunLabTransparencyHelp">0% = solid. 100% = transparent. Changes save automatically; close Sun Lab to see the whole Radio.</p>
         </div>
       </section>
-      <div id="spectrumMeter" class="spectrum-meter" hidden aria-label="Live spectrum band meter">
-        <div class="spectrum-meter-title">LIVE SPECTRUM METER</div>
-        <div class="spectrum-meter-line"><span>LOW</span><div class="spectrum-meter-track"><i id="spectrumLowMeter"></i></div><b id="spectrumLowReadout">0%</b></div>
-        <div class="spectrum-meter-line"><span>MID</span><div class="spectrum-meter-track"><i id="spectrumMidMeter"></i></div><b id="spectrumMidReadout">0%</b></div>
-        <div class="spectrum-meter-line"><span>HIGH</span><div class="spectrum-meter-track"><i id="spectrumHighMeter"></i></div><b id="spectrumHighReadout">0%</b></div>
-        <div class="spectrum-meter-line combined"><span>PULSE</span><div class="spectrum-meter-track"><i id="spectrumPulseMeter"></i></div><b id="spectrumPulseReadout">0%</b></div>
-      </div>
       <div class="sunlab-checks"><label id="slRadialOnWrap"><input id="slRadialOn" type="checkbox" checked><span class="sunlab-checktext"><span id="slRadialOnLabel">Radial Outward</span><small id="slRadialOnHelp">The current sun pulse that expands away from the sun.</small></span></label><label id="slCascadeOnWrap"><input id="slCascadeOn" type="checkbox"><span class="sunlab-checktext"><span>Radial Waterfall</span><small>Copies each music snapshot and sends it outward along the spokes in order.</small></span></label><label id="slGlowOnlyWrap"><input id="slGlowOnly" type="checkbox"><span class="sunlab-checktext"><span>Glow Only</span><small>Hide the visible bars and keep only the glow, fog, and residue.</small></span></label></div>
       <div class="sunlab-row"><label for="slCascadeSpeed">Radial Waterfall Speed</label><output id="slCascadeSpeedVal"></output><input id="slCascadeSpeed" type="range" min="0" max="100" step="1" value="58"><small>Higher values push each pulse down the spokes faster like a falling light trail.</small></div>
       <div class="sunlab-row"><label for="slPosition">Position / Origin</label><output id="slPositionVal"></output><input id="slPosition" type="range" min="-30" max="30" step="1" value="0"><small>Move the effect starting radius inward or outward.</small></div>
@@ -935,7 +937,6 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slTreble">Treble Gain</label><output id="slTrebleVal"></output><input id="slTreble" type="range" min="0" max="220" step="1" value="20"><small>Boosts the crisp high-end detail so hats and shine are more visible.</small></div>
       <div class="sunlab-row"><label for="slCompression">EQ Compression</label><output id="slCompressionVal"></output><input id="slCompression" type="range" min="0" max="120" step="1" value="0"><small>Raises weaker mids/highs and flattens giant bass spikes for a more balanced visual.</small></div>
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
-      <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Travel Speed</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="0" max="100" step="1" value="55"><small>Controls how quickly each captured sound ring moves from the sun toward space.</small></div>
       <div class="sunlab-row"><label for="slSpectrumGain">Master Pulse Signal</label><output id="slSpectrumGainVal"></output><input id="slSpectrumGain" type="range" min="0" max="300" step="1" value="100"><small>Raises or lowers the single combined pulse after Low, Mid, and High are blended together.</small></div>
       <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue spectrum. Higher values reveal whether each ring is being driven mostly by Low, Mid, or High frequencies.</small></div>
       <div class="sunlab-row"><label for="slLowHue">Low Color</label><output id="slLowHueVal"></output><span class="sun-hue-swatch" id="slLowHuePreview" aria-hidden="true"></span><input id="slLowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="215"><small>Color used when bass and low frequencies dominate the captured pulse.</small></div>
@@ -947,6 +948,8 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slOuterGlowReach">Outer Glow Reach</label><output id="slOuterGlowReachVal"></output><input id="slOuterGlowReach" type="range" min="0" max="100" step="1" value="42"><small>Sets how far the soft outer glow reaches into space.</small></div>
       <div class="sunlab-row"><label for="slOuterGlowStrength">Outer Glow Strength</label><output id="slOuterGlowStrengthVal"></output><input id="slOuterGlowStrength" type="range" min="0" max="220" step="1" value="185"><small>Controls the strength of the soft outer glow.</small></div>
       <div class="sunlab-row"><label for="slOuterGlowHue">Outer Glow Color</label><output id="slOuterGlowHueVal"></output><span class="sun-hue-swatch" id="slOuterGlowHuePreview" aria-hidden="true"></span><input id="slOuterGlowHue" class="sun-hue-slider" type="range" min="0" max="360" step="1" value="188"><small>Changes the color of the outer glow independently.</small></div>
+    </div>
+    <div id="geSunLabScrollRail" hidden><input id="geSunLabScrollPosition" type="range" min="0" max="1000" value="0" step="1" aria-label="Scroll EQ controls from top to bottom" orient="vertical"></div>
     </div>
     <button id="sunLabAdvancedToggle" type="button" aria-expanded="false" aria-controls="sunLabAdvancedTools">TESTING & RESET TOOLS ▾</button>
     <div id="sunLabAdvancedTools" style="display:contents">
@@ -6116,9 +6119,25 @@ async function registerServiceWorker(){
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
     const checks=$('slRadialOn')?.closest('.sunlab-checks');if(checks){checks.style.display=[...checks.querySelectorAll('label')].some(l=>l.style.display!=='none')?'grid':'none';}
     const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=publicOnly||mode!=='spectrum';
+    requestAnimationFrame(syncSunLabScrollRail);
     const radialLabel=$('slRadialOnLabel'),radialHelp=$('slRadialOnHelp');
     if(radialLabel)radialLabel.textContent=mode==='waterfall'?'Combine Radial Pulse':'Radial Outward';
     if(radialHelp)radialHelp.textContent=mode==='waterfall'?'Layer the normal outward pulse underneath the radial waterfall.':'The current sun pulse that expands away from the sun.';
+  }
+  function syncSunLabScrollRail(){
+    const grid=$('sunLabGrid'),rail=$('geSunLabScrollRail'),slider=$('geSunLabScrollPosition');
+    if(!grid||!rail||!slider)return;
+    const extent=Math.max(0,grid.scrollHeight-grid.clientHeight);
+    rail.hidden=!sunLabPanel?.classList.contains('show')||extent<4;
+    slider.value=String(extent?Math.round(grid.scrollTop/extent*1000):0);
+    if(!slider.dataset.bound){
+      slider.dataset.bound='1';
+      slider.addEventListener('input',()=>{grid.scrollTop=(grid.scrollHeight-grid.clientHeight)*Number(slider.value)/1000;});
+      grid.addEventListener('scroll',syncSunLabScrollRail,{passive:true});
+      window.addEventListener('resize',syncSunLabScrollRail);
+      if(window.ResizeObserver)new ResizeObserver(syncSunLabScrollRail).observe(grid);
+      if(window.MutationObserver)new MutationObserver(()=>requestAnimationFrame(syncSunLabScrollRail)).observe(grid,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','style']});
+    }
   }
   function chooseSunMode(mode){
     if(!SUN_MODE_WAVE[mode])return;
@@ -6147,6 +6166,7 @@ async function registerServiceWorker(){
     sunLabPanel.classList.toggle('show',on);
     updateSunEditorAccess();
     if(on&&sunLabEditMode)setSunModeVisibility(sunLabEditMode);
+    if(on)requestAnimationFrame(syncSunLabScrollRail);
     // Button state follows the effects, not whether the editor is open.
     sunLabBtn?.setAttribute('aria-expanded',String(on));
     if(on)void ensureLiveEQ();
@@ -6700,7 +6720,7 @@ Vector ${vector}. ${pair[1]}.`;
   let sunEQImpactFloor=.02,sunEQImpactPeak=.34;
   let sunSpectrumHistory=[];
   let sunSpectrumBandHistory=[];
-  let sunSpectrumSampleAt=0;
+  let sunSpectrumSampleAt=0,sunSpectrumPhase=0,sunSpectrumPeak=0,sunSpectrumPeakBands=null;
   let sunEQLastPaint=0;
   const SUN_EQ_CASCADE_STEPS=7;
   let sunEQCascadeHistory=[];
@@ -6978,7 +6998,7 @@ Vector ${vector}. ${pair[1]}.`;
         }
         sunSpectrumHistory=[];
         sunSpectrumBandHistory=[];
-        sunSpectrumSampleAt=0;
+        sunSpectrumSampleAt=0;sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
       }
       ensureSunFog();
       return;
@@ -7124,10 +7144,16 @@ Vector ${vector}. ${pair[1]}.`;
       if(bar)bar.style.width=pct+'%';
       if(readout)readout.textContent=pct+'%';
     }
-    const low=$('spectrumLowMeter'),mid=$('spectrumMidMeter'),high=$('spectrumHighMeter');
-    if(low)low.style.background=`hsl(${sunNum('lowHue',215)},94%,58%)`;
-    if(mid)mid.style.background=`hsl(${sunNum('midHue',155)},94%,58%)`;
-    if(high)high.style.background=`hsl(${sunNum('highHue',320)},94%,58%)`;
+    for(const [name,key,fallback] of [['Low','lowHue',215],['Mid','midHue',155],['High','highHue',320]]){
+      const bar=$('spectrum'+name+'Meter');
+      if(!bar)continue;
+      const hue=sunNum(key,fallback),color='hsl('+hue+',94%,52%)';
+      bar.style.background=color;
+      const line=bar.closest('.spectrum-meter-line');
+      if(line){line.style.setProperty('--ge-band-color',color);line.title='Selected '+name+' hue: '+Math.round(hue)+'°';}
+    }
+    const combined=$('spectrumPulseMeter');
+    if(combined)combined.style.background=spectrumBandColor(bands,pulse);
   }
 
   function updateSpectrumSun(live,now){
@@ -7145,24 +7171,36 @@ Vector ${vector}. ${pair[1]}.`;
     energy=live&&raw>0?Math.pow(energy,.82):0;
     updateSpectrumMeter(bands,energy);
 
-    const speed=clamp(sunNum('spectrumSpeed',55)/100,0,1);
-    const interval=lerp(180,45,speed);
-    // Empty history is genuinely empty; no pre-filled disc, no silent rings.
-    // Age the existing wavefronts even during loading, silence and song changes.
-    const elapsed=sunSpectrumSampleAt?Math.floor((now-sunSpectrumSampleAt)/interval):1;
+    // 100% retains the former fastest rate (45ms per ring spacing).
+    // At 5% it takes 900ms; at 1% it takes 4500ms. Integrate phase so
+    // changing the slider never jumps the existing wavefronts.
+    const speed=clamp(sunNum('spectrumSpeed',55),1,100)/100;
+    const interval=45/speed;
+    const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
+    sunSpectrumSampleAt=now;
+    sunSpectrumPhase+=dt/interval;
+    if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+    const elapsed=Math.floor(sunSpectrumPhase);
     if(elapsed>0){
       const steps=Math.min(SUN_SPECTRUM_RINGS,elapsed);
       for(let i=0;i<steps;i++){
-        const measured=i===steps-1&&live&&energy>.001;
-        sunSpectrumHistory.unshift(measured?energy:null);
-        sunSpectrumBandHistory.unshift(measured?{...bands}:null);
+        const measured=i===steps-1&&sunSpectrumPeak>.001&&dt<interval*2;
+        sunSpectrumHistory.unshift(measured?sunSpectrumPeak:null);
+        sunSpectrumBandHistory.unshift(measured?sunSpectrumPeakBands:null);
       }
       sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,SUN_SPECTRUM_RINGS);
       sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,SUN_SPECTRUM_RINGS);
-      sunSpectrumSampleAt=now-(sunSpectrumSampleAt?(now-sunSpectrumSampleAt)%interval:0);
+      sunSpectrumPhase-=elapsed;
+      sunSpectrumPeak=0;sunSpectrumPeakBands=null;
     }
-
-    const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
+    // First audible signal appears immediately even at extremely slow rates.
+    if(live&&energy>.001&&!sunSpectrumHistory.some(v=>v!=null)){
+      sunSpectrumHistory.unshift(energy);sunSpectrumBandHistory.unshift({...bands});
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
+    }
+    const phase=clamp(sunSpectrumPhase,0,1);
     const distance=sunNum('distance',-220);
     const reachNorm=clamp((distance+440)/660,0,1);
     const position=clamp(sunNum('position',0),-30,30)/50;
@@ -7252,7 +7290,7 @@ Vector ${vector}. ${pair[1]}.`;
       if(sunSpectrumSampleAt&&sunEQAura.dataset.mode==='spectrum'){
         for(const ring of sunEQAura.children)ring.style.opacity='0';
       }
-      sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;return;
+      sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;updateSpectrumMeter({low:0,mid:0,high:0},0);return;
     }
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
@@ -7556,7 +7594,7 @@ Vector ${vector}. ${pair[1]}.`;
   const geRadioR21Motion=matchMedia('(prefers-reduced-motion: reduce)');
   const geRadioR21Canvases=[...document.querySelectorAll('.ge-radio-broadcast-r21')];
   const geRadioR21Surfaces=geRadioR21Canvases.map(canvas=>({canvas,ctx:canvas.getContext('2d')}));
-  let geRadioR21Waves=[],geRadioR21Last=0,geRadioR21Emit=0,geRadioR21Envelope=0,geRadioR21Previous=0;
+  let geRadioR21Waves=[],geRadioR21Last=0,geRadioR21Emit=0,geRadioR21Envelope=0,geRadioR21Previous=0,geRadioR21Baseline=0,geRadioR21Flash=0,geRadioR21Next=0,geRadioR21Earliest=0;
   function updateRadioBroadcastR21(bins,now=performance.now()){
     const dt=geRadioR21Last?Math.min(.12,Math.max(0,(now-geRadioR21Last)/1000)):0;
     geRadioR21Last=now;
@@ -7571,17 +7609,23 @@ Vector ${vector}. ${pair[1]}.`;
       signal=clamp(total/count*.76+peak*.24,0,1);
     }
     if(!state.live||geInlineMusicActive||geRadioR21Motion.matches){
-      geRadioR21Waves=[];geRadioR21Envelope=0;geRadioR21Previous=0;geRadioR21Emit=0;
+      geRadioR21Waves=[];geRadioR21Envelope=0;geRadioR21Previous=0;geRadioR21Emit=0;geRadioR21Baseline=0;geRadioR21Flash=0;geRadioR21Next=0;geRadioR21Earliest=0;
     }else{
-      geRadioR21Envelope+=(signal-geRadioR21Envelope)*(1-Math.exp(-dt*(signal>geRadioR21Envelope?6:3)));
-      // New wavefronts need real audio. Strong rises can emit sooner;
-      // sustained measured signal emits at the selected travel spacing.
-      const elapsed=now-geRadioR21Emit;
-      if(signal>.025&&(geRadioR21Emit===0||elapsed>=1280||
-          (elapsed>=700&&signal-geRadioR21Previous>.065))){
+      // Fast attack and slower decay follow real amplitude and transients.
+      const rise=Math.max(0,signal-geRadioR21Previous);
+      const onset=Math.max(0,signal-geRadioR21Baseline);
+      geRadioR21Baseline+=(signal-geRadioR21Baseline)*(1-Math.exp(-dt*1.7));
+      geRadioR21Envelope+=(signal-geRadioR21Envelope)*(1-Math.exp(-dt*(signal>geRadioR21Envelope?12:4)));
+      geRadioR21Flash=Math.max(geRadioR21Flash*Math.exp(-dt*5),signal>.025?clamp(rise*2.1+onset*.65,0,.75):0);
+      // Irregular spacing is only a gate on real measured audio. Randomness
+      // never creates a signal or changes the selected 74% propagation rate.
+      if(signal>.025&&(geRadioR21Emit===0||now>=geRadioR21Next||
+          (now>=geRadioR21Earliest&&(rise>.045||onset>.11)))){
         geRadioR21Waves.push({progress:0,energy:signal});
         if(geRadioR21Waves.length>6)geRadioR21Waves.shift();
         geRadioR21Emit=now;
+        geRadioR21Earliest=now+450+Math.random()*650;
+        geRadioR21Next=now+1150+Math.random()*1400;
       }
       geRadioR21Previous=signal;
       for(const wave of geRadioR21Waves)wave.progress+=dt*geRadioR21Rate;
@@ -7595,9 +7639,11 @@ Vector ${vector}. ${pair[1]}.`;
       if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
       ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
       if(geRadioR21Motion.matches)continue;
-      if(geRadioR21Envelope>.002){
+      const illumination=clamp(geRadioR21Envelope*.48+geRadioR21Flash*.65,0,.72);
+      if(illumination>.002){
         const glow=ctx.createRadialGradient(width*.5,height*.5,0,width*.5,height*.5,width*.7);
-        glow.addColorStop(0,'rgba(255,50,75,'+(geRadioR21Envelope*.22).toFixed(3)+')');
+        glow.addColorStop(0,'rgba(255,72,96,'+illumination.toFixed(3)+')');
+        glow.addColorStop(.65,'rgba(255,38,65,'+(illumination*.36).toFixed(3)+')');
         glow.addColorStop(1,'rgba(255,30,60,0)');
         ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
       }
@@ -9617,7 +9663,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-radio-r21-broadcast-v6" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-radio-r21-reactive-v7" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
