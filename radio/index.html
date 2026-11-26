@@ -902,6 +902,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div id="geSunLabScrollArea">
     <div id="sunLabGrid" class="sunlab-grid no-mode">
     <div id="geSpectrumSizeRow" class="ge-spectrum-size-row" hidden style="display:none"><label for="geSpectrumSize">Effect reach</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
+      <div class="sunlab-row"><label for="slEffectTransparency">Effect Transparency</label><output id="slEffectTransparencyVal">0%</output><input id="slEffectTransparency" type="range" min="0" max="100" step="1" value="0"><small>0% = full effect, 100% = invisible. Changes only the selected effect, not the Sun, audio or other effects.</small></div>
       <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Speed</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="1" max="100" step="1" value="55"><small>1% = extremely slow; 5–10% = slow motion; 100% = original maximum speed.</small></div>
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
@@ -6114,7 +6115,7 @@ async function registerServiceWorker(){
   function sunModePreference(){try{return localStorage.getItem(SUN_MODE_SELECTED_KEY)}catch(_){return null}}
   function selectSunPreference(mode){try{localStorage.setItem(SUN_MODE_SELECTED_KEY,mode)}catch(_){}}
   function normalizedSunProfile(mode,source){
-    const base={...SUN_MODE_DEFAULTS[mode]};
+    const base={effectTransparency:0,...SUN_MODE_DEFAULTS[mode]};
     for(const [key,value] of Object.entries(source||{})){
       if(key==='waveType'||key==='__proto__'||key==='constructor'||key==='prototype')continue;
       const control=$('sl'+key.charAt(0).toUpperCase()+key.slice(1));
@@ -6312,6 +6313,7 @@ async function registerServiceWorker(){
     const baseControls=mode&&!publicOnly?(SUN_MODE_CONTROLS[mode]||[]):[];
     const pulseControls=mode&&!publicOnly&&mode!=='spectrum'&&mode!=='aurora'?['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']:[];
     const ids=new Set([...baseControls,...pulseControls]);
+    if(!publicOnly&&mode)ids.add('slEffectTransparency');
     if(!publicOnly&&mode&&SUN_MODE_WAVE[mode]!=='glow')ids.add('slPosition');
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
@@ -6344,7 +6346,7 @@ async function registerServiceWorker(){
     saveCurrentSunMode();
     sunLabEditMode=mode;
     const base=SUN_MODE_DEFAULTS[mode]||SUN_LAB_DEFAULTS;
-    sunLab={...base,...(sunModeProfiles[mode]||{}),waveType:SUN_MODE_WAVE[mode]};
+    sunLab={effectTransparency:0,...base,...(sunModeProfiles[mode]||{}),waveType:SUN_MODE_WAVE[mode]};
     selectSunPreference(mode);
     // Force the visual renderer to rebuild now instead of waiting for an old mode DOM to age out.
     sunEQLastPaint=0;
@@ -6423,6 +6425,7 @@ async function registerServiceWorker(){
     for(const [id,oldMax] of [['slBass',200],['slMid',220],['slTreble',220]]){
       const input=$(id);if(input)input.max=String(sunLabEditMode==='spectrum'?1000:oldMax);
     }
+    bindSunLabControl('slEffectTransparency','effectTransparency');
     bindSunLabControl('slCascadeSpeed','cascadeSpeed');
     bindSunLabToggle('slRadialOn','radialOn');
     bindSunLabToggle('slCascadeOn','cascadeOn');
@@ -7722,7 +7725,20 @@ Vector ${vector}. ${pair[1]}.`;
         eqData=raw;
         if(live&&raw?.length&&mode!=='spectrum'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
         else if(!live)layer.pulse?.reset();
-        try{renderSunEffect(live);}finally{layer.state=captureSunRenderState();}
+        // Restore native layer alpha before each render (including throttled
+        // frames), then apply only this profile's transparency once.
+        if(layer.nativeAuraOpacity!==undefined)layer.aura.style.opacity=layer.nativeAuraOpacity;
+        if(layer.nativeFogOpacity!==undefined)layer.fog.style.opacity=layer.nativeFogOpacity;
+        try{renderSunEffect(live);}finally{
+          layer.state=captureSunRenderState();
+          layer.nativeAuraOpacity=layer.aura.style.opacity;
+          layer.nativeFogOpacity=layer.fog.style.opacity;
+          const factor=1-clamp(Number(sunLab.effectTransparency)||0,0,100)/100;
+          for(const [node,alpha] of [[layer.aura,layer.nativeAuraOpacity],[layer.fog,layer.nativeFogOpacity]]){
+            const native=alpha===''?1:Number(alpha);
+            node.style.opacity=String(clamp(Number.isFinite(native)?native:1,0,1)*factor);
+          }
+        }
       }
       if(!sunEnabledModes.has(sunLabEditMode))updateSpectrumMeter({low:0,mid:0,high:0},0);
     }finally{
