@@ -869,7 +869,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
     <div class="sunlab-title">
       <h3>EQ EFFECTS</h3>
-      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabUndo" type="button" class="sunlab-mini" hidden disabled title="Undo last Sun Lab adjustment" aria-label="Undo last Sun Lab adjustment">UNDO ↶</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
@@ -5918,6 +5918,72 @@ async function registerServiceWorker(){
   };
   let sunLab={...SUN_MODE_DEFAULTS.spectrum},sunLabEditMode=null,sunModeProfiles={};
   let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
+  // Private, tab-local history; a slider drag is one undo step, not one step per pixel.
+  const sunUndoHistory=[];
+  let sunUndoGesture=null,sunUndoRestoring=false;
+  function syncSunUndoButton(){
+    const button=$('sunLabUndo');if(!button)return;
+    button.hidden=!geRadioSunLabPrivateAllowed();
+    button.disabled=!sunUndoHistory.length;
+    button.title=sunUndoHistory.length?'Undo last Sun Lab adjustment ('+sunUndoHistory.length+' available)':'No Sun Lab changes to undo';
+    button.setAttribute('aria-label',button.title);
+  }
+  function sunUndoSnapshot(){
+    return {mode:sunLabEditMode,profiles:JSON.parse(JSON.stringify(sunModeProfiles)),
+      current:{...sunLab},size:spectrumSize,transparency:window.GERadioTransparency?.get?.()||null};
+  }
+  function recordSunUndo(){
+    if(sunUndoRestoring||!sunLabEditMode||!geRadioSunLabPrivateAllowed())return;
+    const before=sunUndoSnapshot(),last=sunUndoHistory[sunUndoHistory.length-1];
+    if(last&&JSON.stringify(last)===JSON.stringify(before))return;
+    sunUndoHistory.push(before);if(sunUndoHistory.length>50)sunUndoHistory.shift();
+    syncSunUndoButton();
+  }
+  function clearSunUndo(){sunUndoHistory.length=0;sunUndoGesture=null;syncSunUndoButton();}
+  function undoSunLab(){
+    if(sunUndoRestoring||!geRadioSunLabPrivateAllowed()||!sunUndoHistory.length)return;
+    const before=sunUndoHistory.pop();sunUndoGesture=null;sunUndoRestoring=true;
+    try{
+      const previousMode=sunLabEditMode;
+      sunModeProfiles=before.profiles;sunLabEditMode=before.mode;sunLab={...before.current};
+      sunModeProfiles[before.mode]={...sunLab};selectSunPreference(before.mode);
+      spectrumSize=before.size;try{localStorage.setItem(GE_SPECTRUM_SIZE_KEY,String(spectrumSize));}catch(_){}
+      if(before.transparency)for(const [key,id] of Object.entries({sun:'geAlphaSun',music:'geAlphaMusic',other:'geAlphaOther'})){
+        const input=$(id);if(input&&Number(input.value)!==before.transparency[key]){
+          input.value=String(before.transparency[key]);input.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+      }
+      // Never roll back the published GitHub baseline. Undo only changes the working copy.
+      const active=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,sunModeProfiles[mode])]));
+      const baseline=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,publishedSunEQ?.profiles?.[mode])]));
+      sunEQDraft=JSON.stringify(active)!==JSON.stringify(baseline)||before.mode!==(publishedSunEQ?.defaultMode||'spectrum');
+      if(previousMode!==before.mode&&sunEQAura){sunEQAura.dataset.mode='';sunEQAura.innerHTML='';}
+      applySunLabUI();setSunModeVisibility(before.mode);ensureSunEQ(sunLab.waveType);
+      sunEQLastPaint=0;sunEQCascadeHistory=[];
+      if(sunEQDraft)stashSunOwnerDraft();else try{sessionStorage.removeItem(SUN_EQ_PENDING_DRAFT);}catch(_){}
+      setStatus('Sun Lab: last adjustment undone.');
+    }finally{sunUndoRestoring=false;syncSunUndoButton();}
+  }
+  function bindSunUndoHistory(){
+    const grid=$('sunLabGrid');if(!grid||grid.dataset.undoBound)return;grid.dataset.undoBound='1';
+    grid.addEventListener('input',event=>{
+      const input=event.target;
+      if(sunUndoRestoring||!input.matches?.('input[type="range"]')||!geRadioSunLabPrivateAllowed())return;
+      // Capture runs before the existing slider listeners modify the profile or transparency.
+      if(sunUndoGesture!==input){recordSunUndo();sunUndoGesture=input;}
+    },true);
+    grid.addEventListener('change',event=>{
+      const input=event.target;
+      if(sunUndoRestoring)return;
+      if(input.matches?.('input[type="checkbox"]'))recordSunUndo();
+      if(sunUndoGesture===input)sunUndoGesture=null;
+    },true);
+    grid.addEventListener('pointerdown',()=>{sunUndoGesture=null;},true);
+    grid.addEventListener('touchstart',()=>{sunUndoGesture=null;},{capture:true,passive:true});
+    grid.addEventListener('touchcancel',()=>{sunUndoGesture=null;},{passive:true});
+    grid.addEventListener('focusout',()=>{sunUndoGesture=null;});
+    $('sunLabUndo')?.addEventListener('click',undoSunLab);
+  }
   const SUN_EQ_PUBLISH_API='https://ge-backroom-publisher.grandelement.workers.dev';
   const SUN_EQ_PUBLISH_SESSION='GE_BACKROOM_PUBLISH_SESSION_V1';
   const SUN_EQ_PENDING_DRAFT='GE_SUN_EQ_OWNER_HANDOFF_V1';
@@ -5964,7 +6030,7 @@ async function registerServiceWorker(){
     const selected=validSunMode(sunModePreference())?sunModePreference():
       validSunMode(raw?.defaultMode)?raw.defaultMode:'spectrum';
     sunModeProfiles=Object.fromEntries(Object.keys(SUN_MODE_WAVE).map(mode=>[mode,normalizedSunProfile(mode,raw?.profiles?.[mode])]));
-    sunLabEditMode=selected;sunLab={...sunModeProfiles[selected]};sunEQDraft=false;
+    sunLabEditMode=selected;sunLab={...sunModeProfiles[selected]};sunEQDraft=false;clearSunUndo();
     applySunLabUI();setSunModeVisibility(selected);ensureSunEQ(sunLab.waveType);
     sunEQLastPaint=0;sunEQCascadeHistory=[];
   }
@@ -5980,6 +6046,7 @@ async function registerServiceWorker(){
     let pending=false;try{pending=!!sessionStorage.getItem(SUN_EQ_PENDING_DRAFT)}catch(_){}
     if(publish)publish.hidden=!(editor||pending);
     if(copy)copy.hidden=!editor;
+    syncSunUndoButton();
     if(tools)tools.hidden=!(editor||pending);
     if(legacy)legacy.hidden=!geSunOwnerVerified;
     const test=$('sunLabAdvancedToggle');if(test)test.hidden=!geRadioLocalTestAccess();
@@ -6120,6 +6187,7 @@ async function registerServiceWorker(){
       const current=JSON.parse(localStorage.getItem(SUN_LAB_KEY)||'null'),selected=sunModePreference();
       if(validSunMode(selected)&&current)old[selected]=current;
       if(!Object.keys(SUN_MODE_WAVE).some(mode=>old[mode]))throw Error('No previous device EQ settings found.');
+      recordSunUndo();
       for(const mode of Object.keys(SUN_MODE_WAVE))if(old[mode])sunModeProfiles[mode]=normalizedSunProfile(mode,old[mode]);
       const position=localStorage.getItem('GE_SUN_LAB_SPECTRUM_POSITION_V1');
       if(position!==null&&Number.isFinite(Number(position))&&validSunMode(selected))sunModeProfiles[selected].position=Math.max(-30,Math.min(30,Number(position)));
@@ -6170,6 +6238,7 @@ async function registerServiceWorker(){
   }
   function chooseSunMode(mode){
     if(!SUN_MODE_WAVE[mode])return;
+    if(mode!==sunLabEditMode){sunUndoGesture=null;recordSunUndo();}
     saveCurrentSunMode();
     sunLabEditMode=mode;
     const base=SUN_MODE_DEFAULTS[mode]||SUN_LAB_DEFAULTS;
@@ -6343,6 +6412,7 @@ async function registerServiceWorker(){
         advancedToggle.textContent=open?'HIDE TESTING & RESET TOOLS ▴':'TESTING & RESET TOOLS ▾';
       });
     }
+    bindSunUndoHistory();
     setPublishedSunEQ(null);
     updateSunEditorAccess();
     window.addEventListener('ge-access-experience-updated',updateSunEditorAccess);
@@ -6385,7 +6455,7 @@ async function registerServiceWorker(){
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
-      sunLabReset?.addEventListener('click',()=>{if(!geRadioSunLabPrivateAllowed())return;if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab=normalizedSunProfile(sunLabEditMode,publishedSunEQ?.profiles?.[sunLabEditMode]);sunEQDraft=true;sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
+      sunLabReset?.addEventListener('click',()=>{if(!geRadioSunLabPrivateAllowed())return;if(!sunLabEditMode){setStatus('Choose an effect first.');return;}recordSunUndo();sunLab=normalizedSunProfile(sunLabEditMode,publishedSunEQ?.profiles?.[sunLabEditMode]);sunEQDraft=true;sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
   function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,28000000,Math.pow(1-approach.distance,3.1))));}
@@ -9782,6 +9852,16 @@ html.ge-radio-ui body #sunLabPanel.show #sunLabGrid > #sunLabImportLegacy:not([h
  html.ge-radio-ui body #sunLabPanel.show{height:min(69dvh,680px)!important;max-height:69dvh!important}
 }
 
+/* Four compact header actions; no extra row or reduction of slider space. */
+html.ge-radio-ui body #sunLabPanel.show .ge-sunlab-header-actions:has(#sunLabUndo:not([hidden])){
+ display:grid!important;grid-template-columns:minmax(0,1.25fr) minmax(0,1.1fr) minmax(0,.7fr) minmax(0,.65fr)!important;
+ gap:3px!important;width:100%!important;min-width:0!important;
+}
+html.ge-radio-ui body #sunLabPanel.show .ge-sunlab-header-actions:has(#sunLabUndo:not([hidden]))>button{
+ width:100%!important;min-width:0!important;padding:4px 2px!important;font-size:clamp(9px,2.9vw,12px)!important;white-space:nowrap!important;
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabUndo:disabled{opacity:.42!important;cursor:default!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabUndo:not(:disabled){border-color:#68c6e8!important;color:#e7faff!important}
 /* Compact mode selector and mixer: one line per control, wider scroll grip. */
 html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:3px!important}
 html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar button{min-width:0!important;padding:3px 2px!important;font-size:12px!important}
