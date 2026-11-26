@@ -869,11 +869,12 @@ document.addEventListener('DOMContentLoaded',function(){
   <section id="sunLabPanel" class="sunlab-panel" aria-label="EQ Effects and authorized advanced Sun Lab controls" hidden>
     <div class="sunlab-title">
       <h3>EQ EFFECTS</h3>
-      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all three EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" hidden title="Publish all EQ presets to GitHub for every listener">SAVE TO GITHUB</button><button id="sunLabCopy" type="button" class="sunlab-mini" hidden title="Copy all Sun Lab effect settings to paste into chat">COPY SETTINGS</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect. Published GE presets are shared by every listener.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
       <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="aurora">Aurora</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button>
       <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
     </div>
@@ -900,8 +901,8 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
     <div id="geSunLabScrollArea">
     <div id="sunLabGrid" class="sunlab-grid no-mode">
-    <div id="geSpectrumSizeRow" class="ge-spectrum-size-row" hidden style="display:none"><label for="geSpectrumSize">Spectrum size · record to universe</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
-      <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Travel Speed · 1–100%</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="1" max="100" step="1" value="55"><small>1% = extremely slow; 5–10% = slow motion; 100% = original maximum speed.</small></div>
+    <div id="geSpectrumSizeRow" class="ge-spectrum-size-row" hidden style="display:none"><label for="geSpectrumSize">Effect reach</label><output id="geSpectrumSizeValue">100%</output><input id="geSpectrumSize" type="range" min="0" max="100" step="1" value="100"><small>Small 45-style waves or waves that travel beyond the entire screen. Your device preference saves automatically.</small></div>
+      <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Speed</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="1" max="100" step="1" value="55"><small>1% = extremely slow; 5–10% = slow motion; 100% = original maximum speed.</small></div>
       <section id="geSunLabTransparency" aria-label="Transparency settings">
         <button id="geSunLabTransparencyToggle" type="button" aria-controls="geSunLabTransparencyFields" aria-expanded="false">TRANSPARENCY ▾</button>
         <div id="geSunLabTransparencyFields" hidden>
@@ -916,6 +917,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <div class="sunlab-row"><label for="slPosition">Position / Origin</label><output id="slPositionVal"></output><input id="slPosition" type="range" min="-30" max="30" step="1" value="0"><small>Move the effect starting radius inward or outward.</small></div>
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
       <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
+      <div class="sunlab-row"><label for="slGap">Wave Gap</label><output id="slGapVal"></output><input id="slGap" type="range" min="0" max="85" step="1" value="0"><small>Zero means continuous. Increase to add transparent spacing between waves.</small></div>
       <div class="sunlab-row"><label for="slContrast">Contrast</label><output id="slContrastVal"></output><input id="slContrast" type="range" min="0" max="280" step="1" value="40"><small>Widens the light-versus-dark difference so hits stand out more clearly.</small></div>
       <div class="sunlab-row"><label for="slDynamics">Dynamics Gain</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Overall movement gain. Use Pulse Depth to change quiet-versus-loud beats.</small></div>
       <div class="sunlab-row"><label for="slPulseDepth">Pulse Depth</label><output id="slPulseDepthVal"></output><input id="slPulseDepth" type="range" min="0" max="100" step="1" value="82"><small>0 = dimmer; 100 = pronounced beat flashes</small></div>
@@ -5872,7 +5874,7 @@ async function registerServiceWorker(){
   function syncSpectrumSizeControl(mode){
     const row=$('geSpectrumSizeRow'),input=$('geSpectrumSize'),out=$('geSpectrumSizeValue');
     if(!row||!input)return;
-    row.hidden=mode!=='spectrum';row.style.display=mode==='spectrum'?'grid':'none';
+    const active=mode==='spectrum'||mode==='aurora';row.hidden=!active;row.style.display=active?'grid':'none';
     input.value=String(spectrumSize);if(out)out.textContent=Math.round(spectrumSize)+'%';
     if(!input.dataset.bound){input.dataset.bound='1';input.addEventListener('input',()=>{
       spectrumSize=clamp(Number(input.value),0,100);if(out)out.textContent=Math.round(spectrumSize)+'%';
@@ -5887,23 +5889,23 @@ async function registerServiceWorker(){
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
-  const SUN_MODE_WAVE={spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
+  const SUN_MODE_WAVE={spectrum:'spectrum',aurora:'aurora',glow:'glow',waterfall:'mirrorflip'};
   const SUN_MODE_SELECTED_KEY='GE_SUN_LAB_SELECTED_MODE_V1';
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
-    spectrum:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slDistance','slThickness','slContrast','slDynamics','slBass','slMid','slTreble'],
+    spectrum:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slThickness','slGap','slContrast','slDynamics','slBass','slMid','slTreble'],
     glow:['slInnerGlowReach','slInnerGlowStrength','slInnerGlowHue','slOuterGlowReach','slOuterGlowStrength','slOuterGlowHue'],
     waterfall:['slCascadeSpeed','slDistance','slThickness','slContrast','slDynamics','slGlow','slMist','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly'],
     pulse:['slDistance','slThickness','slDynamics','slBrightness','slBass','slMid','slTreble','slHue'],
     ripples:['slCascadeSpeed','slDistance','slDynamics','slBrightness','slMist','slRadialOn'],
     orbit:['slSpectrumSpeed','slSpectrumGain','slCompression','slLowHue','slMidHue','slHighHue','slDistance','slDynamics'],
-    aurora:['slInnerGlowReach','slInnerGlowStrength','slInnerGlowHue','slOuterGlowReach','slOuterGlowStrength','slOuterGlowHue','slBass','slTreble']
+    aurora:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slDistance','slThickness','slContrast','slDynamics','slBass','slMid','slTreble']
   };
   const SUN_MODE_DEFAULTS={
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:90,dynamics:105,brightness:160,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:"spectrum",position:2,distance:220,thickness:30,contrast:115,dynamics:284,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:155,hue:1,hueMix:0,altHue:-17,bass:200,mid:188,treble:159,compression:51,smoothing:0,pulseDepth:98,pulseSensitivity:0,pulseAttack:100,pulseRelease:100,pulseNoiseFloor:8,radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false,spectrumSpeed:47,spectrumGain:118,bandColorMix:42,lowHue:255,midHue:220,highHue:171},
+    spectrum:{"waveType":"spectrum","position":2,"distance":220,"thickness":30,"contrast":115,"dynamics":284,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":200,"mid":188,"treble":159,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":0,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":11,"spectrumGain":118,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171,"gap":0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
     glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:140,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:140,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
@@ -5912,7 +5914,7 @@ async function registerServiceWorker(){
     pulse:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-160,thickness:105,dynamics:210,brightness:160,bass:190,mid:85,treble:50,compression:0,smoothing:6,hue:0},
     ripples:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:true,cascadeSpeed:28,distance:120,thickness:25,contrast:115,dynamics:190,mist:18,brightness:145,bass:145,mid:115,treble:45},
     orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
-    aurora:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:23,innerGlowStrength:145,innerGlowHue:275,outerGlowReach:80,outerGlowStrength:145,outerGlowHue:157,bass:60,mid:180,treble:220,smoothing:16}
+    aurora:{"waveType":"aurora","position":2,"distance":220,"thickness":136,"contrast":153,"dynamics":175,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":200,"mid":188,"treble":159,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":21,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":11,"spectrumGain":118,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171}
   };
   let sunLab={...SUN_MODE_DEFAULTS.spectrum},sunLabEditMode=null,sunModeProfiles={};
   let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
@@ -6001,7 +6003,7 @@ async function registerServiceWorker(){
     button.setAttribute('aria-label',button.title);
     sunPublishButtonTimer=setTimeout(()=>{
       button.textContent='SAVE TO GITHUB';
-      button.title='Publish all three EQ presets to GitHub for every listener';
+      button.title='Publish all EQ presets to GitHub for every listener';
       button.removeAttribute('aria-label');
     },2400);
   }
@@ -6101,7 +6103,7 @@ async function registerServiceWorker(){
       if(!current||typeof current!=='object')throw Error('Published visual settings are missing.');
       if(JSON.stringify(current.sunEQ??null)!==JSON.stringify(publishedSunEQ??null))throw Error('EQ defaults changed on GitHub. Reload before editing again.');
       const visual={...current,sunEQ:next};
-      sunPublishStatus('SAVING ALL THREE EQ EFFECTS TO GITHUB…');
+      sunPublishStatus('SAVING EQ EFFECTS TO GITHUB…');
       const result=await sunPublisher('POST',{changes:{visual},expected:{visual:current}});
       if(!result.commit)throw Error('No GitHub commit confirmed.');
       const proof=await sunPublisher();
@@ -6138,14 +6140,14 @@ async function registerServiceWorker(){
     // Only a VERIFIED Vault code with the sunlab scope unlocks the full variables.
     const publicOnly=!geRadioSunLabPrivateAllowed();
     const baseControls=mode&&!publicOnly?(SUN_MODE_CONTROLS[mode]||[]):[];
-    const pulseControls=mode&&!publicOnly?['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']:[];
+    const pulseControls=mode&&!publicOnly&&mode!=='spectrum'&&mode!=='aurora'?['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']:[];
     const ids=new Set([...baseControls,...pulseControls]);
     if(!publicOnly&&mode&&SUN_MODE_WAVE[mode]!=='glow')ids.add('slPosition');
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
     const checks=$('slRadialOn')?.closest('.sunlab-checks');if(checks){checks.style.display=[...checks.querySelectorAll('label')].some(l=>l.style.display!=='none')?'grid':'none';}
-    const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=publicOnly||mode!=='spectrum';
+    const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=publicOnly||!['spectrum','aurora'].includes(mode);
     requestAnimationFrame(syncSunLabScrollRail);
     const radialLabel=$('slRadialOnLabel'),radialHelp=$('slRadialOnHelp');
     if(radialLabel)radialLabel.textContent=mode==='waterfall'?'Combine Radial Pulse':'Radial Outward';
@@ -6256,6 +6258,7 @@ async function registerServiceWorker(){
     bindSunLabControl('slPosition','position',v=>String(Math.round(Number(v)||0)));
     bindSunLabControl('slDistance','distance');
     bindSunLabControl('slThickness','thickness');
+    bindSunLabControl('slGap','gap');
     bindSunLabControl('slContrast','contrast');
     bindSunLabControl('slDynamics','dynamics');
     bindSunLabControl('slPulseDepth','pulseDepth');
@@ -7013,9 +7016,9 @@ Vector ${vector}. ${pair[1]}.`;
   function ensureSunEQ(mode=sunLab.waveType||'plasma'){
     if(!sunEQAura)return;
 
-    if(mode==='spectrum'){
-      if(sunEQAura.dataset.mode!=='spectrum'||!sunEQAura.querySelector('canvas.sun-spectrum-field')){
-        sunEQAura.dataset.mode='spectrum';sunEQAura.innerHTML='';
+    if(mode==='spectrum'||mode==='aurora'){
+      if(sunEQAura.dataset.mode!==mode||!sunEQAura.querySelector('canvas.sun-spectrum-field')){
+        sunEQAura.dataset.mode=mode;sunEQAura.innerHTML='';
         const canvas=document.createElement('canvas');
         canvas.className='sun-spectrum-field';canvas.width=canvas.height=SUN_FIELD_PIXELS;
         canvas.setAttribute('aria-hidden','true');
@@ -7246,22 +7249,23 @@ Vector ${vector}. ${pair[1]}.`;
     if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
     const elapsed=Math.floor(sunSpectrumPhase);
     if(elapsed>0){
-      const steps=Math.min(SUN_SPECTRUM_RINGS,elapsed);
+      const historyLimit=sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400;
+      const steps=Math.min(historyLimit,elapsed);
       for(let i=0;i<steps;i++){
         const measured=sunSpectrumPeak>.001&&dt<interval*2;
         sunSpectrumHistory.unshift(measured?sunSpectrumPeak:null);
         sunSpectrumBandHistory.unshift(measured?sunSpectrumPeakBands:null);
       }
-      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,SUN_SPECTRUM_RINGS);
-      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
       sunSpectrumPhase-=elapsed;
       sunSpectrumPeak=0;sunSpectrumPeakBands=null;
     }
     // First audible signal appears immediately even at extremely slow rates.
     if(live&&energy>.001&&!sunSpectrumHistory.some(v=>v!=null)){
       sunSpectrumHistory.unshift(energy);sunSpectrumBandHistory.unshift({...bands});
-      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,SUN_SPECTRUM_RINGS);
-      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,SUN_SPECTRUM_RINGS);
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
       sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
     }
     const phase=clamp(sunSpectrumPhase,0,1);
@@ -7274,7 +7278,45 @@ Vector ${vector}. ${pair[1]}.`;
     const viewport=window.visualViewport;
     const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
     const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
-    drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
+    if(sunLab.waveType==='aurora')drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
+    else drawTravelingSpectrum(canvas,bands,energy,innerScale,sunWidth,phase);
+  }
+  // Fixed radial pitch: the viewport determines how far waves travel, not their spacing.
+  function drawTravelingSpectrum(canvas,bands,energy,innerScale,sunWidth,phase){
+    const ctx=canvas.getContext('2d');if(!ctx)return;
+    const vp=window.visualViewport,rect=sunEQAura.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+    const width=vp?.width||window.innerWidth,height=vp?.height||window.innerHeight;
+    const edge=Math.hypot(Math.max(Math.abs(cx),Math.abs(width-cx)),Math.max(Math.abs(cy),Math.abs(height-cy)));
+    const inner=Math.max(1,innerScale*sunWidth/2),pitch=8+clamp(sunNum('thickness',30)/260,0,1)*16;
+    const outer=lerp(inner+32,Math.max(inner+32,edge+pitch),spectrumSize/100);
+    const cssSize=outer*2,px=Math.max(64,Math.min(1200,Math.ceil(cssSize)));
+    if(canvas.width!==px||canvas.height!==px)canvas.width=canvas.height=px;
+    const size=cssSize+'px';if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
+    canvas.style.opacity='1';ctx.clearRect(0,0,px,px);
+    const scale=px/cssSize,center=px/2,range=outer-inner;
+    const grad=ctx.createRadialGradient(center,center,inner*scale,center,center,outer*scale);
+    const colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
+    const mix=sunFieldSmooth(clamp(sunNum('bandColorMix',70)/100,0,1)/.35),base=hslRgb(214,.95,.48);
+    const gap=clamp(sunNum('gap',0)/100,0,.85),zero={low:0,mid:0,high:0};
+    const count=Math.min(400,Math.ceil(range/pitch)+1),fade=x=>sunFieldSmooth((range-x)/Math.max(pitch*2,1));
+    function stop(x,col,alpha){grad.addColorStop(clamp(x/range,0,1),'rgba('+col.map(v=>Math.round(v)).join(',')+','+clamp(alpha*fade(x),0,.95).toFixed(4)+')');}
+    for(let i=0;i<count;i++){
+      const b=i===0?bands:(sunSpectrumBandHistory[i-1]||zero),e=i===0?energy:(sunSpectrumHistory[i-1]||0);
+      const vals=[b.low,b.mid,b.high],total=vals.reduce((a,v)=>a+v,0);
+      const start=Math.max(0,(i-1+phase)*pitch),end=Math.min(range,(i+phase)*pitch);
+      if(end<=start)continue;
+      if(total<=.001||e<=.001){stop(start,base,0);stop(end,base,0);continue;}
+      const visibleEnd=end-(end-start)*gap;let cursor=start;
+      for(let k=0;k<3;k++){
+        if(vals[k]<=.001)continue;
+        const span=(visibleEnd-start)*vals[k]/total,color=colors[k].map((v,j)=>lerp(base[j],v,mix)),alpha=clamp(e*(.25+.70*vals[k]),0,.95);
+        stop(cursor+span*.28,color,alpha);stop(cursor+span*.72,color,alpha);cursor+=span;
+      }
+      if(gap>0){stop(visibleEnd,base,0);stop(end,base,0);}
+    }
+    stop(range,base,0);
+    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(center,center,center,0,Math.PI*2);
+    ctx.arc(center,center,inner*scale,0,Math.PI*2,true);ctx.fill('evenodd');
   }
 
   let glowEnvelope=0;
@@ -7326,7 +7368,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(!sunEQAura||!sunEQFog)return;
     if(window.GELiveAudioEQ?.isEnabled?.()===false){
       sunEQAura.style.opacity='0';sunEQFog.style.opacity='0';
-      if(sunSpectrumSampleAt&&sunEQAura.dataset.mode==='spectrum'){
+      if(sunSpectrumSampleAt&&['spectrum','aurora'].includes(sunEQAura.dataset.mode)){
         for(const ring of sunEQAura.children)ring.style.opacity='0';
       }
       sunSpectrumHistory=[];sunSpectrumBandHistory=[];sunSpectrumSampleAt=0;sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;updateSpectrumMeter({low:0,mid:0,high:0},0);return;
@@ -7334,12 +7376,12 @@ Vector ${vector}. ${pair[1]}.`;
     const waveType=sunLab.waveType||'plasma';
     ensureSunEQ(waveType);
     // Hide fixed bars unless genuine live FFT data exists.
-    sunEQAura.style.opacity=waveType==='spectrum'?'1':live?'1':'.075';
+    sunEQAura.style.opacity=['spectrum','aurora'].includes(waveType)?'1':live?'1':'.075';
     const now=performance.now();
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
 
-    if(waveType==='spectrum'){updateSpectrumSun(live,now);return;}
+    if(waveType==='spectrum'||waveType==='aurora'){updateSpectrumSun(live,now);return;}
     if(waveType==='glow'){updateGlowSun(live,now);return;}
     if(sunEQFog)sunEQFog.style.opacity=live?'.9':'.04';
 
@@ -9737,8 +9779,32 @@ html.ge-radio-ui body #sunLabPanel.show #sunLabPublishStatus{margin:0 0 4px!impo
 html.ge-radio-ui body #sunLabPanel.show #sunLabPublishDismiss{min-height:32px!important}
 html.ge-radio-ui body #sunLabPanel.show #sunLabGrid > #sunLabImportLegacy:not([hidden]){align-self:flex-start!important;margin:8px 0!important;max-width:100%!important;white-space:normal!important}
 @media(max-width:819px),(pointer:coarse){
- html.ge-radio-ui body #sunLabPanel.show{height:min(65dvh,620px)!important;max-height:65dvh!important}
+ html.ge-radio-ui body #sunLabPanel.show{height:min(69dvh,680px)!important;max-height:69dvh!important}
 }
+
+/* Compact mode selector and mixer: one line per control, wider scroll grip. */
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:3px!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabModeBar button{min-width:0!important;padding:3px 2px!important;font-size:12px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollRail:not([hidden]){flex-basis:40px!important;min-width:40px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollPosition{width:38px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSunLabScrollPosition::-webkit-slider-thumb{width:24px!important;height:32px!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row:not([style*="display: none"]){
+ grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 40px!important;align-items:center!important;gap:4px!important;padding:2px 0!important;min-height:36px!important
+}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row label{grid-column:1!important;grid-row:1!important;text-align:left!important;font-size:11px!important;line-height:1.15!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row input[type=range]{grid-column:2!important;grid-row:1!important;width:100%!important;min-width:0!important;height:34px!important;margin:0!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row output{grid-column:3!important;grid-row:1!important;font-size:11px!important;text-align:right!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sunlab-row small,html.ge-radio-ui body #sunLabPanel.show #sunLabGrid .sun-hue-swatch{display:none!important}
+html.ge-radio-ui body #sunLabPanel.show #sunLabGrid{gap:1px!important}
+html.ge-radio-ui body #sunLabPanel.show #spectrumMeter:not([hidden]){grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:3px 8px!important;padding:4px 6px!important}
+html.ge-radio-ui body #sunLabPanel.show #spectrumMeter .spectrum-meter-line{grid-template-columns:35px minmax(0,1fr) 29px!important;gap:3px!important;font-size:10px!important}
+html.ge-radio-ui body #sunLabPanel.show #spectrumMeter .spectrum-meter-line.combined{padding:0!important;margin:0!important;border:0!important}
+html.ge-radio-ui body #sunLabPanel.show #sunEQSourceStatus{font-size:10px!important;padding:0!important}
+html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow:not([hidden]){padding:3px!important;margin:0!important;border:0!important;font-size:11px!important;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 40px!important;align-items:center!important;gap:4px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow label{grid-column:1!important;grid-row:1!important;font-size:11px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow input{grid-column:2!important;grid-row:1!important;min-width:0!important;height:34px!important}
+html.ge-radio-ui body #sunLabPanel.show #geSpectrumSizeRow output{grid-column:3!important;grid-row:1!important;font-size:11px!important}
+#sunEQAura[data-mode="aurora"]{inset:-2%;filter:none!important}
 </style>
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
