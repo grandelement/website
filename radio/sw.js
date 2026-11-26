@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-published-eq-v5';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_PUBLISHED_EQ_V5';
+const VERSION='2026.11.25-access-repair-v6';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_ACCESS_REPAIR_V6';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -63,6 +63,19 @@ async function validAsset(path,response){
   return (await response.clone().blob()).size>0;
  }catch(_){return false}
 }
+// Validate release-sensitive files as well as their MIME type and nonempty body.
+async function validRepairAsset(path,response){
+ if(!(await validAsset(path,response)))return false;
+ const markers={
+  './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite'],
+  './live-spectrum.js':['20261125-eq-offline-v4'],
+  './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}'],
+  './offline-manager.js':['2026.11.25-offline-manager-v11-library']
+ }[path];
+ if(!markers)return true;
+ try{const source=await response.clone().text();return markers.every(marker=>source.includes(marker))}
+ catch(_){return false}
+}
 async function offlineArtwork(cache){
  // One maintained source of truth for the deliberately compact set of
  // pictures guaranteed to be playable without Wi-Fi.
@@ -97,6 +110,7 @@ async function installShell(){
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
   if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
+  if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
   await cache.put(path,response.clone());
  }));
  const offlinePictures=await offlineArtwork(cache);
@@ -276,7 +290,7 @@ async function shellStatus(){
   if(!(await validIndex(index,true)))result.missing.push('Radio page');
   for(const file of REQUIRED){
    const saved=await shell.match(file,{ignoreSearch:true});
-   if(!(await validAsset(file,saved)))result.missing.push(file);
+   if(!(await validRepairAsset(file,saved)))result.missing.push(file);
   }
   try{
    for(const path of await offlineArtwork(shell)){
@@ -288,10 +302,49 @@ async function shellStatus(){
  }catch(_){result.missing.push('Offline startup cache unavailable')}
  return result;
 }
+// Repair the installed release in place. Never clear storage, delete music,
+// unregister workers or fetch audio. Valid files are reused.
+let shellRepairTask=null;
+async function repairShell(){
+ const before=await shellStatus();
+ if(before.ready)return {...before,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired:0};
+ if(self.navigator?.onLine===false)return {...before,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired:0,error:'Reconnect to repair missing application files.'};
+ let repaired=0;
+ const errors=[];
+ try{
+  const cache=await caches.open(SHELL_CACHE);
+  const index=await cache.match('./index.html',{ignoreSearch:true});
+  if(!(await validIndex(index,true))){
+   const fresh=await timeoutFetch(requestURL('./index.html'),{cache:'no-store'},25000);
+   if(!(await validIndex(fresh,true)))throw Error('A different website version is available. Reopen Radio online to update safely.');
+   await cache.put('./index.html',fresh.clone());
+   await cache.put('./',fresh.clone());repaired++;
+  }
+  async function restore(path){
+   try{
+    const old=await cache.match(path,{ignoreSearch:true});
+    if(await validRepairAsset(path,old))return;
+    const response=await timeoutFetch(requestURL(path),{cache:'no-store'},25000);
+    if(!(await validRepairAsset(path,response)))throw Error('File could not be verified for this release');
+    await cache.put(path,response.clone());repaired++;
+   }catch(error){errors.push(path+': '+String(error?.message||error));}
+  }
+  await Promise.all(REQUIRED.map(restore));
+  await Promise.all((await offlineArtwork(cache)).map(restore));
+ }catch(error){errors.push(String(error?.message||error));}
+ const after=await shellStatus();
+ return {...after,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired,
+  ...(errors.length?{error:errors[0]}:{})};
+}
 self.addEventListener('message',event=>{
- if(event.data?.type!=='GE_RADIO_SHELL_STATUS')return;
+ const type=event.data?.type;
+ if(type!=='GE_RADIO_SHELL_STATUS'&&type!=='GE_RADIO_SHELL_REPAIR')return;
  event.waitUntil((async()=>{
-  const result=await shellStatus();
+  let result;
+  if(type==='GE_RADIO_SHELL_REPAIR'){
+   if(!shellRepairTask)shellRepairTask=repairShell().finally(()=>{shellRepairTask=null;});
+   result=await shellRepairTask;
+  }else result=await shellStatus();
   try{event.ports?.[0]?.postMessage(result)}catch(_){}
  })());
 });

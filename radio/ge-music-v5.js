@@ -119,6 +119,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .filterRow select[hidden]{display:none!important}
 .musicCodeTools{display:flex;align-items:center;gap:6px;margin-top:0;border:1px solid #ae83e9;border-radius:9px;padding:6px;background:linear-gradient(95deg,#30174b,#171c40 75%);box-shadow:inset 0 0 0 1px rgba(220,174,255,.12)}
 .musicCodeTools[hidden]{display:none!important}
+.musicCodeTools{flex-wrap:wrap}
+.geRepairTools{flex:0 0 100%;min-width:0;display:grid;gap:4px}
+.geRepairTools .geRepairWebsite{width:100%;min-height:38px;white-space:normal}
+.geRepairStatus{margin:0;color:#dfbaff;font-size:12px;overflow-wrap:anywhere}
+.geRepairStatus[hidden]{display:none!important}
 .musicCodeTools label{color:#eddaff;font-size:11px;font-weight:900;letter-spacing:.035em;white-space:nowrap;flex:0 0 auto}
 .musicCodeTools input{min-width:0;flex:1 1 auto;width:0;color:#fff;background:#090e23;border:1px solid #ab7bda;border-radius:7px;padding:7px 8px;font-size:16px;min-height:38px}
 .musicCodeTools button{min-height:38px;font-size:11px;padding:6px 8px;border-color:#d0a0fb;background:#673a8c}
@@ -1529,7 +1534,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailSongs">SONGS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><input class="gePlaylistNameInline" type="text" maxlength="100" autocomplete="off" placeholder="Playlist name" aria-label="Name playlist to save" hidden><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
- <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
+ <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button><div class="geRepairTools"><button class="geRepairWebsite" type="button">REPAIR WEBSITE</button><p class="geRepairStatus" role="status" aria-live="polite" hidden></p></div></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
@@ -3516,6 +3521,32 @@ el('.gePlaylistPicker').addEventListener('click',event=>{
 });
 
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
+// Recovery is deliberately public, not dependent on a working access code.
+el('.geRepairWebsite').addEventListener('click',async()=>{
+ const button=el('.geRepairWebsite'),status=el('.geRepairStatus');
+ const show=message=>{status.hidden=false;status.textContent=message;};
+ if(button.disabled)return;
+ if(window.GEOfflineDownloads?.isBusy?.()){show('Finish or stop your current offline download first.');return;}
+ if(!navigator.serviceWorker){show('Website repair is not supported in this browser. Reopen Radio online.');return;}
+ button.disabled=true;show('Checking saved website files…');
+ try{
+  const registration=await navigator.serviceWorker.getRegistration('./');
+  const worker=registration?.active;
+  if(!worker){show('Website setup is not ready. Reopen Radio online and try again.');return;}
+  const result=await new Promise((resolve,reject)=>{
+   const channel=new MessageChannel();
+   const timer=setTimeout(()=>{channel.port1.close();reject(Error('Repair timed out. Reopen Radio online and try again.'));},65000);
+   channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data);};
+   try{worker.postMessage({type:'GE_RADIO_SHELL_REPAIR'},[channel.port2]);}
+   catch(error){clearTimeout(timer);channel.port1.close();reject(error);}
+  });
+  if(result?.type!=='GE_RADIO_SHELL_REPAIR_RESULT')throw Error('Repair response unavailable. Reopen Radio online.');
+  if(result.ready){
+   show(result.repaired?'REPAIRED '+result.repaired+' WEBSITE FILE(S). Music and settings kept. Reopen Radio when ready.':'WEBSITE READY · No files needed downloading.');
+  }else show('REPAIR INCOMPLETE · '+(result.error||result.missing?.[0]||'Reconnect and try again.')+' Saved music and settings kept.');
+ }catch(error){show(String(error?.message||error)+' Saved music and settings kept.');}
+ finally{button.disabled=false;}
+});
 el('.accessToggle').addEventListener('click',()=>{
  const panel=el('.musicCodeTools'),opened=panel.hidden;
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));

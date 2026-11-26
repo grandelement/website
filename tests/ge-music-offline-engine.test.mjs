@@ -269,7 +269,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261125-published-eq-v5/);
+ assert.match(html,/sw\.js\?v=20261125-access-repair-v6/);
  assert.ok(workerVersion,'Service worker advertises a version');
  assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
 });
@@ -351,4 +351,35 @@ test('EQ preset publishing is owner-only, code scope is advanced editing only, a
  const backroom=readFileSync('backroom/index.html','utf8');
  assert.match(backroom,/id="brTuneEQ" href="\.\.\/radio\/\?eq_admin=1"/);
  assert.match(backroom,/ADVANCED EQ KNOBS · FOR THIS CODE ONLY/);
+});
+
+test('public ACCESS repair reuses healthy files and never fetches or deletes music',async()=>{
+ const origin='https://example.test';
+ const assets=new Map(),musicAssets=new Map([['saved.mp3','original recording']]);
+ const fetches=[];
+ const self={location:{href:origin+'/radio/sw.js'},navigator:{onLine:true},addEventListener(){}};
+ const key=path=>new URL(typeof path==='string'?path:path.url,self.location.href).href;
+ const cache={match:async path=>assets.get(key(path))?.clone(),
+  put:async(path,res)=>assets.set(key(path),res.clone())};
+ const caches={open:async name=>{assert.match(name,/^ge-radio-shell-/);return cache}};
+ const payload=(path)=>new Response(
+  path.endsWith('offline-assets.json')?JSON.stringify({backgrounds:['31.gif','47.gif']}):
+  path.endsWith('index.html')?'<!doctype html><title>Grand Element Radio</title><div id="shipStage"></div><audio id="player"></audio>GE_RADIO_UI_BUILD_20261125_ACCESS_REPAIR_V6':
+  'geOfflineListBtn geRepairWebsite 20261125-eq-offline-v4 Published EQ editor: #sunEQAura{inset:0!important} 2026.11.25-offline-manager-v11-library',
+  {headers:{'Content-Type':/\.json$/.test(path)?'application/json':/\.gif$/.test(path)?'image/gif':/\.jpg$/.test(path)?'image/jpeg':'text/plain'}});
+ const ctx={self,caches,URL,Response,AbortController,setTimeout,clearTimeout,fetch:async path=>{fetches.push(String(path));return payload(String(path))}};
+ const vm=await import('node:vm');
+ const api=vm.runInNewContext(sw+'\n;({repairShell,REQUIRED})',ctx);
+ for(const path of [...api.REQUIRED,'./index.html','./','../ge-images/img/47.gif'])assets.set(key(path),payload(key(path)));
+ const healthy=await api.repairShell();
+ assert.equal(healthy.ready,true);assert.equal(healthy.repaired,0);assert.equal(fetches.length,0);
+ const missing=key('../ge-images/img/47.gif');assets.delete(missing);
+ const restored=await api.repairShell();
+ assert.equal(restored.ready,true);assert.equal(restored.repaired,1);assert.deepEqual(fetches,[missing]);
+ assets.delete(missing);self.navigator.onLine=false;
+ const offline=await api.repairShell();
+ assert.equal(offline.ready,false);assert.equal(fetches.length,1);
+ assert.equal(musicAssets.get('saved.mp3'),'original recording');
+ assert.match(music,/class="geRepairWebsite"/);
+ assert.match(music,/type:'GE_RADIO_SHELL_REPAIR'/);
 });
