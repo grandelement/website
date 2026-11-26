@@ -5370,6 +5370,17 @@ window.addEventListener('online',()=>{
   const SUN_GRACE_MS=6000;
   const floatingSun=$('geFloatingSun');
   const floatingSunImg=$('geFloatingSunImg');
+  const normalSun=$('homeLink'),sunArt=$('geLogo');
+  const effectLayers=[$('sunEQFog'),$('sunEQAura')].filter(Boolean);
+  // Keep the actual live effect nodes, not a static copy of the Sun.
+  function syncHiddenSunEffects(){
+    const body=document.body;
+    const floating=body.classList.contains('view-player')&&body.classList.contains('hud-hidden')&&!body.classList.contains('iam-studio-open');
+    const target=floating?floatingSun:normalSun,anchor=floating?floatingSunImg:sunArt;
+    if(!target||!anchor)return;
+    for(const layer of effectLayers)if(layer.parentNode!==target)target.insertBefore(layer,anchor);
+  }
+  new MutationObserver(syncHiddenSunEffects).observe(document.body,{attributes:true,attributeFilter:['class']});
 
   function clearSunFade(){if(sunFadeTimer){clearTimeout(sunFadeTimer);sunFadeTimer=0;}}
   function positionFloatingSunFromLogo(){
@@ -5407,6 +5418,7 @@ window.addEventListener('online',()=>{
   function show(){
     clearSunFade();
     document.body.classList.remove('hud-hidden','sun-faded');
+    syncHiddenSunEffects();
     lastActivity=Date.now();
   }
   function hideNow(){
@@ -5416,6 +5428,7 @@ window.addEventListener('online',()=>{
     if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
     document.body.classList.add('hud-hidden');
     document.body.classList.remove('sun-faded');
+    syncHiddenSunEffects();
     if(document.body.classList.contains('view-player'))scheduleSunFade(SUN_GRACE_MS);
   }
   function sunActivity(){
@@ -9322,7 +9335,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <link rel="stylesheet" href="./radio-layout.css?v=20261125-eq-toggle-v4" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
-<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261119-v1" data-ge-css="sun-lab-transparency">
+<link rel="stylesheet" href="./sun-lab-transparency.css?v=20261125-album-eq-v7" data-ge-css="sun-lab-transparency">
 <!-- Portrait sizing now lives only in radio-layout.css; retired player-mobile-fit.css overrides. -->
 
 
