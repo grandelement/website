@@ -4,7 +4,7 @@
    Existing Cache Storage media, catalog, playlist, entitlement and selection keys are never cleared. */
 (()=>{
 'use strict';
-const VERSION='2026.11.26-offline-manager-v12-deep-removal';
+const VERSION='2026.11.26-offline-manager-v13-storage-inventory';
 const AUDIO='ge-radio-media-v4';
 const PLAN='GE_RADIO_OFFLINE_PLAN_V1';
 const ACTIVATED='GE_RADIO_OFFLINE_ACTIVATED_V1';
@@ -351,6 +351,49 @@ async function inspectStorage(){
  return {files:[...files.values()].sort((a,b)=>a.path.localeCompare(b.path)),copies:entries.length,bytes,unknown,
   cachesScanned:(await caches.keys()).length,errors,usage:await storageEstimate()};
 }
+async function inspectDeviceStorage(){
+ const scan=await inspectStorage();
+ const categories={artwork:{count:0,bytes:0,unknown:0},startup:{count:0,bytes:0,unknown:0},other:{count:0,bytes:0,unknown:0}};
+ for(const name of await caches.keys()){
+  try{
+   const cache=await caches.open(name);
+   for(const request of await cache.keys()){
+    if(recordingPath(request))continue;
+    let url;try{url=new URL(request.url,location.href)}catch(_){continue}
+    const kind=url.pathname.includes('/ge-images/')||/\.(?:png|jpe?g|gif|webp|svg|ico)$/i.test(url.pathname)?'artwork':
+      /^ge-radio-shell-|^ge-radio-app-/i.test(name)?'startup':'other';
+    const item=categories[kind];item.count++;
+    const n=await entryBytes(cache,request).catch(()=>0);item.bytes+=n;if(!n)item.unknown++;
+   }
+  }catch(error){scan.errors.push(name+': '+String(error?.message||error))}
+ }
+ const info={indexedDB:{available:false,names:[],protected:[]},privateFiles:{available:false,files:0,bytes:0,limited:false},localStorage:{bytes:null},details:null};
+ try{
+  if(typeof indexedDB!=='undefined'&&typeof indexedDB.databases==='function'){
+   const dbs=await indexedDB.databases();info.indexedDB.available=true;
+   info.indexedDB.names=dbs.map(d=>String(d.name||'Unnamed'));info.indexedDB.protected=info.indexedDB.names.filter(n=>/iam|studio/i.test(n));
+  }
+ }catch(error){scan.errors.push('Database inventory: '+String(error?.message||error))}
+ try{
+  if(typeof navigator.storage?.getDirectory==='function'){
+   const root=await navigator.storage.getDirectory();info.privateFiles.available=true;
+   let visited=0;
+   async function walk(dir,depth){
+    if(depth>12){info.privateFiles.limited=true;return;}
+    for await(const [,handle] of dir.entries()){
+     if(++visited>2000){info.privateFiles.limited=true;return;}
+     if(handle.kind==='directory')await walk(handle,depth+1);
+     else if(handle.kind==='file'){try{const file=await handle.getFile();info.privateFiles.files++;info.privateFiles.bytes+=file.size}catch(_){info.privateFiles.limited=true}}
+     if(visited>2000)return;
+    }
+   }
+   await walk(root,0);
+  }
+ }catch(error){scan.errors.push('Private file inventory: '+String(error?.message||error))}
+ try{let size=0;for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);size+=2*(key.length+(localStorage.getItem(key)||'').length)}info.localStorage.bytes=size}catch(_){}
+ try{const estimate=await navigator.storage?.estimate?.();info.details=estimate?.usageDetails||null}catch(_){}
+ return {...scan,categories,...info};
+}
 async function listSaved(){return (await inspectStorage()).files}
 async function removeSaved(paths=null){
  if(busy)return {error:'busy',message:'Stop the current download first.'};
@@ -446,7 +489,7 @@ try{
  if(document?.readyState==='complete')setTimeout(onReturn,0);
 }catch(_){}
 window.GEOffline={isActive:active};
-window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,listSaved,inspectStorage,removeSaved,reloadSaved,
+window.GEOfflineDownloads={inspect,save,repair,stop,catalog,plan,active,installed,canDownload,listSaved,inspectStorage,inspectDeviceStorage,removeSaved,reloadSaved,
  isBusy:()=>busy,resume,syncStatus,status:()=>({...lastStatus}),pending,
  promptCode:()=>bridge().promptCode?.()};
 })();

@@ -3285,13 +3285,27 @@ async function refreshOfflineLibrary(){
  const engine=window.GEOfflineDownloads;
  if(!engine?.listSaved){libraryMessage('File inventory unavailable. Reopen Radio online.');return;}
  try{
-  const scan=engine.inspectStorage?await engine.inspectStorage():null;
+  const scan=engine.inspectDeviceStorage?await engine.inspectDeviceStorage():engine.inspectStorage?await engine.inspectStorage():null;
   const files=scan?scan.files:await engine.listSaved();
   const list=el('.geOfflineFiles');list.replaceChildren();
   const size=files.reduce((n,f)=>n+f.bytes,0);
   el('.geOfflineFileCount').textContent=files.length+' recordings · '+(scan?.copies??files.length)+' copies · '+(size/1048576).toFixed(1)+' MB'+(scan?.unknown?' + unknown size':'');
   if(scan)list.append(elem('p','empty','Scanned '+scan.cachesScanned+' browser caches'+(Number.isFinite(scan.usage)?' · total website storage '+(scan.usage/1048576).toFixed(1)+' MB':'')+(scan.errors.length?' · some caches could not be read':'')));
-  if(!files.length)list.append(elem('p','empty','No saved recordings on this device.'));
+  if(scan?.categories){
+   const mb=n=>(n/1048576).toFixed(1)+' MB';
+   const lines=[
+    'Artwork / backgrounds: '+scan.categories.artwork.count+' entries · '+mb(scan.categories.artwork.bytes)+(scan.categories.artwork.unknown?' + unknown size':''),
+    'Startup files (protected): '+scan.categories.startup.count+' entries · '+mb(scan.categories.startup.bytes)+(scan.categories.startup.unknown?' + unknown size':''),
+    'Other cache entries: '+scan.categories.other.count+' · '+mb(scan.categories.other.bytes)+(scan.categories.other.unknown?' + unknown size':''),
+    'Databases: '+(scan.indexedDB.available?scan.indexedDB.names.length+' detected (protected)':'not enumerable on this browser'),
+    'Private browser files: '+(scan.privateFiles.available?scan.privateFiles.files+' · '+mb(scan.privateFiles.bytes)+(scan.privateFiles.limited?' · partial scan':''):'not accessible on this browser'),
+    'Settings: '+(scan.localStorage.bytes===null?'not accessible':mb(scan.localStorage.bytes)+' (approx., protected)'),
+    'System HTTP cache, other apps and SD cards: device settings required.'
+   ];
+   if(scan.indexedDB.protected.length)lines.push('I AM Studio recordings protected.');
+   for(const line of lines)list.append(elem('p','empty',line));
+  }
+  if(!files.length)list.append(elem('p','empty','No saved recordings in this browser cache.'));
   for(const file of files){
    const row=elem('div','geOfflineFileRow');row.setAttribute('role','listitem');
    const track=file.station?{title:file.path.split('/').pop(),album:'Station identification'}:details(file.path);

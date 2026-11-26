@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.26-deep-media-cleanup-v3';
+const VERSION='2026.11.26-storage-inventory-controls-v4';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
