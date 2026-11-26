@@ -63,6 +63,19 @@ async function validAsset(path,response){
   return (await response.clone().blob()).size>0;
  }catch(_){return false}
 }
+// Validate release-sensitive files as well as their MIME type and nonempty body.
+async function validRepairAsset(path,response){
+ if(!(await validAsset(path,response)))return false;
+ const markers={
+  './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite'],
+  './live-spectrum.js':['20261125-eq-offline-v4'],
+  './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}'],
+  './offline-manager.js':['2026.11.25-offline-manager-v11-library']
+ }[path];
+ if(!markers)return true;
+ try{const source=await response.clone().text();return markers.every(marker=>source.includes(marker))}
+ catch(_){return false}
+}
 async function offlineArtwork(cache){
  // One maintained source of truth for the deliberately compact set of
  // pictures guaranteed to be playable without Wi-Fi.
@@ -277,7 +290,7 @@ async function shellStatus(){
   if(!(await validIndex(index,true)))result.missing.push('Radio page');
   for(const file of REQUIRED){
    const saved=await shell.match(file,{ignoreSearch:true});
-   if(!(await validAsset(file,saved)))result.missing.push(file);
+   if(!(await validRepairAsset(file,saved)))result.missing.push(file);
   }
   try{
    for(const path of await offlineArtwork(shell)){
@@ -310,16 +323,9 @@ async function repairShell(){
   async function restore(path){
    try{
     const old=await cache.match(path,{ignoreSearch:true});
-    if(await validAsset(path,old))return;
+    if(await validRepairAsset(path,old))return;
     const response=await timeoutFetch(requestURL(path),{cache:'no-store'},25000);
-    if(!(await validAsset(path,response)))throw Error('File could not be verified');
-    const markers={
-     './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite'],
-     './live-spectrum.js':['20261125-eq-offline-v4'],
-     './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}'],
-     './offline-manager.js':['2026.11.25-offline-manager-v11-library']
-    }[path];
-    if(markers){const source=await response.clone().text();if(!markers.every(marker=>source.includes(marker)))throw Error('Release mismatch');}
+    if(!(await validRepairAsset(path,response)))throw Error('File could not be verified for this release');
     await cache.put(path,response.clone());repaired++;
    }catch(error){errors.push(path+': '+String(error?.message||error));}
   }
