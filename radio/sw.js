@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-album-eq-v7';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_ALBUM_EQ_V7';
+const VERSION='2026.11.25-hue-preview-v8';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261125_HUE_PREVIEW_V8';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -70,7 +70,7 @@ async function validRepairAsset(path,response){
   './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite','albumFullySelected'],
   './preview-lab.html':['Use the canonical same-origin recording for every album'],
   './live-spectrum.js':['20261125-eq-offline-v4'],
-  './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}'],
+  './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}','.sun-hue-swatch'],
   './offline-manager.js':['2026.11.25-offline-manager-v11-library']
  }[path];
  if(!markers)return true;
