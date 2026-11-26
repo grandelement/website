@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn">Shuffle</button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
+    <button data-proxy="shuffleBtn"><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -10014,6 +10014,66 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
+<script id="ge-shuffle-b8-bioluminescence">
+(()=>{
+ // Owner-approved B8. Random spawn locations, lifetimes, velocities and brightness;
+ // no repeating keyframes or fixed star arrangement.
+ const source=document.getElementById('shuffleBtn');if(!source)return;
+ const motion=matchMedia('(prefers-reduced-motion: reduce)');
+ const random=(a,b)=>a+Math.random()*(b-a);
+ const createParticle=(now)=>({
+   x:random(0,300),y:random(0,110),vx:random(-18,18),vy:random(-9,9),
+   r:random(1,3),strength:random(.2,1),start:now,duration:random(350,3200)
+ });
+ const surfaces=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')].map(button=>{
+   const canvas=document.createElement('canvas');canvas.className='ge-shuffle-b8-canvas';canvas.setAttribute('aria-hidden','true');
+   button.prepend(canvas);return {button,canvas,ctx:canvas.getContext('2d'),particles:[],next:0};
+ }).filter(x=>x.ctx);
+ let raf=0;
+ function visible(s){
+   return source.getAttribute('aria-pressed')==='true'&&!motion.matches&&!document.hidden&&
+     !document.body.classList.contains('hud-hidden')&&s.button.getClientRects().length>0&&
+     (s.button===source?!document.body.classList.contains('view-ship'):document.body.classList.contains('view-ship'));
+ }
+ function clear(s){
+   s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);s.particles=[];s.next=0;
+ }
+ function frame(now){
+   raf=0;let running=false;
+   for(const s of surfaces){
+     if(!visible(s)){clear(s);continue;}
+     running=true;
+     const w=s.button.clientWidth,h=s.button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
+     if(!w||!h)continue;
+     const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
+     if(s.canvas.width!==pw||s.canvas.height!==ph){s.canvas.width=pw;s.canvas.height=ph;}
+     const ctx=s.ctx;ctx.setTransform(pw/300,0,0,ph/110,0,0);ctx.clearRect(0,0,300,110);
+     if(now>=s.next){s.particles.push(createParticle(now));s.next=now+random(35,240);}
+     s.particles=s.particles.filter(p=>now-p.start<p.duration);
+     for(const p of s.particles){
+       const age=(now-p.start)/p.duration,alpha=Math.sin(age*Math.PI)*p.strength;
+       const x=p.x+p.vx*(now-p.start)/1000,y=p.y+p.vy*(now-p.start)/1000,radius=p.r*4;
+       const g=ctx.createRadialGradient(x,y,0,x,y,radius);
+       g.addColorStop(0,'rgba(65,255,200,'+alpha+')');
+       g.addColorStop(.24,'rgba(65,255,200,'+(alpha*.5)+')');
+       g.addColorStop(1,'rgba(65,255,200,0)');
+       ctx.fillStyle=g;ctx.fillRect(x-radius,y-radius,radius*2,radius*2);
+       ctx.fillStyle='rgba(235,250,255,'+alpha+')';ctx.beginPath();ctx.arc(x,y,p.r*.55,0,Math.PI*2);ctx.fill();
+     }
+   }
+   if(running)raf=requestAnimationFrame(frame);
+ }
+ function wake(){
+   if(raf)cancelAnimationFrame(raf);raf=0;
+   for(const s of surfaces)if(!visible(s))clear(s);
+   if(surfaces.some(visible))raf=requestAnimationFrame(frame);
+ }
+ new MutationObserver(wake).observe(source,{attributes:true,attributeFilter:['aria-pressed']});
+ new MutationObserver(wake).observe(document.body,{attributes:true,attributeFilter:['class']});
+ document.addEventListener('visibilitychange',wake);window.addEventListener('resize',wake);window.addEventListener('pageshow',wake);
+ motion.addEventListener?.('change',wake);wake();
+})();
+</script>
 <script id="ge-music-button-album-flight-v1">
 (()=>{
  const button=document.getElementById('geMusicV5Button');
@@ -10122,7 +10182,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-standby-beacon-v3" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-shuffle-b8-v1" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-unified-dock-v2" data-ge-css="sun-lab-transparency">
