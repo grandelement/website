@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.71-20261126-ALBUM-HIT-AND-OFFLINE-RESUME';
+const BUILD='GE-MUSIC-V7.72-20261126-ARTWORK-AND-SONG-ISOLATION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1326,29 +1326,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
  align-items:center!important;gap:0!important;
  background:#071524!important;border:0!important;outline:0!important;box-shadow:none!important;
 }
-/* Blend adjoining album artwork instead of exposing a hard image boundary.
-   Each following section overlaps only the previous artwork, while its heading
-   and songs stay below the transition and retain their own touch targets. */
+/* Album artwork never crosses a neighboring track or heading. */
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
- background:transparent!important;
+ background:linear-gradient(180deg,#0a1c32,#071524)!important;
+ pointer-events:none!important;overflow:hidden!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare{
- margin-top:-72px!important;
- padding-top:92px!important;
+ margin-top:0!important;padding-top:20px!important;
 }
-/* Album artwork may overlap visually, but must never intercept a previous
-   album's last track. Only actual controls participate in hit testing. */
-.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{pointer-events:none!important}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > :is(.albumBrowseHeading,.song),
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .songTitlePlay{
  pointer-events:auto!important;touch-action:manipulation!important;
 }
-.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare > .geAlbumSectionArt,
-.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare::before{
- -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
- mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
-}
-/* Real image elements avoid CSS-background failures and a painted section seam. */
+/* Real image elements avoid CSS-background failures. */
+.window.geSimpleSongBrowser .scroll .geAlbumArtUnavailable > .geAlbumSectionArt{visibility:hidden!important}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > .geAlbumSectionArt{
  position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;
  object-position:center;z-index:0;pointer-events:none;margin:0;padding:0;border:0;
@@ -1387,7 +1378,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
   min-height:min(100vw,100dvh)!important;
   height:auto!important;max-height:none!important;aspect-ratio:auto!important;
-  overflow:visible!important;row-gap:4px!important;
+  overflow:hidden!important;row-gap:4px!important;
   padding:20px 12px 24px!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .albumBrowseHeading{
@@ -2527,6 +2518,7 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
+ row.dataset.songPath=track.path;row.dataset.songTitle=track.title;
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -2539,7 +2531,8 @@ function appendSong(parent,track){
    row.classList.toggle('selectedSong',checkbox.checked);
    songText.setAttribute('aria-pressed',String(checkbox.checked));
    songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
-   if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
+   if(state.view==='browse-songs')syncBrowseSongSelections();
+   else if(state.view==='checked'||state.view==='playlist-order'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
      control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
@@ -2751,6 +2744,21 @@ function albumFullySelected(album){
  const available=selectableAlbumTracks(album);
  return available.length>0&&available.every(track=>state.selected.has(track.path));
 }
+// Keep existing artwork nodes and scroll position when a song is selected.
+function syncBrowseSongSelections(){
+ updateMeta();
+ el('.geBrowseSave').disabled=state.savingShared||!state.selected.size;
+ el('.geBrowseMessage').textContent=state.notice||'';
+ for(const section of scroller.querySelectorAll('.geSongsAlbumSquare')){
+  const heading=section.querySelector('.albumBrowseHeading'),complete=albumFullySelected(section.dataset.album);
+  if(heading){heading.setAttribute('aria-pressed',String(complete));heading.setAttribute('aria-label',(complete?'Deselect':'Select')+' all songs on '+section.dataset.album);}
+  for(const row of section.querySelectorAll('.song[data-song-path]')){
+   const checked=state.selected.has(row.dataset.songPath),button=row.querySelector('.songTitlePlay');
+   row.classList.toggle('selectedSong',checked);
+   if(button){button.setAttribute('aria-pressed',String(checked));button.setAttribute('aria-label',(checked?'Deselect ':'Select ')+row.dataset.songTitle);}
+  }
+ }
+}
 function toggleAlbumTracks(album){
  const tracks=selectableAlbumTracks(album);
  if(!tracks.length){say('No available songs on '+album);return;}
@@ -2761,7 +2769,7 @@ function toggleAlbumTracks(album){
  }
  if(!allSelected)state.lastSelectedAlbum=album;
  saveSelected();
- render();
+ if(state.view==='browse-songs')syncBrowseSongSelections();else render();
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
@@ -3106,8 +3114,19 @@ function render(){
         const art=document.createElement('img');
         art.className='geAlbumSectionArt';
         art.alt='';art.loading='eager';art.decoding='async';
-        art.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href;
-        art.addEventListener('error',()=>console.warn('Album artwork unavailable:',art.src),{once:true});
+        const filename='Grand Element - '+track.album+'.jpg';
+        const primary=new URL('../ge-images/images/'+encodeURIComponent(filename),location.href);
+        // Recover a failed cover without clearing user data or the offline library.
+        let attempt=0;
+        art.addEventListener('error',()=>{
+          if(navigator.onLine!==false&&attempt<2){
+            attempt++;
+            if(attempt===1){const retry=new URL(primary);retry.searchParams.set('v','artwork-20261126');art.src=retry.href;}
+            else art.src='https://raw.githubusercontent.com/grandelement/website/main/ge-images/images/'+encodeURIComponent(filename);
+          }else{section.classList.add('geAlbumArtUnavailable');console.warn('Album artwork unavailable:',filename);}
+        });
+        art.addEventListener('load',()=>section.classList.remove('geAlbumArtUnavailable'));
+        art.src=primary.href;
         section.append(art);
         const heading=elem('button','albumBrowseHeading');
         heading.append(elem('span','geAlbumTitleGlow',track.album));
