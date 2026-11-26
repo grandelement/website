@@ -9322,6 +9322,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   var x=0,y=0,scale=1,dragging=false,moved=false;
   var sx=0,sy=0,ox=0,oy=0,lx=0,ly=0,lt=0,vx=0,vy=0;
   var pinchDistance=0,pinchScale=1,raf=0,lastFrame=0,samples=[];
+  var trailLast=0,trailX=null,trailY=null,trailNodes=[];
 
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   function apply(){
@@ -9329,6 +9330,22 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     sun.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,0) scale('+scale.toFixed(3)+')';
   }
   function activity(){if(window.GEHUD&&window.GEHUD.sunActivity)window.GEHUD.sunActivity();}
+  function clearTrail(){trailNodes.forEach(node=>node.remove());trailNodes=[];trailX=trailY=null;trailLast=0;}
+  function trail(){
+    if(!document.body.classList.contains('hud-hidden')||document.body.classList.contains('sun-faded')||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    var now=performance.now(),rect=sun.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+    if(trailX===null){trailX=cx;trailY=cy;return;}
+    if(now-trailLast<55||Math.hypot(cx-trailX,cy-trailY)<8)return;
+    trailLast=now;trailX=cx;trailY=cy;
+    var node=document.createElement('span');node.className='ge-sun-motion-trace';node.setAttribute('aria-hidden','true');
+    node.style.left=cx+'px';node.style.top=cy+'px';node.style.width=rect.width+'px';node.style.height=rect.height+'px';
+    document.body.appendChild(node);trailNodes.push(node);
+    while(trailNodes.length>16)trailNodes.shift().remove();
+    setTimeout(()=>{node.remove();trailNodes=trailNodes.filter(n=>n!==node);},1100);
+  }
+  new MutationObserver(()=>{if(!document.body.classList.contains('hud-hidden')||document.body.classList.contains('sun-faded')){stop();clearTrail();}}).observe(document.body,{attributes:true,attributeFilter:['class']});
+  // Each hidden-HUD session starts at the normal Sun's current position.
+  new MutationObserver(()=>{if(sun.dataset.x==='0'&&sun.dataset.y==='0'&&sun.dataset.scale==='1'&&!dragging&&!raf){x=y=0;scale=1;}}).observe(sun,{attributes:true,attributeFilter:['data-x','data-y','data-scale']});
   function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}lastFrame=0;}
   function wrap(){
     var left=Number(sun.dataset.baseLeft||0),top=Number(sun.dataset.baseTop||0);
@@ -9347,7 +9364,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
       lastFrame=time;
       x+=vx*frames;y+=vy*frames;
       var friction=Math.pow(.975,frames);vx*=friction;vy*=friction;
-      wrap();apply();
+      wrap();apply();trail();
       if(Math.hypot(vx,vy)>.12){activity();raf=requestAnimationFrame(step);}
       else{raf=0;lastFrame=0;activity();}
     }
@@ -9371,7 +9388,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     var first=samples[0],elapsed=Math.max(1,now-first.t);
     vx=(px-first.x)*16.667/elapsed;vy=(py-first.y)*16.667/elapsed;
     lx=px;ly=py;lt=now;
-    wrap();apply();activity();
+    wrap();apply();trail();activity();
   }
   function end(){
     if(!dragging)return;dragging=false;
@@ -9416,9 +9433,55 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     // Keep the floating Sun pinned on tap; background tap restores the controls.
   },{passive:false});
 
+  sun.addEventListener('touchcancel',function(){dragging=false;pinchDistance=0;stop();},{passive:true});
   sun.addEventListener('wheel',function(e){
     scale=clamp(scale*(e.deltaY<0?1.08:.92),.35,3.2);moved=true;apply();activity();e.preventDefault();
   },{passive:false});
+})();
+</script>
+<script id="ge-music-button-album-flight-v1">
+(()=>{
+ const button=document.getElementById('geMusicV5Button');
+ if(!button||button.querySelector('.ge-music-album-flight'))return;
+ const canvas=document.createElement('canvas');canvas.className='ge-music-album-flight';canvas.setAttribute('aria-hidden','true');
+ button.prepend(canvas);
+ const ctx=canvas.getContext('2d');if(!ctx)return;
+ const albums=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
+ // Load actual album art from the same origin; no synthetic album planets.
+ const art=albums.map(name=>{const img=new Image();img.decoding='async';img.src=new URL('../ge-images/images/'+encodeURIComponent('Grand Element - '+name+'.jpg'),location.href).href;return img;});
+ const random=(a,b)=>a+Math.random()*(b-a);
+ const motion=matchMedia('(prefers-reduced-motion: reduce)');
+ const speed=.65;
+ const make=(initial=false)=>{const angle=random(0,Math.PI*2),radius=random(.24,.95);return {x:Math.cos(angle)*radius,y:Math.sin(angle)*radius*.7,z:initial?random(.8,5.6):random(4.3,6.5),size:random(.7,1.4),velocity:random(.07,.13),phase:random(0,6.28),img:art[Math.floor(random(0,art.length))]};};
+ let planets=Array.from({length:5},()=>make(true)),t=0,last=0,raf=0;
+ function frame(now){
+   raf=0;
+   if(document.hidden||!button.getClientRects().length||document.body.classList.contains('hud-hidden')||document.body.classList.contains('view-ship')){last=0;return;}
+   const dt=motion.matches?0:Math.min(.1,last?(now-last)/1000:0)*speed;last=now;t+=dt;
+   const w=button.clientWidth,h=button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
+   if(w<1||h<1)return;
+   if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+   const cx=w/2,cy=h/2;
+   for(let i=0;i<planets.length;i++){
+     const p=planets[i];p.z-=dt*p.velocity;
+     const z=Math.max(.1,p.z),x=cx+(p.x+Math.sin(t*.04+p.phase)*.12)*w*1.15/z,y=cy+(p.y+Math.cos(t*.053+p.phase)*.08)*h*1.15/z;
+     const radius=13*p.size/z;
+     if(z<.24||x+radius<0||x-radius>w||y+radius<0||y-radius>h)planets[i]=make();
+   }
+   for(const p of [...planets].sort((a,b)=>b.z-a.z)){
+     if(!p.img.complete||!p.img.naturalWidth)continue;
+     const z=Math.max(.1,p.z),x=cx+(p.x+Math.sin(t*.04+p.phase)*.12)*w*1.15/z,y=cy+(p.y+Math.cos(t*.053+p.phase)*.08)*h*1.15/z;
+     const radius=13*p.size/z,alpha=Math.min(1,(6.7-z)/2)*Math.min(1,z/.4)*.88;
+     ctx.save();ctx.globalAlpha=Math.max(0,alpha);ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.clip();
+     const side=Math.min(p.img.naturalWidth,p.img.naturalHeight);ctx.drawImage(p.img,(p.img.naturalWidth-side)/2,(p.img.naturalHeight-side)/2,side,side,x-radius,y-radius,radius*2,radius*2);ctx.restore();
+   }
+   if(!motion.matches)raf=requestAnimationFrame(frame);
+ }
+ function wake(){if(!raf)raf=requestAnimationFrame(frame);}
+ document.addEventListener('visibilitychange',wake);window.addEventListener('resize',wake);
+ new MutationObserver(wake).observe(document.body,{attributes:true,attributeFilter:['class']});
+ motion.addEventListener?.('change',wake);art.forEach(img=>img.addEventListener('load',wake));wake();
 })();
 </script>
 <script id="ge-headphone-notice-handler">
@@ -9484,7 +9547,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-sun-clearance-v4" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-spectrum-trails-flight-v5" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-neutral-share-v1" data-ge-css="sun-lab-transparency">
