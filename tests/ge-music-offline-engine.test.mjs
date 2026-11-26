@@ -269,7 +269,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261125-album-eq-v7/);
+ assert.match(html,/sw\.js\?v=20261125-hue-preview-v8/);
  assert.ok(workerVersion,'Service worker advertises a version');
  assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
 });
@@ -364,8 +364,8 @@ test('public ACCESS repair reuses healthy files and never fetches or deletes mus
  const caches={open:async name=>{assert.match(name,/^ge-radio-shell-/);return cache}};
  const payload=(path)=>new Response(
   path.endsWith('offline-assets.json')?JSON.stringify({backgrounds:['31.gif','47.gif']}):
-  path.endsWith('index.html')?'<!doctype html><title>Grand Element Radio</title><div id="shipStage"></div><audio id="player"></audio>GE_RADIO_UI_BUILD_20261125_ALBUM_EQ_V7':
-  'geOfflineListBtn geRepairWebsite albumFullySelected Use the canonical same-origin recording for every album 20261125-eq-offline-v4 Published EQ editor: #sunEQAura{inset:0!important} 2026.11.25-offline-manager-v11-library',
+  path.endsWith('index.html')?'<!doctype html><title>Grand Element Radio</title><div id="shipStage"></div><audio id="player"></audio>GE_RADIO_UI_BUILD_20261125_HUE_PREVIEW_V8':
+  'geOfflineListBtn geRepairWebsite albumFullySelected Use the canonical same-origin recording for every album 20261125-eq-offline-v4 Published EQ editor: #sunEQAura{inset:0!important} .sun-hue-swatch 2026.11.25-offline-manager-v11-library',
   {headers:{'Content-Type':/\.json$/.test(path)?'application/json':/\.gif$/.test(path)?'image/gif':/\.jpg$/.test(path)?'image/jpeg':'text/plain'}});
  const ctx={self,caches,URL,Response,AbortController,setTimeout,clearTimeout,fetch:async path=>{fetches.push(String(path));return payload(String(path))}};
  const vm=await import('node:vm');
@@ -413,4 +413,21 @@ test('Hide Text moves the live EQ nodes rather than replacing the effect',()=>{
  assert.match(html,/target\.insertBefore\(layer,anchor\)/);
  assert.match(html,/new MutationObserver\(syncHiddenSunEffects\)/);
  assert.match(readFileSync('radio/sun-lab-transparency.css','utf8'),/#geFloatingSunImg\{\s*opacity:var\(--ge-sun-art-opacity,1\)/);
+});
+
+test('EQ hue previews match all seven color sliders and relative Waterfall hues',()=>{
+ const ids=['slHue','slAltHue','slLowHue','slMidHue','slHighHue','slInnerGlowHue','slOuterGlowHue'];
+ for(const id of ids){
+  assert.match(html,new RegExp('id="'+id+'Preview"'));
+  assert.match(html,new RegExp('id="'+id+'" class="sun-hue-slider"'));
+ }
+ const start=html.indexOf('  function sunHuePreview('),end=html.indexOf('  function refreshSunHuePreviews()',start);
+ const hue=Function(html.slice(start,end)+'return sunHuePreview;')();
+ assert.equal(hue('slLowHue',256),256);
+ assert.equal(hue('slMidHue',169),169);
+ assert.equal(hue('slHighHue',197),197);
+ assert.equal(hue('slHue',0),210);
+ assert.equal(hue('slAltHue',68,0),278);
+ assert.equal(hue('slAltHue',100,100),50);
+ assert.match(html,/if\(SUN_HUE_CONTROLS.includes\(id\)\)refreshSunHuePreviews\(\)/);
 });
