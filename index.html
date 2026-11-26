@@ -12315,14 +12315,24 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   dlBtn?.addEventListener('click',()=>{void downloadOffline()});
   clearBtn?.addEventListener('click',async()=>{
     if(busy)return;
-    if(!confirm('Remove Grand Element offline downloads from this browser? This does not delete personal High Scores or Game settings.'))return;
+    if(!confirm('Remove saved WEBSITE and GAME files? Downloaded music, playlists, high scores and settings will be kept.'))return;
     busy=true;clearBtn.disabled=true;
     try{
-      await caches.delete(CACHE_NAME);
+      // The shared legacy cache may contain downloaded recordings. Keep
+      // them independent of the optional website/game offline files.
+      const saved=await caches.open(CACHE_NAME);
+      for(const request of await saved.keys()){
+        const url=new URL(request.url);
+        const response=await saved.match(request);
+        if(!response)continue; // Retain anything that cannot be classified.
+        if(/\.(mp3|m4a|wav|ogg|flac|aac|opus|aiff?)$/i.test(url.pathname)||
+           /^audio\//i.test(response.headers.get('content-type')||''))continue;
+        await saved.delete(request);
+      }
       try{localStorage.removeItem('GE_OFFLINE_READY')}catch(_e){}
       if(progress)progress.style.width='0%';
-      setStatus('OFFLINE DOWNLOADS CLEARED · Website will work online; cached homepage shell may remain for installed app.');
-      if(count)count.textContent='No optional downloaded GE files saved.';
+      setStatus('WEBSITE OFFLINE FILES CLEARED · Downloaded music and listener data retained.');
+      if(count)count.textContent='Optional website and game files cleared.';
       if(gameBtn)gameBtn.textContent='OFFLINE';
       if(aboutBtn)aboutBtn.textContent='MAKE AVAILABLE OFFLINE';
     }catch(e){setStatus('Unable to clear downloads: '+String(e?.message||e))}
