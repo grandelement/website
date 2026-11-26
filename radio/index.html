@@ -3401,10 +3401,21 @@ function syncRadioOfflineAccessUI(){
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
     $('iamExitBtn')?.click();
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
+  // Indicator reflects an accepted, unexpired code, not public EQ access.
+  let codeActive=false;
+  try{
+    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    const music=JSON.parse(sessionStorage.getItem('GE_MUSIC_CODE_SESSION_V1')||'null');
+    codeActive=!!(receipt?.verifiedFor==='radio'&&Number(receipt.until)>Date.now()&&
+      Array.isArray(receipt.scopes)&&(receipt.scopes.includes('radio')||receipt.scopes.includes('website')))||
+      !!(typeof music?.token==='string'&&music.token&&Number(music.until)>Date.now());
+  }catch(_){}
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
-    $('accessLaunchBtn').setAttribute('aria-label',permissions.legacy||permissions.sunLab?
-      'Verified access code':'Enter your Inner Frequency access code');
+    $('accessLaunchBtn').dataset.geCodeActive=String(codeActive);
+    $('accessLaunchBtn').setAttribute('aria-label',codeActive?
+      'Verified access code active':'Enter your Inner Frequency access code');
+    $('accessLaunchBtn').title=codeActive?'Access code active':'Enter access code';
   }
   // Public effects remain accessible; private controls are scoped in the editor.
 }
@@ -3452,6 +3463,7 @@ window.GERadioOfflineBridge={
 };
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
+window.addEventListener('ge-vault-music-access-updated',syncRadioOfflineAccessUI);
 setInterval(syncRadioOfflineAccessUI,60000); // expire client controls when a code expires
 syncRadioOfflineAccessUI();
 
@@ -9445,7 +9457,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-protected-artwork-gap-v1" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261126-readable-eq-cyan-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261125-album-eq-v7" data-ge-css="sun-lab-transparency">
