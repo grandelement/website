@@ -5871,14 +5871,19 @@ async function registerServiceWorker(){
   const GE_SPECTRUM_SIZE_KEY='GE_RADIO_SPECTRUM_SIZE_V1';
   let spectrumSize=100;
   try{const saved=localStorage.getItem(GE_SPECTRUM_SIZE_KEY);if(saved!==null&&Number.isFinite(Number(saved)))spectrumSize=clamp(Number(saved),0,100);}catch(_){}
+  const SUN_REACH_KEY='GE_SUN_EFFECT_REACH_V1';
+  let sunEffectReach={spectrum:spectrumSize,aurora:spectrumSize};
+  try{const saved=JSON.parse(localStorage.getItem(SUN_REACH_KEY)||'null');for(const mode of ['spectrum','aurora'])if(Number.isFinite(saved?.[mode]))sunEffectReach[mode]=clamp(saved[mode],0,100);}catch(_){}
+  function persistSunEffectReach(){try{localStorage.setItem(SUN_REACH_KEY,JSON.stringify(sunEffectReach));}catch(_){}}
   function syncSpectrumSizeControl(mode){
     const row=$('geSpectrumSizeRow'),input=$('geSpectrumSize'),out=$('geSpectrumSizeValue');
     if(!row||!input)return;
     const active=mode==='spectrum'||mode==='aurora';row.hidden=!active;row.style.display=active?'grid':'none';
+    if(active)spectrumSize=sunEffectReach[mode];
     input.value=String(spectrumSize);if(out)out.textContent=Math.round(spectrumSize)+'%';
     if(!input.dataset.bound){input.dataset.bound='1';input.addEventListener('input',()=>{
       spectrumSize=clamp(Number(input.value),0,100);if(out)out.textContent=Math.round(spectrumSize)+'%';
-      try{localStorage.setItem(GE_SPECTRUM_SIZE_KEY,String(spectrumSize));}catch(_){}
+      if(['spectrum','aurora'].includes(sunLabEditMode)){sunEffectReach[sunLabEditMode]=spectrumSize;persistSunEffectReach();}
     });}
   }
   const SUN_LAB_DEFAULTS=Object.freeze({
@@ -5965,7 +5970,7 @@ async function registerServiceWorker(){
   }
   function sunUndoSnapshot(){
     return {mode:sunLabEditMode,profiles:JSON.parse(JSON.stringify(sunModeProfiles)),
-      current:{...sunLab},size:spectrumSize,transparency:window.GERadioTransparency?.get?.()||null};
+      current:{...sunLab},size:spectrumSize,reaches:{...sunEffectReach},transparency:window.GERadioTransparency?.get?.()||null};
   }
   function recordSunUndo(){
     if(sunUndoRestoring||!sunLabEditMode||!geRadioSunLabPrivateAllowed())return;
@@ -5982,7 +5987,7 @@ async function registerServiceWorker(){
       const previousMode=sunLabEditMode;
       sunModeProfiles=before.profiles;sunLabEditMode=before.mode;sunLab={...before.current};
       sunModeProfiles[before.mode]={...sunLab};selectSunPreference(before.mode);
-      spectrumSize=before.size;try{localStorage.setItem(GE_SPECTRUM_SIZE_KEY,String(spectrumSize));}catch(_){}
+      spectrumSize=before.size;if(before.reaches)sunEffectReach={...before.reaches};persistSunEffectReach();
       if(before.transparency)for(const [key,id] of Object.entries({sun:'geAlphaSun',music:'geAlphaMusic',other:'geAlphaOther'})){
         const input=$(id);if(input&&Number(input.value)!==before.transparency[key]){
           input.value=String(before.transparency[key]);input.dispatchEvent(new Event('input',{bubbles:true}));
@@ -7540,7 +7545,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function updateSunEQ(live){
     if(!sunAuraRoot||!sunFogRoot)return;
-    const editor=sunLab,raw=eqData,previous=captureSunRenderState();
+    const editor=sunLab,raw=eqData,editorReach=spectrumSize,previous=captureSunRenderState();
     const on=sunEnabledModes.size>0&&window.GELiveAudioEQ?.isEnabled?.()!==false;
     sunAuraRoot.style.opacity=sunFogRoot.style.opacity=on?'1':'0';
     for(const [mode,layer] of sunRenderLayers)if(!on||!sunEnabledModes.has(mode)){
@@ -7555,6 +7560,7 @@ Vector ${vector}. ${pair[1]}.`;
         sunRenderingMode=mode;sunEQAura=layer.aura;sunEQFog=layer.fog;
         restoreSunRenderState(layer.state);
         sunLab=mode===sunLabEditMode?editor:(sunModeProfiles[mode]||SUN_MODE_DEFAULTS[mode]);
+        if(['spectrum','aurora'].includes(mode))spectrumSize=sunEffectReach[mode];
         eqData=raw;
         if(live&&raw?.length&&mode!=='spectrum'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
         else if(!live)layer.pulse?.reset();
@@ -7562,7 +7568,7 @@ Vector ${vector}. ${pair[1]}.`;
       }
       if(!sunEnabledModes.has(sunLabEditMode))updateSpectrumMeter({low:0,mid:0,high:0},0);
     }finally{
-      sunLab=editor;eqData=raw;sunEQAura=sunAuraRoot;sunEQFog=sunFogRoot;sunRenderingMode=null;restoreSunRenderState(previous);
+      sunLab=editor;spectrumSize=editorReach;eqData=raw;sunEQAura=sunAuraRoot;sunEQFog=sunFogRoot;sunRenderingMode=null;restoreSunRenderState(previous);
     }
     if(!sunEnabledModes.has(sunLabEditMode))updateSpectrumMeter({low:0,mid:0,high:0},0);
   }
