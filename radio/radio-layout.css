@@ -180,11 +180,47 @@
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > footer{
    margin-top:6px!important;font-size:clamp(11px,3vw,13px)!important;
  }
- /* On tall portrait phones the remaining free height is placed entirely
-    before the seek bar, keeping the middle artwork open. */
- @media (min-height:740px){
-   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #playerSeekWrap{
-     margin-top:auto!important;
+ /* The artwork gap is a layout invariant, not a tall-phone feature.
+    The actual Safari visual viewport determines usable height. */
+}
+/* Protected portrait wireframe: upper Sun/title; flexible artwork gap;
+   lower seek/transport/background/utilities/footer. Only the normal closed
+   player is locked; expanded panels retain their own existing scrolling. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui[class]:has(body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open)) {
+   overflow:hidden!important;overscroll-behavior:none!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) {
+   height:var(--ge-radio-visible-h,100dvh)!important;
+   min-height:0!important;max-height:none!important;overflow:hidden!important;
+   overscroll-behavior:none!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap{
+   height:var(--ge-radio-visible-h,100dvh)!important;
+   min-height:0!important;max-height:none!important;
+   box-sizing:border-box!important;display:flex!important;flex-direction:column!important;
+   justify-content:flex-start!important;overflow:hidden!important;
+   padding:max(8px,env(safe-area-inset-top)) 12px max(8px,env(safe-area-inset-bottom))!important;
+   gap:4px!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header{
+   flex:0 0 auto!important;
+   margin:clamp(4px,2dvh,20px) auto 0!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > #playerSeekWrap{
+   flex:0 0 auto!important;
+   margin: auto auto 6px!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > :is(#musicGroup,#geDesktopUtilityStrip,footer,#radioCopyright){
+   flex:0 0 auto!important;
+ }
+ @media(max-height:600px){
+   html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header .logo-wrap{
+     width:clamp(76px,17dvh,112px)!important;height:clamp(76px,17dvh,112px)!important;
+     margin-bottom:5px!important;
+   }
+   html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header{
+     margin-top:0!important;
    }
  }
 }
