@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1 -->
 <!-- GE_RADIO_UI_BUILD_20261125_HUE_PREVIEW_V8 -->
 <!-- GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4 -->
 <!-- GE_RADIO_UI_BUILD_20261125_ALWAYS_ON_ATTACHED_EQ_V3 -->
@@ -5618,7 +5619,17 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261125-hue-preview-v8',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+    // Recheck on return to the app or reconnect, without interrupting playback.
+    if(!window.__geWorkerUpdateWatch){
+      window.__geWorkerUpdateWatch=true;
+      let lastCheck=0;
+      const check=()=>{if(navigator.onLine===false||document.hidden||Date.now()-lastCheck<30000)return;
+        lastCheck=Date.now();registration.update().catch(()=>{});};
+      window.addEventListener('online',check);
+      window.addEventListener('pageshow',check);
+      document.addEventListener('visibilitychange',check);
+    }
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
