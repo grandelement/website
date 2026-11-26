@@ -542,17 +542,8 @@ html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"]{
  }
 }
 
-/* RADIO CONTROL: the only visual state owner.
-   No media-progress-based colors. The glow exists only before the first tap. */
-/* A regular resting heartbeat: 60 cycles/minute, two soft beats per
-   cycle. Keep the existing first-tap acknowledgment behavior. */
-@keyframes geRadioFirstTapOnlyHeartbeat{
-  0%,100%{opacity:0;transform:scale(1)}
-  10%{opacity:.82;transform:scale(1.025)}
-  23%{opacity:.10;transform:scale(1)}
-  34%{opacity:.57;transform:scale(1.016)}
-  56%{opacity:0;transform:scale(1)}
-}
+/* RADIO CONTROL · R21 Broadcast: no CSS heartbeat or autonomous flash.
+   The existing measured audio FFT drives the canvas rings at 74% speed. */
 html.ge-radio-ui[class] body[class] #musicGroup > #liveBtn,
 html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]{
   position:relative!important;isolation:isolate!important;
@@ -583,22 +574,15 @@ html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-control-label
   font:800 clamp(14px,2.5vw,19px)/1.2 system-ui,sans-serif!important;
   letter-spacing:.04em;color:#fff!important;opacity:1!important;
 }
-html.ge-radio-ui #musicGroup #liveBtn .ge-radio-heartbeat,
-html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-  display:block!important;position:absolute!important;inset:-5px!important;
+html.ge-radio-ui #musicGroup #liveBtn .ge-radio-broadcast-r21,
+html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-broadcast-r21{
+  display:block!important;position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
   border-radius:inherit!important;pointer-events:none!important;z-index:1;
-  box-shadow:0 0 13px 4px rgba(255,62,102,.72)!important;
-  opacity:0;animation:none;
-}
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #musicGroup #liveBtn .ge-radio-heartbeat,
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-  animation:geRadioFirstTapOnlyHeartbeat 1s ease-in-out infinite!important;
+  opacity:1!important;animation:none!important;box-shadow:none!important;
 }
 @media(prefers-reduced-motion:reduce){
-  html.ge-radio-ui #musicGroup #liveBtn .ge-radio-heartbeat,
-  html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-    animation:none!important;opacity:0!important;
-  }
+  html.ge-radio-ui .ge-radio-broadcast-r21{display:none!important}
 }
 
 /* The EQ switch indicates playback effects, not panel visibility. */
