@@ -16,14 +16,14 @@ public class MainActivity extends Activity {
     private final Handler ui=new Handler(Looper.getMainLooper());
     private PlaybackService playback;
     private boolean bound=false,visible=false,dragging=false,importing=false,eq=false;
-    private long lastSample=0;private int frames=0,slow=0;
+    private long lastSample=0,lastRefresh=0;private int frames=0,slow=0;
     private SunView sun;
     private TextView title,status,time,storage;
     private Button play,eqButton,importButton;
     private SeekBar seek;
     private ListView list;
     private ImageView artwork;
-    private String lastArt="";
+    private String lastArt="",lastTrack="";
     private List<Library.Song> songs=new ArrayList<>();
     private final ServiceConnection connection=new ServiceConnection(){
         public void onServiceConnected(ComponentName n,IBinder b){playback=((PlaybackService.LocalBinder)b).get();bound=true;refresh();}
@@ -31,8 +31,8 @@ public class MainActivity extends Activity {
     };
     private final Runnable tick=new Runnable(){public void run(){
         if(!visible)return;
-        refresh();
         long now=SystemClock.uptimeMillis();
+        if(now-lastRefresh>=500){lastRefresh=now;refresh();}
         if(eq&&playback!=null&&now-lastSample>=sun.interval()){
             long delay=now-lastSample;lastSample=now;
             if(!sun.sample(playback.audioSession(),playback.isPlaying())){setEq(false);status.setText("EQ unavailable on this radio · music remains active");}
@@ -83,7 +83,9 @@ public class MainActivity extends Activity {
         int d=playback.duration(),p=playback.position();if(!dragging)seek.setProgress(d==0?0:(int)((long)p*1000/d));
         time.setText(clock(p)+" / "+clock(d));
         if(!playback.error().isEmpty())status.setText(playback.error());
-        Library.Song current=playback.current();File cover=current==null?null:Library.cover(current);
+        Library.Song current=playback.current();String track=current==null?"":current.file.getAbsolutePath();
+        if(track.equals(lastTrack))return;lastTrack=track;
+        File cover=current==null?null:Library.cover(current);
         String path=cover==null?"":cover.getAbsolutePath();
         if(!path.equals(lastArt)){lastArt=path;artwork.setImageDrawable(null);artwork.setVisibility(View.GONE);if(cover!=null){BitmapFactory.Options o=new BitmapFactory.Options();o.inJustDecodeBounds=true;BitmapFactory.decodeFile(path,o);o.inJustDecodeBounds=false;o.inSampleSize=1;while(Math.max(o.outWidth,o.outHeight)/o.inSampleSize>256)o.inSampleSize*=2;Bitmap bitmap=BitmapFactory.decodeFile(path,o);if(bitmap!=null){artwork.setImageBitmap(bitmap);artwork.setVisibility(View.VISIBLE);}}}
     }
