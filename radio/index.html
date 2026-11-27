@@ -3913,7 +3913,15 @@ function geShowMainPlaylistPlayer(){
   syncModeButtons();
   if(!geInlineMusicPanel?.classList.contains('ge-gate-active'))geInlineMusicHide();
   document.body.classList.remove('hud-hidden');
-  $('titleBtn')?.scrollIntoView?.({block:'start',behavior:'auto'});
+  // Song selection returns to the complete player, not the track title.
+  const resetPlayerViewport=()=>{
+    if(document.body.classList.contains('ge-music-v5-open'))return;
+    window.scrollTo({top:0,left:0,behavior:'instant'});
+    document.scrollingElement?.scrollTo({top:0,left:0,behavior:'instant'});
+  };
+  resetPlayerViewport();
+  // Safari may restore its scroll position as the modal is removed.
+  requestAnimationFrame(resetPlayerViewport);
 }
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 // Prepare the music iframe on page load, not on the first song tap.
