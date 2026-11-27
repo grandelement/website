@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.26-continuous-radio-v5';
+const VERSION='2026.11.27-offline-shell-v6';
 const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -107,7 +107,7 @@ async function validRepairAsset(path,response){
   './preview-lab.html':['Use the canonical same-origin recording for every album'],
   './live-spectrum.js':['20261125-eq-offline-v4'],
   './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}','.sun-hue-swatch'],
-  './offline-manager.js':['2026.11.25-offline-manager-v11-library']
+  './offline-manager.js':['2026.11.26-offline-manager-v13-storage-inventory']
  }[path];
  if(!markers)return true;
  try{const source=await response.clone().text();return markers.every(marker=>source.includes(marker))}
@@ -145,7 +145,7 @@ async function installShell(){
   if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
-  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
+  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.26-offline-manager-v13-storage-inventory'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
   if(!(await validRepairAsset(path,response)))throw Error('Application release mismatch: '+path);
