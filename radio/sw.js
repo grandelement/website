@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.27-radio53-consolidated-v1';
+const VERSION='2026.11.27-radio53-consolidated-v2';
 const UI_MARKER='GE_RADIO53_CONSOLIDATED_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -15,7 +15,7 @@ const REQUIRED=[
   './sun-lab-transparency.css','./sun-lab-transparency.js',
  './offline-home.html','./preview-lab.html',
  './ge-music-v5.js','./offline-manager.js','./live-spectrum.js',
- './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
+ './sun-lab-compact.css','./sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
  './ge-gate-audio.js','./ge-gate-settings.js',
  '../ge-vault-client.js','../ge-device-view.js','../ge-accessibility.js','../ge-accessibility.css',

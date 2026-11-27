@@ -2,18 +2,19 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V14_RADIO53_20261127';
+const SITE_SHELL='GE_SITE_SHELL_V15_RADIO53_20261127';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
 const LEGACY_RADIO_PATHS=[new URL('lite/',HOME),new URL('lite/index.html',HOME)];
-const SHELL=['./','./index.html','./ge-offline-library.js','./radio/offline-player.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
+const SHELL=['./','./index.html','./ge-offline-library.js','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
 // Cache the normal website AND Radio startup files before activating a
 // replacement worker. The website must not show READY if its scripts are absent.
 const REQUIRED_OFFLINE_FILES=[
   './radio/radio-base.css',
   './radio/radio-components.css',
+  './radio/sun-lab-compact.css',
   './radio/sun-lab-transparency.css',
   './radio/sun-lab-transparency.js',
   './radio/radio-layout.css',
@@ -30,7 +31,7 @@ const REQUIRED_OFFLINE_FILES=[
   './manifest.webmanifest',
   './radio/',
   './radio/index.html',
-  './radio/offline-player.html',
+  './radio/offline-home.html',
   './radio/sw.js',
   './radio/ge-music-v5.js',
   './radio/ge-gate-audio.js',
