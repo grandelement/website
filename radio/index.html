@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn"><svg class="ge-mode-symbol" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle" transform="translate(0 32) rotate(-90)"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered" transform="translate(0 32) rotate(-90)"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
+    <button data-proxy="shuffleBtn"><svg class="ge-mode-symbol" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle" transform="translate(0 32) rotate(-90)"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered" transform="translate(0 32) rotate(-90)"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="prevBtn" type="button" aria-label="Previous song" title="Previous song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 19 9 12l10-7v14ZM9 19 2 12l7-7v14Z"/></svg><span class="ge-radio-icon-label">PREV</span></button>
     <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn" type="button" aria-label="Next song" title="Next song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 10 7-10 7V5Zm10 0 7 7-7 7V5Z"/></svg><span class="ge-radio-icon-label">NEXT</span></button>
-    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-mode-symbol" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle" transform="translate(0 32) rotate(-90)"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered" transform="translate(0 32) rotate(-90)"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-radio-icon-label">SHUFFLE</span></button>
+    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-mode-symbol" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle" transform="translate(0 32) rotate(-90)"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered" transform="translate(0 32) rotate(-90)"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg></button>
     <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
@@ -2092,7 +2092,6 @@ function syncModeButtons(){
   setPressed(toggle,!!state.shuffle);
   if(toggle){
 
-    const label=toggle.querySelector('.ge-radio-icon-label');if(label)label.textContent=state.shuffle?'SHUFFLE':'ALBUM';
     toggle.setAttribute('aria-label',state.shuffle?'Shuffle on; tap for album order':'Album order; tap for shuffle');
     toggle.title=state.shuffle?'Shuffle ON; tap for album order':'Album order; tap to shuffle';
   }
@@ -2516,6 +2515,7 @@ function verifyRadio1Signal(){
 // Safari requires a direct Play tap for audible sound, so only probe the public MP3 here.
 let geLastInteractionProbeAt=0;
 function geRetryRadioSignalOnInteraction(){
+  if(GE_STATIC_RADIO_PRIMARY)return; // The scheduled station never probes or replaces its source with BLITZ.
   if(!(state.live||state.livePreparing)||liveState.signalReady||observedRadio1Progress||
      navigator.onLine===false||window.GEIAmStudio?.isRadioSuspended?.())return;
   if(Date.now()-geLastInteractionProbeAt<15000)return;
@@ -2559,10 +2559,8 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 
-// Owner-directed public playback: BLITZ Radio 1 exclusively. Old Radio 2
-// infrastructure remains intact but is never selected by this public player.
-// Primary station is the public, same-origin Bangers clock: no BLITZ stream
-// and no Cloudflare radio-rotation Worker request per listener.
+// Public station: the existing same-origin Bangers clock, with the GE Backup schedule.
+// Legacy provider recovery is only applicable when static primary is disabled.
 const GE_RADIO2_DISABLED=false;
 const GE_STATIC_RADIO_PRIMARY=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
@@ -2627,7 +2625,7 @@ function clearRadio1Retry(){
  geRadio1RetryAttempts=0;
 }
 const RADIO2_PROGRAM='https://ge-radio-sync.grandelement.workers.dev/v1/program';
-const radio2={active:false,loading:false,program:null,kind:'',offset:0,index:-1,url:'',title:'',attempt:0,run:0};
+const radio2={active:false,loading:false,program:null,kind:'',offset:0,index:-1,url:'',title:'',attempt:0,run:0,retryTimer:0};
 function radio2Label(){return radio2.kind==='bangers'?'Bangers':'GE backup rotation';}
 function radio2Current(){
   const p=radio2.program;if(!p||!Array.isArray(p.tracks)||!p.tracks.length)return null;
@@ -2779,27 +2777,32 @@ function startStaticRadio({deferPlay=false,userGesture=false}={}){
   return Promise.resolve();
  }
  if(geStaticProgram){
-  staticRadioBegin(geStaticProgram,!deferPlay);
+  staticRadioBegin(geStaticProgram,liveState.wantedPlayback);
   return Promise.resolve();
  }
+ if(radio2.loading)return geStaticLoading||Promise.resolve();
+ radio2.loading=true;const run=++radio2.run;
  setLiveStatus('GE RADIO · LOADING BANGERS…');
  return preloadStaticRadio().then(program=>{
-  if(!state.live)return;
-  if(program)staticRadioBegin(program,!deferPlay);
+  if(run!==radio2.run||!state.live)return;
+  radio2.loading=false;
+  if(program)staticRadioBegin(program,liveState.wantedPlayback);
   else {
    state.livePreparing=false;updateRadioStartupCue();
-   setLiveStatus('GE RADIO UNAVAILABLE · TAP MUSIC FOR SONGS');
+   setLiveStatus('GE RADIO UNAVAILABLE · TAP RADIO TO RETRY');
+   setStatus('Radio schedule unavailable. Tap RADIO to retry.');
   }
  });
 }
-function radio2PlayCurrent(){
-  if(!radio2.active||!state.live||window.GEIAmStudio?.isRadioSuspended?.())return;
+function radio2PlayCurrent({forceReload=false}={}){
+  if(!radio2.active||!state.live||!liveState.wantedPlayback||navigator.onLine===false||window.GEGate?.isExpiredLocked?.()||window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(radio2.retryTimer){clearTimeout(radio2.retryTimer);radio2.retryTimer=0;}
   const slot=radio2Current();
   if(!slot||!radio2ValidTrack(slot.track)){
     setLiveStatus('RADIO 2 · UNAVAILABLE');return;
   }
   const url=new URL(slot.track.url,location.origin).href;
-  const changed=url!==radio2.url||radio2.index!==slot.index||audio.src!==url;
+  const changed=forceReload||!!audio.error||url!==radio2.url||radio2.index!==slot.index||audio.src!==url;
   if(changed){
     lastRadio2Time=NaN;observedRadio2Progress=false;liveState.signalReady=false;updateRadioStartupCue();
     radio2.index=slot.index;radio2.url=url;
@@ -2817,7 +2820,7 @@ function radio2PlayCurrent(){
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
     audio.autoplay=false;audio.preload='auto';audio.crossOrigin='anonymous';
-    audio.muted=false;audio.defaultMuted=false;
+    audio.muted=false;audio.defaultMuted=false;audio.volume=desiredPlaybackVolume(url);
     audio.src=url;
     audio.load();
     liveState.internalReset=false;
@@ -2895,6 +2898,8 @@ async function switchToRadio2(reason='radio1_unavailable'){
   }
 }
 function resetRadio2(){
+  if(radio2.retryTimer)clearTimeout(radio2.retryTimer);
+  radio2.retryTimer=0;radio2.attempt=0;
   radio2.run++;radio2.active=false;radio2.loading=false;
   radio2.program=null;radio2.kind='';radio2.index=-1;radio2.url='';radio2.title='';
   observedRadio2Progress=false;lastRadio2Time=NaN;updateRadioStartupCue();
@@ -4965,7 +4970,7 @@ audio.addEventListener('timeupdate',()=>{
   if(!Number.isFinite(t))return;
   if(radio2.active){
     if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15){
-      lastRadio2Progress=Date.now();
+      lastRadio2Progress=Date.now();radio2.attempt=0;
       if(!observedRadio2Progress){
       observedRadio2Progress=true;
       titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'Grand Element Radio',
@@ -5028,7 +5033,7 @@ setInterval(()=>{
    if(observedRadio2Progress&&Date.now()-lastRadio2Progress>6000){
     observedRadio2Progress=false;updateRadioStartupCue();
     setLiveStatus('BANGERS · AUDIO STALLED · RECONNECTING');
-    radio2PlayCurrent();
+    radio2PlayCurrent({forceReload:true});
    }
   }else if(observedRadio1Progress&&Date.now()-lastRadio1Progress>6000){
    updateRadioStartupCue();
@@ -5138,8 +5143,15 @@ audio.addEventListener('error',()=>{
   // same dead URL before offering the verified GE Radio 2 backup.
   if(state.live||state.livePreparing){
     if(radio2.active){
-      setLiveStatus('RADIO 2 · audio file unavailable. Rechecking backup…');
-      setTimeout(()=>radio2PlayCurrent(),1500);return;
+      if(!liveState.wantedPlayback||radio2.retryTimer)return;
+      observedRadio2Progress=false;updateRadioStartupCue();
+      setLiveStatus('GE RADIO · AUDIO UNAVAILABLE · RETRYING…');
+      const run=radio2.run;
+      const delay=Math.min(30000,1500*Math.pow(2,Math.min(5,radio2.attempt++)));
+      radio2.retryTimer=setTimeout(()=>{
+        radio2.retryTimer=0;
+        if(run===radio2.run)radio2PlayCurrent({forceReload:true});
+      },delay);return;
     }
     if(radio2.loading)return;
     if(document.hidden){
@@ -5824,7 +5836,7 @@ async function registerServiceWorker(){
       const pressed=source.getAttribute('aria-pressed');if(pressed!==null)button.setAttribute('aria-pressed',pressed);else button.removeAttribute('aria-pressed');
       button.classList.toggle('active',source.classList.contains('active'));
       if(source.id==='shuffleBtn'){
-        const label=button.querySelector('.ge-shuffle-label');if(label)label.textContent=pressed==='true'?'SHUFFLE':'ALBUM';
+        button.setAttribute('aria-label',source.getAttribute('aria-label')||'Shuffle or album order');
 
       }
       button.classList.toggle('ship-live-active',source.id==='liveBtn'&&document.body.classList.contains('ge-radio-on'));
@@ -9352,9 +9364,10 @@ Vector ${vector}. ${pair[1]}.`;
     // FFmpeg would still finish its fade after authorization.
     const wasPersonalStream=!!(state.live&&window.GEListenerPreview?.active?.());
     if(wasPersonalStream||wasExpired||(!audio.currentSrc&&!audio.getAttribute('src'))){
-      if(radio2.active){
-        // A correct access key must preserve a working backup, not
-        // reconnect to BLITZ while it remains offline.
+      if(GE_STATIC_RADIO_PRIMARY&&(state.live||state.livePreparing)){
+        void requestRadioStart();
+      }else if(radio2.active){
+        liveState.wantedPlayback=true;
         radio2PlayCurrent();
       }else{
         try{
@@ -9367,7 +9380,7 @@ Vector ${vector}. ${pair[1]}.`;
     }
 
     $('geGateNextPreview').hidden=true;
-    if(!wasPersonalStream&&(wasExpired||audio.paused)){
+    if(!wasPersonalStream&&(wasExpired||audio.paused)&&!(GE_STATIC_RADIO_PRIMARY&&(state.live||state.livePreparing))){
       try{audio.muted=false;void audio.play().catch(()=>{});}catch(_e){}
     }
   }
@@ -10191,7 +10204,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261127-radio53-consolidated-v1"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-radio53-consolidated-v1" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-radio53-consolidated-v3" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
