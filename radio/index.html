@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-ge-shuffle-glyph d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c5 0 7-12 12-12h5M2 6h3c2.6 0 4.3 2.7 5.5 5M14 17c.8.7 1.8 1 3 1h5"/></svg><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
+    <button data-proxy="shuffleBtn"><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="prevBtn" type="button" aria-label="Previous song" title="Previous song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 19 9 12l10-7v14ZM9 19 2 12l7-7v14Z"/></svg><span class="ge-radio-icon-label">PREV</span></button>
     <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn" type="button" aria-label="Next song" title="Next song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 10 7-10 7V5Zm10 0 7 7-7 7V5Z"/></svg><span class="ge-radio-icon-label">NEXT</span></button>
-    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path data-ge-shuffle-glyph d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c5 0 7-12 12-12h5M2 6h3c2.6 0 4.3 2.7 5.5 5M14 17c.8.7 1.8 1 3 1h5"/></svg><span class="ge-radio-icon-label">SHUFFLE</span></button>
+    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><span class="ge-radio-icon-label">SHUFFLE</span></button>
     <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
@@ -2146,8 +2146,7 @@ function syncModeButtons(){
   // SHOW THE ACTUAL MODE: green means shuffle; neutral means album order.
   setPressed(toggle,!!state.shuffle);
   if(toggle){
-    const glyph=toggle.querySelector('[data-ge-shuffle-glyph]');
-    if(glyph)glyph.setAttribute('d',state.shuffle?'m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c5 0 7-12 12-12h5M2 6h3c2.6 0 4.3 2.7 5.5 5M14 17c.8.7 1.8 1 3 1h5':'M3 7h18m-5-5 5 5-5 5M3 17h18m-5-5 5 5-5 5');
+
     const label=toggle.querySelector('.ge-radio-icon-label');if(label)label.textContent=state.shuffle?'SHUFFLE':'ALBUM';
     toggle.setAttribute('aria-label',state.shuffle?'Shuffle on; tap for album order':'Album order; tap for shuffle');
     toggle.title=state.shuffle?'Shuffle ON; tap for album order':'Album order; tap to shuffle';
@@ -5868,8 +5867,7 @@ async function registerServiceWorker(){
       button.classList.toggle('active',source.classList.contains('active'));
       if(source.id==='shuffleBtn'){
         const label=button.querySelector('.ge-shuffle-label');if(label)label.textContent=pressed==='true'?'SHUFFLE':'ALBUM';
-        const glyph=button.querySelector('[data-ge-shuffle-glyph]');
-        if(glyph)glyph.setAttribute('d',pressed==='true'?'m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c5 0 7-12 12-12h5M2 6h3c2.6 0 4.3 2.7 5.5 5M14 17c.8.7 1.8 1 3 1h5':'M3 7h18m-5-5 5 5-5 5M3 17h18m-5-5 5 5-5 5');
+
       }
       button.classList.toggle('ship-live-active',source.id==='liveBtn'&&pressed==='true');
       button.classList.toggle('radio-start-cue',source.id==='liveBtn'&&source.classList.contains('radio-start-cue'));
