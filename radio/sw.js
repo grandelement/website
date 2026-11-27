@@ -236,11 +236,11 @@ async function navigation(request){
  const url=new URL(request.url),path=url.pathname;
  // Existing iPhone Home Screen icons sometimes launch offline-home.html.
  // Open the actual cached Radio player without a redirect or timer.
- // Installed offline-home launchers still open the cached Radio directly.
- // But ge_home=1 is also how the PUBLIC WEBSITE links into Radio. Always
+ // Installed offline-home launchers use the verified cached Radio first,
+ // even if Safari falsely reports online. But ge_home=1 also links from the public website. Always
  // attempt the current GitHub Pages HTML when online instead of returning
  // a months-old offline shell on every homepage click.
- if((path.endsWith('/radio/offline-home.html')||url.searchParams.has('ge_home'))&&self.navigator?.onLine===false){
+ if(path.endsWith('/radio/offline-home.html')||(url.searchParams.has('ge_home')&&self.navigator?.onLine===false)){
   const saved=await savedIndex();
   if(saved.ok)return saved;
  }
