@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.72-20261126-ARTWORK-AND-SONG-ISOLATION';
+const BUILD='GE-MUSIC-V7.73-20261127-FRESH-CHECKED-SELECTION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2512,7 +2512,23 @@ async function playCheckedSongs(showPlayer=true){
  // selections into a restricted Vault or owner-test playlist.
  const queue=tracks.map(t=>t.path);
  recordPlaylistInteraction('control_change',{control:'music_play_checked',song_count:queue.length});
- return await playTrack(tracks[0],queue,showPlayer);
+ const accepted=playTrack(tracks[0],queue,showPlayer);
+ if(accepted){
+  // The Radio bridge owns a separate snapshot of the playback queue.
+  // Consume only the temporary checked set; never edit saved playlists.
+  state.selected.clear();
+  state.activePlaylist=null;
+  state.playlistDraftName='';
+  state.arranging=false;
+  gePlaylistEditMode=false;
+  state.lastSelectedAlbum='';
+  // Prevent catalog refresh or the next MUSIC opening from reloading
+  // the consumed working selection. Keep the actual saved playlist records.
+  try{localStorage.removeItem(workingKey+':'+workingScope())}catch(_){}
+  saveSelected();
+  if(state.open){updateMeta();render();}
+ }
+ return accepted;
 }
 function isArrangeView(){return state.arranging&&(state.view==='checked'||state.view==='playlist-order')}
 function appendSong(parent,track){
@@ -3424,7 +3440,8 @@ if(persistedOfflineState?.state==='ready'){
 let previousFocus=null,oldBodyOverflow='';
 function open(){
  if(state.open)return;
- // MUSIC always opens at the ALBUMS universe. Song selections and playlists are retained.
+ // MUSIC opens at the ALBUMS universe. Unplayed selections are retained;
+ // successfully submitted checked queues have already been cleared.
  state.view='albums';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
