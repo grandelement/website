@@ -7,14 +7,13 @@ const iphone='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit
 const desktopSafariOnIPhone='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15';
 const android='Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 Chrome/132 Mobile Safari/537.36';
 const realMac='Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15';
-const scripts=paths.map(path=>{
+const detector=readFileSync('ge-device-view.js','utf8');
+new Script(detector);
+for(const path of paths){
  const html=readFileSync(path,'utf8');
- const script=html.match(/<script id="ge-safari-request-website-mode">([\s\S]*?)<\/script>/)?.[1];
- assert.ok(script,path+' is missing its canonical early device detector');
- new Script(script);
- return script;
-});
-assert.equal(scripts[0],scripts[1],'Home and Radio must use exactly the same detector');
+ const source=html.match(/<script id="ge-safari-request-website-mode" src="([^"]+)"><\/script>/)?.[1];
+ assert.equal(source?.split('?')[0],path==='index.html'?'./ge-device-view.js':'../ge-device-view.js',path+' must load the same early detector');
+}
 
 function run(ua,width,height,touch=5,query='',saved={},standalone,landscape=false){
  const classes=new Set(),storage={...saved};
@@ -43,7 +42,7 @@ function run(ua,width,height,touch=5,query='',saved={},standalone,landscape=fals
      querySelector:selector=>selector==='meta[name="viewport"]'?viewport:null
    }
  });
- new Script(scripts[0]).runInContext(ctx);
+ new Script(detector).runInContext(ctx);
  return {mode:html.dataset.geDeviceLayout,preference:html.dataset.geDevicePreference,
    classes,viewport:viewport.content,storage,window,handlers,location:loc};
 }
@@ -51,9 +50,9 @@ for(const ua of [iphone,desktopSafariOnIPhone]){
  const p=run(ua,390,844,5);
  assert.equal(p.mode,'mobile','physical iPhone must be mobile, even with Macintosh UA');
  assert.equal(p.preference,'auto','automatic is the default');
- assert.equal(p.viewport,'width=390,initial-scale=1,viewport-fit=cover');
+ assert.equal(p.viewport,'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
  assert.ok(!p.classes.has('ge-safari-desktop-request'),'no fake desktop styling by default');
- assert.equal(run(ua,844,390,5,'',{},false,true).viewport,'width=844,initial-scale=1,viewport-fit=cover');
+ assert.equal(run(ua,844,390,5,'',{},false,true).viewport,'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
 }
 assert.equal(run(desktopSafariOnIPhone,390,844,0,'',{},false).mode,'mobile',
   'iOS Safari standalone clue identifies an iPhone even if touch points are spoofed');
@@ -67,7 +66,7 @@ assert.equal(run(desktopSafariOnIPhone,390,844,5,'',mobileChoice.storage).mode,'
  'saved mobile applies on another page without a query parameter');
 const manualDesktop=run(desktopSafariOnIPhone,390,844,5,'?ge_view=desktop');
 assert.equal(manualDesktop.mode,'desktop');
-assert.equal(manualDesktop.viewport,'width=1160,initial-scale=1,viewport-fit=cover');
+assert.equal(manualDesktop.viewport,'width=1160,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
 assert.ok(manualDesktop.classes.has('ge-safari-desktop-request'));
 assert.equal(run(desktopSafariOnIPhone,390,844,5,'',manualDesktop.storage).mode,'desktop',
  'only explicitly saved desktop preference enables virtual desktop');

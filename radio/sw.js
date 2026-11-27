@@ -18,7 +18,7 @@ const REQUIRED=[
  './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
  './ge-gate-audio.js','./ge-gate-settings.js',
- '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
+ '../ge-vault-client.js','../ge-device-view.js','../ge-accessibility.js','../ge-accessibility.css',
  './manifest.json','./track-durations.json','./loudness.json','./offline-assets.json',
  '../playlists/registry.json','../config/site-live.json','../config/album-colors.js','../config/music-routing.js',
  './manifest.webmanifest',
