@@ -3710,11 +3710,19 @@ function gePlaylistQuickSet(playlist,paths,details){
    dragMoved=false;
  },true);
 }
+function gePlaylistQuickMeasureRoom(){
+ const strip=$('gePlaylistQuick');if(!strip||strip.hidden)return;
+ const top=strip.getBoundingClientRect().top;
+ const viewportTop=window.visualViewport?.offsetTop||0;
+ strip.style.setProperty('--ge-playlist-room',Math.max(0,Math.floor(top-viewportTop-12))+'px');
+}
+window.addEventListener('resize',gePlaylistQuickMeasureRoom);
+window.visualViewport?.addEventListener('resize',gePlaylistQuickMeasureRoom);
 $('gePlaylistQuickToggle')?.addEventListener('click',()=>{
  const list=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
  if(!list||!button)return;
  const open=list.hidden;list.hidden=!open;button.setAttribute('aria-expanded',String(open));
- if(open)gePlaylistQuickUpdate();
+ if(open){gePlaylistQuickMeasureRoom();gePlaylistQuickUpdate();}
 });
 document.addEventListener('click',event=>{
  const strip=$('gePlaylistQuick');
@@ -10212,7 +10220,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-continuous-radio-v3" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-playlist-layer-v1" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
