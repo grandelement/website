@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V13_NETWORK_FRESH_20261126';
+const SITE_SHELL='GE_SITE_SHELL_V14_RADIO53_20261127';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -24,6 +24,7 @@ const REQUIRED_OFFLINE_FILES=[
   './radio/ge-gate-settings.js',
   './config/site-live.json',
   './ge-vault-client.js',
+  './ge-device-view.js',
   './ge-accessibility.js',
   './ge-accessibility.css',
   './manifest.webmanifest',

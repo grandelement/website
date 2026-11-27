@@ -3279,7 +3279,7 @@ async function offlineDownload(mode=offlineChoice,requestedPaths=null){
  if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
   offlineResumeAfterAccess=true;offlinePendingRequest={mode,paths:[...paths]};offlineMessageHold=true;
-  setOfflineMessage('ENTER AN OFFLINE-ENABLED CODE · '+(mode==='all'?'ALL MUSIC':paths.length+' SONGS QUEUED'));
+  setOfflineMessage('OFFLINE PERMISSION REQUIRED · ENTER CODE · '+(mode==='all'?'ALL MUSIC':mode==='update'?'UPDATE MISSING':paths.length+' SONGS QUEUED'));
   openCodeEntry();return;
  }
  offlineResumeAfterAccess=false;offlinePendingRequest=null;offlineMessageHold=true;

@@ -91,7 +91,8 @@ test('MUSIC owns offline actions and local playback activation survives access e
  assert.match(music,/class="geOfflineChoices"/,'Four OFFLINE choices are in the dock');
  assert.doesNotMatch(music,/class="geOfflineStart"/,'No second giant DOWNLOAD button');
  assert.match(radio,/offlinePlaybackMode\(\)&&window\.GEOffline\?\.isActive\?\.\(\)/);
- assert.match(radio,/SUN_MODE_PUBLIC_CONTROLS/);
+ assert.match(radio,/const publicOnly=!geRadioSunLabPrivateAllowed\(\)/,'Public listeners must not receive private EQ variables');
+ assert.match(radio,/const baseControls=mode&&!publicOnly\?\(SUN_MODE_CONTROLS\[mode\]\|\|\[\]\):\[\]/,'Advanced EQ controls require editor access');
  assert.match(radio,/geRadioSunLabPrivateAllowed/);
  assert.match(spectrum,/decodeAudioData/);
  assert.match(spectrum,/getChannelData/);
