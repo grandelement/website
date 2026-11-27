@@ -2154,7 +2154,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
-  document.body.classList.toggle('ge-radio-on',!!(state.live||state.livePreparing));
+  // Solid red is set exclusively by verified playback in updateRadioStartupCue.
   // RADIO remains visible during startup; red heartbeat requires verified progress.
   updateRadioStartupCue?.();
 }
@@ -2450,6 +2450,7 @@ function updateRadioStartupCue(){
   const tapReady=!state.live&&!state.livePreparing&&
     navigator.onLine!==false&&liveStreamConfigured();
   document.body.classList.toggle('ge-radio-tap-ready',tapReady);
+  document.body.classList.toggle('ge-radio-on',connected);
   document.body.classList.toggle('ge-radio-signal-ready',connected);
   syncRadioStandbyCue();
   document.body.classList.toggle('ge-radio-audible',connected);
@@ -4709,7 +4710,7 @@ $('liveBtn').addEventListener('click',()=>{
   // RADIO is a true start/stop control, including while connecting.
   document.body.classList.remove('ge-radio-standby-ready','ge-radio-standby-flash');
   clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;
-  document.body.classList.toggle('ge-radio-on',!(state.live||state.livePreparing));
+  document.body.classList.remove('ge-radio-on');
   if(state.live||state.livePreparing){
     exitLiveMode('RADIO STOPPED');
     requestUserPause();
@@ -4720,7 +4721,7 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
-  // Pressing RADIO stops the standby beacon; the active control is solid.
+  // Pressing RADIO stops the standby beacon; red awaits verified playback.
   audio.muted=false;audio.defaultMuted=false;
   updateRadioStartupCue();
   if(browserWakeOnRadioTap())return;
