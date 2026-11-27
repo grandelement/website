@@ -2458,6 +2458,7 @@ function updateRadioStartupCue(){
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
+    if(button.dataset.proxy==='liveBtn')button.classList.toggle('ship-live-active',connected);
     // RADIO always keeps its visible label; ON/OFF is conveyed by red color.
     const label=button.querySelector('.ge-radio-control-label');
     if(label&&label.textContent!=='RADIO')label.textContent='RADIO';
@@ -2726,7 +2727,7 @@ function syncRadioStandbyCue(){
   clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);
   geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;body.classList.remove('ge-radio-standby-flash');return;
  }
- body.classList.toggle('ge-radio-standby-flash',Date.now()<geRadioStandbyProofUntil||((state.live||state.livePreparing)&&liveState.signalReady));
+ body.classList.toggle('ge-radio-standby-flash',!!((state.live||state.livePreparing)&&liveState.signalReady));
 }
 async function verifyRadioStandby(){
  if(geRadioStandbyProbe||!radioStandbyAllowed())return;
@@ -5134,6 +5135,7 @@ audio.addEventListener('play',()=>{
   try{ navigator.mediaSession.playbackState='playing'; }catch(_e){}
 });
 audio.addEventListener('pause',()=>{
+  if(state.live||state.livePreparing){observedRadio1Progress=false;observedRadio2Progress=false;lastRadio1Time=lastRadio2Time=NaN;updateRadioStartupCue();}
   const backgroundInterruption=
     state.live &&
     document.hidden &&
@@ -8063,7 +8065,7 @@ Vector ${vector}. ${pair[1]}.`;
       }
       // Slow, bounded glow; no strobe or high-contrast flash.
       const ready=document.body.classList.contains('ge-radio-standby-flash');
-      const target=bins?.length?signal:(ready?.10+.08*Math.sin(now/1300)+.04*Math.sin(now/510):0);
+      const target=bins?.length?signal:(ready ? .10+.08*Math.sin(now/1300)+.04*Math.sin(now/510) : 0);
       geRadioR21Envelope+=(target-geRadioR21Envelope)*(1-Math.exp(-dt*2));
       if(now>=geRadioR21Next){
         geRadioR21Waves.push({progress:0,energy:bins?.length?geRadioR21Envelope:.18+Math.random()*.18,duration:4+Math.random()*2});
