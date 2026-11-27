@@ -953,6 +953,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </select>
     <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
   </section>
+  <section id="brShuffleButtonSettings" aria-label="Shuffle button design" style="padding:10px 0;margin:8px 0 16px">
+    <label for="brShuffleButtonStyle" style="display:block;font-weight:800;margin-bottom:7px">SHUFFLE BUTTON DESIGN</label>
+    <select id="brShuffleButtonStyle" aria-label="Shuffle button design">
+      <option value="classic">OPTION 1 · ORIGINAL B8</option>
+      <option value="planets">OPTION 2 · ALBUM PLANETS</option>
+    </select>
+    <p id="brShuffleButtonStyleStatus" role="status" style="font-size:12px;margin:5px 0">Publish to apply globally. Playback order and radio settings are unchanged.</p>
+  </section>
   <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
     <h2>RADIO / MUSIC · MASTER CATALOG</h2>
     <p class="brRouteHelp">One GitHub song inventory. FRONT controls the public album-cover stack. STORE controls the shop preview. PLAYER controls the music browser. RADIO controls website Radio/Shuffle approvals. The BLITZ on-air program remains under RADIO.</p>
@@ -2162,6 +2170,8 @@ function aboutPlainLinesFromHtml(raw){
 function populate(){
   $('brAlbumUniverseLayout').value=['squares','planets-touch','planets-gap'].includes((cfg.albums?.albumUniverseMode??cfg.music?.albumUniverseMode))?(cfg.albums?.albumUniverseMode??cfg.music?.albumUniverseMode):'planets-touch';
   $('brAlbumUniverseLayoutStatus').textContent='Publish Live to apply to every device.';
+  $('brShuffleButtonStyle').value=cfg.albums?.shuffleButtonStyle==='classic'?'classic':'planets';
+  $('brShuffleButtonStyleStatus').textContent='Publish to apply globally.';
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78,width:72,height:56,fontScale:100,textAlign:'center'},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96,width:86,height:78,fontScale:100,textAlign:'center'},cfg.visual.about||{});
   cfg.albums=cfg.albums||{};cfg.albums.layout=cfg.albums.layout||'random';cfg.albums.positions=cfg.albums.positions||{};
   checked('welcomeEnabled',cfg.welcome?.enabled!==false);field('welcomeTitle',cfg.welcome?.title||'WELCOME');field('welcomeBody',cfg.welcome?.body||'');field('welcomeContact',cfg.welcome?.contactText||'');field('welcomeEmail',cfg.welcome?.contactEmail||'');
@@ -2201,8 +2211,9 @@ function populate(){
   renderAlbums();if(brMasterLoaded)brMasterRender();dirty=false;setStatus('READY');
 }
 $('brAlbumUniverseLayout').addEventListener('change',()=>{mark();$('brAlbumUniverseLayoutStatus').textContent='Unsaved layout. Publish Live to apply globally.'});
+$('brShuffleButtonStyle').addEventListener('change',()=>{mark();$('brShuffleButtonStyleStatus').textContent='Unsaved design. Publish to apply globally.'});
 function collect(){
-  cfg.albums=cfg.albums||{};cfg.albums.albumUniverseMode=$('brAlbumUniverseLayout').value;
+  cfg.albums=cfg.albums||{};cfg.albums.albumUniverseMode=$('brAlbumUniverseLayout').value;cfg.albums.shuffleButtonStyle=$('brShuffleButtonStyle').value;
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
   {
     const prev=cfg.welcome||{};
@@ -2652,6 +2663,7 @@ window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
  }
  try{localStorage.setItem(WORK_KEY,JSON.stringify(cfg))}catch(_e){}
  $('brAlbumUniverseLayoutStatus').textContent='Published and verified · '+result.commit.slice(0,12);
+ $('brShuffleButtonStyleStatus').textContent='Published and verified · '+result.commit.slice(0,12);
  dirty=false;setStatus('GITHUB SAVE VERIFIED · '+result.commit.slice(0,12)+
    ' · '+paths.join(', ').toUpperCase()+' · Website Pages deployment follows.');
  return {ok:true,commit:result.commit,paths};
