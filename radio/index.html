@@ -2034,6 +2034,9 @@ async function loadFrozenAutoSongs(){
     const response=await fetch('../config/site-live.json?radio-master='+Date.now(),{cache:'no-store'});
     if(!response.ok)throw Error('GE Radio Master Song List unavailable');
     const data=await response.json();
+    const style=data?.albums?.shuffleButtonStyle==='classic'?'classic':'planets';
+    document.body.dataset.geShuffleStyle=style;
+    try{localStorage.setItem('GE_SHUFFLE_STYLE_CACHE_V1',style)}catch(_e){}
     let paths=data?.music?.radioMasterSongPaths;
     const assignedRadio=String(data?.music?.catalogRouting?.assignments?.radio||'');
     if(assignedRadio&&assignedRadio!=='@all'&&Array.isArray(paths)){
@@ -10035,9 +10038,79 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
+<script id="ge-shuffle-b8-bioluminescence">
+(()=>{
+ // Owner-approved B8. Random spawn locations, lifetimes, velocities and brightness;
+ // no repeating keyframes or fixed star arrangement.
+ const source=document.getElementById('shuffleBtn');if(!source)return;
+ const motion=matchMedia('(prefers-reduced-motion: reduce)');
+ const random=(a,b)=>a+Math.random()*(b-a);
+ const createParticle=(now)=>({
+   x:random(0,300),y:random(0,110),vx:random(-18,18),vy:random(-9,9),
+   r:random(1.4,3.6),strength:random(.45,1),start:now,duration:random(550,3400)
+ });
+ const surfaces=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')].map(button=>{
+   const canvas=document.createElement('canvas');canvas.className='ge-shuffle-b8-canvas';canvas.setAttribute('aria-hidden','true');
+   button.prepend(canvas);
+   canvas.style.setProperty('position','absolute','important');canvas.style.setProperty('inset','0','important');
+   canvas.style.setProperty('width','100%','important');canvas.style.setProperty('height','100%','important');
+   canvas.style.setProperty('pointer-events','none','important');canvas.style.setProperty('z-index','1','important');
+   return {button,canvas,ctx:canvas.getContext('2d'),particles:[],next:0};
+ }).filter(x=>x.ctx);
+ let raf=0;
+ function visible(s){
+   return document.body.dataset.geShuffleStyle==='classic'&&source.getAttribute('aria-pressed')==='true'&&!motion.matches&&!document.hidden&&
+     !document.body.classList.contains('hud-hidden')&&s.button.getClientRects().length>0&&
+     (s.button===source?!document.body.classList.contains('view-ship'):document.body.classList.contains('view-ship'));
+ }
+ function clear(s){
+   s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);s.particles=[];s.next=0;
+ }
+ function frame(now){
+   raf=0;let running=false;
+   for(const s of surfaces){
+     if(!visible(s)){clear(s);continue;}
+     running=true;
+     const w=s.button.clientWidth,h=s.button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
+     if(!w||!h)continue;
+     const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
+     if(s.canvas.width!==pw||s.canvas.height!==ph){s.canvas.width=pw;s.canvas.height=ph;}
+     const ctx=s.ctx;ctx.setTransform(pw/300,0,0,ph/110,0,0);ctx.clearRect(0,0,300,110);
+     if(!s.particles.length){for(let k=0;k<12;k++){const p=createParticle(now);p.start-=random(0,p.duration*.72);s.particles.push(p);}}
+     if(now>=s.next){s.particles.push(createParticle(now));s.next=now+random(35,150);}
+     s.particles=s.particles.filter(p=>now-p.start<p.duration);
+     for(const p of s.particles){
+       const age=(now-p.start)/p.duration,alpha=Math.sin(age*Math.PI)*p.strength;
+       const x=p.x+p.vx*(now-p.start)/1000,y=p.y+p.vy*(now-p.start)/1000,radius=p.r*4;
+       const g=ctx.createRadialGradient(x,y,0,x,y,radius);
+       g.addColorStop(0,'rgba(65,255,200,'+alpha+')');
+       g.addColorStop(.24,'rgba(65,255,200,'+(alpha*.68)+')');
+       g.addColorStop(1,'rgba(65,255,200,0)');
+       ctx.fillStyle=g;ctx.fillRect(x-radius,y-radius,radius*2,radius*2);
+       ctx.fillStyle='rgba(235,250,255,'+alpha+')';ctx.beginPath();ctx.arc(x,y,p.r*.55,0,Math.PI*2);ctx.fill();
+     }
+   }
+   if(running)raf=requestAnimationFrame(frame);
+ }
+ function wake(){
+   const enabled=source.getAttribute('aria-pressed')==='true';
+   for(const s of surfaces){
+     const show=visible(s);s.canvas.style.setProperty('display',show?'block':'none','important');
+     if(!show)clear(s);
+   }
+   if(!enabled||!surfaces.some(visible)){if(raf)cancelAnimationFrame(raf);raf=0;return;}
+   if(!raf)raf=requestAnimationFrame(frame);
+ }
+ new MutationObserver(wake).observe(source,{attributes:true,attributeFilter:['aria-pressed']});
+ new MutationObserver(wake).observe(document.body,{attributes:true,attributeFilter:['class','data-ge-shuffle-style']});
+ document.addEventListener('visibilitychange',wake);window.addEventListener('resize',wake);window.addEventListener('pageshow',wake);
+ motion.addEventListener?.('change',wake);wake();
+})();
+</script>
 <script id="ge-shuffle-album-rainbow">
 (()=>{
  const source=document.getElementById('shuffleBtn');if(!source)return;
+ if(!document.body.dataset.geShuffleStyle){try{document.body.dataset.geShuffleStyle=localStorage.getItem('GE_SHUFFLE_STYLE_CACHE_V1')==='classic'?'classic':'planets'}catch(_){document.body.dataset.geShuffleStyle='planets'}}
  const albums=ALBUM_ORDER.filter(name=>name!=='Singles');
  const fallback=['#b94754','#a86b3d','#829343','#388c76','#2e9bb1','#635293','#9b357d','#c84cba','#d29482','#e2b448','#bfc4cd'];
  const buttons=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')];
@@ -10185,7 +10258,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-rainbow-up-v3" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-shuffle-choice-v4" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
