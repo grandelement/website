@@ -10051,16 +10051,28 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
    });
    return {row,dots};
  });
- let previousMode=null,previousOrder='';
+ let previousMode=null;
+ const random=(a,b)=>a+Math.random()*(b-a);
  function render(){
    const shuffle=source.getAttribute('aria-pressed')==='true';if(previousMode===shuffle)return;
-   previousMode=shuffle;const order=albums.map((_,i)=>i);
-   if(shuffle){
-     for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
-     if(order.every((v,i)=>v===i)||order.join(',')===previousOrder)order.push(order.shift());
-     previousOrder=order.join(',');
+   previousMode=shuffle;
+   // Eleven real album planets, distributed around the center icon.
+   // Each follows a slow independent ellipse, with no stars or flashing.
+   const order=albums.map((_,i)=>i);
+   if(shuffle)for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+   const settings=order.map((i,k)=>{
+     const angle=(k/11)*Math.PI*2+random(-.12,.12);
+     return {i,x:50+Math.cos(angle)*random(33,40),y:50+Math.sin(angle)*random(28,35),dx:random(4,9),dy:random(3,7),period:random(7,14),delay:random(-12,0)};
+   });
+   for(const {row,dots} of rows){
+     row.classList.toggle('ge-planets-orbit',shuffle);
+     row.replaceChildren(...(shuffle?order:albums.map((_,i)=>i)).map(i=>dots[i]));
+     if(shuffle)for(const p of settings){
+       const dot=dots[p.i];dot.style.setProperty('--planet-x',p.x+'%');dot.style.setProperty('--planet-y',p.y+'%');
+       dot.style.setProperty('--planet-dx',p.dx+'px');dot.style.setProperty('--planet-dy',p.dy+'px');
+       dot.style.setProperty('--planet-period',p.period+'s');dot.style.setProperty('--planet-delay',p.delay+'s');
+     }
    }
-   for(const {row,dots} of rows)row.replaceChildren(...order.map(i=>dots[i]));
  }
  new MutationObserver(render).observe(source,{attributes:true,attributeFilter:['aria-pressed']});render();
 })();
@@ -10173,7 +10185,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-rainbow-modes-v1" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-rainbow-orbit-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
