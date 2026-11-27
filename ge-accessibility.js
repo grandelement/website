@@ -449,7 +449,12 @@ function start(){
   fit();setTimeout(fit,300);setTimeout(fit,1600);
  }
  let prior=false;try{prior=!!localStorage.getItem(localeKey)||!!localStorage.getItem(declinedKey);}catch(_e){}
+ let resetLanguage=false;
+ try{const url=new URL(location.href);resetLanguage=radio&&url.searchParams.get('ge_reset_language')==='1';
+  if(resetLanguage){url.searchParams.delete('ge_reset_language');history.replaceState(history.state,'',url.href);}
+ }catch(_e){}
  if(!prior)void suggestedLanguage().then(preferred=>{
+  if(resetLanguage&&!preferred)preferred='en';
   // Don't interrupt the visitor's interaction or a currently open dialog.
   if(preferred && dialog?.hidden && !A.hidden){
    try{if(localStorage.getItem(localeKey)||localStorage.getItem(declinedKey))return;}catch(_e){}
