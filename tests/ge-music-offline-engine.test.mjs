@@ -269,7 +269,7 @@ test('one service worker caches essential art, startup code and catalog; not all
  assert.doesNotMatch(sw,/backgrounds\.map|ge-radio-backgrounds-v1/);
  assert.match(html,/\.\/offline-manager\.js\?v=20261125-library-v11/);
  assert.match(html,/\.\/ge-music-v5\.js\?v=[^"']+/, 'Keep the existing Music player loaded');
- assert.match(html,/sw\.js\?v=20261125-eq-offline-v4/);
+ assert.match(html,/sw\.js\?v=20261125-hue-preview-v8/);
  assert.ok(workerVersion,'Service worker advertises a version');
  assert.match(source,/const VERSION='2026\.11\.25-offline-manager-v11-library'/);
 });
@@ -330,4 +330,104 @@ test('saved inventory includes actual cached recordings; single delete and reloa
  assert.equal(cleared.remaining,0);
  assert.equal(h.engine.active(),false);
  assert.equal((await h.engine.listSaved()).length,0);
+});
+
+test('EQ preset publishing is owner-only, code scope is advanced editing only, and visitors retain local preferences',()=>{
+ assert.match(html,/id="sunLabSave"[^>]*hidden[^>]*>SAVE TO GITHUB/);
+ assert.ok(!html.includes('>SAVE ON DEVICE</button>'));
+ assert.match(html,/function geRadioSunLabAllowed\(\)\{return true;\}/);
+ assert.match(html,/if\(geSunOwnerVerified\)return true;/);
+ assert.match(html,/receipt\.sunLab===true/);
+ assert.match(html,/if\(!geRadioSunLabPrivateAllowed\(\)\)\{refresh\(\);return;\}/);
+ assert.match(html,/if\(!geSunOwnerVerified\|\|!button\|\|button\.disabled\)return;/);
+ assert.match(html,/changes:\{visual\},expected:\{visual:current\}/);
+ assert.match(html,/proof\.settings\?\.visual\?\.sunEQ/);
+ assert.match(html,/setPublishedSunEQ\(data\?\.visual\?\.sunEQ\)/);
+ assert.match(html,/setItem\(SUN_MODE_SELECTED_KEY,mode\)/);
+ assert.doesNotMatch(html,/localStorage\.setItem\(SUN_(?:LAB|MODE)_KEY,/);
+ assert.doesNotMatch(html,/<script[^>]+src="\.\/sun-(?:lab-compact|eq-profile-share)\.js/);
+ const css=readFileSync('radio/radio-components.css','utf8');
+ assert.match(css,/#sunLabPanel\.ge-sunlab-public #sunLabGrid \.sunlab-row/);
+ const backroom=readFileSync('backroom/index.html','utf8');
+ assert.match(backroom,/id="brTuneEQ" href="\.\.\/radio\/\?eq_admin=1"/);
+ assert.match(backroom,/ADVANCED EQ KNOBS · FOR THIS CODE ONLY/);
+});
+
+test('public ACCESS repair reuses healthy files and never fetches or deletes music',async()=>{
+ const origin='https://example.test';
+ const assets=new Map(),musicAssets=new Map([['saved.mp3','original recording']]);
+ const fetches=[];
+ const self={location:{href:origin+'/radio/sw.js'},navigator:{onLine:true},addEventListener(){}};
+ const key=path=>new URL(typeof path==='string'?path:path.url,self.location.href).href;
+ const cache={match:async path=>assets.get(key(path))?.clone(),
+  put:async(path,res)=>assets.set(key(path),res.clone())};
+ const caches={open:async name=>{assert.match(name,/^ge-radio-shell-/);return cache}};
+ const payload=(path)=>new Response(
+  path.endsWith('offline-assets.json')?JSON.stringify({backgrounds:['31.gif','47.gif']}):
+  path.endsWith('index.html')?'<!doctype html><title>Grand Element Radio</title><div id="shipStage"></div><audio id="player"></audio>GE_RADIO_UI_BUILD_20261125_HUE_PREVIEW_V8':
+  'geOfflineListBtn geRepairWebsite albumFullySelected Use the canonical same-origin recording for every album 20261125-eq-offline-v4 Published EQ editor: #sunEQAura{inset:0!important} .sun-hue-swatch 2026.11.25-offline-manager-v11-library',
+  {headers:{'Content-Type':/\.json$/.test(path)?'application/json':/\.gif$/.test(path)?'image/gif':/\.jpg$/.test(path)?'image/jpeg':'text/plain'}});
+ const ctx={self,caches,URL,Response,AbortController,setTimeout,clearTimeout,fetch:async path=>{fetches.push(String(path));return payload(String(path))}};
+ const vm=await import('node:vm');
+ const api=vm.runInNewContext(sw+'\n;({repairShell,REQUIRED})',ctx);
+ for(const path of [...api.REQUIRED,'./index.html','./','../ge-images/img/47.gif'])assets.set(key(path),payload(key(path)));
+ const healthy=await api.repairShell();
+ assert.equal(healthy.ready,true);assert.equal(healthy.repaired,0);assert.equal(fetches.length,0);
+ const missing=key('../ge-images/img/47.gif');assets.delete(missing);
+ const restored=await api.repairShell();
+ assert.equal(restored.ready,true);assert.equal(restored.repaired,1);assert.deepEqual(fetches,[missing]);
+ assets.delete(missing);self.navigator.onLine=false;
+ const offline=await api.repairShell();
+ assert.equal(offline.ready,false);assert.equal(fetches.length,1);
+ assert.equal(musicAssets.get('saved.mp3'),'original recording');
+ assert.match(music,/class="geRepairWebsite"/);
+ assert.match(music,/type:'GE_RADIO_SHELL_REPAIR'/);
+});
+
+test('Aether shares canonical source; Fire stays in the complete album selector; full selections illuminate',()=>{
+ const preview=readFileSync('radio/preview-lab.html','utf8');
+ const start=preview.indexOf('function geAudioSourceURL(t)'),end=preview.indexOf('async function startTrack(t)',start);
+ const source=Function('URL','location','cleanMusicPath',preview.slice(start,end)+'return geAudioSourceURL;')(URL,{href:'https://example.test/radio/preview-lab.html',origin:'https://example.test'},path=>path);
+ const path='ge-music/music/Grand Element - 2026 - Aether/Aether_04-Prana.mp3';
+ assert.equal(source({path}), 'https://example.test/'+path.split('/').map(encodeURIComponent).join('/'));
+ assert.match(music,/const albumNames=\[\.\.\.new Set\(catalogScope\.filter/);
+ assert.match(music,/heading\.setAttribute\('aria-pressed',String\(complete\)\)/);
+ assert.match(music,/albumBrowseHeading\[aria-pressed="true"\]/);
+ const startSelection=music.indexOf('function albumFullySelected('),endSelection=music.indexOf('function toggleAlbumTracks(',startSelection);
+ const state={selected:new Set(['fire1','fire2'])};
+ const complete=Function('selectableAlbumTracks','state',music.slice(startSelection,endSelection)+'return albumFullySelected;')(album=>album==='Fire'?[{path:'fire1'},{path:'fire2'}]:[],state);
+ assert.equal(complete('Fire'),true);state.selected.delete('fire2');assert.equal(complete('Fire'),false);assert.equal(complete('Empty'),false);
+});
+test('only three public presets remain and Glow follows measured audio',()=>{
+ assert.deepEqual([...html.matchAll(/data-sun-mode="([^"]+)"/g)].map(m=>m[1]),['spectrum','glow','waterfall']);
+ const a=html.indexOf('  let glowEnvelope=0;'),b=html.indexOf('  function updateSunEQ(live)',a);
+ const inner={style:{}},outer={style:{}},bins=new Uint8Array(256);
+ const aura={style:{},querySelector:s=>s.includes('inner')?inner:outer};
+ const update=Function('sunEQAura','sunEQFog','eqData','sunNum','clamp','lerp','currentAudioEnergy',html.slice(a,b)+'return updateGlowSun;')(aura,{style:{}},bins,(k,v)=>v,(v,a,b)=>Math.max(a,Math.min(b,v)),(a,b,t)=>a+(b-a)*t,()=>.2);
+ update(false,0);const quiet=outer.style.boxShadow;bins.fill(220,0,64);update(true,33);
+ assert.notEqual(outer.style.boxShadow,quiet);const loud=outer.style.boxShadow;
+ bins.fill(0);update(false,66);assert.notEqual(outer.style.boxShadow,loud);
+});
+test('Hide Text moves the live EQ nodes rather than replacing the effect',()=>{
+ assert.match(html,/const effectLayers=\[\$\('sunEQFog'\),\$\('sunEQAura'\)\]/);
+ assert.match(html,/target\.insertBefore\(layer,anchor\)/);
+ assert.match(html,/new MutationObserver\(syncHiddenSunEffects\)/);
+ assert.match(readFileSync('radio/sun-lab-transparency.css','utf8'),/#geFloatingSunImg\{\s*opacity:var\(--ge-sun-art-opacity,1\)/);
+});
+
+test('EQ hue previews match all seven color sliders and relative Waterfall hues',()=>{
+ const ids=['slHue','slAltHue','slLowHue','slMidHue','slHighHue','slInnerGlowHue','slOuterGlowHue'];
+ for(const id of ids){
+  assert.match(html,new RegExp('id="'+id+'Preview"'));
+  assert.match(html,new RegExp('id="'+id+'" class="sun-hue-slider"'));
+ }
+ const start=html.indexOf('  function sunHuePreview('),end=html.indexOf('  function refreshSunHuePreviews()',start);
+ const hue=Function(html.slice(start,end)+'return sunHuePreview;')();
+ assert.equal(hue('slLowHue',256),256);
+ assert.equal(hue('slMidHue',169),169);
+ assert.equal(hue('slHighHue',197),197);
+ assert.equal(hue('slHue',0),210);
+ assert.equal(hue('slAltHue',68,0),278);
+ assert.equal(hue('slAltHue',100,100),50);
+ assert.match(html,/if\(SUN_HUE_CONTROLS.includes\(id\)\)refreshSunHuePreviews\(\)/);
 });

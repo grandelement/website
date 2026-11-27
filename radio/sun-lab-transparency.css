@@ -9,7 +9,8 @@
 }
 /* Only the sun artwork fades; audio-reactive rays/fog remain independently visible. */
 html.ge-radio-ui body #geLogo,
-html.ge-radio-ui body #shipLogo{
+html.ge-radio-ui body #shipLogo,
+html.ge-radio-ui body #geFloatingSunImg{
  opacity:var(--ge-sun-art-opacity,1)!important;
 }
 
@@ -61,10 +62,7 @@ html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][cla
 }
 /* The six-icon utility dock uses higher-specificity backgrounds in the
    old layout. Match its colors while giving this single slider final say. */
-html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip #bottomActions > #shareBtn{
- background:rgba(185,165,232,var(--ge-other-button-alpha))!important;
- background-image:none!important;
-}
+/* SHARE uses the common bottomActions background above, not a special tint. */
 html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip #geUtilityRow > :is(#sunLabBtn,#offlineLaunchBtn){
  background:rgba(9,34,68,var(--ge-other-button-alpha))!important;
  background-image:none!important;
@@ -122,3 +120,48 @@ html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][cla
 .ge-alpha-row output{font:700 12px system-ui,sans-serif;color:#bce9ff;min-width:35px;text-align:right}
 .ge-alpha-row input[type="range"]{grid-column:1/-1;width:100%;min-height:28px;accent-color:#56bfff;touch-action:pan-x}
 #geSunLabTransparencyHelp{font:11px system-ui,sans-serif;color:#b9dcf4;margin:1px 0 0}
+
+/* The hidden-HUD Sun contains the same live EQ nodes as the normal Sun. */
+#geFloatingSun{isolation:isolate;overflow:visible}
+#geFloatingSun #geFloatingSunImg{position:relative;z-index:4;box-shadow:none}
+
+/* Final public control palette: same blue glass for every utility icon,
+   with status outlines only. No merchandise drop shadow. */
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip :is(#bottomActions,#geUtilityRow) > :is(#sunLabBtn,#offlineLaunchBtn,#accessLaunchBtn,#contactLaunchBtn,#shareBtn,a.bc-btn){
+ background:linear-gradient(180deg,rgba(30,78,119,var(--ge-other-button-alpha)),rgba(9,34,68,var(--ge-other-button-alpha)))!important;
+ background-image:linear-gradient(180deg,rgba(30,78,119,var(--ge-other-button-alpha)),rgba(9,34,68,var(--ge-other-button-alpha)))!important;
+ background-color:transparent!important;border:1px solid #67b8e5!important;box-shadow:none!important;
+ color:#f5fdff!important;filter:none!important;text-shadow:none!important;
+}
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip :is(#bottomActions,#geUtilityRow) > :is(#sunLabBtn,#offlineLaunchBtn,#accessLaunchBtn,#contactLaunchBtn,#shareBtn,a.bc-btn) :is(svg,.ge-radio-icon-label){
+ filter:none!important;box-shadow:none!important;text-shadow:none!important;
+}
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip :is(#bottomActions,#geUtilityRow) > :is(#sunLabBtn[aria-pressed="true"],#accessLaunchBtn[data-ge-code-active="true"],#offlineLaunchBtn[data-ge-state="ready"]){
+ border-color:#42d9ff!important;outline:2px solid #42d9ff!important;outline-offset:-2px!important;box-shadow:none!important;
+}
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip #geUtilityRow > #offlineLaunchBtn:is([data-ge-state="downloading"],[data-ge-state="partial"]){
+ border-color:#ffe2a1!important;outline:1px solid #ffe2a1!important;outline-offset:-1px!important;
+}
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip #geUtilityRow > a.bc-btn::before,
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #geDesktopUtilityStrip #geUtilityRow > a.bc-btn::after{
+ content:none!important;display:none!important;box-shadow:none!important;
+}
+/* Approved #8 Ice Blue steady glass, not green, for Shuffle ON. */
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #musicGroup > #shuffleBtn[aria-pressed="true"],
+html.ge-radio-ui[class][class] body[class] #shipStage [data-proxy="shuffleBtn"][aria-pressed="true"]{
+ background:linear-gradient(180deg,rgba(77,159,212,var(--ge-music-button-alpha)),rgba(18,70,112,var(--ge-music-button-alpha)))!important;
+ border-color:#9fe8ff!important;outline:1px solid #9fe8ff!important;outline-offset:-1px!important;
+ box-shadow:inset 0 0 10px #b4edff35!important;color:#fff!important;
+}
+/* Red is intentionally distinct; idle has muted glass, ON is solid red.
+   The random connection flash animates only the illumination. */
+html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][class] #musicGroup > #liveBtn{
+ background:linear-gradient(180deg,rgba(100,18,35,var(--ge-music-button-alpha)),rgba(48,8,17,var(--ge-music-button-alpha)))!important;
+}
+html.ge-radio-ui[class][class] body.ge-radio-on.view-player:not(.iam-studio-open)[class][class] #musicGroup > #liveBtn{
+ background:linear-gradient(180deg,rgba(241,37,80,var(--ge-music-button-alpha)),rgba(167,15,49,var(--ge-music-button-alpha)))!important;
+}
+
+/* Active radio has a steady red fill; standby alone has motion. */
+html.ge-radio-ui[class][class] body.ge-radio-on.view-player:not(.iam-studio-open)[class][class] #musicGroup > #liveBtn{background:rgba(211,29,48,var(--ge-music-button-alpha))!important;background-image:none!important;box-shadow:none!important;animation:none!important}
+html.ge-radio-ui[class][class] body.ge-radio-on[class] #shipStage button[data-proxy="liveBtn"]{background:#d31d30!important;background-image:none!important;box-shadow:none!important;animation:none!important}

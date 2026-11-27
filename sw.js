@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V12_SUNLAB_ALPHA_20261119';
+const SITE_SHELL='GE_SITE_SHELL_V13_NETWORK_FRESH_20261126';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -46,8 +46,12 @@ async function validHomepage(response){
 async function fromAnyCache(request){
   // Prefer the newest verified shell, not an older cache with a blank/partial HTML.
   const current=await caches.open(SITE_SHELL);
-  const direct=await current.match(request,{ignoreSearch:true});
-  if(direct)return direct;
+  const exact=await current.match(request);
+  if(exact?.ok)return exact;
+  const canonical=new URL(typeof request==='string'?request:request.url,HOME);
+  canonical.search='';
+  const direct=await current.match(canonical.href);
+  if(direct?.ok)return direct;
   return (await caches.match(request,{ignoreSearch:true}))||null;
 }
 function offlineRecovery(){
@@ -132,7 +136,8 @@ async function navigation(request){
   const url=new URL(request.url);
   const isHome=urlIsHome(url.href);
   try{
-    const response=await fetch(request);
+    if(self.navigator?.onLine===false)throw Error('Offline');
+    const response=await fetch(request,{cache:'no-store'});
     if(response.ok){
       // Never promote a partial homepage into the device's offline backup.
       if(isHome){
@@ -191,8 +196,17 @@ async function asset(request,url){
     if(cached&&cached.ok&&cached.status!==206)return partialResponse(request,cached);
     return fetch(request);
   }
+  const app=/\.(?:js|css|json|webmanifest|html)$/i.test(url.pathname);
+  const refreshable=app||/\.(?:png|jpe?g|webp|gif|svg|ico)$/i.test(url.pathname);
   try{
-    const response=await fetch(request);
+    if(self.navigator?.onLine===false)throw Error('Offline');
+    const response=await fetch(request,refreshable?{cache:'no-store'}:undefined);
+    const type=response.headers.get('content-type')||'';
+    // An HTML error page with status 200 is not a valid JS/CSS/JSON update.
+    if(app&&!/\.html$/i.test(url.pathname)&&/text\/html/i.test(type)){
+      const saved=await fromAnyCache(request);
+      return saved||new Response('Application file unavailable',{status:503});
+    }
     if(response.status>=500){
       // Serve previously cached public assets when the host has an outage.
       const saved=await fromAnyCache(request);
@@ -201,7 +215,11 @@ async function asset(request,url){
     if(response.ok&&response.status===200&&url.origin===HOME.origin&&
       /\.(js|css|json|webmanifest|png|jpe?g|webp|gif|svg|ico)$/i.test(url.pathname)){
       const cache=await caches.open(SITE_SHELL);
-      eventlessPut(cache,request,response.clone());
+      await cache.put(request,response.clone()).catch(()=>{});
+      if(app&&url.searchParams.has('v')&&[...url.searchParams.keys()].every(key=>key==='v')){
+        const canonical=new URL(url);canonical.search='';
+        await cache.put(canonical.href,response.clone()).catch(()=>{});
+      }
     }
     return response;
   }catch(_e){

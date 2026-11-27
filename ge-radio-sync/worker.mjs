@@ -358,8 +358,8 @@ export default {
     return json({...d,server_now_ms:Date.now()},200,request);
   }
   if(path==="/v1/admin/program"&&request.method==="POST"){
-    if(!(await authorizedDj(request,env)))
-      return json({ok:false,error:"Trusted DJ session required. Open and sign in to the website DJ Booth first."},401,request);
+    if(!(await authorizedDj(request,env))&&!(await verifiedBackroomOwner(request,env)))
+      return json({ok:false,error:"Authorized DJ device or signed-in Backroom owner required."},401,request);
     let body;
     try{body=await request.json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
     let checked;
@@ -371,8 +371,8 @@ export default {
     return json(await result.json(),result.status,request);
   }
   if(path==="/v1/admin/switch"&&request.method==="POST"){
-    if(!(await authorizedDj(request,env)))
-      return json({ok:false,error:"Trusted DJ session required. Open and sign in to the website DJ Booth first."},401,request);
+    if(!(await authorizedDj(request,env))&&!(await verifiedBackroomOwner(request,env)))
+      return json({ok:false,error:"Authorized DJ device or signed-in Backroom owner required."},401,request);
     let body;
     try{body=await request.clone().json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
     if(body.to==="ge"){

@@ -737,7 +737,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <div class="brSettingsMenu">
         <div class="grid">
           <label><span>TEXT SIZE <b id="backroomTextSizeValue">90%</b></span><input id="backroomTextSize" type="range" min="75" max="160" step="5" value="90"></label>
-          <div class="actions"><button id="reset" type="button">RESET</button><button id="lockBackroom" type="button">LOCK BACK ROOM</button></div>
+          <div class="actions"><a class="button primary" id="brTuneEQ" href="../radio/?eq_admin=1">TUNE EQ EFFECTS</a><button id="reset" type="button">RESET</button><button id="lockBackroom" type="button">LOCK BACK ROOM</button></div>
           <p class="sub">GitHub saves use the private server connection. Your Back Room password works on every device.</p>
         </div>
       </div>
@@ -931,7 +931,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <select id="brPublicPlaylist"><option value="">MASTER SONGS · DEFAULT</option></select>
     </label>
     <div class="brPublicScopeChecks" role="group" aria-label="Public Player permissions">
-      <label class="check"><input type="checkbox" value="sunlab" name="brPublicScope"><span>SUN LAB</span></label>
+      <label class="check"><input type="checkbox" value="sunlab" name="brPublicScope" checked disabled><span>EQ EFFECTS · ALWAYS PUBLIC</span></label>
       <label class="check"><input type="checkbox" value="offline" name="brPublicScope"><span>OFFLINE</span></label>
       <label class="check"><input type="checkbox" value="reload" name="brPublicScope"><span>RELOAD</span></label>
       <label class="check"><input type="checkbox" value="debug" name="brPublicScope"><span>DEBUG</span></label>
@@ -1058,9 +1058,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
     <p class="brRadioStationNote">RADIO 1 is the BLITZ primary. RADIO 2 is the backup. Published backup tracks do not prove live queue synchronization or automatic failover. The original DJ Booth remains the authority for the on-air playlist, queue and shuffle.</p>
   </section>
-  <details id="brRadioPlaylistTools">
-    <summary>WEBSITE PLAYLISTS · GITHUB</summary>
-    <p>This is the existing website playlist editor shared with MUSIC. It does not directly rewrite the BLITZ on-air queue or Radio 2 schedule.</p>
+  <details id="brRadioPlaylistTools" open>
+    <summary>EDIT RADIO WEBSITE PLAYLISTS · NO BLITZ REQUIRED</summary>
+    <p>Edit, reorder and SAVE playlists directly to GitHub here. No Blitz DJ or Blitz build minutes needed. This does not change the BLITZ live stream or Radio 2 clock until those programs are separately published. Check NOW PLAYING above before claiming the broadcast changed.</p>
     <div id="brRadioPlaylistMount"></div>
   </details>
   <!-- Shared Radio Master editor; uses the same published config as player and access codes. -->
@@ -1196,6 +1196,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
     <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
+    <p class="brAccessNotice">EQ effects are always public. This code permission unlocks only advanced EQ knobs. Global preset changes require Back Room owner authentication.</p>
     <p class="brAccessNotice" id="brAccessCustomHelp">EQ Effects are public by default. SUN LAB permission only unlocks advanced EQ variables for this saved code. LOVE works like any other code.</p>
     <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
     <label><span>FAN / ACCESS NAME · SHOWN AT TOP OF MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
@@ -1218,7 +1219,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="offline"><span>OFFLINE BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="legacy"><span>LEGACY BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="reload"><span>RELOAD BUTTON</span></label>
-      <label class="check"><input type="checkbox" name="brAccessScope" value="sunlab"><span>ADVANCED EQ CONTROLS · FOR THIS CODE ONLY</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="sunlab"><span>ADVANCED EQ KNOBS · FOR THIS CODE ONLY</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="debug"><span>DEBUG BUTTON</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="iam"><span>I AM · OFF BY DEFAULT</span></label>
     </div>
@@ -2213,7 +2214,13 @@ function collect(){
     if(!prev.contactHtml||textOf(prev.contactHtml)!==contactText)cfg.welcome.contactHtml=escapeHtml(contactText);
   }
   {const aboutHtml=cleanAboutHtml($('aboutIntro').innerHTML);cfg.about={intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml,richTextVersion:2};}
-  cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
+  cfg.visual=cfg.visual||{};
+  // Unrelated Back Room settings must never overwrite published EQ presets.
+  if(publisherBase){
+    if(publisherBase.visual?.sunEQ)cfg.visual.sunEQ=clone(publisherBase.visual.sunEQ);
+    else delete cfg.visual.sunEQ;
+  }
+  cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
@@ -2422,7 +2429,7 @@ async function brPublicPlayerLoad(){
   }
   dropdown.value=[...dropdown.options].some(o=>o.value===previous)?previous:'';
   for(const input of document.querySelectorAll('[name="brPublicScope"]'))
-    input.checked=!!data.profile?.scopes?.includes(input.value);
+    input.checked=input.value==='sunlab'||!!data.profile?.scopes?.includes(input.value);
   brPublicPlayerLoaded=true;
   status.textContent='PUBLIC PROFILE LOADED · '+(dropdown.selectedOptions[0]?.textContent||'MASTER SONGS')+
     ' · '+(data.profile?.scopes?.length||0)+' PUBLIC FEATURES';
@@ -4645,6 +4652,8 @@ const backroomVaultManagers=(()=>{
   }
   $('brRadioAllCheck').addEventListener('click',()=>void checkRadioConnections());
   window.GE_BACKROOM_RADIO_STATUS_CHECK=checkRadioConnections;
+  // Read-only authenticated source used by the independent Now Playing verifier.
+  window.GE_BACKROOM_DJ_STATUS=()=>geDJApi('/control/status');
   let reconnectInProgress=false;
   async function reconnectAllSources(){
     if(reconnectInProgress)return false;
@@ -5699,5 +5708,6 @@ $('gatePassword').focus();
 <script src="./music-router.js?v=20261124-album-tabs-v2"></script>
 <script src="./music-section-nav.js?v=20261124-a"></script>
 <script src="./save-center.js?v=20261124-album-save"></script>
+<script src="./radio-live-verify.js?v=20261127-radio-verify-2"></script>
 </body>
 </html>

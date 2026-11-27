@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.25-eq-offline-v4';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261125_EQ_OFFLINE_LIBRARY_V4';
+const VERSION='2026.11.26-continuous-radio-v5';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -13,7 +13,7 @@ const REQUIRED=[
  './radio-base.css','./radio-components.css','./radio-layout.css',
   './ship-control-repair.css','./player-button-effects.css','./player-mobile-fit.css',
   './sun-lab-transparency.css','./sun-lab-transparency.js',
- './offline-home.html',
+ './offline-home.html','./preview-lab.html',
  './ge-music-v5.js','./offline-manager.js','./live-spectrum.js',
  './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
@@ -25,7 +25,7 @@ const REQUIRED=[
  '../ge-images/images/ge-logo-2.jpg','../ge-images/img/31.gif',
  ...ARTWORK.map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
 ];
-const OPTIONAL=['./preview-lab.html','./favicon.ico',
+const OPTIONAL=['./favicon.ico',
  './icons/favicon-16.png','./icons/favicon-32.png',
  './icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
  './icons/icon-maskable-512.png','./cockpit-landscape.png',
@@ -33,6 +33,41 @@ const OPTIONAL=['./preview-lab.html','./favicon.ico',
 const IMAGE=/\.(?:gif|png|jpe?g|webp)$/i;
 const AUDIO=/\.(?:mp3|m4a|ogg|wav)$/i;
 const STATIC_JSON=/\.json$/i;
+function isAlbumCover(path){return /\/ge-images\/images\/Grand(?:%20| )Element(?:%20| )-(?:%20| ).+\.jpg$/i.test(path);}
+async function validAlbumCover(response){
+ if(!response?.ok||response.status!==200||!/^image\/jpeg(?:;|$)/i.test(response.headers.get('content-type')||''))return false;
+ try{
+  const blob=await response.clone().blob();
+  if(blob.size<100)return false;
+  const signature=new Uint8Array(await blob.slice(0,3).arrayBuffer());
+  return signature[0]===255&&signature[1]===216&&signature[2]===255;
+ }catch(_){return false;}
+}
+async function albumCover(request){
+ const url=new URL(request.url),canonical=new URL(url);canonical.search='';
+ const shell=await caches.open(SHELL_CACHE);
+ // Verify image type and signature before replacing a known-good cover.
+ if(self.navigator?.onLine!==false&&!url.searchParams.has('ge_offline')){
+  try{
+   const fresh=await timeoutFetch(request,{cache:'no-store'},15000);
+   if(await validAlbumCover(fresh)){
+    await shell.put(canonical.href,fresh.clone()).catch(()=>{});
+    return fresh;
+   }
+  }catch(_){}
+ }
+ const current=await shell.match(canonical.href);
+ if(await validAlbumCover(current))return current;
+ for(const name of await caches.keys()){
+  const cache=await caches.open(name);
+  const old=await cache.match(canonical.href,{ignoreSearch:true});
+  if(await validAlbumCover(old)){
+   await shell.put(canonical.href,old.clone()).catch(()=>{});
+   return old;
+  }
+ }
+ return new Response('Album artwork unavailable',{status:503});
+}
 function requestURL(path){return new URL(path,self.location.href).href;}
 async function timeoutFetch(request,options={},ms=4200){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),ms);
@@ -53,6 +88,7 @@ async function validAsset(path,response){
  if(!response?.ok||response.status!==200)return false;
  const type=response.headers.get('content-type')||'';
  const pathname=new URL(requestURL(path)).pathname;
+ if(isAlbumCover(pathname))return validAlbumCover(response);
  if(IMAGE.test(pathname)&&!type.toLowerCase().startsWith('image/'))return false;
  if(STATIC_JSON.test(pathname)&&!/json/i.test(type))return false;
  if(/\.js$/i.test(pathname)&&/text\/html|application\/json/i.test(type))return false;
@@ -62,6 +98,20 @@ async function validAsset(path,response){
   if(Number.isFinite(length)&&length>0)return true;
   return (await response.clone().blob()).size>0;
  }catch(_){return false}
+}
+// Validate release-sensitive files as well as their MIME type and nonempty body.
+async function validRepairAsset(path,response){
+ if(!(await validAsset(path,response)))return false;
+ const markers={
+  './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite','albumFullySelected'],
+  './preview-lab.html':['Use the canonical same-origin recording for every album'],
+  './live-spectrum.js':['20261125-eq-offline-v4'],
+  './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}','.sun-hue-swatch'],
+  './offline-manager.js':['2026.11.25-offline-manager-v11-library']
+ }[path];
+ if(!markers)return true;
+ try{const source=await response.clone().text();return markers.every(marker=>source.includes(marker))}
+ catch(_){return false}
 }
 async function offlineArtwork(cache){
  // One maintained source of truth for the deliberately compact set of
@@ -94,8 +144,11 @@ async function installShell(){
   // Never promote a new EQ shell with the old manual-activation script.
   if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
+  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
   if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
+  if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
+  if(!(await validRepairAsset(path,response)))throw Error('Application release mismatch: '+path);
   await cache.put(path,response.clone());
  }));
  const offlinePictures=await offlineArtwork(cache);
@@ -118,7 +171,22 @@ self.addEventListener('activate',event=>{
   // Keep one previous working shell. Never delete any music, art or playlists.
   const prior=names.filter(name=>name.startsWith('ge-radio-shell-')&&name!==SHELL_CACHE);
   const keep=prior.at(-1);
-  await Promise.all(prior.filter(x=>x!==keep).map(x=>caches.delete(x)));
+  // Legacy shells sometimes contain listener recordings. Never delete one
+  // unless its contents have been inspected and contain no audio at all.
+  for(const name of prior.filter(x=>x!==keep)){
+   try{
+    const previous=await caches.open(name);
+    let protectsMedia=false;
+    for(const request of await previous.keys()){
+     const url=new URL(request.url);
+     const response=await previous.match(request);
+     if(AUDIO.test(url.pathname)||/^audio\//i.test(response?.headers.get('content-type')||'')){
+      protectsMedia=true;break;
+     }
+    }
+    if(!protectsMedia)await caches.delete(name);
+   }catch(_){/* Fail closed: retain an uninspectable cache. */}
+  }
   await self.clients.claim();
  })());
 });
@@ -130,7 +198,10 @@ async function cached(request,{media=false}={}){
   if(result?.ok)return result;
  }
  const shell=await caches.open(SHELL_CACHE);
- const saved=await shell.match(url,{ignoreSearch:true});
+ const exact=await shell.match(url);
+ if(exact?.ok)return exact;
+ const canonical=new URL(url,self.location.href);canonical.search='';
+ const saved=await shell.match(canonical.href);
  if(saved?.ok)return saved;
  const old=await caches.match(url,{ignoreSearch:true});
  return old?.ok?old:null;
@@ -189,7 +260,7 @@ async function navigation(request){
  try{
   const onlineRequest=path.endsWith('/radio/offline-home.html')?requestURL('./index.html'):request;
   const fresh=await timeoutFetch(onlineRequest,{cache:'no-store'});
-  if(await validIndex(fresh,true)){
+  if(await validIndex(fresh)){
    const cache=await caches.open(SHELL_CACHE);
    await cache.put('./index.html',fresh.clone()).catch(()=>{});
    await cache.put('./',fresh.clone()).catch(()=>{});
@@ -217,53 +288,34 @@ async function media(request){
  try{
   const network=await timeoutFetch(request,{cache:'no-store'},7500);
   if(network.ok){
-   if(AUDIO.test(url.pathname)&&network.status===200&&!request.headers.has('range')){
-    const cache=await caches.open(MEDIA_CACHE);
-    cache.put(url.href,network.clone()).catch(()=>{});
-   }
+   // Ordinary listening must not silently refill the persistent download cache.
    return network;
   }
  }catch(_){}
  const saved=await cached(request,{media:true});
  return saved?rangeResponse(request,saved):new Response('Media unavailable',{status:503});
 }
+// Always revalidate application code online. An exact cached URL is not
+// evidence that its contents are current. Offline uses the last verified shell.
 async function staticFile(request){
- // Cold boot must not depend on online probes for the installed app scripts:
- // iOS sometimes reports online after Airplane Mode, and a stalled network
- // request would otherwise block the Music player from loading at all.
- const pathname=new URL(request.url).pathname;
- const startup=/\/(?:radio\/(?:ge-music-v5|offline-manager|offline-spectrum|ge-gate-audio|ge-gate-settings|ge-purchase-demo|iam-private-studio)\.js|ge-vault-client\.js|ge-accessibility\.(?:js|css))$/i.test(pathname);
- if(startup){
-  const shell=await caches.open(SHELL_CACHE);
-  // Versioned startup script URLs must not silently use an older cached JS.
-  // Fetch the exact new version online once; keep offline cache fallback.
-  const exact=await shell.match(request,{ignoreSearch:false});
-  if(exact?.ok)return exact;
-  if(self.navigator?.onLine!==false){
-   try{
-    const fresh=await timeoutFetch(request,{cache:'no-store'},2500);
-    if(fresh.ok&&await validAsset(new URL(request.url).pathname,fresh)){
-     await shell.put(request,fresh.clone()).catch(()=>{});
-     return fresh;
-    }
-   }catch(_){}
-  }
-  const saved=await cached(request);
-  if(saved?.ok)return saved;
- }
- if(self.navigator?.onLine===false)return await cached(request)||
+ const url=new URL(request.url);
+ const application=/\.(?:js|css|json|webmanifest|html)$/i.test(url.pathname);
+ const explicitOffline=url.searchParams.has('ge_offline')||url.searchParams.has('ge_offline_load');
+ if(self.navigator?.onLine===false||explicitOffline)return await cached(request)||
   new Response('Offline app file missing. Reconnect and repair.',{status:503});
  try{
-  const fresh=await timeoutFetch(request,{cache:'no-store'});
-  if(fresh.ok){
-   const url=new URL(request.url);
-   if(await validAsset(url.pathname,fresh)){
-    const cache=await caches.open(SHELL_CACHE);
-    await cache.put(request,fresh.clone()).catch(()=>{});
+  const fresh=await timeoutFetch(request,{cache:'no-store'},application?3000:4200);
+  if(await validAsset(url.pathname,fresh)){
+   const cache=await caches.open(SHELL_CACHE);
+   await cache.put(request,fresh.clone()).catch(()=>{});
+   // Versioned static files also replace the canonical offline copy.
+   if(application&&url.searchParams.has('v')&&[...url.searchParams.keys()].every(key=>key==='v')){
+    const canonical=new URL(url);canonical.search='';
+    await cache.put(canonical.href,fresh.clone()).catch(()=>{});
    }
    return fresh;
   }
-  if(fresh.status!==503&&fresh.status!==504)return fresh;
+  if(!application&&fresh.status!==503&&fresh.status!==504)return fresh;
  }catch(_){}
  return await cached(request)||new Response('App resource unavailable',{status:503});
 }
@@ -272,10 +324,10 @@ async function shellStatus(){
  try{
   const shell=await caches.open(SHELL_CACHE);
   const index=await shell.match('./index.html',{ignoreSearch:true});
-  if(!(await validIndex(index,true)))result.missing.push('Radio page');
+  if(!(await validIndex(index)))result.missing.push('Radio page');
   for(const file of REQUIRED){
    const saved=await shell.match(file,{ignoreSearch:true});
-   if(!(await validAsset(file,saved)))result.missing.push(file);
+   if(!(await validRepairAsset(file,saved)))result.missing.push(file);
   }
   try{
    for(const path of await offlineArtwork(shell)){
@@ -287,10 +339,54 @@ async function shellStatus(){
  }catch(_){result.missing.push('Offline startup cache unavailable')}
  return result;
 }
+// Repair the installed release in place. Never clear storage, delete music,
+// unregister workers or fetch audio. Compare application code with the server.
+let shellRepairTask=null;
+async function repairShell(){
+ const before=await shellStatus();
+ if(self.navigator?.onLine===false)return {...before,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired:0,error:'Reconnect to repair missing application files.'};
+ let repaired=0;
+ const errors=[];
+ try{
+  const cache=await caches.open(SHELL_CACHE);
+  const index=await cache.match('./index.html',{ignoreSearch:true});
+  const fresh=await timeoutFetch(requestURL('./index.html'),{cache:'no-store'},12000);
+  if(!(await validIndex(fresh)))throw Error('Current Radio page could not be verified; saved page retained.');
+  if(!(await validIndex(index))||(await index.clone().text())!==(await fresh.clone().text())){
+   await cache.put('./index.html',fresh.clone());
+   await cache.put('./',fresh.clone());repaired++;
+  }
+  async function restore(path){
+   try{
+    const old=await cache.match(path,{ignoreSearch:true});
+    const app=/\.(?:js|css|json|webmanifest|html)$/i.test(path);
+    if(!app&&await validRepairAsset(path,old))return;
+    const response=await timeoutFetch(requestURL(path),{cache:'no-store'},12000);
+    if(!(await validRepairAsset(path,response)))throw Error('File could not be verified; saved file retained');
+    if(app&&old?.ok&&(await old.clone().text())===(await response.clone().text()))return;
+    await cache.put(path,response.clone());
+    if(app){const target=new URL(requestURL(path)).pathname;for(const key of await cache.keys()){
+      const u=new URL(key.url);if(u.pathname===target&&u.searchParams.has('v')&&[...u.searchParams.keys()].every(k=>k==='v'))await cache.put(key,response.clone());
+    }}
+    repaired++;
+   }catch(error){errors.push(path+': '+String(error?.message||error));}
+  }
+  await Promise.all(REQUIRED.map(restore));
+  await Promise.all((await offlineArtwork(cache)).map(restore));
+ }catch(error){errors.push(String(error?.message||error));}
+ const after=await shellStatus();
+ return {...after,type:'GE_RADIO_SHELL_REPAIR_RESULT',repaired,
+  ...(errors.length?{error:errors[0]}:{})};
+}
 self.addEventListener('message',event=>{
- if(event.data?.type!=='GE_RADIO_SHELL_STATUS')return;
+ const type=event.data?.type;
+ if(type!=='GE_RADIO_SHELL_STATUS'&&type!=='GE_RADIO_SHELL_REPAIR')return;
  event.waitUntil((async()=>{
-  const result=await shellStatus();
+  let result;
+  if(type==='GE_RADIO_SHELL_REPAIR'){
+   if(!shellRepairTask)shellRepairTask=repairShell().finally(()=>{shellRepairTask=null;});
+   result=await shellRepairTask;
+  }else result=await shellStatus();
   try{event.ports?.[0]?.postMessage(result)}catch(_){}
  })());
 });
@@ -327,6 +423,7 @@ self.addEventListener('fetch',event=>{
   return;
  }
  if(request.mode==='navigate'){event.respondWith(navigation(request));return}
+ if(isAlbumCover(url.pathname)){event.respondWith(albumCover(request));return;}
  if(AUDIO.test(url.pathname)||IMAGE.test(url.pathname)||request.destination==='audio'||request.destination==='image'){
   event.respondWith(media(request));return;
  }

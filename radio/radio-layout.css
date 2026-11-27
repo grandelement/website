@@ -155,17 +155,17 @@
  /* High-specificity slots replace older CODE/CONTACT/SHARE grid-area
     declarations. Every control occupies ONE cell on the SAME row. */
  html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow > #sunLabBtn{grid-area:var(--ge-utility-row,2)/1/span 1/span 1!important}
- html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow > #offlineLaunchBtn{grid-area:var(--ge-utility-row,2)/2/span 1/span 1!important}
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow > #offlineLaunchBtn{grid-area:var(--ge-utility-row,2)/5/span 1/span 1!important}
  html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions > #contactLaunchBtn{grid-area:var(--ge-utility-row,2)/3/span 1/span 1!important}
  html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #geUtilityRow > a.bc-btn{grid-area:var(--ge-utility-row,2)/4/span 1/span 1!important}
- html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions > #accessLaunchBtn{grid-area:var(--ge-utility-row,2)/5/span 1/span 1!important}
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions > #accessLaunchBtn{grid-area:var(--ge-utility-row,2)/2/span 1/span 1!important}
  html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip > #bottomActions > #shareBtn{grid-area:var(--ge-utility-row,2)/6/span 1/span 1!important}
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geUtilityRow > a.bc-btn{
    background:rgba(15,97,68,.86)!important;border:1px solid #00ffa8!important;
    box-shadow:0 0 8px rgba(0,255,168,.26)!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{
-   background:rgba(185,165,232,.75)!important;border-color:rgba(224,209,255,.95)!important;
+   background:rgba(9,34,68,.84)!important;border-color:#67b8e5!important;
  }
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip .ge-radio-icon{
    display:block!important;width:23px!important;height:23px!important;flex:0 0 auto!important;
@@ -180,11 +180,48 @@
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > footer{
    margin-top:6px!important;font-size:clamp(11px,3vw,13px)!important;
  }
- /* On tall portrait phones the remaining free height is placed entirely
-    before the seek bar, keeping the middle artwork open. */
- @media (min-height:740px){
-   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #playerSeekWrap{
-     margin-top:auto!important;
+ /* The artwork gap is a layout invariant, not a tall-phone feature.
+    The actual Safari visual viewport determines usable height. */
+}
+/* Protected portrait wireframe: upper Sun/title; flexible artwork gap;
+   lower seek/transport/background/utilities/footer. Only the normal closed
+   player is locked; expanded panels retain their own existing scrolling. */
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui[class]:has(body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open)) {
+   overflow:hidden!important;overscroll-behavior:none!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) {
+   height:var(--ge-radio-visible-h,100dvh)!important;
+   min-height:0!important;max-height:none!important;overflow:hidden!important;
+   overscroll-behavior:none!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap{
+   height:var(--ge-radio-visible-h,100dvh)!important;
+   min-height:0!important;max-height:none!important;
+   box-sizing:border-box!important;display:flex!important;flex-direction:column!important;
+   justify-content:flex-start!important;overflow:hidden!important;
+   padding:max(8px,env(safe-area-inset-top)) 12px max(8px,env(safe-area-inset-bottom))!important;
+   gap:4px!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header{
+   flex:0 0 auto!important;
+   /* Allow about 8px more headroom for the Sun's expanding EQ halo. */
+   margin:clamp(12px,5.2dvh,42px) auto 0!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > #playerSeekWrap{
+   flex:0 0 auto!important;
+   margin: auto auto 6px!important;
+ }
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > :is(#musicGroup,#geDesktopUtilityStrip,footer,#radioCopyright){
+   flex:0 0 auto!important;
+ }
+ @media(max-height:600px){
+   html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header .logo-wrap{
+     width:clamp(76px,17dvh,112px)!important;height:clamp(76px,17dvh,112px)!important;
+     margin-bottom:5px!important;
+   }
+   html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header{
+     margin-top:0!important;
    }
  }
 }
@@ -438,20 +475,19 @@
 }
 
 
-/* Player footer buttons retain legible white labels on dark glass.
-   SHARE alone uses the approved soft violet accent. */
+/* Player footer buttons retain legible white labels on matching dark glass. */
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > :is(#accessLaunchBtn,#contactLaunchBtn){
  color:#fff!important;
  text-shadow:0 1px 2px rgba(0,0,0,.75)!important;
 }
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn{
- background:rgba(185,165,232,.75)!important;
- border-color:rgba(224,209,255,.95)!important;
+ background:rgba(9,34,68,.84)!important;
+ border-color:#67b8e5!important;
  color:#fff!important;
- text-shadow:0 1px 2px rgba(25,12,48,.75)!important;
+ text-shadow:0 1px 2px rgba(0,0,0,.75)!important;
 }
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn:active{
- background:rgba(205,184,252,.85)!important;
+ background:rgba(23,77,119,.85)!important;
 }
 
 
@@ -506,14 +542,7 @@ html body #geUtilityRow > #offlineLaunchBtn[data-ge-state="partial"]{
  }
 }
 
-/* RADIO CONTROL: the only visual state owner.
-   No media-progress-based colors. The glow exists only before the first tap. */
-@keyframes geRadioFirstTapOnlyHeartbeat{
-  0%,8%,23%,40%,100%{opacity:0;transform:scale(.99)}
-  12%{opacity:.72;transform:scale(1.02)}
-  29%{opacity:1;transform:scale(1.04)}
-  36%{opacity:.08;transform:scale(1)}
-}
+/* RADIO CONTROL: a verified standby signal flashes before playback only. */
 html.ge-radio-ui[class] body[class] #musicGroup > #liveBtn,
 html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"]{
   position:relative!important;isolation:isolate!important;
@@ -544,22 +573,15 @@ html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-control-label
   font:800 clamp(14px,2.5vw,19px)/1.2 system-ui,sans-serif!important;
   letter-spacing:.04em;color:#fff!important;opacity:1!important;
 }
-html.ge-radio-ui #musicGroup #liveBtn .ge-radio-heartbeat,
-html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-  display:block!important;position:absolute!important;inset:-5px!important;
+html.ge-radio-ui #musicGroup #liveBtn .ge-radio-broadcast-r21,
+html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-broadcast-r21{
+  display:block!important;position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
   border-radius:inherit!important;pointer-events:none!important;z-index:1;
-  box-shadow:0 0 13px 4px rgba(255,62,102,.72)!important;
-  opacity:0;animation:none;
-}
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #musicGroup #liveBtn .ge-radio-heartbeat,
-html.ge-radio-ui body:not(.ge-radio-pulse-ack) #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-  animation:geRadioFirstTapOnlyHeartbeat 2.6s ease-in-out infinite!important;
+  opacity:1!important;animation:none!important;box-shadow:none!important;
 }
 @media(prefers-reduced-motion:reduce){
-  html.ge-radio-ui #musicGroup #liveBtn .ge-radio-heartbeat,
-  html.ge-radio-ui #shipStage button[data-proxy="liveBtn"] .ge-radio-heartbeat{
-    animation:none!important;opacity:0!important;
-  }
+  html.ge-radio-ui .ge-radio-broadcast-r21{display:none!important}
 }
 
 /* The EQ switch indicates playback effects, not panel visibility. */
@@ -567,3 +589,146 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geUtilityRow > #sunLabB
  outline:2px solid #23ffd0!important;border-color:#23ffd0!important;
  background:rgba(15,74,88,.48)!important;box-shadow:0 0 16px rgba(35,255,208,.30) inset,0 0 8px rgba(35,255,208,.22)!important;
 }
+
+/* Radio presentation contract: EQ stays attached to the Sun, below readable
+   text. Do not move the analyser, change EQ parameters, or cover the artwork gap. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > header{
+ isolation:isolate!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > header > :is(h1,.tag){
+ position:relative!important;z-index:30!important;
+ color:#fff!important;text-shadow:0 1px 3px #00101f,0 0 8px #00101f,0 0 15px #00101f!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > #titleBtn{
+ position:relative!important;z-index:31!important;
+ text-shadow:0 1px 3px #00101f,0 0 8px #00101f!important;
+}
+@media (orientation:portrait) and (max-width:700px) and (min-height:601px){
+ html.ge-radio-ui[class] body.view-player.portrait-player:not(.iam-studio-open):not(.ge-bg-options-open) > .wrap > header > .logo-wrap{
+   /* Reserve clearance for effects extending roughly 25% beyond the disc. */
+   margin-bottom:clamp(28px,5dvh,40px)!important;
+ }
+}
+/* One active accent for normal player toggles. RADIO's dedicated red
+   station state and explicit error/downloading statuses are not toggles. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open){
+ --accent:#42d9ff;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) :is(#musicGroup,#geDesktopUtilityStrip) button[aria-pressed="true"]:not(#liveBtn):not(#offlineLaunchBtn),
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #accessLaunchBtn[data-ge-code-active="true"],
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #geUtilityRow > #offlineLaunchBtn[data-ge-state="ready"]{
+ outline:2px solid #42d9ff!important;outline-offset:-2px!important;border-color:#42d9ff!important;
+ background:rgba(13,77,114,.72)!important;background-image:none!important;
+ box-shadow:0 0 12px rgba(66,217,255,.35),inset 0 0 12px rgba(66,217,255,.20)!important;
+ color:#fff!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn{
+ background:rgba(9,34,68,.84)!important;border-color:#67b8e5!important;box-shadow:none!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #bottomActions > #shareBtn:active{
+ background:rgba(23,77,119,.85)!important;
+}
+
+/* Full-screen Spectrum is an artwork layer, never a clickable overlay.
+   Keep the entire interface above it; do not alter the reserved center gap. */
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > header{
+ position:relative!important;z-index:0!important;overflow:visible!important;
+}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) > .wrap > :is(#titleBtn,#playerSeekWrap,#musicGroup,#geDesktopUtilityStrip,#gePlaylistQuick,#radioPreviewClock,#status,footer,#radioCopyright){
+ z-index:32;
+}
+html.ge-radio-ui body #sunEQAura[data-mode="spectrum"] .sun-spectrum-ring{
+ will-change:auto!important;pointer-events:none!important;
+ background:transparent!important;
+}
+html.ge-radio-ui #geSpectrumSizeRow[hidden]{display:none!important}
+html.ge-radio-ui #geSpectrumSizeRow:not([hidden]){
+ display:grid!important;margin:6px 0 10px;padding:8px;
+ border:1px solid rgba(66,217,255,.32);border-radius:9px;
+}
+#geSpectrumSize{touch-action:pan-x;accent-color:#42d9ff;width:100%}
+.ge-sun-motion-trace{
+ position:fixed;z-index:31009;pointer-events:none;border-radius:50%;
+ transform:translate(-50%,-50%);border:1px solid rgba(87,212,255,.48);
+ box-shadow:0 0 16px rgba(49,167,255,.30),inset 0 0 9px rgba(86,216,255,.20);
+ animation:geSunTraceDissolve 1s ease-out forwards;
+}
+@keyframes geSunTraceDissolve{
+ from{opacity:.48;transform:translate(-50%,-50%) scale(.98)}
+ to{opacity:0;transform:translate(-50%,-50%) scale(1.12)}
+}
+body:not(.hud-hidden) .ge-sun-motion-trace,body.sun-faded .ge-sun-motion-trace{display:none!important}
+html.ge-radio-ui[class] body.view-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button{
+ position:relative!important;isolation:isolate!important;overflow:hidden!important;
+}
+#geMusicV5Button > .ge-music-album-flight{
+ position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;border-radius:inherit;
+}
+#geMusicV5Button > :is(svg,.ge-radio-icon-label){position:relative;z-index:1;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.ge-sun-motion-trace{display:none!important}}
+
+/* Continuous radio waves and independently randomized flashes, only while ready. */
+html.ge-radio-ui[class] body[class] #musicGroup > #liveBtn .ge-radio-broadcast-r21,
+html.ge-radio-ui[class] body[class] #shipStage button[data-proxy="liveBtn"] .ge-radio-broadcast-r21{display:none!important}
+html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #musicGroup > #liveBtn,
+html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #shipStage button[data-proxy="liveBtn"]{border-color:#ff6574!important;outline-color:#ff6574!important}
+html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #musicGroup > #liveBtn::after,
+html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #shipStage button[data-proxy="liveBtn"]::after{
+ content:""!important;display:block!important;position:absolute!important;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+ background:radial-gradient(ellipse at center,transparent 0 18%,#ff87a9cc 24%,transparent 30%,transparent 37%,#ff527d99 43%,transparent 49%,transparent 56%,#ff527d66 62%,transparent 68%)!important;
+ animation:geRadioSignalTravel 2.6s linear infinite!important;
+}
+html.ge-radio-ui[class][class] body.ge-radio-standby-flash:not(.ge-radio-on)[class] #musicGroup > #liveBtn::before,
+html.ge-radio-ui[class][class] body.ge-radio-standby-flash:not(.ge-radio-on)[class] #shipStage button[data-proxy="liveBtn"]::before{
+ content:""!important;display:block!important;position:absolute!important;inset:0;z-index:1;border-radius:inherit;pointer-events:none;
+ background:radial-gradient(ellipse at center,#fff0f7,#ff739ad9 28%,#ff245f95 60%,#ff245f28 100%)!important;
+ animation:geRadioSignalFlash .62s ease-out both!important;
+}
+@keyframes geRadioSignalTravel{0%{opacity:0;transform:scale(.22)}10%{opacity:1}68%{opacity:.8}100%{opacity:0;transform:scale(1.5)}}
+@keyframes geRadioSignalFlash{0%{opacity:0}16%{opacity:1}35%{opacity:.72}100%{opacity:0}}
+html.ge-radio-ui[class][class] body.ge-radio-on[class] #musicGroup > #liveBtn::before,
+html.ge-radio-ui[class][class] body.ge-radio-on[class] #musicGroup > #liveBtn::after,
+html.ge-radio-ui[class][class] body.ge-radio-on[class] #shipStage button[data-proxy="liveBtn"]::before,
+html.ge-radio-ui[class][class] body.ge-radio-on[class] #shipStage button[data-proxy="liveBtn"]::after{content:none!important;display:none!important;animation:none!important}
+@media(prefers-reduced-motion:reduce){
+ html.ge-radio-ui[class][class] body.ge-radio-standby-flash:not(.ge-radio-on)[class] #musicGroup > #liveBtn::before,
+html.ge-radio-ui[class][class] body.ge-radio-standby-flash:not(.ge-radio-on)[class] #shipStage button[data-proxy="liveBtn"]::before,
+ html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #musicGroup > #liveBtn::after,
+html.ge-radio-ui[class][class] body.ge-radio-standby-ready:not(.ge-radio-on)[class] #shipStage button[data-proxy="liveBtn"]::after{animation:none!important;opacity:0!important}
+}
+
+/* Owner-approved B8 Bioluminescence. Keep the existing blue glass beneath
+   independent randomly generated particles; preserve icon and tap target. */
+html.ge-radio-ui[class] body[class] #musicGroup > #shuffleBtn,
+html.ge-radio-ui[class] body[class] #shipStage [data-proxy="shuffleBtn"]{
+ position:relative!important;isolation:isolate!important;overflow:hidden!important;
+}
+html.ge-radio-ui[class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > .ge-shuffle-b8-canvas{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ border-radius:inherit!important;pointer-events:none!important;z-index:0;display:none!important;
+}
+html.ge-radio-ui[class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"])[aria-pressed="true"] > .ge-shuffle-b8-canvas{
+ display:block!important;
+}
+html.ge-radio-ui[class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > :is(svg,.ge-radio-icon-label,.ge-shuffle-label){
+ position:relative!important;z-index:2;pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+ html.ge-radio-ui[class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"])[aria-pressed="true"] > .ge-shuffle-b8-canvas{display:none!important}
+}
+
+/* Keep the page's top edge free of authored borders. Safari's own chrome
+   separator is outside the document and cannot be styled by this page. */
+html.ge-radio-ui,html.ge-radio-ui body,html.ge-radio-ui body.view-player > .wrap,html.ge-radio-ui body #bgImage{
+ border-top:0!important;outline:0!important;
+}
+html.ge-radio-ui[class][class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > .ge-shuffle-b8-canvas{
+ z-index:1!important;opacity:1!important;filter:none!important;mix-blend-mode:screen!important;
+}
+html.ge-radio-ui[class][class] body[class] :is(#shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > :is(svg,.ge-radio-icon-label,.ge-shuffle-label){z-index:2!important}
+
+/* Preserve icon, label and B8 canvas together on portrait phones. */
+html.ge-radio-ui[class][class] body.view-player.portrait-player:not(.iam-studio-open)[class][class] #musicGroup > #shuffleBtn{display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:row!important;gap:6px!important}
+html.ge-radio-ui[class][class] body.view-player.portrait-player:not(.iam-studio-open)[class][class] #musicGroup > #shuffleBtn > .ge-radio-icon-label{display:inline!important;visibility:visible!important;opacity:1!important;font-size:clamp(10px,2.6vw,14px)!important;line-height:1.1!important}
+html.ge-radio-ui[class][class] body.view-player.portrait-player:not(.iam-studio-open)[class][class] #musicGroup > #shuffleBtn > svg{display:block!important;width:clamp(17px,4.5vw,24px)!important;height:clamp(17px,4.5vw,24px)!important;flex:0 0 auto!important}
+html.ge-radio-ui[class][class] body[class] #shipStage [data-proxy="shuffleBtn"] > .ge-shuffle-label{display:inline!important}

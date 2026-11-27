@@ -1033,17 +1033,12 @@ function showAlbums(){
  }
 }
 let geTrackRequestSerial=0;
-// AETHER files exist in GitHub but can be absent from a published Pages build.
-// Use their repository-backed audio URLs rather than treating a catalog entry
-// as proof that /ge-music/ was deployed. Keep the original local URL for
-// every other album so previously working recordings are unchanged.
+// Use the canonical same-origin recording for every album. This is the
+// URL used by saved-file playback and the shared Web Audio analyser.
 function geAudioSourceURL(t){
  const path=cleanMusicPath(t?.path);
- if(path.startsWith('ge-music/music/Grand Element - 2026 - Aether/')){
-  return 'https://raw.githubusercontent.com/grandelement/website/main/'+
-   path.split('/').map(encodeURIComponent).join('/');
- }
- return new URL(t.url,location.origin).href;
+ return path?new URL('../'+path.split('/').map(encodeURIComponent).join('/'),location.href).href:
+  new URL(t.url,location.origin).href;
 }
 async function startTrack(t){
  const requestSerial=++geTrackRequestSerial;

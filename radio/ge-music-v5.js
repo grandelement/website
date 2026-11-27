@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.70-20261122-EXACT-SELECTION';
+const BUILD='GE-MUSIC-V7.72-20261126-ARTWORK-AND-SONG-ISOLATION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -119,6 +119,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .filterRow select[hidden]{display:none!important}
 .musicCodeTools{display:flex;align-items:center;gap:6px;margin-top:0;border:1px solid #ae83e9;border-radius:9px;padding:6px;background:linear-gradient(95deg,#30174b,#171c40 75%);box-shadow:inset 0 0 0 1px rgba(220,174,255,.12)}
 .musicCodeTools[hidden]{display:none!important}
+.musicCodeTools{flex-wrap:wrap}
+.geRepairTools{flex:0 0 100%;min-width:0;display:grid;gap:4px}
+.geRepairTools .geRepairWebsite{width:100%;min-height:38px;white-space:normal}
+.geRepairStatus{margin:0;color:#dfbaff;font-size:12px;overflow-wrap:anywhere}
+.geRepairStatus[hidden]{display:none!important}
 .musicCodeTools label{color:#eddaff;font-size:11px;font-weight:900;letter-spacing:.035em;white-space:nowrap;flex:0 0 auto}
 .musicCodeTools input{min-width:0;flex:1 1 auto;width:0;color:#fff;background:#090e23;border:1px solid #ab7bda;border-radius:7px;padding:7px 8px;font-size:16px;min-height:38px}
 .musicCodeTools button{min-height:38px;font-size:11px;padding:6px 8px;border-color:#d0a0fb;background:#673a8c}
@@ -1283,7 +1288,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
  background:transparent!important;box-shadow:none!important;
  text-shadow:none!important;
 }
-.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongTitleGlow{
+.window.geSimpleSongBrowser .scroll .song.selectedSong .geSongTitleGlow,
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading[aria-pressed="true"] .geAlbumTitleGlow,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle[aria-pressed="true"] .geAlbumTitleGlow{
  background:rgba(255,255,255,.22)!important;
  box-shadow:0 0 12px 3px rgba(255,255,255,.58)!important;
  text-shadow:0 0 9px rgba(255,255,255,.92),0 1px 3px #000!important;
@@ -1319,22 +1326,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
  align-items:center!important;gap:0!important;
  background:#071524!important;border:0!important;outline:0!important;box-shadow:none!important;
 }
-/* Blend adjoining album artwork instead of exposing a hard image boundary.
-   Each following section overlaps only the previous artwork, while its heading
-   and songs stay below the transition and retain their own touch targets. */
+/* Album artwork never crosses a neighboring track or heading. */
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
- background:transparent!important;
+ background:linear-gradient(180deg,#0a1c32,#071524)!important;
+ pointer-events:none!important;overflow:hidden!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare{
- margin-top:-72px!important;
- padding-top:92px!important;
+ margin-top:0!important;padding-top:20px!important;
 }
-.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare > .geAlbumSectionArt,
-.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare + .geSongsAlbumSquare::before{
- -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
- mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 22px,#000 72px);
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > :is(.albumBrowseHeading,.song),
+.window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .songTitlePlay{
+ pointer-events:auto!important;touch-action:manipulation!important;
 }
-/* Real image elements avoid CSS-background failures and a painted section seam. */
+/* Real image elements avoid CSS-background failures. */
+.window.geSimpleSongBrowser .scroll .geAlbumArtUnavailable > .geAlbumSectionArt{visibility:hidden!important}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare > .geAlbumSectionArt{
  position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;
  object-position:center;z-index:0;pointer-events:none;margin:0;padding:0;border:0;
@@ -1373,7 +1378,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare{
   min-height:min(100vw,100dvh)!important;
   height:auto!important;max-height:none!important;aspect-ratio:auto!important;
-  overflow:visible!important;row-gap:4px!important;
+  overflow:hidden!important;row-gap:4px!important;
   padding:20px 12px 24px!important;
 }
 .window.geSimpleSongBrowser .scroll .geSongsAlbumSquare .albumBrowseHeading{
@@ -1522,6 +1527,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
  flex:1 1 0!important;min-width:0!important;min-height:44px!important;
  touch-action:manipulation!important;
 }
+
+/* Album title uses the same text-sized soft halo as a selected song.
+   The larger heading and its full-width selection target remain unchanged. */
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle{
+ color:#fff!important;background:transparent!important;
+ border:0!important;box-shadow:none!important;overflow:visible!important;
+}
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading .geAlbumTitleGlow,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle .geAlbumTitleGlow{
+ display:inline-block;box-sizing:border-box;max-width:100%;padding:5px 10px;
+ border:0;border-radius:11px;background:transparent;
+ box-shadow:none;overflow-wrap:anywhere;
+}
+.window.geSimpleSongBrowser .scroll button.albumBrowseHeading:focus-visible,
+.window.geAlbumDetailClean > .scroll button.albumDetailTitle:focus-visible{
+ outline:2px solid #b9eeff!important;outline-offset:2px;
+}
+.geUniverseAlbum.geAlbumAllSelected{outline:2px solid #fff!important;outline-offset:-3px!important;box-shadow:inset 0 0 14px #fff,0 0 16px #fff!important;}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1529,7 +1553,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailSongs">SONGS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><input class="gePlaylistNameInline" type="text" maxlength="100" autocomplete="off" placeholder="Playlist name" aria-label="Name playlist to save" hidden><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
- <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
+ <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button><div class="geRepairTools"><button class="geRepairWebsite" type="button">REPAIR WEBSITE</button><p class="geRepairStatus" role="status" aria-live="polite" hidden></p></div></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Choose album"><option value="albums">ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
@@ -1764,7 +1788,9 @@ function renderStandaloneAlbums(){
  for(const name of names){
   const item=document.createElement('button');item.type='button';item.className='geUniverseAlbum';
   item.dataset.album=name;
-  item.setAttribute('aria-label','Open '+name+' album');
+  const complete=albumFullySelected(name);
+  item.classList.toggle('geAlbumAllSelected',complete);
+  item.setAttribute('aria-label','Open '+name+' album'+(complete?' · All songs selected':''));
   const image=document.createElement('img');
   image.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
   image.alt='';image.loading='eager';image.decoding='async';image.setAttribute('fetchpriority','high');image.onerror=()=>image.remove();
@@ -2341,14 +2367,18 @@ function clearMusicAccess(){
  musicAccessStatus();say('Music code cleared. Guest previews remain available.');render();
 }
 async function musicCodeRequest(body){
- const response=await fetch(musicSessionEndpoint,{
-   method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
-   body:JSON.stringify(body)
- });
- const data=await response.json().catch(()=>({ok:false,error:'Invalid Vault response'}));
- if(!response.ok||data?.ok!==true)
-   throw Error(String(data.error||('Vault HTTP '+response.status)));
- return data;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(musicSessionEndpoint,{
+    method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify(body),signal:controller.signal
+  });
+  const data=await response.json().catch(()=>({ok:false,error:'Invalid Vault response'}));
+  if(!response.ok||data?.ok!==true)
+    throw Error(String(data.error||('Vault HTTP '+response.status)));
+  return data;
+ }catch(error){if(error?.name==='AbortError')throw Error('Vault request timed out. Try again online.');throw error;}
+ finally{clearTimeout(timer);}
 }
 async function redeemMusicCode(){
  if(state.redeemBusy)return;
@@ -2370,11 +2400,12 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set()}
+     // Access changes playback/download permission, not deliberate selections.
+     // A pending offline request owns an immutable copy of the chosen tracks.
      saveSelected();void loadPublished();
      say('Code verified. Assigned songs unlocked in the same Music screen.');
    }else{
-     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
+     saveSelected();
      say('Music code verified for the full library.');
    }
    // Notify the embedded audio engine that the SAME Music UI verified a code.
@@ -2386,14 +2417,20 @@ async function redeemMusicCode(){
    // A code changes permissions, not pages, tabs or music screen designs.
    render();
    if(offlineResumeAfterAccess){
-    if(access.offlineEnabled===true){
+    if(window.GEOfflineDownloads?.canDownload?.()){
      window.dispatchEvent(new Event('ge-access-experience-updated'));
+     resumeRequestedOffline();
     }else{
-     say('This code opens MUSIC, but does not include OFFLINE downloads.');
+     const message='CODE VERIFIED · OFFLINE PERMISSION NOT INCLUDED. Checked songs kept.';
+     setOfflineMessage(message);say(message);
+     el('.musicCodeTools').hidden=false;el('.accessToggle').setAttribute('aria-expanded','true');
+     el('.musicCodeState').hidden=false;el('.musicCodeState').textContent=message;
     }
    }
  }catch(error){
-   clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
+   const message='CODE NOT VERIFIED · '+String(error.message||error);
+   say(message);el('.musicCodeState').hidden=false;el('.musicCodeState').textContent=message;
+   if(offlineResumeAfterAccess)setOfflineMessage(message+' · Checked songs kept.');
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
 function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
@@ -2481,6 +2518,7 @@ function isArrangeView(){return state.arranging&&(state.view==='checked'||state.
 function appendSong(parent,track){
  const sorting=isArrangeView();
  const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
+ row.dataset.songPath=track.path;row.dataset.songTitle=track.title;
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -2493,7 +2531,8 @@ function appendSong(parent,track){
    row.classList.toggle('selectedSong',checkbox.checked);
    songText.setAttribute('aria-pressed',String(checkbox.checked));
    songText.setAttribute('aria-label',(checkbox.checked?'Deselect ':'Select ')+track.title);
-   if(state.view==='checked'||state.view==='playlist-order'||state.view==='browse-songs'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
+   if(state.view==='browse-songs')syncBrowseSongSelections();
+   else if(state.view==='checked'||state.view==='playlist-order'||state.view==='playlist-display'||state.view.startsWith('album:')||state.view==='albums')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
      control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
@@ -2701,6 +2740,25 @@ function selectableAlbumTracks(album){
  const allowed=access?.restricted?new Set(access.allowed):null;
  return state.tracks.filter(track=>track.album===album&&(!allowed||allowed.has(track.path)));
 }
+function albumFullySelected(album){
+ const available=selectableAlbumTracks(album);
+ return available.length>0&&available.every(track=>state.selected.has(track.path));
+}
+// Keep existing artwork nodes and scroll position when a song is selected.
+function syncBrowseSongSelections(){
+ updateMeta();
+ el('.geBrowseSave').disabled=state.savingShared||!state.selected.size;
+ el('.geBrowseMessage').textContent=state.notice||'';
+ for(const section of scroller.querySelectorAll('.geSongsAlbumSquare')){
+  const heading=section.querySelector('.albumBrowseHeading'),complete=albumFullySelected(section.dataset.album);
+  if(heading){heading.setAttribute('aria-pressed',String(complete));heading.setAttribute('aria-label',(complete?'Deselect':'Select')+' all songs on '+section.dataset.album);}
+  for(const row of section.querySelectorAll('.song[data-song-path]')){
+   const checked=state.selected.has(row.dataset.songPath),button=row.querySelector('.songTitlePlay');
+   row.classList.toggle('selectedSong',checked);
+   if(button){button.setAttribute('aria-pressed',String(checked));button.setAttribute('aria-label',(checked?'Deselect ':'Select ')+row.dataset.songTitle);}
+  }
+ }
+}
 function toggleAlbumTracks(album){
  const tracks=selectableAlbumTracks(album);
  if(!tracks.length){say('No available songs on '+album);return;}
@@ -2711,7 +2769,7 @@ function toggleAlbumTracks(album){
  }
  if(!allSelected)state.lastSelectedAlbum=album;
  saveSelected();
- render();
+ if(state.view==='browse-songs')syncBrowseSongSelections();else render();
 }
 function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
@@ -2792,7 +2850,8 @@ function render(){
  allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
  allCheck.indeterminate=allCount>0&&allCount<allTracks.length;
  // The dropdown always reflects the album currently displayed.
- const albumNames=[...new Set(allTracks.filter(t=>t.album!=='Singles').map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
+ const catalogScope=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ const albumNames=[...new Set(catalogScope.filter(t=>t.album!=='Singles').map(t=>t.album))].sort((a,b)=>rank(a)-rank(b));
  songFilter.replaceChildren(new Option('ALBUMS','albums'));
  for(const name of albumNames)songFilter.add(new Option('ALBUM · '+name,'album:'+name));
  songFilter.value=albumDetail?state.view:'albums';
@@ -3055,12 +3114,26 @@ function render(){
         const art=document.createElement('img');
         art.className='geAlbumSectionArt';
         art.alt='';art.loading='eager';art.decoding='async';
-        art.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(track.album)+'.jpg',location.href).href;
-        art.addEventListener('error',()=>console.warn('Album artwork unavailable:',art.src),{once:true});
+        const filename='Grand Element - '+track.album+'.jpg';
+        const primary=new URL('../ge-images/images/'+encodeURIComponent(filename),location.href);
+        // Recover a failed cover without clearing user data or the offline library.
+        let attempt=0;
+        art.addEventListener('error',()=>{
+          if(navigator.onLine!==false&&attempt<2){
+            attempt++;
+            if(attempt===1){const retry=new URL(primary);retry.searchParams.set('v','artwork-20261126');art.src=retry.href;}
+            else art.src='https://raw.githubusercontent.com/grandelement/website/main/ge-images/images/'+encodeURIComponent(filename);
+          }else{section.classList.add('geAlbumArtUnavailable');console.warn('Album artwork unavailable:',filename);}
+        });
+        art.addEventListener('load',()=>section.classList.remove('geAlbumArtUnavailable'));
+        art.src=primary.href;
         section.append(art);
-        const heading=elem('button','albumBrowseHeading',track.album);
+        const heading=elem('button','albumBrowseHeading');
+        heading.append(elem('span','geAlbumTitleGlow',track.album));
         heading.type='button';heading.dataset.album=track.album;
-        heading.setAttribute('aria-label','Select all songs on '+track.album);
+        const complete=albumFullySelected(track.album);
+        heading.setAttribute('aria-pressed',String(complete));
+        heading.setAttribute('aria-label',(complete?'Deselect':'Select')+' all songs on '+track.album);
         heading.addEventListener('click',()=>toggleAlbumTracks(track.album));
         section.append(heading);
         scroller.append(section);
@@ -3070,10 +3143,10 @@ function render(){
   }else if(state.view.startsWith('album:')){
     const name=state.view.slice(6);
     const bar=elem('div','albumCollectionHeading');
-    const albumTitle=elem('button','albumDetailTitle',name);
+    const albumTitle=elem('button','albumDetailTitle');
+    albumTitle.append(elem('span','geAlbumTitleGlow',name));
     albumTitle.type='button';
-    const selectable=selectableAlbumTracks(name);
-    const allSelected=selectable.length>0&&selectable.every(track=>state.selected.has(track.path));
+    const allSelected=albumFullySelected(name);
     albumTitle.setAttribute('aria-pressed',String(allSelected));
     albumTitle.setAttribute('aria-label',(allSelected?'Deselect':'Select')+' all songs on '+name);
     albumTitle.title=(allSelected?'Deselect':'Select')+' all songs on '+name;
@@ -3094,7 +3167,7 @@ function render(){
 
 // The single OFFLINE downloader is controlled from a thin MUSIC dock.
 // Playback, selections, playlists and Radio transport stay available while it runs.
-let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[];
+let offlineChoice='all',offlineBusy=false,offlineResumeAfterAccess=false,offlinePlaylistChoices=[],offlinePendingRequest=null,offlineMessageHold=false;
 const offlinePanel=el('.geOfflineWorkspace');
 const offlineStatus=el('.geOfflineStatus');
 const offlineStop=el('.geOfflineStop');
@@ -3132,6 +3205,7 @@ function showOfflineChoices(open){
  else{el('.geOfflineLibrary').hidden=true;el('.geOfflineListBtn').setAttribute('aria-expanded','false');}
 }
 function openOffline(){
+ if(!offlineResumeAfterAccess)offlineMessageHold=false;
  if(!state.open)open();
  // The ALBUMS universe has no bottom controls by design: jump to songs to
  // show the existing MUSIC footer and its inline OFFLINE strip.
@@ -3157,11 +3231,11 @@ async function offlineCheck(){
  if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE');return}
  try{
   const result=await engine.inspect();
-  if(offlineBusy||engine.isBusy())return;
+  if(offlineBusy||engine.isBusy()||offlineMessageHold)return;
   setOfflineProgress(result.ready?100:result.percent);
   setOfflineMessage(result.ready?'READY FOR AIRPLANE MODE':
    result.partial?'PARTIAL · UPDATE MISSING':'NOT READY · TAP OFFLINE');
- }catch(_){setOfflineMessage('NOT READY · RECONNECT TO REPAIR')}
+ }catch(_){if(!offlineMessageHold)setOfflineMessage('NOT READY · RECONNECT TO REPAIR')}
 }
 function offlineProgressUpdate(event){
  if(Number.isFinite(event.percent))setOfflineProgress(event.percent,event.etaSeconds);
@@ -3170,24 +3244,25 @@ function offlineProgressUpdate(event){
  else if(event.phase==='verifying'||event.phase==='checking')setOfflineMessage('VERIFYING…');
  else if(event.phase==='error')setOfflineMessage(event.message||'DOWNLOAD INTERRUPTED');
 }
-async function offlineDownload(mode=offlineChoice){
+async function offlineDownload(mode=offlineChoice,requestedPaths=null){
  if(offlineBusy||window.GEOfflineDownloads?.isBusy?.())return;
  const engine=window.GEOfflineDownloads;
  if(!engine){setOfflineMessage('OFFLINE UNAVAILABLE · RECONNECT');return}
  offlineChoice=mode;
  let paths=[];
- if(mode==='checked')paths=[...state.selected];
- if(mode==='playlist')paths=offlinePlaylistPaths();
+ if(mode==='checked')paths=requestedPaths===null?[...state.selected]:[...requestedPaths];
+ if(mode==='playlist')paths=requestedPaths===null?offlinePlaylistPaths():[...requestedPaths];
  if((mode==='checked'||mode==='playlist')&&!paths.length){
   setOfflineMessage(mode==='checked'?'CHECK SONGS FIRST':'CHOOSE A PLAYLIST FIRST');
   return;
  }
  if(navigator.onLine===false){setOfflineMessage('OFFLINE · SAVED MUSIC ONLY');return}
  if(!engine.canDownload()){
-  offlineResumeAfterAccess=true;
-  setOfflineMessage('CODE NEEDS OFFLINE PERMISSION');
+  offlineResumeAfterAccess=true;offlinePendingRequest={mode,paths:[...paths]};offlineMessageHold=true;
+  setOfflineMessage('ENTER AN OFFLINE-ENABLED CODE · '+(mode==='all'?'ALL MUSIC':paths.length+' SONGS QUEUED'));
   openCodeEntry();return;
  }
+ offlineResumeAfterAccess=false;offlinePendingRequest=null;offlineMessageHold=true;
  showOfflineChoices(false);
  offlineBusy=true;
  offlineStop.hidden=false;
@@ -3210,16 +3285,32 @@ async function refreshOfflineLibrary(){
  const engine=window.GEOfflineDownloads;
  if(!engine?.listSaved){libraryMessage('File inventory unavailable. Reopen Radio online.');return;}
  try{
-  const files=await engine.listSaved();
+  const scan=engine.inspectDeviceStorage?await engine.inspectDeviceStorage():engine.inspectStorage?await engine.inspectStorage():null;
+  const files=scan?scan.files:await engine.listSaved();
   const list=el('.geOfflineFiles');list.replaceChildren();
   const size=files.reduce((n,f)=>n+f.bytes,0);
-  el('.geOfflineFileCount').textContent=files.length+' saved · '+(size/1048576).toFixed(1)+' MB';
-  if(!files.length)list.append(elem('p','empty','No saved recordings on this device.'));
+  el('.geOfflineFileCount').textContent=files.length+' recordings · '+(scan?.copies??files.length)+' copies · '+(size/1048576).toFixed(1)+' MB'+(scan?.unknown?' + unknown size':'');
+  if(scan)list.append(elem('p','empty','Scanned '+scan.cachesScanned+' browser caches'+(Number.isFinite(scan.usage)?' · total website storage '+(scan.usage/1048576).toFixed(1)+' MB':'')+(scan.errors.length?' · some caches could not be read':'')));
+  if(scan?.categories){
+   const mb=n=>(n/1048576).toFixed(1)+' MB';
+   const lines=[
+    'Artwork / backgrounds: '+scan.categories.artwork.count+' entries · '+mb(scan.categories.artwork.bytes)+(scan.categories.artwork.unknown?' + unknown size':''),
+    'Startup files (protected): '+scan.categories.startup.count+' entries · '+mb(scan.categories.startup.bytes)+(scan.categories.startup.unknown?' + unknown size':''),
+    'Other cache entries: '+scan.categories.other.count+' · '+mb(scan.categories.other.bytes)+(scan.categories.other.unknown?' + unknown size':''),
+    'Databases: '+(scan.indexedDB.available?scan.indexedDB.names.length+' detected (protected)':'not enumerable on this browser'),
+    'Private browser files: '+(scan.privateFiles.available?scan.privateFiles.files+' · '+mb(scan.privateFiles.bytes)+(scan.privateFiles.limited?' · partial scan':''):'not accessible on this browser'),
+    'Settings: '+(scan.localStorage.bytes===null?'not accessible':mb(scan.localStorage.bytes)+' (approx., protected)'),
+    'System HTTP cache, other apps and SD cards: device settings required.'
+   ];
+   if(scan.indexedDB.protected.length)lines.push('I AM Studio recordings protected.');
+   for(const line of lines)list.append(elem('p','empty',line));
+  }
+  if(!files.length)list.append(elem('p','empty','No saved recordings in this browser cache.'));
   for(const file of files){
    const row=elem('div','geOfflineFileRow');row.setAttribute('role','listitem');
    const track=file.station?{title:file.path.split('/').pop(),album:'Station identification'}:details(file.path);
    const label=elem('div','geOfflineFileName',track.title);
-   label.append(elem('small','',track.album+' · '+(file.bytes/1048576).toFixed(1)+' MB'));
+   label.append(elem('small','',track.album+' · '+(file.bytes/1048576).toFixed(1)+' MB'+(file.unknownCopies?' + unknown size':'')+(file.copies>1?' · '+file.copies+' copies':'')));
    const remove=elem('button','','DELETE');remove.type='button';remove.setAttribute('aria-label','Delete saved '+track.title);
    remove.addEventListener('click',async()=>{
     if(inventoryBusy||engine.isBusy())return libraryMessage('Stop the current download first.');
@@ -3247,12 +3338,17 @@ el('.geOfflineRemoveAll').addEventListener('click',async()=>{
  const engine=window.GEOfflineDownloads;
  if(!engine?.removeSaved)return;
  if(inventoryBusy||engine.isBusy())return setOfflineMessage('STOP THE CURRENT DOWNLOAD FIRST');
- if(!confirm('Remove all downloaded recordings from this device? Your playlists, settings and access codes will be kept.'))return;
+ if(!confirm('Deep scan and remove all GE recordings, including older cached copies, from this browser? Playlists, settings and access codes will be kept.'))return;
  inventoryBusy=true;
  try{
   const result=await engine.removeSaved();
-  setOfflineMessage(result.error?result.message:'REMOVED '+result.removed+' FILES');
-  if(!offlineLibrary.hidden)await refreshOfflineLibrary();
+  const message=result.error?result.message:
+   'REMOVED '+(result.removedCopies??result.removed)+' COPIES · '+((result.removedBytes||0)/1048576).toFixed(1)+' MB'+(result.unknownBytes?' + unknown size':'')+
+   ' · '+(result.targetCopiesRemaining??result.remaining)+' LEFT'+(result.errors?.length?' · CHECK SCAN ERRORS':'');
+  setOfflineMessage(message);
+  offlineLibrary.hidden=false;el('.geOfflineListBtn').setAttribute('aria-expanded','true');
+  libraryMessage(message+(Number.isFinite(result.afterUsage)?' · total website storage '+(result.afterUsage/1048576).toFixed(1)+' MB':'')+'. Android system/browser cache may require device settings.');
+  await refreshOfflineLibrary();
   void offlineCheck();
  }finally{inventoryBusy=false;}
 });
@@ -3298,10 +3394,10 @@ window.addEventListener('ge-radio-offline-status',event=>{
   offlineStop.hidden=false;
   offlineProgressUpdate({phase:info.percent>0?'audio':'preparing',
    percent:info.percent,etaSeconds:info.etaSeconds});
- }else if(info.state==='ready'){
+ }else if(info.state==='ready'&&!offlineMessageHold){
   offlineBusy=false;offlineStop.hidden=true;
   setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
- }else if(info.state==='partial'||info.state==='missing'){
+ }else if((info.state==='partial'||info.state==='missing')&&!offlineMessageHold){
   if(!window.GEOfflineDownloads?.isBusy?.()){
    offlineBusy=false;offlineStop.hidden=true;
    if(Number.isFinite(info.percent))setOfflineProgress(info.percent);
@@ -3309,13 +3405,15 @@ window.addEventListener('ge-radio-offline-status',event=>{
   }
  }
 });
-window.addEventListener('ge-access-experience-updated',()=>{
- if(!offlineResumeAfterAccess)return;
- if(window.GEOfflineDownloads?.canDownload?.()){
-  offlineResumeAfterAccess=false;
-  void offlineDownload(offlineChoice);
- }
-});
+function resumeRequestedOffline(){
+ if(!offlineResumeAfterAccess||!offlinePendingRequest)return;
+ if(!window.GEOfflineDownloads?.canDownload?.())return;
+ const request=offlinePendingRequest;
+ offlineResumeAfterAccess=false;offlinePendingRequest=null;
+ void offlineDownload(request.mode,request.paths);
+}
+window.addEventListener('ge-access-experience-updated',resumeRequestedOffline);
+window.addEventListener('ge-vault-music-access-updated',resumeRequestedOffline);
 const persistedOfflineState=window.GEOfflineDownloads?.status?.();
 if(persistedOfflineState?.state==='ready'){
  setOfflineProgress(100);setOfflineMessage('READY FOR AIRPLANE MODE');
@@ -3516,6 +3614,32 @@ el('.gePlaylistPicker').addEventListener('click',event=>{
 });
 
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
+// Recovery is deliberately public, not dependent on a working access code.
+el('.geRepairWebsite').addEventListener('click',async()=>{
+ const button=el('.geRepairWebsite'),status=el('.geRepairStatus');
+ const show=message=>{status.hidden=false;status.textContent=message;};
+ if(button.disabled)return;
+ if(window.GEOfflineDownloads?.isBusy?.()){show('Finish or stop your current offline download first.');return;}
+ if(!navigator.serviceWorker){show('Website repair is not supported in this browser. Reopen Radio online.');return;}
+ button.disabled=true;show('Checking saved website files…');
+ try{
+  const registration=await navigator.serviceWorker.getRegistration('./');
+  const worker=registration?.active;
+  if(!worker){show('Website setup is not ready. Reopen Radio online and try again.');return;}
+  const result=await new Promise((resolve,reject)=>{
+   const channel=new MessageChannel();
+   const timer=setTimeout(()=>{channel.port1.close();reject(Error('Repair timed out. Reopen Radio online and try again.'));},65000);
+   channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data);};
+   try{worker.postMessage({type:'GE_RADIO_SHELL_REPAIR'},[channel.port2]);}
+   catch(error){clearTimeout(timer);channel.port1.close();reject(error);}
+  });
+  if(result?.type!=='GE_RADIO_SHELL_REPAIR_RESULT')throw Error('Repair response unavailable. Reopen Radio online.');
+  if(result.ready){
+   show(result.repaired?'REPAIRED '+result.repaired+' WEBSITE FILE(S). Music and settings kept. Reopen Radio when ready.':'WEBSITE READY · No files needed downloading.');
+  }else show('REPAIR INCOMPLETE · '+(result.error||result.missing?.[0]||'Reconnect and try again.')+' Saved music and settings kept.');
+ }catch(error){show(String(error?.message||error)+' Saved music and settings kept.');}
+ finally{button.disabled=false;}
+});
 el('.accessToggle').addEventListener('click',()=>{
  const panel=el('.musicCodeTools'),opened=panel.hidden;
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
@@ -3610,10 +3734,8 @@ musicAccessStatus();
 window.addEventListener('ge-vault-music-access-updated',()=>{
  const access=musicAccessActive();
  if(access?.restricted){
-  if(!restoreWorkingOrder()){
-    state.activePlaylist=null;state.playlistDraftName='';
-    state.selected=new Set([...state.selected].filter(path=>access.allowed.includes(path)));
-   }
+  // Preserve the user's checked songs, even if this particular code cannot
+  // download or play all of them. The entitlement boundary enforces access.
   saveSelected();void loadPublished();
  }
  // Access update must never switch to another Music interface.
