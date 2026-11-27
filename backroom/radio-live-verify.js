@@ -115,7 +115,16 @@
       if(!selected)throw Error('Radio 2 clock did not resolve a song');
       txt('brVerifyRadio2Song',short(selected.title||selected.path||'Scheduled track'));
       var station=state&&state.station,selectedStation=station&&station.to;
-      var scheduled=selectedStation==='ge'?'Radio 2 selected for listeners':selectedStation==='blitz'?'Radio 2 is on standby':'Listener station choice not verified';
+      var start=Number(station&&station.start_at_ms||0),duration=Number(station&&station.duration_ms||0);
+      var scheduled='Listener station choice not verified';
+      if(station){
+        if(start>now&&station.from!==station.to)selectedStation=station.from;
+        else if(start>0&&now>=start&&now<start+duration&&station.from!==station.to)
+          selectedStation='transition';
+        scheduled=selectedStation==='ge'?'Radio 2 selected for listeners':
+          selectedStation==='blitz'?'Radio 2 is on standby':
+          selectedStation==='transition'?'Station crossfade in progress':'Listener station choice not verified';
+      }
       txt('brVerifyRadio2State','SCHEDULED NOW · '+scheduled+
         ' · Station-clock prediction, not proof of audible output.');
       txt('brVerifyRadio2Playlist',short(p.playlist_name||'Unnamed playlist')+' · '+tracks.length+
@@ -144,13 +153,16 @@
         throw Error('Invalid published playlist registry');
       var songs=data.playlists.reduce(function(n,p){return n+(Array.isArray(p.songs)?p.songs.length:0);},0);
       var bangers=data.playlists.find(function(p){return String(p.name).toLowerCase()==='bangers';});
+      var selectedName=String((el('brPlaylistName')||{}).value||'').trim();
+      var selected=selectedName&&data.playlists.find(function(p){return String(p.name).toLowerCase()===selectedName.toLowerCase();});
       txt('brVerifyGithubName',data.playlists.length+' SAVED PLAYLISTS');
       txt('brVerifyGithubState','GITHUB MAIN REGISTRY READ VERIFIED · '+songs+' total playlist entries.'+
         (bangers?' Bangers: '+bangers.songs.length+' songs.':' Bangers not found.'));
-      txt('brVerifyGithubDetail',bangers?
-        'Bangers registry last saved '+(bangers.updated_at||'unknown')+
-        '. This does NOT verify either on-air queue.':
-        'The registry is independent from Blitz DJ and Radio 2.');
+      txt('brVerifyGithubDetail',selected?
+        'SELECTED PLAYLIST FOUND: '+short(selected.name,70)+' · '+selected.songs.length+' songs · saved '+
+          (selected.updated_at||'unknown')+'. This does NOT verify either live radio queue.':
+        (selectedName?'SELECTED NAME NOT FOUND IN GITHUB MAIN: '+short(selectedName,70)+'. ':
+          '')+(bangers?'Bangers registry saved '+(bangers.updated_at||'unknown')+'.':'Playlist store is independent from Blitz.'));
     }catch(error){
       txt('brVerifyGithubName','GITHUB NOT VERIFIED');
       txt('brVerifyGithubState',short(error.message||error,160));
@@ -182,6 +194,16 @@
   audioStatus('brVerifyRadio1Audio','brVerifyRadio1AudioState','RADIO 1 STREAM');
   audioStatus('brVerifyRadio2Audio','brVerifyRadio2AudioState','RADIO 2 FILE PREVIEW');
   el('brVerifyRefresh').addEventListener('click',function(){void refresh();});
+  // Reload source verification after the existing authenticated playlist writer confirms readback.
+  var savedStatus=el('brPlaylistStatus'),lastVerifiedText='';
+  if(savedStatus&&window.MutationObserver){
+    new MutationObserver(function(){
+      var next=savedStatus.textContent||'';
+      if(next===lastVerifiedText||!(/SAVED & VERIFIED IN GITHUB|DELETED FROM GITHUB PLAYLIST FILE/i).test(next))return;
+      lastVerifiedText=next;
+      setTimeout(function(){void refresh();},1800);
+    }).observe(savedStatus,{childList:true,characterData:true,subtree:true});
+  }
   var radioPanel=document.getElementById('brPanel-radio');
   function visible(){return document.visibilityState==='visible'&&radioPanel&&!radioPanel.hidden;}
   document.querySelectorAll('[data-tab="radio"]').forEach(function(button){
