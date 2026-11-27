@@ -3,8 +3,8 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.26-continuous-radio-v5';
-const UI_MARKER='GE_RADIO_UI_BUILD_20261126_NETWORK_FRESH_V1';
+const VERSION='2026.11.27-radio53-consolidated-v1';
+const UI_MARKER='GE_RADIO53_CONSOLIDATED_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
 const ARTWORK=['Aether','Fire','Spirit','Soul','Love','Intergy',
@@ -18,7 +18,7 @@ const REQUIRED=[
  './sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
  './ge-gate-audio.js','./ge-gate-settings.js',
- '../ge-vault-client.js','../ge-accessibility.js','../ge-accessibility.css',
+ '../ge-vault-client.js','../ge-device-view.js','../ge-accessibility.js','../ge-accessibility.css',
  './manifest.json','./track-durations.json','./loudness.json','./offline-assets.json',
  '../playlists/registry.json','../config/site-live.json','../config/album-colors.js','../config/music-routing.js',
  './manifest.webmanifest',
@@ -107,7 +107,7 @@ async function validRepairAsset(path,response){
   './preview-lab.html':['Use the canonical same-origin recording for every album'],
   './live-spectrum.js':['20261125-eq-offline-v4'],
   './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}','.sun-hue-swatch'],
-  './offline-manager.js':['2026.11.25-offline-manager-v11-library']
+  './offline-manager.js':['2026.11.26-offline-manager-v13-storage-inventory']
  }[path];
  if(!markers)return true;
  try{const source=await response.clone().text();return markers.every(marker=>source.includes(marker))}
@@ -145,7 +145,7 @@ async function installShell(){
   if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
   if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
-  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.25-offline-manager-v11-library'))throw Error('Offline manager release mismatch');
+  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.26-offline-manager-v13-storage-inventory'))throw Error('Offline manager release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
   if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
   if(!(await validRepairAsset(path,response)))throw Error('Application release mismatch: '+path);
@@ -236,11 +236,11 @@ async function navigation(request){
  const url=new URL(request.url),path=url.pathname;
  // Existing iPhone Home Screen icons sometimes launch offline-home.html.
  // Open the actual cached Radio player without a redirect or timer.
- // Installed offline-home launchers still open the cached Radio directly.
- // But ge_home=1 is also how the PUBLIC WEBSITE links into Radio. Always
+ // Installed offline-home launchers use the verified cached Radio first,
+ // even if Safari falsely reports online. But ge_home=1 also links from the public website. Always
  // attempt the current GitHub Pages HTML when online instead of returning
  // a months-old offline shell on every homepage click.
- if((path.endsWith('/radio/offline-home.html')||url.searchParams.has('ge_home'))&&self.navigator?.onLine===false){
+ if(path.endsWith('/radio/offline-home.html')||(url.searchParams.has('ge_home')&&self.navigator?.onLine===false)){
   const saved=await savedIndex();
   if(saved.ok)return saved;
  }

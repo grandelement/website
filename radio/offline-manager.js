@@ -126,19 +126,27 @@ async function shell({refresh=false}={}){
   // Check the active Radio worker first, not an update still waiting to activate.
   const worker=reg.active||navigator.serviceWorker.controller||reg.waiting;
   if(!worker)return {ready:false,missing:['Offline startup inactive']};
-  const status=await new Promise(done=>{
-   const chan=new MessageChannel();
-   let finished=false;
-   const settle=value=>{if(finished)return;finished=true;clearTimeout(timer);chan.port1.close?.();done(value)};
-   const timer=setTimeout(()=>settle({ready:false,missing:['Offline startup check timed out']}),6500);
-   chan.port1.onmessage=e=>settle(e.data);
-   try{worker.postMessage({type:'GE_RADIO_SHELL_STATUS'},[chan.port2])}
-   catch(_){settle({ready:false,missing:['Offline startup check failed']})}
-  });
-  // Manager and service worker have independent release versions. The worker
-  // verifies its own cached shell; matching their version strings is incorrect.
+  function ask(type,ms){
+   return new Promise(done=>{
+    const chan=new MessageChannel();let finished=false;
+    const settle=value=>{if(finished)return;finished=true;clearTimeout(timer);chan.port1.close?.();done(value)};
+    const timer=setTimeout(()=>settle({ready:false,missing:['Offline startup check timed out']}),ms);
+    chan.port1.onmessage=e=>settle(e.data);
+    try{worker.postMessage({type},[chan.port2])}
+    catch(_){settle({ready:false,missing:['Offline startup check failed']})}
+   });
+  }
+  let status=await ask('GE_RADIO_SHELL_STATUS',15000);
+  // Repair verified application files once in the SAME download request;
+  // never clear access, selection or media, and never pretend offline is ready.
+  if(refresh&&navigator.onLine!==false&&status?.ready!==true&&!stopped){
+   const repaired=await ask('GE_RADIO_SHELL_REPAIR',65000);
+   if(repaired?.type==='GE_RADIO_SHELL_REPAIR_RESULT'&&repaired.ready===true)
+    status=await ask('GE_RADIO_SHELL_STATUS',15000);
+   else if(repaired?.missing?.length)status={...status,missing:repaired.missing};
+  }
   if(status?.type!=='GE_RADIO_SHELL_STATUS'||typeof status.version!=='string'||!status.version)
-   return {ready:false,missing:['Offline startup response invalid']};
+   return {ready:false,missing:status?.missing?.length?status.missing:['Offline startup response invalid']};
   return {ready:status?.ready===true,missing:status?.missing||[]};
  }catch(_){return {ready:false,missing:['Offline startup check failed']}}
 }
@@ -215,6 +223,7 @@ async function save({mode='all',paths=[],onProgress}={}){
  try{
   report(onProgress,{phase:'preparing',percent:0,etaSeconds:null});
   const engine=await shell({refresh:true});
+  if(stopped)return {error:'stopped',message:'Stopped. Existing music is safe.'};
   if(!engine.ready)return {error:'engine',
    message:'Radio startup did not verify: '+String(engine.missing?.[0]||'Unknown file')+
     '. Reconnect, reopen Radio, and retry. Existing music is safe.'};

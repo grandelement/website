@@ -8,7 +8,7 @@ const assert=require('node:assert/strict');
 const read=path=>fs.readFileSync(path,'utf8');
 const htmlFiles=['index.html','backroom/index.html','radio/index.html','radio/ge-dj.html'];
 const scripts=[
-  'ge-vault-client.js','ge-dream.js','ge-accessibility.js',
+  'ge-vault-client.js','ge-dream.js','ge-device-view.js','ge-accessibility.js',
   'radio/website-live.js','radio/ge-home-gate-stop.js',
   'radio/ge-imac-studio.js','radio/ge-vault-drilldown.js','sw.js','radio/sw.js'
 ];
@@ -64,7 +64,14 @@ assert(!backroom.includes('async async function'),'Duplicate async regression de
 assert(backroom.includes('GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1'),'Published config fallback missing');
 assert(backroom.includes("if(serverAuthenticated)backroomVaultManagers.init()"),'Private Vault must not auto-initialize for local editor');
 assert(home.includes('ge-merch-random-scheduler'),'Merchandise random scheduler missing');
-assert(home.includes('45000+Math.random()*30000'),'Merchandise spacing must be 45–75 seconds');
+// Exercise the canonical configurable scheduler, including its approved default.
+const timing=home.match(/const settings=\(\)=>window\.GE_SITE_CONFIG\?\.merchandise\|\|\{\};[\s\S]*?const entryDelay=\(\)=>\{[\s\S]*?\n    \};/)?.[0];
+assert(timing,'Merchandise interval controller missing');
+function merchDelay(cfg,random){return vm.runInNewContext(timing+'\nentryDelay()', {window:{GE_SITE_CONFIG:{merchandise:cfg}},Math:Object.assign(Object.create(Math),{random:()=>random})});}
+assert.equal(merchDelay({},0),45000,'Default minimum is 45 seconds');
+assert.equal(merchDelay({},1),75000,'Default maximum is 75 seconds');
+assert.equal(merchDelay({entryMinSeconds:60,entryMaxSeconds:90},.5),75000,'Back Room interval is respected');
+assert.equal(merchDelay({entryTiming:'fixed',entryMinSeconds:30,entryMaxSeconds:90},.5),30000,'Fixed interval is respected');
 assert(home.includes('--ge-merch-factor:.5625'),'Reduced hat size missing');
 assert(home.includes('ge-merch-flying'),'Merchandise flyby animation hook missing');
 assert(!home.includes('.workers.dev'),'Public homepage must not require a Cloudflare Worker URL');
@@ -79,7 +86,8 @@ assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in boun
 assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
 assert(home.includes('ge-vault-client.js?v=20261112-emergency-fan-tracking-v4'),'Website must load approved Vault client');
 assert(vault.includes('GE_EVENT_COOLDOWN_KEY'),'Vault retry backoff must persist across page reloads');
-assert(siteSW.includes('GE_SITE_SHELL_V7_STANDALONE_MUSIC_20261109'),'Current website shell cache key missing');
+assert.match(siteSW,/const SITE_SHELL='GE_SITE_SHELL_V\d+_[A-Z0-9_]+'/,'Versioned website shell cache key missing');
+assert(siteSW.includes("'./ge-device-view.js'"),'Home offline device controller missing');
 for(const file of ['ge-vault-client.js','config/site-live.json','radio/manifest.json','radio/ge-home-gate-stop.js','ge-dream.js'])
   assert(siteSW.includes('./'+file),'Public offline core asset missing: '+file);
 assert(siteSW.includes("relative.startsWith('backroom/')"),'Owner Back Room must not be served from public offline cache');
