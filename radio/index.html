@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn"><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
+    <button data-proxy="shuffleBtn"><svg class="ge-mode-symbol" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="prevBtn" type="button" aria-label="Previous song" title="Previous song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 19 9 12l10-7v14ZM9 19 2 12l7-7v14Z"/></svg><span class="ge-radio-icon-label">PREV</span></button>
     <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn" type="button" aria-label="Next song" title="Next song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 10 7-10 7V5Zm10 0 7 7-7 7V5Z"/></svg><span class="ge-radio-icon-label">NEXT</span></button>
-    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><span class="ge-radio-icon-label">SHUFFLE</span></button>
+    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-mode-symbol" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-radio-icon-label">SHUFFLE</span></button>
     <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
@@ -10035,73 +10035,34 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
-<script id="ge-shuffle-b8-bioluminescence">
+<script id="ge-shuffle-album-rainbow">
 (()=>{
- // Owner-approved B8. Random spawn locations, lifetimes, velocities and brightness;
- // no repeating keyframes or fixed star arrangement.
  const source=document.getElementById('shuffleBtn');if(!source)return;
- const motion=matchMedia('(prefers-reduced-motion: reduce)');
- const random=(a,b)=>a+Math.random()*(b-a);
- const createParticle=(now)=>({
-   x:random(0,300),y:random(0,110),vx:random(-18,18),vy:random(-9,9),
-   r:random(1.4,3.6),strength:random(.45,1),start:now,duration:random(550,3400)
+ const albums=ALBUM_ORDER.filter(name=>name!=='Singles');
+ const fallback=['#b94754','#a86b3d','#829343','#388c76','#2e9bb1','#635293','#9b357d','#c84cba','#d29482','#e2b448','#bfc4cd'];
+ const buttons=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')];
+ const rows=buttons.map(button=>{
+   const row=document.createElement('span');row.className='ge-album-rainbow';row.setAttribute('aria-hidden','true');button.prepend(row);
+   const dots=albums.map((name,i)=>{
+     const dot=document.createElement('span');dot.className='ge-album-rainbow-planet';dot.style.backgroundColor=window.GE_ALBUM_COLORS?.[name]||fallback[i];
+     const image=new Image();image.alt='';image.decoding='async';image.onerror=()=>image.remove();
+     image.src=new URL('../ge-images/images/'+encodeURIComponent('Grand Element - '+name+'.jpg'),location.href).href;
+     dot.append(image);return dot;
+   });
+   return {row,dots};
  });
- const surfaces=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')].map(button=>{
-   const canvas=document.createElement('canvas');canvas.className='ge-shuffle-b8-canvas';canvas.setAttribute('aria-hidden','true');
-   button.prepend(canvas);
-   canvas.style.setProperty('position','absolute','important');canvas.style.setProperty('inset','0','important');
-   canvas.style.setProperty('width','100%','important');canvas.style.setProperty('height','100%','important');
-   canvas.style.setProperty('pointer-events','none','important');canvas.style.setProperty('z-index','1','important');
-   return {button,canvas,ctx:canvas.getContext('2d'),particles:[],next:0};
- }).filter(x=>x.ctx);
- let raf=0;
- function visible(s){
-   return source.getAttribute('aria-pressed')==='true'&&!motion.matches&&!document.hidden&&
-     !document.body.classList.contains('hud-hidden')&&s.button.getClientRects().length>0&&
-     (s.button===source?!document.body.classList.contains('view-ship'):document.body.classList.contains('view-ship'));
- }
- function clear(s){
-   s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);s.particles=[];s.next=0;
- }
- function frame(now){
-   raf=0;let running=false;
-   for(const s of surfaces){
-     if(!visible(s)){clear(s);continue;}
-     running=true;
-     const w=s.button.clientWidth,h=s.button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
-     if(!w||!h)continue;
-     const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
-     if(s.canvas.width!==pw||s.canvas.height!==ph){s.canvas.width=pw;s.canvas.height=ph;}
-     const ctx=s.ctx;ctx.setTransform(pw/300,0,0,ph/110,0,0);ctx.clearRect(0,0,300,110);
-     if(!s.particles.length){for(let k=0;k<12;k++){const p=createParticle(now);p.start-=random(0,p.duration*.72);s.particles.push(p);}}
-     if(now>=s.next){s.particles.push(createParticle(now));s.next=now+random(35,150);}
-     s.particles=s.particles.filter(p=>now-p.start<p.duration);
-     for(const p of s.particles){
-       const age=(now-p.start)/p.duration,alpha=Math.sin(age*Math.PI)*p.strength;
-       const x=p.x+p.vx*(now-p.start)/1000,y=p.y+p.vy*(now-p.start)/1000,radius=p.r*4;
-       const g=ctx.createRadialGradient(x,y,0,x,y,radius);
-       g.addColorStop(0,'rgba(65,255,200,'+alpha+')');
-       g.addColorStop(.24,'rgba(65,255,200,'+(alpha*.68)+')');
-       g.addColorStop(1,'rgba(65,255,200,0)');
-       ctx.fillStyle=g;ctx.fillRect(x-radius,y-radius,radius*2,radius*2);
-       ctx.fillStyle='rgba(235,250,255,'+alpha+')';ctx.beginPath();ctx.arc(x,y,p.r*.55,0,Math.PI*2);ctx.fill();
-     }
+ let previousMode=null,previousOrder='';
+ function render(){
+   const shuffle=source.getAttribute('aria-pressed')==='true';if(previousMode===shuffle)return;
+   previousMode=shuffle;const order=albums.map((_,i)=>i);
+   if(shuffle){
+     for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+     if(order.every((v,i)=>v===i)||order.join(',')===previousOrder)order.push(order.shift());
+     previousOrder=order.join(',');
    }
-   if(running)raf=requestAnimationFrame(frame);
+   for(const {row,dots} of rows)row.replaceChildren(...order.map(i=>dots[i]));
  }
- function wake(){
-   const enabled=source.getAttribute('aria-pressed')==='true';
-   for(const s of surfaces){
-     const show=visible(s);s.canvas.style.setProperty('display',show?'block':'none','important');
-     if(!show)clear(s);
-   }
-   if(!enabled||!surfaces.some(visible)){if(raf)cancelAnimationFrame(raf);raf=0;return;}
-   if(!raf)raf=requestAnimationFrame(frame);
- }
- new MutationObserver(wake).observe(source,{attributes:true,attributeFilter:['aria-pressed']});
- new MutationObserver(wake).observe(document.body,{attributes:true,attributeFilter:['class']});
- document.addEventListener('visibilitychange',wake);window.addEventListener('resize',wake);window.addEventListener('pageshow',wake);
- motion.addEventListener?.('change',wake);wake();
+ new MutationObserver(render).observe(source,{attributes:true,attributeFilter:['aria-pressed']});render();
 })();
 </script>
 <script id="ge-music-button-album-flight-v1">
@@ -10212,7 +10173,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261126-continuous-radio-v3" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-rainbow-modes-v1" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
