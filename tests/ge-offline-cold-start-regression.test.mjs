@@ -20,8 +20,14 @@ test('one worker verifies the startup shell and never deletes music',()=>{
  assert.match(sw,/async function savedIndex/);
  assert.match(sw,/url\.searchParams\.has\('ge_home'\)&&self\.navigator\?\.onLine===false/,
    'online homepage Radio links must use live network HTML, not a stale cached shell');
- assert.match(radio,/sw\.js\?v=20261122-public-eq-live-home-v1/,
-   'service worker URL must change when live homepage navigation policy changes');
+ assert.match(radio,/serviceWorker\.register\('\.\/sw\.js',\{scope:'\.\/',updateViaCache:'none'\}\)/,
+   'Radio must update its stable worker URL without HTTP cache');
+ assert.match(manager,/serviceWorker\.register\('\.\/sw\.js',\{scope:'\.\/',updateViaCache:'none'\}\)/,
+   'MUSIC must register the exact same worker and update policy');
+ const workerMarker=/const UI_MARKER='([^']+)'/.exec(sw)?.[1];
+ const managerVersion=/const VERSION='([^']+)'/.exec(manager)?.[1];
+ assert.ok(workerMarker&&radio.includes(workerMarker),'Startup HTML must match the worker release');
+ assert.ok(managerVersion&&sw.includes(managerVersion),'Worker must accept the actual offline manager release');
  assert.match(sw,/'.\/offline-home\.html'/);
  assert.doesNotMatch(sw,/'.\/offline-control\.js'/);
  assert.match(sw,/'.\/offline-manager\.js'/);
