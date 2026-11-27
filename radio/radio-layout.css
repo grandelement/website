@@ -733,7 +733,7 @@ html.ge-radio-ui[class][class] body.view-player.portrait-player:not(.iam-studio-
 html.ge-radio-ui[class][class] body.view-player.portrait-player:not(.iam-studio-open)[class][class] #musicGroup > #shuffleBtn > svg{display:block!important;width:clamp(17px,4.5vw,24px)!important;height:clamp(17px,4.5vw,24px)!important;flex:0 0 auto!important}
 html.ge-radio-ui[class][class] body[class] #shipStage [data-proxy="shuffleBtn"] > .ge-shuffle-label{display:inline!important}
 
-/* Eleven album planets in a single line; mode changes order, never position. */
+/* Reference concept: green shuffle with drifting planets; blue continuous with a fixed centered row. */
 html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup > #shuffleBtn,#shipStage [data-proxy="shuffleBtn"]){
  position:relative!important;isolation:isolate!important;overflow:hidden!important;
  display:flex!important;align-items:center!important;justify-content:center!important;
@@ -759,3 +759,27 @@ html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup 
 }
 .ge-album-rainbow-planet{display:block;position:relative;aspect-ratio:1;width:100%;max-width:13px;justify-self:center;overflow:hidden;border-radius:50%;box-shadow:inset 0 0 0 1px #ffffff44}
 .ge-album-rainbow-planet img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* Keep the two continuous arrows above and below the actual 11-cover row. */
+html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup > #shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > svg.ge-mode-symbol{
+ transform:none!important;width:clamp(26px,6vw,36px)!important;height:70%!important;max-height:38px!important;overflow:visible!important;
+ filter:drop-shadow(0 1px 3px #001a24)!important;
+}
+html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup > #shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > .ge-album-rainbow{
+ bottom:auto!important;top:50%!important;transform:translateY(-50%);left:4px!important;right:4px!important;
+}
+html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup > #shuffleBtn,#shipStage [data-proxy="shuffleBtn"]) > .ge-album-rainbow.ge-planets-orbit{
+ inset:0!important;transform:none;display:block!important;
+}
+.ge-album-rainbow.ge-planets-orbit .ge-album-rainbow-planet{
+ position:absolute;left:var(--planet-x);top:var(--planet-y);width:clamp(7px,2.4vw,15px);max-width:none;
+ transform:translate(-50%,-50%);animation:geAlbumOrbitDrift var(--planet-period,10s) var(--planet-delay,0s) ease-in-out infinite;
+ box-shadow:0 0 4px #a2ffce44,inset 0 0 0 1px #ffffff55;
+}
+@keyframes geAlbumOrbitDrift{
+ 0%,100%{transform:translate(calc(-50% + var(--planet-dx)), -50%)}
+ 25%{transform:translate(-50%,calc(-50% + var(--planet-dy)))}
+ 50%{transform:translate(calc(-50% - var(--planet-dx)), -50%)}
+ 75%{transform:translate(-50%,calc(-50% - var(--planet-dy)))}
+}
+@media(prefers-reduced-motion:reduce){.ge-album-rainbow.ge-planets-orbit .ge-album-rainbow-planet{animation:none!important}}
