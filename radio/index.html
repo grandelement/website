@@ -10010,73 +10010,61 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
-<script id="ge-shuffle-b8-bioluminescence">
+<script id="ge-shuffle-album-planets">
 (()=>{
- // Owner-approved B8. Random spawn locations, lifetimes, velocities and brightness;
- // no repeating keyframes or fixed star arrangement.
  const source=document.getElementById('shuffleBtn');if(!source)return;
  const motion=matchMedia('(prefers-reduced-motion: reduce)');
+ const albums=ALBUM_ORDER.filter(name=>name!=='Singles');
+ const art=albums.map(name=>{const img=new Image();img.decoding='async';img.src=new URL('../ge-images/images/'+encodeURIComponent('Grand Element - '+name+'.jpg'),location.href).href;return img;});
  const random=(a,b)=>a+Math.random()*(b-a);
- const createParticle=(now)=>({
-   x:random(0,300),y:random(0,110),vx:random(-18,18),vy:random(-9,9),
-   r:random(1.4,3.6),strength:random(.45,1),start:now,duration:random(550,3400)
- });
  const surfaces=[source,...document.querySelectorAll('#shipStage [data-proxy="shuffleBtn"]')].map(button=>{
-   const canvas=document.createElement('canvas');canvas.className='ge-shuffle-b8-canvas';canvas.setAttribute('aria-hidden','true');
-   button.prepend(canvas);
-   canvas.style.setProperty('position','absolute','important');canvas.style.setProperty('inset','0','important');
-   canvas.style.setProperty('width','100%','important');canvas.style.setProperty('height','100%','important');
-   canvas.style.setProperty('pointer-events','none','important');canvas.style.setProperty('z-index','1','important');
-   return {button,canvas,ctx:canvas.getContext('2d'),particles:[],next:0};
- }).filter(x=>x.ctx);
+   const canvas=document.createElement('canvas');canvas.className='ge-shuffle-album-planets';canvas.setAttribute('aria-hidden','true');button.prepend(canvas);
+   return {button,canvas,ctx:canvas.getContext('2d'),planets:[],next:0};
+ }).filter(s=>s.ctx);
  let raf=0;
- function visible(s){
-   return source.getAttribute('aria-pressed')==='true'&&!motion.matches&&!document.hidden&&
-     !document.body.classList.contains('hud-hidden')&&s.button.getClientRects().length>0&&
-     (s.button===source?!document.body.classList.contains('view-ship'):document.body.classList.contains('view-ship'));
+ const shuffled=()=>source.getAttribute('aria-pressed')==='true';
+ function visible(s){return !document.hidden&&!document.body.classList.contains('hud-hidden')&&s.button.getClientRects().length>0&&(s.button===source?!document.body.classList.contains('view-ship'):document.body.classList.contains('view-ship'));}
+ function draw(ctx,img,x,y,r,alpha){
+   if(!img?.complete||!img.naturalWidth||r<=0)return;
+   ctx.save();ctx.globalAlpha=alpha;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.clip();
+   const side=Math.min(img.naturalWidth,img.naturalHeight);
+   ctx.drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,x-r,y-r,r*2,r*2);
+   ctx.restore();
  }
- function clear(s){
-   s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);s.particles=[];s.next=0;
+ function spawn(now,initial=false){
+   const duration=random(5000,8500);
+   return {img:art[Math.floor(random(0,art.length))],x:random(.12,.88),y:random(.2,.8),dx:random(-.23,.23),dy:random(-.22,.22),size:random(.16,.28),duration,start:now-(initial?duration*random(.22,.64):0)};
  }
  function frame(now){
-   raf=0;let running=false;
+   raf=0;let running=false;const moving=shuffled()&&!motion.matches;
    for(const s of surfaces){
-     if(!visible(s)){clear(s);continue;}
-     running=true;
-     const w=s.button.clientWidth,h=s.button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
-     if(!w||!h)continue;
+     if(!visible(s)){s.planets=[];s.next=0;continue;}
+     const w=s.button.clientWidth,h=s.button.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);if(!w||!h)continue;
      const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
      if(s.canvas.width!==pw||s.canvas.height!==ph){s.canvas.width=pw;s.canvas.height=ph;}
-     const ctx=s.ctx;ctx.setTransform(pw/300,0,0,ph/110,0,0);ctx.clearRect(0,0,300,110);
-     if(!s.particles.length){for(let k=0;k<12;k++){const p=createParticle(now);p.start-=random(0,p.duration*.72);s.particles.push(p);}}
-     if(now>=s.next){s.particles.push(createParticle(now));s.next=now+random(35,150);}
-     s.particles=s.particles.filter(p=>now-p.start<p.duration);
-     for(const p of s.particles){
-       const age=(now-p.start)/p.duration,alpha=Math.sin(age*Math.PI)*p.strength;
-       const x=p.x+p.vx*(now-p.start)/1000,y=p.y+p.vy*(now-p.start)/1000,radius=p.r*4;
-       const g=ctx.createRadialGradient(x,y,0,x,y,radius);
-       g.addColorStop(0,'rgba(65,255,200,'+alpha+')');
-       g.addColorStop(.24,'rgba(65,255,200,'+(alpha*.68)+')');
-       g.addColorStop(1,'rgba(65,255,200,0)');
-       ctx.fillStyle=g;ctx.fillRect(x-radius,y-radius,radius*2,radius*2);
-       ctx.fillStyle='rgba(235,250,255,'+alpha+')';ctx.beginPath();ctx.arc(x,y,p.r*.55,0,Math.PI*2);ctx.fill();
+     const ctx=s.ctx;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+     if(!moving){
+       s.planets=[];s.next=0;
+       const step=(w-8)/art.length,r=Math.min(step*.43,h*.22);
+       art.forEach((img,i)=>draw(ctx,img,4+step*(i+.5),h/2,r,.85));
+       continue;
+     }
+     running=true;
+     if(!s.planets.length){s.planets=[spawn(now,true),spawn(now,true)];s.next=now+random(2000,4000);}
+     if(now>=s.next){s.planets.push(spawn(now));s.next=now+random(2000,4000);}
+     s.planets=s.planets.filter(p=>now-p.start<p.duration);
+     for(const p of s.planets){
+       const t=Math.max(0,(now-p.start)/p.duration),alpha=Math.min(1,t/.2,(1-t)/.25)*.88;
+       draw(ctx,p.img,(p.x+p.dx*t)*w,(p.y+p.dy*t)*h,h*p.size*(.55+t*.75),alpha);
      }
    }
    if(running)raf=requestAnimationFrame(frame);
  }
- function wake(){
-   const enabled=source.getAttribute('aria-pressed')==='true';
-   for(const s of surfaces){
-     const show=visible(s);s.canvas.style.setProperty('display',show?'block':'none','important');
-     if(!show)clear(s);
-   }
-   if(!enabled||!surfaces.some(visible)){if(raf)cancelAnimationFrame(raf);raf=0;return;}
-   if(!raf)raf=requestAnimationFrame(frame);
- }
+ function wake(){if(!raf)raf=requestAnimationFrame(frame);}
  new MutationObserver(wake).observe(source,{attributes:true,attributeFilter:['aria-pressed']});
  new MutationObserver(wake).observe(document.body,{attributes:true,attributeFilter:['class']});
  document.addEventListener('visibilitychange',wake);window.addEventListener('resize',wake);window.addEventListener('pageshow',wake);
- motion.addEventListener?.('change',wake);wake();
+ motion.addEventListener?.('change',wake);art.forEach(img=>img.addEventListener('load',wake));wake();
 })();
 </script>
 <script id="ge-music-button-album-flight-v1">
@@ -10187,7 +10175,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-r7-autoplay-v2" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-album-planets-v3" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
