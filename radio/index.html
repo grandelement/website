@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div id="shipRightControls" class="ship-side ship-right">
     <button data-proxy="nextBtn">Next</button><button data-proxy="prevBtn">Prev</button>
-    <button data-proxy="shuffleBtn"><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
+    <button data-proxy="shuffleBtn"><svg class="ge-mode-symbol" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-shuffle-label">Shuffle</span></button><button data-proxy="liveBtn" aria-label="Start Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <button type="button" data-proxy="shareBtn" aria-label="Share Grand Element Radio">SHARE</button>
     <button data-proxy="legacyBtn">Legacy</button>
     <div id="shipHideControl" class="ship-hide-combined" role="button" tabindex="0" aria-label="Hide ship; checkbox controls automatic hiding">
@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <button id="prevBtn" type="button" aria-label="Previous song" title="Previous song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 19 9 12l10-7v14ZM9 19 2 12l7-7v14Z"/></svg><span class="ge-radio-icon-label">PREV</span></button>
     <button id="playBtn" type="button" aria-label="Start music player" aria-pressed="false">PLAYER</button>
     <button id="nextBtn" type="button" aria-label="Next song" title="Next song"><svg class="ge-radio-icon ge-radio-music-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 10 7-10 7V5Zm10 0 7 7-7 7V5Z"/></svg><span class="ge-radio-icon-label">NEXT</span></button>
-    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><span class="ge-radio-icon-label">SHUFFLE</span></button>
+    <button class="tgl" id="shuffleBtn" type="button" aria-pressed="true" aria-label="Shuffle songs" title="Shuffle songs"><svg class="ge-mode-symbol" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="ge-mode-shuffle"><path d="M3 5h4c7 0 11 14 18 14h4m-5-5 5 5-5 4M3 19h4c7 0 11-14 18-14h4m-5-4 5 4-5 5"/></g><g class="ge-mode-ordered"><path d="M3 6h26m-5-5 5 5-5 5M3 18h26m-5-5 5 5-5 5"/></g></svg><span class="ge-radio-icon-label">SHUFFLE</span></button>
     <button class="tgl" id="liveBtn" type="button" aria-pressed="false" aria-label="Start Grand Element Radio" title="Grand Element Radio"><span class="ge-radio-control-label">RADIO</span><canvas class="ge-radio-broadcast-r21" aria-hidden="true"></canvas></button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
@@ -2440,7 +2440,7 @@ function updateRadioStartupCue(){
     (observedRadio1Progress&&Date.now()-lastRadio1Progress<6000);
   const playing=(state.live||state.livePreparing)&&!audio.paused&&recentForwardAudio;
   // Host-side signal proof does not mean Safari is playing audible radio.
-  const connected=!!(playing&&!audio.muted);
+  const connected=!!(playing&&!audio.muted&&!audio.ended&&!audio.error&&audio.volume>0);
   // ReadyState/canplay may fire for an audio response that never plays.
   // No connection color until this native player actually advances.
   const signalReady=connected||liveState.signalReady;
@@ -2462,7 +2462,7 @@ function updateRadioStartupCue(){
     const label=button.querySelector('.ge-radio-control-label');
     if(label&&label.textContent!=='RADIO')label.textContent='RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
-    button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
+    button.setAttribute('aria-label',connected?'Stop '+source:'Play '+source);
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
   }
   const shipPlayButton=$('shipPlay');
@@ -2716,8 +2716,8 @@ const GE_STATIC_DURATIONS='./track-durations.json';
 let geStaticProgram=null,geStaticLoading=null;
 let geRadioStandbyProofUntil=0,geRadioStandbyProbe=null,geRadioStandbyPulseTimer=0,geRadioStandbyEndTimer=0;
 function radioStandbyAllowed(){
- return !state.live&&!state.livePreparing&&navigator.onLine!==false&&!document.hidden&&
-  !window.GEIAmStudio?.isRadioSuspended?.()&&Date.now()<geRadioStandbyProofUntil;
+ return !document.body.classList.contains('ge-radio-on')&&navigator.onLine!==false&&!document.hidden&&
+  !offlinePlaybackMode()&&!window.GEIAmStudio?.isRadioSuspended?.()&&!window.GEGate?.isExpiredLocked?.();
 }
 function syncRadioStandbyCue(){
  const ready=radioStandbyAllowed(),body=document.body;
@@ -2726,10 +2726,10 @@ function syncRadioStandbyCue(){
   clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);
   geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;body.classList.remove('ge-radio-standby-flash');return;
  }
- body.classList.remove('ge-radio-standby-flash');
+ body.classList.toggle('ge-radio-standby-flash',Date.now()<geRadioStandbyProofUntil||((state.live||state.livePreparing)&&liveState.signalReady));
 }
 async function verifyRadioStandby(){
- if(geRadioStandbyProbe||state.live||state.livePreparing||navigator.onLine===false||document.hidden)return;
+ if(geRadioStandbyProbe||!radioStandbyAllowed())return;
  if(!GE_STATIC_RADIO_PRIMARY)return; // Current deployed source is the static clock, not BLITZ.
  geRadioStandbyProbe=(async()=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
@@ -2855,7 +2855,7 @@ function radio2PlayCurrent(){
   const url=new URL(slot.track.url,location.origin).href;
   const changed=url!==radio2.url||radio2.index!==slot.index||audio.src!==url;
   if(changed){
-    lastRadio2Time=NaN;observedRadio2Progress=false;updateRadioStartupCue();
+    lastRadio2Time=NaN;observedRadio2Progress=false;liveState.signalReady=false;updateRadioStartupCue();
     radio2.index=slot.index;radio2.url=url;
     radio2.title=String(slot.track.title||'').trim();
     state.currentURL=url;
@@ -2898,7 +2898,8 @@ function radio2PlayCurrent(){
     let p;try{p=audio.play();}catch(error){p=Promise.reject(error);}
     if(p&&typeof p.catch==='function')p.catch(error=>{
       if(/NotAllowedError/i.test(String(error?.name||''))){
-        setLiveStatus('RADIO 2 · TAP PLAY TO CONNECT');
+        liveState.autoplayBlocked=true;updateRadioStartupCue();
+        setLiveStatus('RADIO · TAP RADIO TO LISTEN');
       }else{
         setLiveStatus('RADIO 2 · RECONNECTING…');
       }
@@ -4710,8 +4711,7 @@ $('liveBtn').addEventListener('click',()=>{
   // RADIO is a true start/stop control, including while connecting.
   document.body.classList.remove('ge-radio-standby-ready','ge-radio-standby-flash');
   clearTimeout(geRadioStandbyPulseTimer);clearTimeout(geRadioStandbyEndTimer);geRadioStandbyPulseTimer=geRadioStandbyEndTimer=0;
-  document.body.classList.remove('ge-radio-on');
-  if(state.live||state.livePreparing){
+  if((state.live||state.livePreparing)&&!audio.paused&&!audio.ended&&document.body.classList.contains('ge-radio-verified')){
     exitLiveMode('RADIO STOPPED');
     requestUserPause();
     updateRadioStartupCue();
@@ -5024,8 +5024,9 @@ audio.addEventListener('timeupdate',()=>{
 // Safari can decode actual MP3 data while blocking autoplay. This is a
 // valid ready-to-play signal, separate from proof that sound is audible.
 audio.addEventListener('canplay',()=>{
-  if(!(state.live||state.livePreparing)||radio2.active||audio.error)return;
-  if(!String(audio.currentSrc||audio.src||'').startsWith(String(CONFIG.LIVE_STREAM_URL||'')))return;
+  if(!(state.live||state.livePreparing)||audio.error)return;
+  if(radio2.active){if(!radio2.url||audio.currentSrc!==radio2.url)return;}
+  else if(!String(audio.currentSrc||audio.src||'').startsWith(String(CONFIG.LIVE_STREAM_URL||'')))return;
   liveState.signalReady=true;updateRadioStartupCue();
 });
 // Safari sometimes advances an Icecast player's currentTime without sending
@@ -5863,7 +5864,7 @@ async function registerServiceWorker(){
         const label=button.querySelector('.ge-shuffle-label');if(label)label.textContent=pressed==='true'?'SHUFFLE':'ALBUM';
 
       }
-      button.classList.toggle('ship-live-active',source.id==='liveBtn'&&pressed==='true');
+      button.classList.toggle('ship-live-active',source.id==='liveBtn'&&document.body.classList.contains('ge-radio-on'));
       button.classList.toggle('radio-start-cue',source.id==='liveBtn'&&source.classList.contains('radio-start-cue'));
     });
     if(autoPilotBtn)setPressed(autoPilotBtn,autopilot);
@@ -8061,7 +8062,9 @@ Vector ${vector}. ${pair[1]}.`;
         signal=clamp(sum/count*.7+peak*.3,0,1);
       }
       // Slow, bounded glow; no strobe or high-contrast flash.
-      geRadioR21Envelope+=(signal-geRadioR21Envelope)*(1-Math.exp(-dt*2));
+      const ready=document.body.classList.contains('ge-radio-standby-flash');
+      const target=bins?.length?signal:(ready?.10+.08*Math.sin(now/1300)+.04*Math.sin(now/510):0);
+      geRadioR21Envelope+=(target-geRadioR21Envelope)*(1-Math.exp(-dt*2));
       if(now>=geRadioR21Next){
         geRadioR21Waves.push({progress:0,energy:bins?.length?geRadioR21Envelope:.18+Math.random()*.18,duration:4+Math.random()*2});
         geRadioR21Next=now+850+Math.random()*650;
@@ -8140,7 +8143,7 @@ Vector ${vector}. ${pair[1]}.`;
     // Use unmodified measured FFT before the Sun Lab's transient processor.
     // On a fallback station, do not use Radio 1's remote BLITZ feed.
     const radioBins=live&&!inlinePlaying&&(!GE_IOS_AUDIO||GE_STATIC_RADIO_PRIMARY||!radio2.active||currentBins)?eqData:null;
-    updateRadioBroadcastR21(live?eqData:null);
+    updateRadioBroadcastR21((state.live||state.livePreparing)&&!inlinePlaying?radioBins:null);
     // Spectrum uses original measured FFT; other visual modes keep their transient response.
     spectrumRawBins=live?eqData:null;spectrumRawLayout=rawLayout;
     // Per-effect transient processing happens inside updateSunEQ; all layers share the same measured FFT.
@@ -9745,9 +9748,7 @@ gateTestBtn?.addEventListener('click',()=>{
   syncModeButtons();
   refreshLoveButton();
   registerServiceWorker();
-  // Prefetch only playlist metadata. Never select a RADIO source or request
-  // audio until the listener actually presses RADIO. This avoids showing a
-  // station title for an inaudible browser-blocked autoplay attempt.
+  // Ordinary radio arrivals attempt audible radio immediately; browser policy may require a tap.
   if(!offlinePlaybackMode())void verifyRadioStandby();
   setInterval(()=>{syncRadioStandbyCue();void verifyRadioStandby();},45000);
   window.addEventListener('online',()=>void verifyRadioStandby());
@@ -9756,16 +9757,16 @@ gateTestBtn?.addEventListener('click',()=>{
   if(offlinePlaybackMode())setStatus('OFFLINE · loading saved Grand Element songs');
   else{
     setLiveStatus('',false);
-    setStatus('Music library loading. Press PLAY or RADIO when ready.');
+    setStatus('Grand Element Radio · connecting…');
   }
   // Recheck a signed, revocable Vault grant from this browser after every
   // reload, including VPN changes. No code or password is stored.
   if(!offlinePlaybackMode())void window.GERestoreRadioDevice?.();
   void window.GELoudness?.initialize?.();
-  const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
-  if(sharedLiveRequested){
-    // Shared live links may suggest the station, but never autoplay its audio.
-    setStatus('Grand Element Radio · tap RADIO to connect.');
+  const arrivalParams=new URLSearchParams(location.search);
+  const explicitMusic=['song','mix','album'].some(key=>arrivalParams.has(key));
+  if(!offlinePlaybackMode()&&!qrArrival&&!explicitMusic&&!state.userStarted&&!state.live&&!state.livePreparing){
+    void requestRadioStart();
   }
 
   await loadFrozenAutoSongs();
@@ -10184,7 +10185,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-r7-standby-v1" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261127-r7-autoplay-v2" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
