@@ -1583,9 +1583,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
    <button type="button" data-ge-offline="all">ALL MUSIC</button>
    <button type="button" data-ge-offline="checked">CHECKED SONGS</button>
    <button type="button" data-ge-offline="playlist">PLAYLIST</button>
+   <button type="button" data-ge-offline="update">UPDATE MISSING</button>
    <button type="button" class="geOfflineListBtn" aria-expanded="false">SAVED FILES</button>
    <button type="button" class="geOfflineRemoveAll">REMOVE ALL FILES</button>
-   <section class="geOfflineLibrary" hidden aria-label="Downloaded recordings"><div class="geOfflineLibraryHead"><strong class="geOfflineFileCount">Saved files</strong><button type="button" class="geOfflineListClose">CLOSE</button></div><div class="geOfflineLibraryActions"><button type="button" class="geOfflineReload">RELOAD SAVED</button><button type="button" class="geOfflineUpdate">UPDATE MISSING</button></div><p class="geOfflineLibraryStatus" role="status"></p><div class="geOfflineFiles" role="list"></div></section>
+   <section class="geOfflineLibrary" hidden aria-label="Downloaded recordings"><div class="geOfflineLibraryHead"><strong class="geOfflineFileCount">Saved files</strong><button type="button" class="geOfflineListClose">CLOSE</button></div><div class="geOfflineLibraryActions"><button type="button" class="geOfflineReload">RELOAD SAVED</button></div><p class="geOfflineLibraryStatus" role="status"></p><div class="geOfflineFiles" role="list"></div></section>
    <label class="geOfflinePlaylistRow" hidden>Choose playlist<select class="geOfflinePlaylist" aria-label="Playlist to download"></select></label>
   </div>
  </section>
@@ -3384,7 +3385,6 @@ el('.geOfflineReload').addEventListener('click',async()=>{
  }catch(error){libraryMessage(String(error?.message||error))}
  finally{inventoryBusy=false;offlineBusy=false;offlineStop.hidden=true;void offlineCheck();}
 });
-el('.geOfflineUpdate').addEventListener('click',()=>void offlineDownload('update'));
 offlineToggle.addEventListener('click',()=>showOfflineChoices(offlineChoices.hidden));
 root.querySelectorAll('[data-ge-offline]').forEach(button=>button.addEventListener('click',()=>{
  offlineChoice=button.dataset.geOffline;
