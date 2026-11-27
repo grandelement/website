@@ -36,7 +36,9 @@
     '<div class="geVerifyCard"><strong>RADIO 2 · CLOUDFLARE BACKUP</strong>'+
     '<b id="brVerifyRadio2Song">NOT CHECKED</b>'+
     '<p id="brVerifyRadio2State" role="status">The station clock predicts the current scheduled song.</p>'+
-    '<p id="brVerifyRadio2Playlist">Published schedule: not checked</p>'+
+    '<p id="brVerifyRadio2Playlist">Published schedule: not checked</p>'+ 
+    '<button id="brPublishRadio2" type="button">PUBLISH SAVED BANGERS TO RADIO 2</button>'+ 
+    '<p id="brPublishRadio2Status" class="geVerifyNote" role="status">Publishes the selected GitHub Bangers song order to the Cloudflare backup. Blitz is not required. Radio 1 remains unchanged.</p>'+
     '<label style="font-size:12px" for="brVerifyRadio2Audio">PREVIEW SCHEDULED AUDIO FILE</label>'+
     '<audio id="brVerifyRadio2Audio" controls preload="none"></audio>'+
     '<p id="brVerifyRadio2AudioState" class="geVerifyNote">Preview plays a song file, not the synchronized broadcast.</p></div>'+
@@ -132,6 +134,7 @@
         ' · published '+stamp(Number(p.published_at_ms)));
       var player=el('brVerifyRadio2Audio');
       var url=String(selected.url||'');
+      if(/^\/ge-music\//i.test(url))url=location.origin+url;
       if(/^https:\/\//i.test(url)){
         if(player.dataset.track!==url){player.pause();player.src=url;player.dataset.track=url;}
       }else{
@@ -169,6 +172,71 @@
       txt('brVerifyGithubDetail','No proof of the latest saved playlist. Retry REFRESH LIVE STATUS.');
     }
   }
+  var publishing=false;
+  async function publishRadio2(){
+    if(publishing)return;
+    var publishButton=el('brPublishRadio2');
+    var session='';try{session=sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||'';}catch(_e){}
+    if(!session){
+      txt('brPublishRadio2Status','NOT PUBLISHED · Sign in to Backroom first.');
+      return;
+    }
+    if(!confirm('PUBLISH THE CURRENT GITHUB BANGERS PLAYLIST TO CLOUDFLARE RADIO 2?\n\nThis replaces the backup schedule. Radio 1 on Blitz is NOT changed.'))return;
+    publishing=true;publishButton.disabled=true;
+    txt('brPublishRadio2Status','READING GITHUB BANGERS AND VERIFIED SONG DURATIONS…');
+    try{
+      var raw='https://raw.githubusercontent.com/grandelement/website/main/';
+      var results=await Promise.all([
+        json(raw+'playlists/registry.json?publish='+Date.now()),
+        json(raw+'radio/track-durations.json?publish='+Date.now()),
+        json(raw+'radio/manifest.json?publish='+Date.now())
+      ]);
+      var registry=results[0],durations=results[1],manifest=results[2];
+      if(registry.format!=='ge-playlist-registry-v1'||!Array.isArray(registry.playlists))
+        throw Error('GitHub playlist registry is unavailable');
+      var bangers=registry.playlists.find(function(p){return String(p.name||'').toLowerCase()==='bangers';});
+      if(!bangers||!Array.isArray(bangers.songs)||bangers.songs.length<3||bangers.songs.length>600)
+        throw Error('Bangers must contain 3 to 600 saved songs');
+      if(!Array.isArray(durations.tracks)||!Array.isArray(manifest.files))
+        throw Error('Verified track catalog is unavailable');
+      var manifestPaths=new Set(manifest.files);
+      var durationByPath=new Map(durations.tracks.map(function(t){return [t.path,t];}));
+      var distinct=new Set(),tracks=[];
+      for(var path of bangers.songs){
+        if(typeof path!=='string'||distinct.has(path)||!manifestPaths.has(path))
+          throw Error('Missing or duplicate published track: '+short(path,120));
+        distinct.add(path);
+        var known=durationByPath.get(path);
+        if(!known||!(Number(known.duration_ms)>1000)||!/^\/ge-music\//.test(String(known.url||'')))
+          throw Error('Song is missing measured duration: '+short(path,120));
+        tracks.push({path:path,url:known.url,title:known.title||'',album:known.album||'',
+          duration_ms:Math.round(Number(known.duration_ms)),kind:'song'});
+      }
+      var cycle=tracks.reduce(function(t,x){return t+x.duration_ms;},0);
+      var p={format:'ge-radio-clock-v1',playlist_name:'Bangers',playlist_id:String(bangers.id||''),
+        epoch_utc_ms:Date.now(),cycle_duration_ms:cycle,tracks:tracks,playlist_hash:''};
+      txt('brPublishRadio2Status','PUBLISHING '+tracks.length+' SONGS TO RADIO 2…');
+      var response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/admin/program',{
+        method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session},
+        body:JSON.stringify({program:p})
+      });
+      var posted=await response.json().catch(function(){return {};});
+      if(!response.ok||posted.ok!==true)
+        throw Error(posted.error||('Cloudflare rejected publication (HTTP '+response.status+')'));
+      var readback=await json('https://ge-radio-sync.grandelement.workers.dev/v1/program?readback='+Date.now());
+      var live=readback&&readback.program,actual=live&&live.tracks||[];
+      if(!readback.ok||live.playlist_id!==p.playlist_id||actual.length!==tracks.length||
+        actual.some(function(t,i){return t.path!==tracks[i].path||Number(t.duration_ms)!==tracks[i].duration_ms;}))
+        throw Error('Radio 2 accepted the request, but saved playback order could not be verified');
+      txt('brPublishRadio2Status','RADIO 2 PUBLISHED AND VERIFIED · '+tracks.length+
+        ' songs in GitHub order · revision '+String(live.revision||posted.revision||'unknown')+
+        ' · '+new Date().toLocaleTimeString()+'. Radio 1 was not changed.');
+      await radio2();
+    }catch(error){
+      txt('brPublishRadio2Status','RADIO 2 NOT VERIFIED · '+short(error.message||error,250));
+    }finally{publishing=false;publishButton.disabled=false;}
+  }
+  el('brPublishRadio2').addEventListener('click',function(){void publishRadio2();});
   var busy=false;
   async function refresh(){
     if(busy)return;
