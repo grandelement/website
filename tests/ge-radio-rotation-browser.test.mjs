@@ -25,7 +25,7 @@ try{
       hidden:body.classList.contains('hud-hidden'),anchor:aura.parentElement.id,
       width:innerWidth,sunCenter:sun.left+sun.width/2,sunWidth:sun.width,
       scrollX:window.scrollX,wrapOpacity:Number(getComputedStyle(wrap).opacity),
-      bgWidth:bg.getBoundingClientRect().width,bgHeight:bg.getBoundingClientRect().height,
+      bgWidth:bg.offsetWidth,bgHeight:bg.offsetHeight,viewportHeight:innerHeight,bgFit:getComputedStyle(bg).objectFit,
       bgOpacity:Number(getComputedStyle(bg).opacity)};
     },mode);
     assert(state.background&&state.audio,'Rotation must preserve background and audio elements');
@@ -34,14 +34,18 @@ try{
     assert(state.sunWidth>0&&state.sunCenter>0&&state.sunCenter<state.width,'Sun must remain inside viewport');
     assert(Math.abs(state.scrollX)<2,'No retained landscape horizontal scroll');
     if(mode!=='ship')assert(state.wrapOpacity>.9,'Player controls must be visible after rotation');
-    if(mobile)assert(Math.abs(state.bgWidth-state.bgHeight)<2,'Mobile background must retain a square scene crop');
+    if(mobile){
+      assert(Math.abs(state.bgWidth-state.width-4)<3,'Mobile background must cover viewport width without square overscan');
+      assert(Math.abs(state.bgHeight-state.viewportHeight-4)<12,'Mobile background must cover viewport height without square overscan');
+      assert.equal(state.bgFit,'cover','Background must preserve intrinsic aspect ratio');
+    }
     console.log('ROTATION '+w+'x'+h+' '+mode+' '+JSON.stringify(state));
     return state;
    };
    if(w<h){
     const initial=await check('portrait');
     await viewport(h,w);const landscape=await check('ship');
-    assert(Math.abs(initial.bgWidth-landscape.bgWidth)<5,'Scene scale must survive rotation');
+    assert(initial.bgWidth<landscape.bgWidth,'Background must fit each orientation, not a fixed square');
     await page.evaluate(()=>document.getElementById('viewToggle').click());await check('landscape-player');
     await page.evaluate(()=>document.getElementById('viewToggle').click());await check('ship');
     await page.evaluate(()=>window.GEHUD.hide());
