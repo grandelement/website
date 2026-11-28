@@ -938,6 +938,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script src="./iam-private-studio.js?v=20261029-iam-opt-in-v2"></script>
 <script src="./ge-gate-settings.js?v=20261113-gate-refresh-v2"></script>
 <script src="./ge-gate-audio.js?v=20261127-radio53-eq-v4"></script>
+<script src="./ordered-audio.js?v=20261128-v1"></script>
 <script src="./sun-pulse-engine.js?v=20261126-independent-effects-v2"></script>
 <script>
 'use strict';
@@ -3786,7 +3787,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261125-canonical-album-v7';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261128-ordered-v1';
   // Keep the preview document's licensed gate and transport, but mount
   // MUSIC's audio element in the top document BEFORE any track starts.
   // Safari can suspend media owned by an embedded frame in the background.
@@ -4283,8 +4284,9 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
       // Force cache-first playback for downloaded audio when iPhone reports connectivity incorrectly.
       const offlineAudioURL=offlinePlaybackMode()&&window.GEOffline?.isActive?.()?new URL(url,location.href):null;
       if(offlineAudioURL)offlineAudioURL.searchParams.set('ge_offline','1');
-      audio.src=offlineAudioURL?offlineAudioURL.href:url;
-      audio.load();
+      const requested=offlineAudioURL?offlineAudioURL.href:url;
+      audio.src=geOrderedNative?.select(requested,{ordered:!state.shuffle&&!state.live&&!isStationID(url),force:forceReload})||requested;
+      if(!audio.src.startsWith('blob:'))audio.load();
     }
     if(window.GEGate?.isExpiredLocked?.()){
       window.GEGate?.restore?.();
@@ -4329,6 +4331,14 @@ function resumeAudio(){
   void window.GEResumeLiveEQ?.();
   audio.play().catch(()=>setStatus('Tap the Play control once to unlock audio.'));
 }
+const geOrderedNative=window.GEOrderedAudio?.create(audio,()=>{
+  if(state.live||state.livePreparing||state.shuffle||geInlineMusicActive||isStationID(state.currentURL)||window.GEGate?.isExpiredLocked?.())return '';
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&window.GEOffline?.isActive?.()))return '';
+  const next=nextSequential(1);if(!next||next===state.currentURL)return '';
+  const u=new URL(next,location.href);if(offlinePlaybackMode()&&window.GEOffline?.isActive?.())u.searchParams.set('ge_offline','1');
+  return u.href;
+});
+window.GEOrderedNativeSource=()=>geOrderedNative?.source()||audio.getAttribute('src')||audio.currentSrc||'';
 function selectNaturalNext(){
   if(state.shuffle) return nextShuffle();
   return {url:nextSequential(1),record:false};
@@ -4345,7 +4355,7 @@ async function advanceFromEnded(){
   const next=selectNaturalNext();
   if(!next.url) return;
   if(!isStationID(state.currentURL)) state.stationCountdown--;
-  if(shouldInsertStation()){
+  if(state.shuffle&&shouldInsertStation()){
     const ident=stationURL();
     if(ident){
       state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
@@ -7026,7 +7036,7 @@ Vector ${vector}. ${pair[1]}.`;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
   // Local saved recordings are analyzed without connecting a second iPhone audio element.
-  const localSpectrumSource=()=>!state.live&&/\/ge-music\/music\//i.test(String(audio.currentSrc||audio.src||''));
+  const localSpectrumSource=()=>!state.live&&/\/ge-music\/music\//i.test(String(window.GEOrderedNativeSource?.()||audio.currentSrc||audio.src||''));
   // Non-invasive live analyser + Gate wet-effects bus.
   // The listener's Radio <audio> handles Gate fade and reverb in one graph.
   // The separate EQ analyser is never started by Gate entrance on iPhone.
@@ -10418,7 +10428,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <!-- Advanced position now lives in the scoped, published preset editor. -->
 <!-- Global EQ presets use GitHub, not device-import links. -->
 <script defer src="./sun-lab-transparency.js?v=20261119-v1"></script>
-<script defer src="./live-spectrum.js?v=20261127-radio53-eq-v4"></script>
+<script defer src="./live-spectrum.js?v=20261128-ordered-v1"></script>
 <!-- Song-specific saved FFT snapshots retired: only real audio FFT drives Sun EQ. -->
 <script defer src="./offline-manager.js?v=20261127-radio53-consolidated-v1"></script>
 

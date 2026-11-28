@@ -17,7 +17,7 @@ const element=()=>document.getElementById('player');
 function localSong(){
   const audio=element();
   if(!audio)return false;
-  const src=audio.getAttribute('src')||audio.currentSrc||'';
+  const src=window.GEOrderedNativeSource?.()||audio.getAttribute('src')||audio.currentSrc||'';
   if(!src)return true;
   try{
     const url=new URL(src,location.href);
