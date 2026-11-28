@@ -47,7 +47,7 @@ window.addEventListener('unhandledrejection',function(e){
 });
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<link rel="stylesheet" href="./radio-base.css?v=20261125-album-eq-v7" data-ge-css="base">
+<link rel="stylesheet" href="./radio-base.css?v=20261128-rotation-scene" data-ge-css="base">
 <script id="ge-radio-first-style">document.documentElement.classList.add('ge-radio-ui');</script>
 <script id="ge-safari-request-website-mode" src="../ge-device-view.js?v=20261127-radio53"></script>
 <!-- iPhone Radio: suppress accidental pinch/double-tap zoom while retaining one-finger MUSIC scrolling. -->
@@ -207,6 +207,7 @@ window.addEventListener('unhandledrejection',function(e){
 <script id="ge-radio-ios-visible-viewport">
 (()=>{
   const root=document.documentElement;
+  let lastViewport='',lastOrientation=null;
   function adapt(){
     const standalone=window.matchMedia?.('(display-mode: standalone)').matches===true||
       navigator.standalone===true;
@@ -223,6 +224,15 @@ window.addEventListener('unhandledrejection',function(e){
     root.style.setProperty('--ge-radio-visible-top',top+'px');
     root.style.setProperty('--ge-radio-visible-bottom',Math.max(0,Math.round((window.innerHeight||height)-height-top))+'px');
     root.classList.toggle('ge-safari-browser-compact',!standalone&&portrait&&height>0&&height<820);
+    const direction=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
+    const physicalSpan=Math.max(Number(screen.width)||0,Number(screen.height)||0,width,height);
+    if(physicalSpan>0)root.style.setProperty('--ge-scene-span',physicalSpan+'px');
+    const key=[direction,width,height,top].join(':');
+    if(key!==lastViewport){
+      const rotated=lastOrientation!==null&&direction!==lastOrientation;
+      lastViewport=key;lastOrientation=direction;
+      window.dispatchEvent(new CustomEvent('ge-radio-viewport',{detail:{direction,width,height,rotated}}));
+    }
   }
   adapt();
   window.visualViewport?.addEventListener('resize',adapt,{passive:true});
@@ -231,6 +241,7 @@ window.addEventListener('unhandledrejection',function(e){
   let rotationTimers=[];
   function settleRotation(){
     rotationTimers.forEach(clearTimeout);
+    window.dispatchEvent(new Event('ge-radio-rotation-start'));
     adapt();
     // WebKit delivers orientation before the new visual viewport is settled.
     rotationTimers=[80,250,600].map(delay=>setTimeout(adapt,delay));
@@ -5421,7 +5432,7 @@ window.addEventListener('online',()=>{
   let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':savedHud===null?true:savedHud==='1';
   let shipAutoEnabled=localStorage.getItem('GE_SHIP_AUTO_HIDE_V1')==='1';
   let lastActivity=Date.now();
-  let sunFadeTimer=0,sunPinned=false;
+  let sunFadeTimer=0,sunPinned=false,manualHideTimer=0,rotationUntil=0;
   const SUN_GRACE_MS=6000;
   const floatingSun=$('geFloatingSun');
   const floatingSunImg=$('geFloatingSunImg');
@@ -5499,17 +5510,27 @@ window.addEventListener('online',()=>{
     if(shipAuto)shipAuto.checked=shipAutoEnabled;
   }
   function show(){
+    clearTimeout(manualHideTimer);manualHideTimer=0;
     sunPinned=false;clearSunFade();
     document.body.classList.remove('hud-hidden','sun-faded');
     syncHiddenSunEffects();
     lastActivity=Date.now();
   }
+  function resetForView(){
+    rotationUntil=Date.now()+900;
+    show();
+  }
+  function requestHide(){clearTimeout(manualHideTimer);manualHideTimer=setTimeout(hideNow,120);}
   function hideNow(){
-    if(document.body.classList.contains('iam-studio-open'))return;
+    if(Date.now()<rotationUntil||document.body.classList.contains('iam-studio-open'))return;
     if(window.GEMusicV5?.state?.().open)return;
     if(document.body.classList.contains('hud-hidden'))return;
     sunPinned=false;
-    if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
+    if(document.body.classList.contains('view-player')){
+      const rect=normalSun?.getBoundingClientRect();
+      if(!rect||rect.width<1||rect.height<1||rect.left<0||rect.right>innerWidth+1||rect.top<0||rect.bottom>innerHeight+1){lastActivity=Date.now();return;}
+      positionFloatingSunFromLogo();
+    }
     document.body.classList.add('hud-hidden');
     document.body.classList.remove('sun-faded');
     syncHiddenSunEffects();
@@ -5543,13 +5564,13 @@ window.addEventListener('online',()=>{
 
   autoCheckbox?.addEventListener('click',event=>event.stopPropagation());
   autoCheckbox?.addEventListener('change',event=>{event.stopPropagation();setAuto(autoCheckbox.checked);});
-  combined?.addEventListener('click',event=>{if(event.target===autoCheckbox)return;event.preventDefault();flash(combined);setTimeout(hideNow,120);});
-  combined?.addEventListener('keydown',event=>{if(event.target===autoCheckbox)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(combined);setTimeout(hideNow,120);}});
+  combined?.addEventListener('click',event=>{if(event.target===autoCheckbox)return;event.preventDefault();flash(combined);requestHide();});
+  combined?.addEventListener('keydown',event=>{if(event.target===autoCheckbox)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(combined);requestHide();}});
 
   shipAuto?.addEventListener('click',event=>event.stopPropagation());
   shipAuto?.addEventListener('change',event=>{event.stopPropagation();setShipAuto(shipAuto.checked);});
-  shipCombined?.addEventListener('click',event=>{if(event.target===shipAuto)return;event.preventDefault();flash(shipCombined);setTimeout(hideNow,120);});
-  shipCombined?.addEventListener('keydown',event=>{if(event.target===shipAuto)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(shipCombined);setTimeout(hideNow,120);}});
+  shipCombined?.addEventListener('click',event=>{if(event.target===shipAuto)return;event.preventDefault();flash(shipCombined);requestHide();});
+  shipCombined?.addEventListener('keydown',event=>{if(event.target===shipAuto)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(shipCombined);requestHide();}});
 
   ['pointerdown','keydown'].forEach(name=>document.querySelector('.wrap')?.addEventListener(name,event=>{if(event.target?.closest?.('#hudCombined'))return;show();},{passive:true}));
   $('shipStage')?.addEventListener('pointerdown',event=>{if(event.target?.closest?.('#shipHideControl'))return;show();},{passive:true});
@@ -5562,7 +5583,7 @@ window.addEventListener('online',()=>{
     if(shouldAutoHide&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();
   },1000);
   syncChecks();
-  window.GEHUD={show,hide:hideNow,sunActivity,pinSun,syncEffects:syncHiddenSunEffects,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
+  window.GEHUD={show,hide:hideNow,resetForView,sunActivity,pinSun,syncEffects:syncHiddenSunEffects,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
 })();;
 
 
@@ -5727,25 +5748,37 @@ async function registerServiceWorker(){
 
   try{const saved=localStorage.getItem(VIEW_KEY);if(saved==='player'||saved==='ship')landscapeMode=saved;}catch(_e){}
   function isPortrait(){return matchMedia('(orientation: portrait)').matches;}
+  let appliedView='',viewSettleFrame=0;
   function applyMode(){
-    if(isPortrait()){
-      document.body.classList.remove('view-ship');document.body.classList.add('view-player','portrait-player');
-      document.body.classList.remove('hud-hidden');
-      if(stage){stage.setAttribute('aria-hidden','true');stage.style.setProperty('display','none','important');}
-      if(toggle)toggle.style.setProperty('display','none','important');
-      return;
+    const portrait=isPortrait(),ship=!portrait&&landscapeMode==='ship';
+    const next=portrait?'portrait':ship?'ship':'landscape-player';
+    const changed=next!==appliedView;
+    appliedView=next;
+    const body=document.body;
+    body.classList.toggle('view-ship',ship);
+    body.classList.toggle('view-player',!ship);
+    body.classList.toggle('portrait-player',portrait);
+    if(stage)stage.setAttribute('aria-hidden',String(!ship));
+    if(toggle){toggle.style.removeProperty('display');toggle.textContent=ship?'Player View':'Ship View';}
+    if(changed){
+      // Rotation is activity, not a continuation of the old idle deadline.
+      // Do not sample a floating Sun while WebKit still has landscape bounds.
+      window.GEHUD?.resetForView();
+      window.scrollTo(0,0);
+      document.scrollingElement?.scrollTo(0,0);
+      syncAll();
     }
-    document.body.classList.remove('portrait-player');
-    if(stage)stage.style.removeProperty('display');
-    if(toggle){toggle.style.removeProperty('display');toggle.style.display='flex';}
-    const ship=landscapeMode==='ship';
-    document.body.classList.toggle('view-ship',ship);document.body.classList.toggle('view-player',!ship);
-    if(stage)stage.setAttribute('aria-hidden',ship?'false':'true');if(toggle)toggle.textContent=ship?'Player View':'Ship View';syncAll();
+    cancelAnimationFrame(viewSettleFrame);
+    viewSettleFrame=requestAnimationFrame(()=>window.GEHUD?.syncEffects());
   }
-  toggle?.addEventListener('click',()=>{if(isPortrait())return;landscapeMode=document.body.classList.contains('view-ship')?'player':'ship';try{localStorage.setItem(VIEW_KEY,landscapeMode);}catch(_e){}document.body.classList.remove('hud-hidden');applyMode();});
-  matchMedia('(orientation: portrait)').addEventListener?.('change',applyMode);
-  window.addEventListener('orientationchange',()=>setTimeout(applyMode,80));
-  window.addEventListener('resize',()=>setTimeout(applyMode,60));
+  toggle?.addEventListener('click',()=>{
+    if(isPortrait())return;
+    landscapeMode=document.body.classList.contains('view-ship')?'player':'ship';
+    try{localStorage.setItem(VIEW_KEY,landscapeMode);}catch(_e){}
+    applyMode();
+  });
+  window.addEventListener('ge-radio-rotation-start',()=>window.GEHUD?.resetForView());
+  window.addEventListener('ge-radio-viewport',applyMode);
   window.addEventListener('pageshow',applyMode);
 
   // Album-planet flight track: independent from the permanent centered Blue Sun.
@@ -5862,7 +5895,10 @@ async function registerServiceWorker(){
     getState:()=>({visited:albumFlight.entries.length,position:albumFlight.position,
       sunIsPermanent:true,arrivalUnchanged:true})};
 
-  function syncBackground(){const source=$('bgImage');if(source?.src&&stageBg&&stageBg.src!==source.src)stageBg.src=source.src;}
+  function syncBackground(){
+    if(document.documentElement.classList.contains('ge-mobile-device'))return;
+    const source=$('bgImage');if(source?.src&&stageBg&&stageBg.src!==source.src)stageBg.src=source.src;
+  }
   function syncTitle(){if(shipTitle)shipTitle.textContent=titleBtn.textContent;}
   function syncProxyStates(){
     document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>{
@@ -10333,7 +10369,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="../ge-accessibility.js?v=20261127-radio53-consolidated-v1"></script>
 
 
-<link rel="stylesheet" href="./radio-layout.css?v=20261127-radio53-consolidated-v3" data-ge-css="layout">
+<link rel="stylesheet" href="./radio-layout.css?v=20261128-rotation-scene" data-ge-css="layout">
 <link rel="stylesheet" href="./ship-control-repair.css?v=20261128-radio54-shared-effects" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">

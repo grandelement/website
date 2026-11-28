@@ -717,11 +717,14 @@ html.ge-radio-ui[class][class] body.view-player:not(.iam-studio-open)[class][cla
  font-size:clamp(14px,2.5vw,19px)!important;font-weight:800!important;letter-spacing:.04em!important;
 }
 
-/* Mobile background overscan: cover fractional pixel seams at all four edges. */
-@media (hover:none), (pointer:coarse){
- html.ge-radio-ui body.view-player:not(.ge-live-video):not(.ge-bg-hidden) #bgImage{
-  top:-2px!important;bottom:auto!important;left:-2px!important;right:auto!important;width:calc(100vw + 4px)!important;height:calc(100dvh + 4px)!important;
- }
+/* Mobile scene is a single stable image behind either interface. A fixed
+   square based on the physical long side preserves image scale and center
+   through rotation; portrait and landscape simply crop different windows. */
+html.ge-radio-ui.ge-mobile-device body:not(.ge-live-video):not(.ge-bg-hidden) #bgImage{
+ top:50%!important;left:50%!important;bottom:auto!important;right:auto!important;
+ width:calc(var(--ge-scene-span, max(100vw,100dvh)) + 4px)!important;
+ height:calc(var(--ge-scene-span, max(100vw,100dvh)) + 4px)!important;
+ transform:translate3d(-50%,calc(-50% + var(--bg-shift-y)),0) scale(var(--bg-scale))!important;
 }
 /* Reference concept: green shuffle with drifting planets; blue continuous with a fixed centered row. */
 html.ge-radio-ui[class][class][class] body[class][class][class] :is(#musicGroup > #shuffleBtn,#shipStage [data-proxy="shuffleBtn"]){
