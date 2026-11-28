@@ -7286,15 +7286,26 @@ Vector ${vector}. ${pair[1]}.`;
     };
     return {low:sample(ranges[0],gains[0]),mid:sample(ranges[1],gains[1]),high:sample(ranges[2],gains[2])};
   }
-  function spectrumBandLevels(live){
-    if(sunLab.waveType==='aurora'){
-      // Aurora follows the measured live frequencies, not transient-only peaks.
-      // Keep its existing weighted compression in combineSpectrumBands.
-      if(!live||!spectrumRawBins)return {low:0,mid:0,high:0};
-      return measuredSpectrumBands(spectrumRawBins,spectrumRawLayout,
-        spectrumRawLayout==='linear'?(eqAudioCtx?.sampleRate||44100):44100,
-        [sunNum('bass',100)/100,sunNum('mid',100)/100,sunNum('treble',100)/100],0);
+  function auroraBandLevels(live){
+    const len=eqData?.length||0;
+    if(live&&len){
+      const sample=(from,to,gain=1)=>{
+        const a=Math.max(0,Math.floor(len*from)),b=Math.max(a+1,Math.min(len,Math.ceil(len*to)));
+        let sum=0,peak=0,n=0;
+        for(let i=a;i<b;i++){const v=(eqData[i]||0)/255;sum+=v;peak=Math.max(peak,v);n++;}
+        const avg=n?sum/n:0;
+        return clamp((avg*.68+peak*.32)*gain,0,1);
+      };
+      return {
+        low:sample(.00,.18,sunNum('bass',100)/100),
+        mid:sample(.18,.52,sunNum('mid',100)/100),
+        high:sample(.52,.94,sunNum('treble',100)/100)
+      };
     }
+    // No synthetic bass/mid/treble masquerading as music during debugging.
+    return {low:0,mid:0,high:0};
+  }
+  function spectrumBandLevels(live){
     if(sunLab.waveType==='spectrum'){
       if(!live||!spectrumRawBins)return {low:0,mid:0,high:0};
       return measuredSpectrumBands(spectrumRawBins,spectrumRawLayout,
@@ -7420,29 +7431,20 @@ Vector ${vector}. ${pair[1]}.`;
     if(combined)combined.style.background='linear-gradient(90deg,#59778f,#d9eaff)';
   }
 
-  function updateSpectrumSun(live,now){
+  function updateAuroraSun(live,now){
     const canvas=sunEQAura.querySelector('canvas.sun-spectrum-field');
     if(!canvas)return;
     if(sunEQFog)sunEQFog.style.opacity='0';
     sunEQAura.style.filter='none';
 
-    const bands=spectrumBandLevels(live);
+    const bands=auroraBandLevels(live);
     const raw=combineSpectrumBands(bands);
     const dynamics=clamp(sunNum('dynamics',79)/100,0,3.8);
     const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
-    const spectrum=sunLab.waveType==='spectrum';
     let energy=clamp(raw*(.90+dynamics*1.15),0,1);
     energy=clamp(.5+(energy-.5)*contrast,0,1);
     energy=live&&raw>0?Math.pow(energy,.82):0;
-    if(spectrum){
-      const drive=Math.max(bands.low,bands.mid,bands.high)*clamp(sunNum('spectrumGain',100)/100,0,3);
-      energy=live&&drive>0?clamp(Math.pow(1-Math.exp(-drive*(.9+dynamics*.55)),1/(.65+contrast*.35)),0,1):0;
-    }
-    updateSpectrumMeter(bands,spectrum?raw:energy);
-    if(spectrum){
-      updateMeasuredTravelingSpectrum(canvas,bands,live,now);
-      return;
-    }
+    updateSpectrumMeter(bands,energy);
 
     // 100% retains the former fastest rate (45ms per ring spacing).
     // At 5% it takes 900ms; at 1% it takes 4500ms. Integrate phase so
@@ -7452,11 +7454,7 @@ Vector ${vector}. ${pair[1]}.`;
     const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
     sunSpectrumSampleAt=now;
     sunSpectrumPhase+=dt/interval;
-    if(spectrum){
-      // Capture the current measured frequency frame, not just the biggest pulse.
-      if(live&&energy>.001){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
-      else{sunSpectrumPeak=0;sunSpectrumPeakBands=null;}
-    }else if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+    if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
     const elapsed=Math.floor(sunSpectrumPhase);
     if(elapsed>0){
       const historyLimit=sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400;
@@ -7487,8 +7485,34 @@ Vector ${vector}. ${pair[1]}.`;
     const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
     const viewport=window.visualViewport;
     const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
-    const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
+    // Distance must still change reach when the public reach slider is at 100%.
+    const outerScale=lerp(compactScale,lerp(compactScale,fullScale,.35+.65*reachNorm),spectrumSize/100);
     drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
+  }
+  function updateSpectrumSun(live,now){
+    const canvas=sunEQAura.querySelector('canvas.sun-spectrum-field');
+    if(!canvas)return;
+    if(sunEQFog)sunEQFog.style.opacity='0';
+    sunEQAura.style.filter='none';
+
+    const bands=spectrumBandLevels(live);
+    const raw=combineSpectrumBands(bands);
+    const dynamics=clamp(sunNum('dynamics',79)/100,0,3.8);
+    const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
+    const spectrum=sunLab.waveType==='spectrum';
+    let energy=clamp(raw*(.90+dynamics*1.15),0,1);
+    energy=clamp(.5+(energy-.5)*contrast,0,1);
+    energy=live&&raw>0?Math.pow(energy,.82):0;
+    if(spectrum){
+      const drive=Math.max(bands.low,bands.mid,bands.high)*clamp(sunNum('spectrumGain',100)/100,0,3);
+      energy=live&&drive>0?clamp(Math.pow(1-Math.exp(-drive*(.9+dynamics*.55)),1/(.65+contrast*.35)),0,1):0;
+    }
+    updateSpectrumMeter(bands,spectrum?raw:energy);
+    if(spectrum){
+      updateMeasuredTravelingSpectrum(canvas,bands,live,now);
+      return;
+    }
+
   }
   // The traveling Spectrum records measured levels in physical distance.
   // Speed changes propagation only, never the FFT sampling or live brightness.
@@ -7703,7 +7727,7 @@ Vector ${vector}. ${pair[1]}.`;
         sunLab=mode===sunLabEditMode?editor:(sunModeProfiles[mode]||SUN_MODE_DEFAULTS[mode]);
         if(['spectrum','aurora'].includes(mode))spectrumSize=sunEffectReach[mode];
         eqData=raw;
-        if(live&&raw?.length&&mode!=='spectrum'&&mode!=='aurora'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
+        if(live&&raw?.length&&mode!=='spectrum'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
         else if(!live)layer.pulse?.reset();
         // Restore native layer alpha before each render (including throttled
         // frames), then apply only this profile's transparency once.
@@ -7743,7 +7767,8 @@ Vector ${vector}. ${pair[1]}.`;
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
 
-    if(waveType==='spectrum'||waveType==='aurora'){updateSpectrumSun(live,now);return;}
+    if(waveType==='aurora'){updateAuroraSun(live,now);return;}
+    if(waveType==='spectrum'){updateSpectrumSun(live,now);return;}
     if(waveType==='glow'){updateGlowSun(live,now);return;}
     if(sunEQFog)sunEQFog.style.opacity=live?'.9':'.04';
 
