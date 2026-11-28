@@ -3,7 +3,7 @@
    second HTMLAudioElement, or second MediaElementAudioSourceNode. */
 (()=>{
 'use strict';
-const EQ_BUILD='20261125-eq-offline-v4';
+const EQ_BUILD='20261127-radio53-eq-v4';
 const FFT_SIZE=2048;
 const GE_IS_IOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -17,7 +17,7 @@ const element=()=>document.getElementById('player');
 function localSong(){
   const audio=element();
   if(!audio)return false;
-  const src=audio.currentSrc||audio.src||'';
+  const src=audio.getAttribute('src')||audio.currentSrc||'';
   if(!src)return true;
   try{
     const url=new URL(src,location.href);
@@ -94,9 +94,9 @@ function setEnabled(value){
   return enabled;
 }
 function enable(){return setEnabled(true);}
-const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#shipStage [data-proxy="liveBtn"],#sunLabBtn,#shipSunLabBtn,#trackList';
+const triggers='#liveBtn,#playBtn,#shipPlay,#shipLive,#shipStage [data-proxy="liveBtn"],#sunLabBtn,#shipSunLabBtn,.sunlab-modebtn,#trackList';
 document.addEventListener('click',event=>{
-  if(enabled&&event.target?.closest?.(triggers))arm();
+  if(enabled&&event.isTrusted&&event.target?.closest?.(triggers))arm();
 },true);
 function recover(){
   const audio=element();

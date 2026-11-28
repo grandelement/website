@@ -4,6 +4,7 @@
   const main=document.getElementById('player')||document.getElementById('audio');
   if(!main)return;
   const AudioContextType=window.AudioContext||window.webkitAudioContext;
+  const ios=/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   let ctx=null,source=null,master=null,wet=null,dry=null,hasReverb=false;
   let spectrumAnalyser=null,spectrumRaw=null,spectrumError='';
   let scheduled=null,blocked=false,lastError='',pendingResume=null;
@@ -43,14 +44,22 @@
     // Its native no-CORS playback MUST NOT be attached to MediaElementSource:
     // Web Audio requires CORS for foreign media and would turn the Radio silent.
     // Let the native Gate volume / hard-stop fallback handle Radio 1 instead.
-    const radioSource=String(main.currentSrc||main.src||'');
-    if(main.dataset.geRadioNativeNoCors==='1'||
+    // src is the requested source; currentSrc may still point at the previous track.
+    const radioSource=String(main.getAttribute('src')||main.currentSrc||'');
+    let local=false;
+    try{local=!!radioSource&&new URL(radioSource,location.href).origin===location.origin;}catch(_){}
+    if(local)delete main.dataset.geRadioNativeNoCors;
+    if((main.dataset.geRadioNativeNoCors==='1'&&!local)||
        /^https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3(?:[?#]|$)/i.test(radioSource)){
       lastError='Radio 1 uses native playback while BLITZ CORS is unavailable';
       return false;
     }
     if(!AudioContextType){lastError='Web Audio unavailable';return false;}
     if(!ctx){
+      // Do not attach an unactivated, suspended iOS graph to an audible player.
+      if(ios&&navigator.userActivation&&!navigator.userActivation.isActive){
+        lastError='Tap RADIO, PLAY or EQ Effects to activate audio analysis';return false;
+      }
       try{
         const created=new AudioContextType();
         const output=created.createGain();output.gain.value=1;
@@ -201,7 +210,7 @@
   // Install only on trusted controls; the same graph plays Radio and songs.
   document.addEventListener('click',event=>{
     if(!event.isTrusted||blocked)return;
-    if(event.target?.closest?.('#play,#songs,#playBtn,#liveBtn,#shipPlay,#shipStage [data-proxy="liveBtn"],#gateTestBtn,#shipGateTestBtn,#trackList,#geGate')){
+    if(event.target?.closest?.('#play,#songs,#playBtn,#liveBtn,#shipPlay,#shipStage [data-proxy="liveBtn"],#gateTestBtn,#shipGateTestBtn,#trackList,#geGate,#sunLabBtn,#shipSunLabBtn,.sunlab-modebtn')){
       arm();
     }
   },true);
