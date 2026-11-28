@@ -7287,6 +7287,14 @@ Vector ${vector}. ${pair[1]}.`;
     return {low:sample(ranges[0],gains[0]),mid:sample(ranges[1],gains[1]),high:sample(ranges[2],gains[2])};
   }
   function spectrumBandLevels(live){
+    if(sunLab.waveType==='aurora'){
+      // Aurora follows the measured live frequencies, not transient-only peaks.
+      // Keep its existing weighted compression in combineSpectrumBands.
+      if(!live||!spectrumRawBins)return {low:0,mid:0,high:0};
+      return measuredSpectrumBands(spectrumRawBins,spectrumRawLayout,
+        spectrumRawLayout==='linear'?(eqAudioCtx?.sampleRate||44100):44100,
+        [sunNum('bass',100)/100,sunNum('mid',100)/100,sunNum('treble',100)/100],0);
+    }
     if(sunLab.waveType==='spectrum'){
       if(!live||!spectrumRawBins)return {low:0,mid:0,high:0};
       return measuredSpectrumBands(spectrumRawBins,spectrumRawLayout,
@@ -7695,7 +7703,7 @@ Vector ${vector}. ${pair[1]}.`;
         sunLab=mode===sunLabEditMode?editor:(sunModeProfiles[mode]||SUN_MODE_DEFAULTS[mode]);
         if(['spectrum','aurora'].includes(mode))spectrumSize=sunEffectReach[mode];
         eqData=raw;
-        if(live&&raw?.length&&mode!=='spectrum'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
+        if(live&&raw?.length&&mode!=='spectrum'&&mode!=='aurora'&&layer.pulse)eqData=layer.pulse.process(raw,sunLab,performance.now())||raw;
         else if(!live)layer.pulse?.reset();
         // Restore native layer alpha before each render (including throttled
         // frames), then apply only this profile's transparency once.
