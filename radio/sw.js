@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.27-radio53-consolidated-v4';
+const VERSION='2026.11.28-public-eq-v1';
 const UI_MARKER='GE_RADIO53_CONSOLIDATED_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.

@@ -1,14 +1,10 @@
-# Owner-approved Spectrum recovery baseline
+# Owner-approved Spectrum and Aurora recovery baseline
 
-Confirmed working by the owner on November 27, 2026.
+Spectrum approved November 28, 2026: position -21, speed 1%, transparency 22%. Aurora originally approved November 26, 2026: position 2, speed 11%, transparency 0%.
 
-- Permanent complete preset: `config/spectrum-approved-default.json`.
-- Working code recovery commit: `256f7db3fc52e0182d8803c152c3e69ef4f398cc`.
-- Dedicated recovery branch: `recovery/spectrum-approved-20261127`.
-- Published preset and built-in fallback must agree with the approved baseline.
-- Spectrum's **Reset This Effect** restores the approved built-in fallback, not a subsequently published preset.
-- Preserve all values (including color, gain, transparency and geometry). Do not change this approved baseline or its rendering as part of an unrelated fix. Obtain explicit owner approval before replacing the baseline.
-- The independent GE protected Spectrum defaults workflow detects differences on main and pull requests. It does not itself enforce branch protection or prevent an authorized direct push.
-- Live tuning remains available. If an intentionally published experimental preset differs, the check flags the difference; the recovery baseline remains unchanged.
-
-Recovery: restore only the Spectrum profile from the approved JSON and compare the Spectrum-specific rendering functions against the recovery commit. Do not roll back the rest of the site.
+- Complete protected profiles: `config/spectrum-approved-default.json`; previous Spectrum profile retained for history only.
+- Approved Spectrum published settings: `1c81337ce93ab47f9304efe4655dba49b5c1f14c`; original Aurora renderer recovery: `26c142c9c8d83e43972103e93866738d7c97b12d`.
+- Published settings and built-in fallback must agree with protected profiles. Reset This Effect restores these profiles, not experimental settings.
+- Reach is device-local; code default 100%, not yet owner-confirmed. Export includes per-effect reach and personal controls so a future confirmation can capture the entire appearance.
+- Public Speed, Transparency and relative Hue are personal only; hue 0 restores the original palette. Full preset editing and publishing remain owner-authorized.
+- Preserve the renderer and approved values; change the recovery baseline only with explicit owner approval. Never roll back unrelated components.
