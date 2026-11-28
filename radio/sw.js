@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.28-ordered-audio-v1';
+const VERSION='2026.11.28-rainbow-update-v1';
 const UI_MARKER='GE_RADIO53_CONSOLIDATED_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -13,7 +13,7 @@ const REQUIRED=[
  './radio-base.css','./radio-components.css','./radio-layout.css',
   './ship-control-repair.css','./player-button-effects.css','./player-mobile-fit.css',
   './sun-lab-transparency.css','./sun-lab-transparency.js',
- './offline-home.html','./preview-lab.html','./ordered-audio.js',
+ './offline-home.html','./preview-lab.html','./ordered-audio.js','./website-update.js',
  './ge-music-v5.js','./offline-manager.js','./live-spectrum.js',
  './sun-lab-compact.css','./sun-lab-compact.js','./sun-pulse-engine.js','./sun-eq-profile-share.js',
  './ge-purchase-demo.js','./iam-private-studio.js',
@@ -390,6 +390,10 @@ self.addEventListener('fetch',event=>{
  if(request.method!=='GET')return;
  const url=new URL(request.url);
  if(url.origin!==self.location.origin)return;
+ // Release checks must never return a cached version or stale fallback.
+ if(url.pathname.endsWith('/radio/release-version.json')&&url.searchParams.has('ge_release_check')){
+  event.respondWith(timeoutFetch(request,{cache:'no-store'},12000));return;
+ }
  // The one MUSIC offline engine alone writes explicit downloaded audio.
  if(request.headers.get('X-GE-Offline-Download')==='1'){
   event.respondWith(timeoutFetch(request,{cache:'no-store'},90000));

@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V17_ORDERED_20261128';
+const SITE_SHELL='GE_SITE_SHELL_V18_UPDATE_20261128';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -35,6 +35,7 @@ const REQUIRED_OFFLINE_FILES=[
   './radio/sw.js',
   './radio/ge-music-v5.js',
   './radio/ordered-audio.js',
+  './radio/website-update.js',
   './radio/ge-gate-audio.js',
   './radio/iam-private-studio.js'
 ];
@@ -237,7 +238,11 @@ function eventlessPut(cache,request,response){
 }
 self.addEventListener('fetch',event=>{
   const req=event.request,url=new URL(req.url);
-  if(req.method!=='GET'||!acceptableAsset(url))return;
+  if(req.method!=='GET')return;
+  if(url.origin===HOME.origin&&url.pathname.endsWith('/radio/release-version.json')&&url.searchParams.has('ge_release_check')){
+    event.respondWith(fetch(req,{cache:'no-store'}));return;
+  }
+  if(!acceptableAsset(url))return;
   // Never retain or serve an owner-only Back Room page from public offline cache.
   if(url.origin===HOME.origin){
     const relative=url.pathname.startsWith(HOME.pathname)

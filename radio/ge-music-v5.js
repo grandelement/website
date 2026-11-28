@@ -122,7 +122,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .musicCodeTools{flex-wrap:wrap}
 .geRepairTools{flex:0 0 100%;min-width:0;display:grid;gap:4px}
 .geRepairTools .geGetCode{width:100%;min-height:38px;white-space:normal}
-.header .geRepairWebsite{min-width:0!important;flex:0 0 auto;min-height:36px;white-space:nowrap;background:#174b69;color:#fff;border-color:#7ec4ee}
+.header .geRepairWebsite{min-width:0!important;flex:0 0 auto;min-height:36px;white-space:nowrap;background:#174b69;color:#fff;border-color:#7ec4ee;animation:none}
+.header .geRepairWebsite[data-update-available="true"]:not(:disabled){background:linear-gradient(110deg,#ac245b,#a36900,#007a62,#146dc0,#783bb9,#ac245b);background-size:400% 100%;animation:geWebsiteRainbow 4s linear infinite;border-color:#bde6ff;color:#fff;text-shadow:0 1px 3px #000}
+@keyframes geWebsiteRainbow{to{background-position:400% 0}}
+@media(prefers-reduced-motion:reduce){.header .geRepairWebsite[data-update-available="true"]:not(:disabled){animation:none;background-position:40% 0}}
 @media(max-width:820px){.window:has(.browse [data-tab="albums"][aria-pressed="true"]) .header .geRepairWebsite{display:none!important}}
 @media(max-width:420px){.header .geRepairWebsite{padding:5px 4px!important;font-size:10px!important}.header .geCodeIdentity{max-width:42px!important}.header .geHeaderActions{gap:3px!important}}
 .geRepairStatus{margin:0;color:#dfbaff;font-size:12px;overflow-wrap:anywhere}
@@ -1552,7 +1555,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="musicOfflineLaunch" aria-label="Choose songs to download offline">OFFLINE</button><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button type="button" class="geRepairWebsite" aria-label="Reload and repair website" title="Reload and repair website">RELOAD</button><button class="close" type="button">CLOSE</button></div></div>
+ <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="musicOfflineLaunch" aria-label="Choose songs to download offline">OFFLINE</button><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button type="button" class="geRepairWebsite" aria-label="Check for website updates" title="Check for website updates">UPDATE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="albumDetailNav" aria-label="Album navigation"><button type="button" class="albumDetailBack">ALBUMS</button><button type="button" class="albumDetailSongs">SONGS</button><button type="button" class="albumDetailPlaylist">PLAYLIST</button></div>
  <div class="geBrowseTools" role="search" aria-label="Find songs and playlists"><input class="geBrowseSearch" type="search" placeholder="Search songs or playlists" aria-label="Search songs or playlists"><input class="gePlaylistNameInline" type="text" maxlength="100" autocomplete="off" placeholder="Playlist name" aria-label="Name playlist to save" hidden><button class="geBrowseSave" type="button" aria-label="Save selected songs as a playlist">SAVE</button></div>
  <div class="geBrowseMessage" role="status" aria-live="polite"></div>
@@ -3642,39 +3645,22 @@ el('.geGetCode').addEventListener('click',()=>{
   location.assign('../support/?section=music&flow=shop&ge_music_buy=1');
  }else location.assign('../support/?section=music&flow=shop');
 });
-// Recovery is deliberately public, not dependent on a working access code.
-el('.geRepairWebsite').addEventListener('click',async()=>{
+// Public update uses the one shared application update controller.
+{
  const button=el('.geRepairWebsite'),status=el('.geRepairStatus');
- const show=message=>{status.hidden=false;status.textContent=message;};
- if(button.disabled)return;
- if(navigator.onLine===false){show('Connect to the internet before reloading. Saved music and access kept.');return;}
- if(window.GEOfflineDownloads?.isBusy?.()){show('Finish or stop your current offline download first.');return;}
- if(!navigator.serviceWorker){show('Website repair is not supported in this browser. Reopen Radio online.');return;}
- if(!confirm('Reload and repair Grand Element? This clears active codes and language choice on this device. Saved recordings, playlists and purchases are kept; protected content may require entering your code again.'))return;
- button.disabled=true;show('Checking saved website files…');
- try{
-  const registration=await navigator.serviceWorker.getRegistration('./');
-  const worker=registration?.active;
-  if(!worker){show('Website setup is not ready. Reopen Radio online and try again.');return;}
-  const result=await new Promise((resolve,reject)=>{
-   const channel=new MessageChannel();
-   const timer=setTimeout(()=>{channel.port1.close();reject(Error('Repair timed out. Reopen Radio online and try again.'));},65000);
-   channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data);};
-   try{worker.postMessage({type:'GE_RADIO_SHELL_REPAIR'},[channel.port2]);}
-   catch(error){clearTimeout(timer);channel.port1.close();reject(error);}
-  });
-  if(result?.type!=='GE_RADIO_SHELL_REPAIR_RESULT')throw Error('Repair response unavailable. Reopen Radio online.');
-  if(result.ready&&!result.error){
-   // Clear only known device access and language keys. Never clear entire origin storage,
-   // media caches, purchase records, saved playlists, or the server-enforced preview clock.
-   const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1','GE_GATE_LOVE_V1','GE_VAULT_RADIO_SESSION_V1','GE_VAULT_SCOPED_ACCESS_V1','GE_MUSIC_CODE_SESSION_V1','GE_VAULT_RADIO_DEVICE_SESSION_V1','GE_VAULT_OFFLINE_DEVICE_GRANT_V1','GE_LANGUAGE_V1','GE_LANGUAGE_ENGLISH_CHOICE_V1','GE_MUSIC_OPEN_AFTER_ACCESS_V1'];
-   for(const key of keys){try{localStorage.removeItem(key)}catch(_){}try{sessionStorage.removeItem(key)}catch(_){}}
-   show('WEBSITE READY · Reloading…');
-   const target=new URL('./',location.href);target.searchParams.set('fresh',String(Date.now()));target.searchParams.set('ge_reset_language','1');location.replace(target.href);
-  }else show('REPAIR INCOMPLETE · '+(result.error||result.missing?.[0]||'Reconnect and try again.')+' Saved music and settings kept.');
- }catch(error){show(String(error?.message||error)+' Saved music and settings kept.');}
- finally{button.disabled=false;}
-});
+ const show=message=>{status.hidden=false;status.textContent=message;say(message)};
+ const update=window.GEWebsiteUpdate;
+ update?.subscribe(state=>{
+  button.dataset.updateAvailable=String(state.available);
+  button.disabled=state.busy;
+  button.textContent=state.busy?'UPDATING…':'UPDATE';
+  button.title=state.available?'New production version available':'Check for website updates';
+  button.setAttribute('aria-label',button.title);
+  if(update.completed())show('UPDATE COMPLETE · Latest version verified.');
+ });
+ button.addEventListener('click',()=>{if(update)void update.update(show);else show('Update controller unavailable. Reopen Radio online.')});
+ update?.start();
+}
 el('.accessToggle').addEventListener('click',()=>{
  const panel=el('.musicCodeTools'),opened=panel.hidden;
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
