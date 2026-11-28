@@ -6,7 +6,7 @@ const sw=read('sw.js'), library=read('ge-offline-library.js'), radio=read('radio
 new vm.Script(sw,{filename:'sw.js'});
 new vm.Script(library,{filename:'ge-offline-library.js'});
 assert.match(sw,/const REQUIRED_OFFLINE_FILES=/,'Full website must cache required files');
-for(const p of ['./radio/','./radio/index.html','./radio/offline-player.html','./ge-offline-library.js']){
+for(const p of ['./radio/','./radio/index.html','./radio/offline-home.html','./ge-offline-library.js']){
  assert.ok(sw.includes("'"+p+"'"),p+' must be cached at install');
 }
 assert.match(sw,/for\(const path of REQUIRED_OFFLINE_FILES\)/,'Worker install must verify required files');

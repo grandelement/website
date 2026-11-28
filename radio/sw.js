@@ -3,7 +3,7 @@
  * MUSIC is the only download interface; the worker only serves startup and files.
  */
 'use strict';
-const VERSION='2026.11.28-eq-renderer-repair-v2';
+const VERSION='2026.11.28-offline-shell-contract-v3';
 const UI_MARKER='GE_RADIO53_CONSOLIDATED_V1';
 const SHELL_CACHE='ge-radio-shell-'+VERSION;
 const MEDIA_CACHE='ge-radio-media-v4'; // Preserve all existing saved music.
@@ -99,13 +99,14 @@ async function validAsset(path,response){
   return (await response.clone().blob()).size>0;
  }catch(_){return false}
 }
-// Validate release-sensitive files as well as their MIME type and nonempty body.
+// One shared compatibility contract for installation, repair and readiness.
+// Verify EQ capabilities, not an obsolete release date that blocks new builds.
 async function validRepairAsset(path,response){
  if(!(await validAsset(path,response)))return false;
  const markers={
   './ge-music-v5.js':['geOfflineListBtn','geRepairWebsite','albumFullySelected'],
   './preview-lab.html':['Use the canonical same-origin recording for every album'],
-  './live-spectrum.js':['20261125-eq-offline-v4'],
+  './live-spectrum.js':['GE_SUN_EQ_EXPLICIT_OFF_V1','window.GELiveAudioEQ={','getSpectrumFrame','function recover()'],
   './radio-components.css':['Published EQ editor:','#sunEQAura{inset:0!important}','.sun-hue-swatch'],
   './offline-manager.js':['2026.11.26-offline-manager-v13-storage-inventory']
  }[path];
@@ -142,12 +143,6 @@ async function installShell(){
   const response=await timeoutFetch(requestURL(path),{cache:'reload'},25000);
   if(!(await validAsset(path,response)))throw Error('Required offline file not verified: '+path);
   // Never promote a new EQ shell with the old manual-activation script.
-  if(path==='./live-spectrum.js'&&!(await response.clone().text()).includes('20261125-eq-offline-v4'))throw Error('EQ script release mismatch');
-  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('#sunEQAura{inset:0!important}'))throw Error('EQ geometry release mismatch');
-  if(path==='./radio-components.css'&&!(await response.clone().text()).includes('Published EQ editor:'))throw Error('EQ permission CSS release mismatch');
-  if(path==='./offline-manager.js'&&!(await response.clone().text()).includes('2026.11.26-offline-manager-v13-storage-inventory'))throw Error('Offline manager release mismatch');
-  if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geOfflineListBtn'))throw Error('Offline library UI release mismatch');
-  if(path==='./ge-music-v5.js'&&!(await response.clone().text()).includes('geRepairWebsite'))throw Error('Access repair UI release mismatch');
   if(!(await validRepairAsset(path,response)))throw Error('Application release mismatch: '+path);
   await cache.put(path,response.clone());
  }));

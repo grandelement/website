@@ -39,6 +39,17 @@ test('one worker verifies the startup shell and never deletes music',()=>{
  assert.match(sw,/ARTWORK\.map/);
  assert.doesNotMatch(sw,/ge-radio-backgrounds-v1/);
 });
+test('current EQ module satisfies the worker startup and repair contract',async()=>{
+ const live=readFileSync('radio/live-spectrum.js','utf8');
+ const managerSource=readFileSync('radio/offline-manager.js','utf8');
+ const self={location:{href:'https://example.test/radio/sw.js'},addEventListener(){}};
+ const validate=vm.runInNewContext(sw+'\n;validRepairAsset',{self,URL,Response});
+ const asset=source=>new Response(source,{headers:{'content-type':'application/javascript'}});
+ assert.equal(await validate('./live-spectrum.js',asset(live)),true,'Current EQ script must be accepted before deployment');
+ assert.equal(await validate('./offline-manager.js',asset(managerSource)),true,'Current download engine must be accepted before deployment');
+ assert.equal(await validate('./live-spectrum.js',asset('/* obsolete empty script */')),false);
+ assert.doesNotMatch(sw,/20261125-eq-offline-v4/,'Obsolete EQ build cannot block installation');
+});
 test('network recovery is bounded when Safari reports online incorrectly',()=>{
  assert.match(sw,/async function timeoutFetch\(/);
  assert.match(sw,/await timeoutFetch\(update\.href,\{cache:'no-store'\},25000\)/);
