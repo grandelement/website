@@ -682,6 +682,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   color:#daeffb;list-style-position:inside;
 }
 #backroomMain #brMoreTools[open]>summary{border-bottom:1px solid #33617f}
+#backroomMain #brMoreTools[hidden]{display:none!important}
 #backroomMain .brMoreToolGroup{padding:12px 12px 7px}
 #backroomMain .brMoreToolGroup>strong{
   display:block;margin-bottom:8px;font-size:13px;color:#9edfff;letter-spacing:.07em
@@ -713,8 +714,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brDirectPublisherStatus{font-weight:800;color:#b4e7ff;font-size:13px;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="./music-router.css?v=20261123-album-order-playlist-save-v1">
-<link rel="stylesheet" href="./owner-unified-ui.css?v=20261124-c">
-<link rel="stylesheet" href="./save-center.css?v=20261117-c">
+<link rel="stylesheet" href="./owner-unified-ui.css?v=20261128-radio55-nav">
+<link rel="stylesheet" href="./save-center.css?v=20261128-radio55-nav">
 </head>
 <body>
 <div id="lockScreen">
@@ -944,35 +945,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
-  <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
-    <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
-    <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
-      <option value="squares">SQUARE ALBUMS</option>
-      <option value="planets-touch">PLANETS TOUCHING</option>
-      <option value="planets-gap">PLANETS WITH GAP</option>
-    </select>
-    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
-  </section>
-  <section id="brShuffleButtonSettings" aria-label="Shuffle button design" style="padding:10px 0;margin:8px 0 16px">
-    <label for="brShuffleButtonStyle" style="display:block;font-weight:800;margin-bottom:7px">SHUFFLE BUTTON DESIGN</label>
-    <select id="brShuffleButtonStyle" aria-label="Shuffle button design">
-      <option value="classic">OPTION 1 · ORIGINAL B8</option>
-      <option value="planets">OPTION 2 · ALBUM PLANETS</option>
-    </select>
-    <p id="brShuffleButtonStyleStatus" role="status" style="font-size:12px;margin:5px 0">Publish to apply globally. Playback order and radio settings are unchanged.</p>
-  </section>
   <section id="brCatalogRouting" aria-label="Radio Music master catalog and routing">
-    <h2>RADIO / MUSIC · MASTER CATALOG</h2>
-    <p class="brRouteHelp">One GitHub song inventory. FRONT controls the public album-cover stack. STORE controls the shop preview. PLAYER controls the music browser. RADIO controls website Radio/Shuffle approvals. The BLITZ on-air program remains under RADIO.</p>
-    <div class="brRouteActions">
-      <button type="button" id="brRouteRefresh">REFRESH</button>
-      <button type="button" id="brRouteRebuild">RELOAD FILES + REBUILD MANIFEST</button>
-      <button type="button" id="brRouteSave" class="primary" disabled>SAVE ROUTING CHANGES</button>
-    </div>
     <p id="brRouteStatus" role="status" aria-live="polite">Sign in, then load the master catalog.</p>
     <nav id="brMusicSections" class="brMusicSectionTabs" role="tablist" aria-label="Choose Music section">
-      <button type="button" role="tab" id="brMusicSectionSongs" data-br-music-section="songs" aria-selected="true" aria-controls="brRouteSongSection">SONGS / CATALOG</button>
-      <button type="button" role="tab" id="brMusicSectionPlaylists" data-br-music-section="playlists" aria-selected="false" aria-controls="brRoutePlaylistSection">PLAYLISTS / SAVE</button>
+      <button type="button" role="tab" id="brMusicSectionSongs" data-br-music-section="songs" aria-selected="false" aria-controls="brRouteSongSection">CATALOG</button>
+      <button type="button" role="tab" id="brMusicSectionPlaylists" data-br-music-section="playlists" aria-selected="false" aria-controls="brRoutePlaylistSection">PLAYLISTS</button>
+      <button type="button" role="tab" id="brMusicSectionRefresh" data-br-music-section="refresh" aria-selected="false" aria-controls="brRouteRefreshSection">REFRESH</button>
+      <button type="button" role="tab" id="brMusicSectionAppearance" data-br-music-section="appearance" aria-selected="false" aria-controls="brRouteAppearanceSection">APPEARANCE</button>
+      <button type="button" role="tab" id="brMusicSectionAdvanced" data-br-music-section="advanced" aria-selected="false" aria-controls="brRouteAdvancedSection">ADVANCED / BLITZ</button>
     </nav>
     <div id="brRoutePlaylistSection" data-br-music-section-panel="playlists" role="tabpanel" aria-labelledby="brMusicSectionPlaylists" hidden>
     <div id="brRouteAssignments" class="brRouteAssignments" role="group" aria-label="Assign existing saved playlists to music destinations">
@@ -1012,8 +992,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <p id="brRoutePlaylistSelectionCount" class="brRouteHelp">Loading song selections…</p>
       <p id="brRoutePlaylistStatus" role="status" aria-live="polite">Saving creates a reusable GitHub playlist. Loading changes only the selected checkboxes until you publish routing changes.</p>
     </section>
+  <details id="brRadioPlaylistTools">
+    <summary>EDIT RADIO WEBSITE PLAYLISTS · NO BLITZ REQUIRED</summary>
+    <p>Edit, reorder and SAVE playlists directly to GitHub here. No Blitz DJ or Blitz build minutes needed. This does not change the BLITZ live stream or Radio 2 clock until those programs are separately published. Check NOW PLAYING above before claiming the broadcast changed.</p>
+    <div id="brRadioPlaylistMount"></div>
+  </details>
     </div>
-    <div id="brRouteSongSection" data-br-music-section-panel="songs" role="tabpanel" aria-labelledby="brMusicSectionSongs">
+    <div id="brRouteSongSection" data-br-music-section-panel="songs" role="tabpanel" aria-labelledby="brMusicSectionSongs" hidden>
+    <p class="brRouteHelp">Choose songs for the website, store, player or Radio. RADIO checkboxes control the published station.</p>
     <nav id="brRouteViews" role="group" aria-label="Music destinations">
       <button type="button" data-route-view="all" aria-pressed="true">ALL</button>
       <button type="button" data-route-view="front">FRONT</button>
@@ -1031,24 +1017,38 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <div id="brRouteStickyHead" class="brRouteStickyHead" aria-hidden="true"></div>
       <div id="brRouteSongList"></div>
     </div>
-    <div id="brRouteRadioAux" hidden>
-      <h3>RADIO 1 · ON-AIR PLAYLISTS</h3>
-      <p class="brRouteHelp">RADIO song checkmarks control the website Radio/Shuffle pool. For the actual BLITZ stream, choose and activate an original DJ playlist below. Radio 2 uses a separate backup program.</p>
+    </div>
+    <div id="brRouteRefreshSection" data-br-music-section-panel="refresh" role="tabpanel" aria-labelledby="brMusicSectionRefresh" hidden>
+      <p class="brRouteHelp">Refresh published selections, or rebuild the music manifest after adding files.</p>
+    <div class="brRouteActions">
+      <button type="button" id="brRouteRefresh">REFRESH</button>
+      <button type="button" id="brRouteRebuild">UPDATE MANIFEST</button>
+      <button type="button" id="brRouteSave" class="primary" disabled>SAVE ROUTING CHANGES</button>
     </div>
     </div>
+    <div id="brRouteAppearanceSection" data-br-music-section-panel="appearance" role="tabpanel" aria-labelledby="brMusicSectionAppearance" hidden>
+  <section id="brAlbumUniverseSettings" aria-label="Album artwork layout" style="padding:10px 0;margin:8px 0 16px">
+    <label for="brAlbumUniverseLayout" style="display:block;font-weight:800;margin-bottom:7px">MUSIC ALBUM VIEW</label>
+    <select id="brAlbumUniverseLayout" aria-label="Album artwork layout">
+      <option value="squares">SQUARE ALBUMS</option>
+      <option value="planets-touch">PLANETS TOUCHING</option>
+      <option value="planets-gap">PLANETS WITH GAP</option>
+    </select>
+    <p id="brAlbumUniverseLayoutStatus" role="status" style="font-size:12px;margin:5px 0">Controls the public album layout. Publish Live to apply to every device.</p>
   </section>
-
-
-  <section id="brGeneralPublicAccess" aria-label="General public screen access" style="border:1px solid #376987;border-radius:12px;padding:12px;margin:10px 0">
-    <strong>GENERAL SCREEN · PUBLIC ACCESS</strong>
-    <p style="font-size:13px;margin:6px 0 10px">Checked buttons are available to everyone without a code.</p>
-    <div id="brGeneralPublicChecks" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px"></div>
-    <div style="display:flex;gap:8px;margin:10px 0">
-      <button id="brGeneralPublicLoad" type="button">REFRESH</button>
-      <button id="brGeneralPublicSave" type="button" class="primary">SAVE GENERAL</button>
-    </div>
-    <p id="brGeneralPublicStatus" role="status" style="font-size:12px">Reconnect the Back Room, then refresh to load general settings.</p>
+  <section id="brShuffleButtonSettings" aria-label="Shuffle button design" style="padding:10px 0;margin:8px 0 16px">
+    <label for="brShuffleButtonStyle" style="display:block;font-weight:800;margin-bottom:7px">SHUFFLE BUTTON DESIGN</label>
+    <select id="brShuffleButtonStyle" aria-label="Shuffle button design">
+      <option value="classic">OPTION 1 · ORIGINAL B8</option>
+      <option value="planets">OPTION 2 · ALBUM PLANETS</option>
+    </select>
+    <p id="brShuffleButtonStyleStatus" role="status" style="font-size:12px;margin:5px 0">Publish to apply globally. Playback order and radio settings are unchanged.</p>
   </section>
+    </div>
+    <div id="brRouteAdvancedSection" data-br-music-section-panel="advanced" role="tabpanel" aria-labelledby="brMusicSectionAdvanced" hidden>
+      <div id="brRouteRadioAux">
+        <h3>LEGACY BLITZ / CLOUDFLARE</h3>
+        <p class="brRouteHelp">Separate external station tools. Website Radio uses the published catalog selections without BLITZ.</p>
   <section id="brRadioStationStatus" aria-label="Radio 1 and Radio 2 status">
     <strong>RADIO 1 · BLITZ PRIMARY</strong>
     <p id="brRadio1Status" class="brCompactStatus" role="status" aria-live="polite">Not checked. Checking the DJ control connection does not verify live audio.</p>
@@ -1066,11 +1066,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
     <p class="brRadioStationNote">RADIO 1 is the BLITZ primary. RADIO 2 is the backup. Published backup tracks do not prove live queue synchronization or automatic failover. The original DJ Booth remains the authority for the on-air playlist, queue and shuffle.</p>
   </section>
-  <details id="brRadioPlaylistTools">
-    <summary>EDIT RADIO WEBSITE PLAYLISTS · NO BLITZ REQUIRED</summary>
-    <p>Edit, reorder and SAVE playlists directly to GitHub here. No Blitz DJ or Blitz build minutes needed. This does not change the BLITZ live stream or Radio 2 clock until those programs are separately published. Check NOW PLAYING above before claiming the broadcast changed.</p>
-    <div id="brRadioPlaylistMount"></div>
-  </details>
+      </div>
   <!-- Shared Radio Master editor; uses the same published config as player and access codes. -->
   <details id="brMusicRadioMaster"><summary>MASTER SONG APPROVALS</summary>
   <section id="brMasterSection" aria-label="Master Song List">
@@ -1084,6 +1080,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
   </section>
   </details>
+    </div>
+  </section>
+
+
+  <section id="brGeneralPublicAccess" aria-label="General public screen access" style="border:1px solid #376987;border-radius:12px;padding:12px;margin:10px 0">
+    <strong>GENERAL SCREEN · PUBLIC ACCESS</strong>
+    <p style="font-size:13px;margin:6px 0 10px">Checked buttons are available to everyone without a code.</p>
+    <div id="brGeneralPublicChecks" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px"></div>
+    <div style="display:flex;gap:8px;margin:10px 0">
+      <button id="brGeneralPublicLoad" type="button">REFRESH</button>
+      <button id="brGeneralPublicSave" type="button" class="primary">SAVE GENERAL</button>
+    </div>
+    <p id="brGeneralPublicStatus" role="status" style="font-size:12px">Reconnect the Back Room, then refresh to load general settings.</p>
+  </section>
 </section>
 
 <section data-br-tab="playlists" id="brDJPlaylistSection" style="display:none !important" aria-hidden="true">
@@ -1403,17 +1413,17 @@ function installBackroomTabs(){
   const categories=['website','welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   // The four owner jobs are always visible. Less-used pages live in one drawer.
-  const primaryTabs=['radio','access','fans'];
+  const primaryTabs=['website','radio','access','fans'];
   const secondaryGroups=[
-    {label:'WEBSITE',tabs:['website','welcome','about','universe']},
+    {label:'WEBSITE',tabs:['welcome','about','universe']},
     {label:'OTHER SETTINGS',tabs:['games','moon','gate','scores']}
   ];
   const secondaryCategories=secondaryGroups.flatMap(group=>group.tabs);
   const moreTools=document.createElement('details');moreTools.id='brMoreTools';
   const moreSummary=document.createElement('summary');
-  moreSummary.textContent='MORE TOOLS · WEBSITE, GAMES & SETTINGS';
+  moreSummary.textContent='WEBSITE TOOLS';
   moreTools.appendChild(moreSummary);
-  nav.setAttribute('aria-label','Main controls: Radio, Access Codes, Fans, Save');
+  nav.setAttribute('aria-label','Main controls: Website, Radio, Access Codes, Fans, Save');
   // Place only three primary editors plus the single SAVE control in the
   // visible bar. Previously SAVE was stranded BEFORE the moved tab buttons.
   // Move hidden legacy tabs out of the grid without deleting their handlers.
@@ -1536,8 +1546,7 @@ function installBackroomTabs(){
   const musicPlaylistEditor=$('brDJPlaylistEditor');
   if(musicPlaylistEditor)panels.get('music')?.prepend(musicPlaylistEditor);
   // Restore the single master-song approval editor to RADIO.
-  const masterApprovals=$('brMusicRadioMaster');
-  if(masterApprovals)panels.get('radio')?.appendChild(masterApprovals);
+  // Master approvals remain within the Radio advanced panel.
   // One playlist editor, mounted in RADIO or MUSIC depending on the selected view.
   // Never clone its controls or create a competing playlist store.
   const radioPlaylistMount=$('brRadioPlaylistMount');
@@ -1562,8 +1571,10 @@ function installBackroomTabs(){
     if(tab==='website')window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();
     for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     const secondary=secondaryCategories.includes(tab);
-    moreSummary.textContent=secondary?'MORE TOOLS · '+tab.toUpperCase()+' SELECTED':'MORE TOOLS · WEBSITE, GAMES & SETTINGS';
-    moreTools.open=false;
+    moreTools.hidden=!(tab==='website'||secondary);
+    moreTools.open=!moreTools.hidden;
+    moreSummary.textContent='WEBSITE TOOLS';
+    $('brTabWebsite')?.classList.toggle('brParentActive',secondary);
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
   }
@@ -2613,7 +2624,7 @@ function geGithubSame(a,b){return JSON.stringify(a)===JSON.stringify(b)}
    baseline, patch ONLY edited keys through the signed Cloudflare publisher,
    then verify the exact values by re-reading GitHub. Existing master radio,
    station, playlists, Vault and music routing stay untouched. */
-window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY=()=>!!publisherBase&&$('brAlbumUniverseLayout').value!==(publisherBase.albums?.albumUniverseMode??publisherBase.music?.albumUniverseMode??'planets-touch');
+window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY=()=>!!publisherBase&&($('brAlbumUniverseLayout').value!==(publisherBase.albums?.albumUniverseMode??publisherBase.music?.albumUniverseMode??'planets-touch')||$('brShuffleButtonStyle').value!==(publisherBase.albums?.shuffleButtonStyle==='classic'?'classic':'planets'));
 window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS=async function(){
  if(!serverAuthenticated||!token())throw Error('Back Room owner login required. Sign in again.');
  if(!publisherBase)throw Error('The published website baseline did not load. Reopen Back Room before saving.');
@@ -5717,9 +5728,9 @@ $('gatePassword').focus();
 </script>
 <script src="../config/album-colors.js?v=20261116-a"></script>
 <script src="../config/music-routing.js?v=20261116-playlists-v2"></script>
-<script src="./music-router.js?v=20261128-radio54-master"></script>
-<script src="./music-section-nav.js?v=20261124-a"></script>
-<script src="./save-center.js?v=20261128-radio54-master"></script>
+<script src="./music-router.js?v=20261128-radio55-nav"></script>
+<script src="./music-section-nav.js?v=20261128-radio55-nav"></script>
+<script src="./save-center.js?v=20261128-radio55-nav"></script>
 <script src="./radio-live-verify.js?v=20261127-radio-verify-2"></script>
 </body>
 </html>

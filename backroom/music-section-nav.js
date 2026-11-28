@@ -5,19 +5,21 @@
  const $=id=>document.getElementById(id);
  const host=$('brCatalogRouting'),tabs=$('brMusicSections');
  if(!host||!tabs)return;
- const modes=['songs','playlists'];
+ const modes=['songs','playlists','refresh','appearance','advanced'];
+ let active=null;
  const select=$('brRouteAlbum'),nav=$('brRouteAlbumTabs');
  function showSection(next){
-  if(!modes.includes(next))return;
+  if(next!==null&&!modes.includes(next))return;
+  active=next;
   for(const mode of modes){
    const panel=host.querySelector('[data-br-music-section-panel="'+mode+'"]');
    const btn=tabs.querySelector('[data-br-music-section="'+mode+'"]');
    if(panel)panel.hidden=mode!==next;
-   if(btn){btn.setAttribute('aria-selected',String(mode===next));btn.tabIndex=mode===next?0:-1}
+   if(btn){btn.setAttribute('aria-selected',String(mode===next));btn.tabIndex=0}
   }
  }
  tabs.querySelectorAll('[data-br-music-section]').forEach(btn=>{
-  btn.addEventListener('click',()=>showSection(btn.dataset.brMusicSection));
+  btn.addEventListener('click',()=>showSection(active===btn.dataset.brMusicSection?null:btn.dataset.brMusicSection));
   btn.addEventListener('keydown',event=>{
    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
    event.preventDefault();
@@ -55,6 +57,8 @@
  }
  select.addEventListener('change',updateAlbumPressed);
  window.GE_BACKROOM_MUSIC_CATALOG_READY=populateAlbums;
- showSection('songs');
+ window.GE_BACKROOM_SHOW_RADIO_SECTION=showSection;
+ window.GE_BACKROOM_RADIO_SECTION=()=>active;
+ showSection(null);
  if(select.options.length>1)populateAlbums();
 })();

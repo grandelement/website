@@ -218,7 +218,7 @@ function setView(next){
  if(COLUMN[next])$('brRoutePlaylistColumn').value=next;
  $('brRouteMatrix').dataset.view=view;
  root.querySelectorAll('[data-route-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.routeView===view)));
- $('brRouteRadioAux').hidden=view!=='radio';
+ // Advanced station tools have their own panel, independent of catalog filters.
  render();
 }
 async function load(force=false){
@@ -390,9 +390,7 @@ async function rebuild(){
  }catch(error){status('MANIFEST NOT REBUILT · '+String(error.message||error))}
  finally{busy=false;$('brRouteRebuild').disabled=false}
 }
-for(const id of ['brRadioStationStatus','brRadioPlaylistTools']){
- const el=$(id);if(el)$('brRouteRadioAux').append(el);
-}
+// Existing station and playlist controls are mounted in their dedicated panels.
 // Public Player settings remain in WEBSITE.
 const djRow=document.createElement('div');
 djRow.className='brRouteDjSaveRow';
@@ -446,7 +444,7 @@ $('brRouteSavedPlaylist').addEventListener('change',()=>{
 $('brRouteSavePlaylist').addEventListener('click',()=>void saveCheckedPlaylist());
 $('brRouteLoadPlaylist').addEventListener('click',loadSavedPlaylistIntoCheckboxes);
 $('brRouteEditPlaylists').addEventListener('click',()=>{
-  setView('radio');
+  window.GE_BACKROOM_SHOW_RADIO_SECTION?.('playlists');
   const editor=document.getElementById('brRadioPlaylistTools');
   if(editor){editor.open=true;editor.scrollIntoView({block:'start',behavior:'smooth'});}
   else status('The shared GitHub playlist editor could not be found. Refresh Back Room.');

@@ -105,9 +105,9 @@
      if(window.GE_BACKROOM_ROUTER_DIRTY?.())return trigger('brRouteSave','FRONT / STORE / PLAYER / RADIO MUSIC','GITHUB','brRouteStatus');
      // The front/store/player/radio checkbox matrix is the default Radio job.
      // The existing advanced disclosures explicitly select a different save.
-     if($('brRadioPlaylistTools')?.open)
+     if(window.GE_BACKROOM_RADIO_SECTION?.()==='playlists'&&$('brRadioPlaylistTools')?.open)
        return trigger('brPlaylistSave','GE PLAYLIST','GITHUB','brPlaylistStatus');
-     if($('brMusicRadioMaster')?.open)
+     if(window.GE_BACKROOM_RADIO_SECTION?.()==='advanced'&&$('brMusicRadioMaster')?.open)
        return trigger('brMasterSave','MASTER SONG APPROVALS','GITHUB','brMasterStatus');
      return trigger('brRouteSave','FRONT / STORE / PLAYER / RADIO MUSIC','GITHUB','brRouteStatus');
    }
