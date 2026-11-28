@@ -5935,7 +5935,7 @@ async function registerServiceWorker(){
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:90,dynamics:105,brightness:160,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{"waveType":"spectrum","effectTransparency":22,"position":-21,"distance":220,"thickness":30,"contrast":115,"dynamics":380,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":43,"mid":43,"treble":111,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":0,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":1,"spectrumGain":76,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171,"gap":0},
+    spectrum:{"waveType":"spectrum","effectTransparency":22,"position":-21,"distance":220,"thickness":30,"contrast":115,"dynamics":380,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":43,"mid":43,"treble":111,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":0,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":6,"spectrumGain":76,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171,"gap":0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
     glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:140,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:140,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
@@ -6936,7 +6936,8 @@ Vector ${vector}. ${pair[1]}.`;
   const sunRenderLayers=new Map();let sunRenderingMode=null;
   const SUN_EQ_RINGS=12;
   const SUN_SPECTRUM_RINGS=110; // history samples, not visible rings
-  const SUN_FIELD_PIXELS=360, SUN_FIELD_ANGLES=128, SUN_FIELD_RADII=220;
+  const SUN_FIELD_PIXELS=360, SUN_FIELD_ANGLES=512;
+  const AURORA_PITCH_CSS=3, AURORA_MAX_HISTORY=1200, SUN_MAX_CANVAS_PIXELS=2500000;
   let sunFieldMap=null,sunFieldFrame=null,sunFieldTexture=null;
   const SUN_EQ_BARS=72;
   const SUN_FOG_BLOBS=28;
@@ -7386,28 +7387,36 @@ Vector ${vector}. ${pair[1]}.`;
   function sunFieldSmooth(x){x=clamp(x,0,1);return x*x*(3-2*x);}
   function drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now){
     const ctx=canvas.getContext('2d');if(!ctx)return;
-    const N=SUN_FIELD_PIXELS,A=SUN_FIELD_ANGLES,R=SUN_FIELD_RADII;
-    const ratio=clamp(innerScale/outerScale,0,.98),size=(outerScale*100).toFixed(2)+'%';
-    if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
-    canvas.style.opacity='1';
-    if(!sunFieldMap||Math.abs(sunFieldMap.ratio-ratio)>.0005){
-      const rows=new Int16Array(N*N),angles=new Uint8Array(N*N);rows.fill(-1);
-      for(let y=0;y<N;y++)for(let x=0;x<N;x++){
-        const dx=(x+.5-N/2)/(N/2),dy=(y+.5-N/2)/(N/2),r=Math.hypot(dx,dy);
-        if(r<ratio||r>1)continue;
-        const i=y*N+x;rows[i]=Math.min(R-1,Math.round((r-ratio)/(1-ratio)*(R-1)));
+    // Rasterize the visible viewport at device-pixel density, not a stretched
+    // 360px image. Expansion adds history samples at constant physical pitch.
+    const rect=sunEQAura.getBoundingClientRect(),vp=window.visualViewport;
+    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+    const inner=Math.max(1,innerScale*rect.width/2),outer=Math.max(inner+1,outerScale*rect.width/2),range=outer-inner;
+    const left=Math.max(cx-outer,0),top=Math.max(cy-outer,0),right=Math.min(cx+outer,vp?.width||window.innerWidth),bottom=Math.min(cy+outer,vp?.height||window.innerHeight);
+    const width=Math.max(1,right-left),height=Math.max(1,bottom-top);
+    const density=Math.min(window.devicePixelRatio||1,Math.sqrt(SUN_MAX_CANVAS_PIXELS/(width*height)));
+    const W=Math.max(1,Math.floor(width*density)),H=Math.max(1,Math.floor(height*density)),A=SUN_FIELD_ANGLES,R=Math.min(2048,Math.max(64,Math.ceil(range*1.5)+1));
+    if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;sunFieldMap=null;sunFieldFrame=null;}
+    Object.assign(canvas.style,{left:(left-rect.left)+'px',top:(top-rect.top)+'px',transform:'none',width:width+'px',height:height+'px',opacity:'1'});
+    const mapKey=[W,H,R,inner,outer,left-cx,top-cy,width,height].map(v=>Math.round(v*100)/100).join(':');
+    if(!sunFieldMap||sunFieldMap.key!==mapKey){
+      const rows=new Int16Array(W*H),angles=new Uint16Array(W*H);rows.fill(-1);
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+        const dx=left-cx+(x+.5)*width/W,dy=top-cy+(y+.5)*height/H,r=Math.hypot(dx,dy);
+        if(r<inner||r>outer)continue;
+        const i=y*W+x;rows[i]=Math.min(R-1,Math.round((r-inner)/range*(R-1)));
         angles[i]=Math.floor(((Math.atan2(dy,dx)/(2*Math.PI)+1)%1)*A);
       }
-      sunFieldMap={ratio,rows,angles};
+      sunFieldMap={key:mapKey,rows,angles};
     }
-    if(!sunFieldFrame)sunFieldFrame=ctx.createImageData(N,N);
-    if(!sunFieldTexture)sunFieldTexture=new Uint8ClampedArray(R*A*4);
+    if(!sunFieldFrame)sunFieldFrame=ctx.createImageData(W,H);
+    if(!sunFieldTexture||sunFieldTexture.length!==R*A*4)sunFieldTexture=new Uint8ClampedArray(R*A*4);
     const tex=sunFieldTexture,colors=[hslRgb(sunNum('lowHue',215)),hslRgb(sunNum('midHue',155)),hslRgb(sunNum('highHue',320))];
     const mix=clamp(sunNum('bandColorMix',70)/100,0,1),base=hslRgb(214,.95,.48);
     const paletteMix=sunFieldSmooth(mix/.35),thick=clamp(sunNum('thickness',55)/260,0,1);
     const softness=lerp(.13,.025,mix),fadeWidth=lerp(.03,.11,thick),zero={low:0,mid:0,high:0};
     for(let r=0;r<R;r++){
-      const q=r/(R-1),index=Math.max(0,q*(SUN_SPECTRUM_RINGS-1)-phase),lo=Math.floor(index),t=index-lo;
+      const q=r/(R-1),index=Math.max(0,q*range/AURORA_PITCH_CSS-phase),lo=Math.floor(index),t=index-lo;
       const aa=lo===0?bands:(sunSpectrumBandHistory[lo-1]||zero),bb=sunSpectrumBandHistory[lo]||zero;
       const ea=lo===0?energy:(sunSpectrumHistory[lo-1]||0),eb=sunSpectrumHistory[lo]||0;
       const vals=[lerp(aa.low,bb.low,t),lerp(aa.mid,bb.mid,t),lerp(aa.high,bb.high,t)],sum=vals[0]+vals[1]+vals[2];
@@ -7481,29 +7490,29 @@ Vector ${vector}. ${pair[1]}.`;
     // changing the slider never jumps the existing wavefronts.
     const speed=clamp(sunNum('spectrumSpeed',55),1,100)/100;
     const interval=45/speed;
-    const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
+    const dt=sunSpectrumSampleAt?Math.min(150,Math.max(0,now-sunSpectrumSampleAt)):0;
     sunSpectrumSampleAt=now;
     sunSpectrumPhase+=dt/interval;
     if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
     const elapsed=Math.floor(sunSpectrumPhase);
     if(elapsed>0){
-      const historyLimit=sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400;
+      const historyLimit=AURORA_MAX_HISTORY;
       const steps=Math.min(historyLimit,elapsed);
       for(let i=0;i<steps;i++){
         const measured=sunSpectrumPeak>.001&&dt<interval*2;
         sunSpectrumHistory.unshift(measured?sunSpectrumPeak:null);
         sunSpectrumBandHistory.unshift(measured?sunSpectrumPeakBands:null);
       }
-      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
-      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,AURORA_MAX_HISTORY);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,AURORA_MAX_HISTORY);
       sunSpectrumPhase-=elapsed;
       sunSpectrumPeak=0;sunSpectrumPeakBands=null;
     }
     // First audible signal appears immediately even at extremely slow rates.
     if(live&&energy>.001&&!sunSpectrumHistory.some(v=>v!=null)){
       sunSpectrumHistory.unshift(energy);sunSpectrumBandHistory.unshift({...bands});
-      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
-      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,AURORA_MAX_HISTORY);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,AURORA_MAX_HISTORY);
       sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
     }
     const phase=clamp(sunSpectrumPhase,0,1);
@@ -7512,10 +7521,10 @@ Vector ${vector}. ${pair[1]}.`;
     const position=clamp(sunNum('position',0),-30,30)/50;
     const innerScale=.96+position;
     const compactScale=innerScale+.22+reachNorm*.12;
-    const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
-    const viewport=window.visualViewport;
-    const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
-    // Distance must still change reach when the public reach slider is at 100%.
+    const rect=sunEQAura.getBoundingClientRect(),sunWidth=Math.max(1,rect.width),viewport=window.visualViewport;
+    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2,w=viewport?.width||window.innerWidth,hh=viewport?.height||window.innerHeight;
+    const edge=Math.hypot(Math.max(Math.abs(cx),Math.abs(w-cx)),Math.max(Math.abs(cy),Math.abs(hh-cy)));
+    const fullScale=Math.max(compactScale,2*(edge+16)/sunWidth);
     const outerScale=lerp(compactScale,lerp(compactScale,fullScale,.35+.65*reachNorm),spectrumSize/100);
     drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
   }
@@ -7646,12 +7655,11 @@ Vector ${vector}. ${pair[1]}.`;
     sunSpectrumSampleAt=now;
     const history=sunSpectrumBandHistory;
     const levels=live?[bands.low,bands.mid,bands.high]:[0,0,0];
-    if(!live||!levels.some(v=>v>.001)){
-      history.length=0;sunSpectrumPhase=0;
-      const ctx=canvas.getContext('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
-      return;
-    }
-    if(dt>500){history.length=0;sunSpectrumPhase=0;}
+    // Missing FFT frames emit zero energy but do not erase the measured
+    // wavefronts already traveling outward. Clear only when playback ends.
+    const playing=geInlineMusicActive?!geInlineMusicPaused:!audio.paused&&!audio.ended;
+    if(!playing){history.length=0;sunSpectrumPhase=0;const ctx=canvas.getContext('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);return;}
+    if(!history.length&&!levels.some(v=>v>.001))return;
     sunSpectrumPhase+=Math.min(dt,100)*pitch*speed/45;
     const head={levels,distance:sunSpectrumPhase};
     history.push(head);
@@ -7678,7 +7686,7 @@ Vector ${vector}. ${pair[1]}.`;
     const edge=Math.hypot(Math.max(Math.abs(cx),Math.abs(width-cx)),Math.max(Math.abs(cy),Math.abs(height-cy)));
     const inner=Math.max(1,innerScale*sunWidth/2),outer=lerp(inner+32,Math.max(inner+32,edge+16),spectrumSize/100);
     const range=outer-inner,cssSize=outer*2,size=cssSize+'px';
-    const pixels=Math.max(64,Math.min(1200,Math.ceil(cssSize)));
+    const pixels=Math.max(64,Math.min(2048,Math.floor(Math.sqrt(SUN_MAX_CANVAS_PIXELS)),Math.ceil(cssSize*(window.devicePixelRatio||1))));
     if(canvas.width!==pixels||canvas.height!==pixels)canvas.width=canvas.height=pixels;
     if(canvas.style.width!==size){canvas.style.width=size;canvas.style.height=size;}
     canvas.style.opacity='1';ctx.clearRect(0,0,pixels,pixels);
