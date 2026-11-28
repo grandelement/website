@@ -7513,6 +7513,51 @@ Vector ${vector}. ${pair[1]}.`;
       return;
     }
 
+    // 100% retains the former fastest rate (45ms per ring spacing).
+    // At 5% it takes 900ms; at 1% it takes 4500ms. Integrate phase so
+    // changing the slider never jumps the existing wavefronts.
+    const speed=clamp(sunNum('spectrumSpeed',55),1,100)/100;
+    const interval=45/speed;
+    const dt=sunSpectrumSampleAt?Math.max(0,now-sunSpectrumSampleAt):0;
+    sunSpectrumSampleAt=now;
+    sunSpectrumPhase+=dt/interval;
+    if(spectrum){
+      // Capture the current measured frequency frame, not just the biggest pulse.
+      if(live&&energy>.001){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+      else{sunSpectrumPeak=0;sunSpectrumPeakBands=null;}
+    }else if(live&&energy>sunSpectrumPeak){sunSpectrumPeak=energy;sunSpectrumPeakBands={...bands};}
+    const elapsed=Math.floor(sunSpectrumPhase);
+    if(elapsed>0){
+      const historyLimit=sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400;
+      const steps=Math.min(historyLimit,elapsed);
+      for(let i=0;i<steps;i++){
+        const measured=sunSpectrumPeak>.001&&dt<interval*2;
+        sunSpectrumHistory.unshift(measured?sunSpectrumPeak:null);
+        sunSpectrumBandHistory.unshift(measured?sunSpectrumPeakBands:null);
+      }
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumPhase-=elapsed;
+      sunSpectrumPeak=0;sunSpectrumPeakBands=null;
+    }
+    // First audible signal appears immediately even at extremely slow rates.
+    if(live&&energy>.001&&!sunSpectrumHistory.some(v=>v!=null)){
+      sunSpectrumHistory.unshift(energy);sunSpectrumBandHistory.unshift({...bands});
+      sunSpectrumHistory.length=Math.min(sunSpectrumHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumBandHistory.length=Math.min(sunSpectrumBandHistory.length,sunLab.waveType==='aurora'?SUN_SPECTRUM_RINGS:400);
+      sunSpectrumPhase=0;sunSpectrumPeak=0;sunSpectrumPeakBands=null;
+    }
+    const phase=clamp(sunSpectrumPhase,0,1);
+    const distance=sunNum('distance',-220);
+    const reachNorm=clamp((distance+440)/660,0,1);
+    const position=clamp(sunNum('position',0),-30,30)/50;
+    const innerScale=.96+position;
+    const compactScale=innerScale+.22+reachNorm*.12;
+    const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
+    const viewport=window.visualViewport;
+    const fullScale=Math.max(innerScale+1.7,2.15*Math.hypot(viewport?.width||window.innerWidth,viewport?.height||window.innerHeight)/sunWidth);
+    const outerScale=lerp(compactScale,fullScale,spectrumSize/100);
+    drawSunSpectrumField(canvas,bands,energy,innerScale,outerScale,phase,now);
   }
   // The traveling Spectrum records measured levels in physical distance.
   // Speed changes propagation only, never the FFT sampling or live brightness.
@@ -7571,36 +7616,20 @@ Vector ${vector}. ${pair[1]}.`;
     sunSpectrumSampleAt=now;
     const history=sunSpectrumBandHistory;
     const levels=live?[bands.low,bands.mid,bands.high]:[0,0,0];
-    const audible=levels.some(v=>v>.001);
-    // Silence stops new measured waves, not the travel of existing waves.
-    // Keep the real FFT history moving outward until it leaves the viewport.
-    if(!audible&&!history.length){
-      sunSpectrumPhase=0;
+    if(!live||!levels.some(v=>v>.001)){
+      history.length=0;sunSpectrumPhase=0;
       const ctx=canvas.getContext('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
       return;
     }
+    if(dt>500){history.length=0;sunSpectrumPhase=0;}
     sunSpectrumPhase+=Math.min(dt,100)*pitch*speed/45;
-    const head={levels:audible?levels:[0,0,0],distance:sunSpectrumPhase};
-    // Preserve the first silent sample at the boundary, then extend the
-    // silent interval without filling the history buffer with zero frames.
-    const silent=sample=>sample&&!sample.levels.some(v=>v>.001);
-    if(!audible&&silent(history[history.length-1])&&silent(history[history.length-2])){
-      history[history.length-1]=head;
-    }else history.push(head);
+    const head={levels,distance:sunSpectrumPhase};
+    history.push(head);
     if(history.length>SUN_RIPPLE_HISTORY_LIMIT)history.splice(0,120);
     if(history.length>120&&sunSpectrumPhase-history[119].distance>5000)history.splice(0,120);
     const position=clamp(sunNum('position',0),-30,30)/50;
     const sunWidth=Math.max(1,sunEQAura.offsetWidth||sunEQAura.parentElement?.offsetWidth||140);
-    const range=drawTravelingSpectrum(canvas,head,.96+position,sunWidth,thickness);
-    // No artificial signal: once the last real wave and its crest have
-    // passed the visible edge, release history and return to a dark sun.
-    if(!audible&&Number.isFinite(range)){
-      let lastAudible=null;
-      for(let i=history.length-1;i>=0;i--){if(!silent(history[i])){lastAudible=history[i];break;}}
-      if(!lastAudible||head.distance-lastAudible.distance>range+26){
-        history.length=0;sunSpectrumPhase=0;
-      }
-    }
+    drawTravelingSpectrum(canvas,head,.96+position,sunWidth,thickness);
   }
   // Light is cast across the measured radial waveform, as on a sculpted
   // record groove. Hue is the frequency tint; slope and height create depth.
@@ -7629,7 +7658,7 @@ Vector ${vector}. ${pair[1]}.`;
     const palette=sunFieldSmooth(separation/.35),base=hslRgb(214,.95,.48);
     for(let k=0;k<3;k++)colors[k]=colors[k].map((v,c)=>lerp(base[c],v,palette));
     const master=sunNum('spectrumGain',100)/100,dynamics=sunNum('dynamics',79)/100,contrast=sunNum('contrast',111)/100;
-    if(master<=0)return range;
+    if(master<=0)return;
     const gap=clamp(sunNum('gap',0)/100,0,.85);
     const count=Math.min(1000,Math.max(64,Math.ceil(range/1.3)+1));
     const profile=rippleRadialProfile(sunSpectrumBandHistory,head,range,count,lerp(2,24,thickness));
@@ -7652,7 +7681,6 @@ Vector ${vector}. ${pair[1]}.`;
     }
     ctx.fillStyle=gradient;ctx.beginPath();ctx.arc(center,center,center,0,Math.PI*2);
     ctx.arc(center,center,inner*scale,0,Math.PI*2,true);ctx.fill('evenodd');
-    return range;
   }
 
   let glowEnvelope=0;
@@ -7715,7 +7743,6 @@ Vector ${vector}. ${pair[1]}.`;
     const make=(parent,kind)=>{
       const node=document.createElement('span');node.className='ge-sun-effect-layer ge-sun-'+kind+'-layer';node.dataset.effect=mode;
       node.style.cssText='position:absolute;inset:0;overflow:visible;pointer-events:none;border-radius:50%;';
-      if(kind==='aura'&&mode==='spectrum')node.style.zIndex='1';
       parent.appendChild(node);return node;
     };
     return {aura:make(sunAuraRoot,'aura'),fog:make(sunFogRoot,'fog'),pulse:window.GESunPulseEngine?.create?.(),
@@ -7751,10 +7778,7 @@ Vector ${vector}. ${pair[1]}.`;
         // frames), then apply only this profile's transparency once.
         if(layer.nativeAuraOpacity!==undefined)layer.aura.style.opacity=layer.nativeAuraOpacity;
         if(layer.nativeFogOpacity!==undefined)layer.fog.style.opacity=layer.nativeFogOpacity;
-        try{renderSunEffect(live);}catch(error){
-          const stamp=performance.now();
-          if(!layer.lastRenderWarning||stamp-layer.lastRenderWarning>12000){layer.lastRenderWarning=stamp;console.warn('GE Sun EQ '+mode+' render will retry',error);}
-        }finally{
+        try{renderSunEffect(live);}finally{
           layer.state=captureSunRenderState();
           layer.nativeAuraOpacity=layer.aura.style.opacity;
           layer.nativeFogOpacity=layer.fog.style.opacity;
