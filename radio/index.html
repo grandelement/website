@@ -5426,7 +5426,24 @@ window.addEventListener('online',()=>{
     const floating=body.classList.contains('view-player')&&body.classList.contains('hud-hidden')&&!body.classList.contains('iam-studio-open');
     const target=floating?floatingSun:normalSun,anchor=floating?floatingSunImg:sunArt;
     if(!target||!anchor)return;
-    for(const layer of effectLayers)if(layer.parentNode!==target)target.insertBefore(layer,anchor);
+    for(const layer of effectLayers){
+      if(layer.parentNode===target)continue;
+      // Preserve the live canvas backing surfaces when the browser supports
+      // state-preserving DOM moves. Both effects follow the same HUD timer.
+      if(typeof target.moveBefore==='function'){
+        try{target.moveBefore(layer,anchor);continue;}catch(_e){}
+      }
+      target.insertBefore(layer,anchor);
+      // Older WebKit can discard a canvas compositor surface when its
+      // ancestor is reparented into the transformed floating Sun. Rebind
+      // the existing renderer to a fresh surface in its destination, keeping
+      // the mode, dimensions, CSS, animation history and profile unchanged.
+      for(const canvas of layer.querySelectorAll('canvas.sun-spectrum-field')){
+        const surface=canvas.cloneNode(false);
+        try{surface.getContext('2d')?.drawImage(canvas,0,0);}catch(_e){}
+        canvas.replaceWith(surface);
+      }
+    }
   }
   new MutationObserver(()=>{
     if(!document.body.classList.contains('hud-hidden')||!document.body.classList.contains('view-player')||document.body.classList.contains('iam-studio-open')){
