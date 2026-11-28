@@ -25,7 +25,7 @@ try{
       hidden:body.classList.contains('hud-hidden'),anchor:aura.parentElement.id,
       width:innerWidth,sunCenter:sun.left+sun.width/2,sunWidth:sun.width,
       scrollX:window.scrollX,wrapOpacity:Number(getComputedStyle(wrap).opacity),
-      bgWidth:bg.offsetWidth,bgHeight:bg.offsetHeight,viewportHeight:innerHeight,bgFit:getComputedStyle(bg).objectFit,
+      bgWidth:bg.offsetWidth,bgHeight:bg.offsetHeight,viewportHeight:innerHeight,bgFit:getComputedStyle(bg).objectFit,bgTop:bg.getBoundingClientRect().top,bgBottom:bg.getBoundingClientRect().bottom,bgLeft:bg.getBoundingClientRect().left,bgRight:bg.getBoundingClientRect().right,visibleHeight:window.visualViewport?.height||innerHeight,bleed:getComputedStyle(bg).getPropertyValue('--ge-background-bleed').trim(),
       bgOpacity:Number(getComputedStyle(bg).opacity)};
     },mode);
     assert(state.background&&state.audio,'Rotation must preserve background and audio elements');
@@ -35,9 +35,11 @@ try{
     assert(Math.abs(state.scrollX)<2,'No retained landscape horizontal scroll');
     if(mode!=='ship')assert(state.wrapOpacity>.9,'Player controls must be visible after rotation');
     if(mobile){
-      assert(Math.abs(state.bgWidth-state.width-4)<3,'Mobile background must cover viewport width without square overscan');
-      assert(Math.abs(state.bgHeight-state.viewportHeight-4)<12,'Mobile background must cover viewport height without square overscan');
+      assert(Math.abs(state.bgWidth-state.width-8)<3,'Mobile background must cover viewport width without square overscan');
+      assert(Math.abs(state.bgHeight-state.viewportHeight-8)<12,'Mobile background must cover viewport height without square overscan');
       assert.equal(state.bgFit,'cover','Background must preserve intrinsic aspect ratio');
+      assert.equal(state.bleed,'4px','Protected edge bleed must survive future changes');
+      assert(state.bgTop<=-1&&state.bgLeft<=-1&&state.bgRight>=state.width&&state.bgBottom>=state.visibleHeight,'No exposed viewport edge after rotation');
     }
     console.log('ROTATION '+w+'x'+h+' '+mode+' '+JSON.stringify(state));
     return state;
