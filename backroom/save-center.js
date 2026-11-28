@@ -81,7 +81,7 @@
    const current=tab();
    if(current==='website')
      return trigger('brPublicPlayerSave','PUBLIC PLAYER PROFILE','GITHUB','brPublicPlayerStatus');
-   if(['welcome','about','universe','games','moon','gate'].includes(current)||(current==='radio'&&window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY?.())){
+   if(['welcome','about','universe','games','moon','gate'].includes(current)||(current==='radio'&&!window.GE_BACKROOM_ROUTER_DIRTY?.()&&window.GE_BACKROOM_ALBUM_LAYOUT_DIRTY?.())){
      if(typeof window.GE_BACKROOM_SAVE_PUBLIC_SETTINGS!=='function'){
        show('Website GitHub publisher did not initialize. Nothing saved.','error');return;
      }
@@ -102,6 +102,7 @@
      return;
    }
    if(current==='radio'){
+     if(window.GE_BACKROOM_ROUTER_DIRTY?.())return trigger('brRouteSave','FRONT / STORE / PLAYER / RADIO MUSIC','GITHUB','brRouteStatus');
      // The front/store/player/radio checkbox matrix is the default Radio job.
      // The existing advanced disclosures explicitly select a different save.
      if($('brRadioPlaylistTools')?.open)

@@ -56,22 +56,12 @@ html.ge-radio-ui body.view-ship #shipRightControls [data-proxy="shareBtn"]{
 html.ge-radio-ui body.view-ship #shipRightControls #shipHideControl{
   grid-row:6!important;
 }
-/* The blue sun remains the existing image. This ring reuses the verified EQ
-   bins, and shows a dim outline instead of faking audio when no signal exists. */
-#shipPlanetLayer #shipSunEQHalo{
-  position:absolute;z-index:0;left:50%;top:10.5%;width:18.5%;aspect-ratio:1;
-  transform:translateX(-50%) scale(var(--ship-planet-zoom));
-  transform-origin:50% 50%;overflow:visible;pointer-events:none;
-  opacity:.92;filter:drop-shadow(0 0 5px rgba(46,187,255,.75));
+/* Ship View uses the same live effect nodes and profiles as Player View.
+   Match the actual transformed Sun bounds, without scaling the canvas twice. */
+#shipPlanetLayer #shipSunEffectAnchor{
+ position:absolute;z-index:0;overflow:visible;pointer-events:none;isolation:isolate;
 }
-#shipPlanetLayer #shipSunEQHalo svg{
-  width:100%;height:100%;overflow:visible;display:block;
-}
-#shipPlanetLayer #shipSunEQHalo .ship-sun-eq-bar{
-  stroke:rgba(86,218,255,.94);stroke-width:3.3;stroke-linecap:round;
-  pointer-events:none;
-}
-#shipPlanetLayer #shipLogo{z-index:1}
+#shipPlanetLayer #shipLogo{z-index:4}
 /* Keep the title within its central header. On a phone landscape, CSS viewport
    width is not enough to judge font size because Safari can use desktop metrics. */
 html.ge-radio-ui body.view-ship #shipTrackTitle{
@@ -88,6 +78,7 @@ html.ge-radio-ui body.view-ship #shipStage{
 }
 html.ge-radio-ui body.view-ship #shipStage .ship-side > :is(button,#shipHideControl){
   box-sizing:border-box!important;min-width:0!important;min-height:0!important;
+  display:flex;align-items:center;justify-content:center;text-align:center;
   padding:1px 2px!important;line-height:1.05!important;
   letter-spacing:0!important;overflow:hidden!important;
   font-size:clamp(8px,1.45cqw,16px)!important;

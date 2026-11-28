@@ -362,7 +362,7 @@ async function save(){
   storeSongPaths:[...now.storeSongPaths],playerSongPaths:[...now.playerSongPaths],
   radioSongPaths,assignments:{...assignments}};
  if(!routing.radioSongPaths.length){status('NOT SAVED · Retain at least one RADIO track.');return;}
- if(!confirm('PUBLISH FRONT / STORE / PLAYER / RADIO CHECKBOXES?\n\nThis changes public music routing in one GitHub commit. It does not change payments or the live BLITZ DJ queue.'))return;
+ if(!confirm('PUBLISH FRONT / STORE / PLAYER / RADIO CHECKBOXES?\n\nThis changes public music routing and the website Radio rotation in one GitHub commit. It does not change payments or the separate legacy BLITZ DJ queue.'))return;
  busy=true;$('brRouteSave').disabled=true;status('SAVING ALL MUSIC DESTINATIONS…');
  try{
   const result=await ownerApi('POST',{action:'save_catalog_routing',routing,expectedRouting:expected,playlistRevision});
@@ -463,6 +463,7 @@ window.GE_BACKROOM_TAB_SELECTED=tab=>{
  if(tab==='radio'&&token()&&(!loaded||!changed()))void load(true);
 };
 window.GE_BACKROOM_ROUTER_LOAD=()=>{if(token()&&!loaded)void load()};
+window.GE_BACKROOM_ROUTER_DIRTY=changed;
 setView('all');
 // The Back Room boot callback can execute before this deferred script mounts.
 // Loading here also restores RADIO directly after login on an already-active tab.

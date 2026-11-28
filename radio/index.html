@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded',function(){
            stays above them and retains its original arrival/message behavior. -->
       <div id="shipAlbumPlanetLayer" aria-hidden="true"></div>
       <div id="shipPlanetLayer" aria-hidden="true">
-        <div id="shipSunEQHalo"><svg viewBox="0 0 240 240" aria-hidden="true"><g id="shipSunEQHaloBars"></g></svg></div>
+        <div id="shipSunEffectAnchor" aria-hidden="true"><span id="shipSunEffectEnd"></span></div>
         <img id="shipLogo" alt="Grand Element">
       </div>
       <div id="shipWarpLayer" aria-hidden="true"></div>
@@ -857,7 +857,7 @@ document.addEventListener('DOMContentLoaded',function(){
       </section>
       <div class="sunlab-checks"><label id="slRadialOnWrap"><input id="slRadialOn" type="checkbox" checked><span class="sunlab-checktext"><span id="slRadialOnLabel">Radial Outward</span><small id="slRadialOnHelp">The current sun pulse that expands away from the sun.</small></span></label><label id="slCascadeOnWrap"><input id="slCascadeOn" type="checkbox"><span class="sunlab-checktext"><span>Radial Waterfall</span><small>Copies each music snapshot and sends it outward along the spokes in order.</small></span></label><label id="slGlowOnlyWrap"><input id="slGlowOnly" type="checkbox"><span class="sunlab-checktext"><span>Glow Only</span><small>Hide the visible bars and keep only the glow, fog, and residue.</small></span></label></div>
       <div class="sunlab-row"><label for="slCascadeSpeed">Radial Waterfall Speed</label><output id="slCascadeSpeedVal"></output><input id="slCascadeSpeed" type="range" min="0" max="100" step="1" value="58"><small>Higher values push each pulse down the spokes faster like a falling light trail.</small></div>
-      <div class="sunlab-row"><label for="slPosition">Position / Origin</label><output id="slPositionVal"></output><input id="slPosition" type="range" min="-30" max="30" step="1" value="0"><small>Move the effect starting radius inward or outward.</small></div>
+      <div class="sunlab-row sunlab-public-control"><label for="slPosition">Position / Origin</label><output id="slPositionVal"></output><input id="slPosition" type="range" min="-30" max="30" step="1" value="0"><small>Move the effect starting radius inward or outward.</small></div>
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
       <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
       <div class="sunlab-row"><label for="slGap">Wave Gap</label><output id="slGapVal"></output><input id="slGap" type="range" min="0" max="85" step="1" value="0"><small>Zero means continuous. Increase to add transparent spacing between waves.</small></div>
@@ -2406,7 +2406,7 @@ function updateRadioStartupCue(){
     // RADIO always keeps its visible label; ON/OFF is conveyed by red color.
     const label=button.querySelector('.ge-radio-control-label');
     if(label&&label.textContent!=='RADIO')label.textContent='RADIO';
-    const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
+    const source=radio2.active?(radio2.kind==='master'?'GE Radio':radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
     button.setAttribute('aria-label',connected?'Stop '+source:'Play '+source);
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
   }
@@ -2626,7 +2626,7 @@ function clearRadio1Retry(){
 }
 const RADIO2_PROGRAM='https://ge-radio-sync.grandelement.workers.dev/v1/program';
 const radio2={active:false,loading:false,program:null,kind:'',offset:0,index:-1,url:'',title:'',attempt:0,run:0,retryTimer:0};
-function radio2Label(){return radio2.kind==='bangers'?'Bangers':'GE backup rotation';}
+function radio2Label(){return radio2.kind==='master'?'GE Radio':radio2.kind==='bangers'?'Bangers':'GE backup rotation';}
 function radio2Current(){
   const p=radio2.program;if(!p||!Array.isArray(p.tracks)||!p.tracks.length)return null;
   let position=(Date.now()+radio2.offset-Number(p.epoch_utc_ms))%Number(p.cycle_duration_ms);
@@ -2647,7 +2647,8 @@ function radio2ValidTrack(track){
 }
 function radio2ProgramKind(program){
   const name=String(program?.playlist_name||'').trim().toLowerCase();
-  if(name==='bangers')return 'bangers';
+  if(name==='ge radio'&&program?.playlist_id==='radio-master')return 'master';
+  if(name==='bangers')return 'bangers'; // Legacy external DJ compatibility only.
   // The 50-track clock actually deployed to Radio 2 has no playlist name.
   // This immutable source-specific hash identifies THAT existing public
   // backup rotation. Never misrepresent it as the private Bangers playlist.
@@ -2655,7 +2656,7 @@ function radio2ProgramKind(program){
       program?.tracks?.length===50)return 'backup';
   return '';
 }
-const GE_STATIC_REGISTRY='../playlists/registry.json';
+const GE_STATIC_SETTINGS='../config/site-live.json';
 const GE_STATIC_DURATIONS='./track-durations.json';
 let geStaticProgram=null,geStaticLoading=null;
 let geRadioStandbyProofUntil=0,geRadioStandbyProbe=null,geRadioStandbyPulseTimer=0,geRadioStandbyEndTimer=0;
@@ -2696,42 +2697,48 @@ async function verifyRadioStandby(){
  })();
  try{await geRadioStandbyProbe;}finally{geRadioStandbyProbe=null;}
 }
-// Public, unlisted Bangers contains the exact owner-approved song order.
-// The duration catalog is measured by ffprobe during publishing.
-async function fetchStaticBangers(){
- const [rr,dr]=await Promise.all([
-  fetch(GE_STATIC_REGISTRY,{cache:'no-store'}),
+// Radio plays the owner-published master approvals, not a named DJ playlist.
+// The same-origin measured audio clock requires no BLITZ runtime or deploy.
+async function fetchStaticRadioMaster(){
+ const [sr,dr]=await Promise.all([
+  fetch(GE_STATIC_SETTINGS+'?radio-master='+Date.now(),{cache:'no-store'}),
   fetch(GE_STATIC_DURATIONS,{cache:'no-store'})
  ]);
- if(!rr.ok||!dr.ok)throw Error('Bangers playlist or duration file unavailable');
- const [registry,durations]=await Promise.all([rr.json(),dr.json()]);
- const bangers=Array.isArray(registry?.playlists)?
-   registry.playlists.find(p=>String(p?.name||'').toLowerCase()==='bangers'):null;
- const measured=new Map((Array.isArray(durations?.tracks)?durations.tracks:[])
-   .filter(t=>t?.kind==='song'&&Number(t.duration_ms)>1000)
-   .map(t=>[String(t.path),t]));
- if(!bangers||!Array.isArray(bangers.songs)||bangers.songs.length<3)
-  throw Error('Bangers is not in the published playlist registry');
- const tracks=bangers.songs.map(path=>{
+ if(!sr.ok||!dr.ok)throw Error('Radio master settings or duration file unavailable');
+ const [settings,durations]=await Promise.all([sr.json(),dr.json()]);
+ const music=settings?.music||{};
+ let paths=music.radioMasterSongPaths;
+ const assigned=String(music.catalogRouting?.assignments?.radio||'');
+ if(assigned&&assigned!=='@all'){
+  const response=await fetch('../playlists/registry.json?radio_assignment='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('Assigned Radio playlist unavailable');
+  const resolved=window.GEMusicRouting?.resolve({radioSongPaths:paths,assignments:{radio:assigned}},await response.json());
+  if(!resolved||resolved.missing.length)throw Error('Assigned Radio playlist unavailable');
+  paths=resolved.routing.radioSongPaths;
+ }
+ if(!Array.isArray(paths)||!paths.length||new Set(paths).size!==paths.length)
+  throw Error('Radio master selections are missing or invalid');
+ const measured=new Map((durations?.tracks||[]).filter(t=>t?.kind==='song'&&Number(t.duration_ms)>1000).map(t=>[t.path,t]));
+ const tracks=paths.map(path=>{
   const entry=measured.get(path);
-  if(!entry)throw Error('Bangers requires measured audio for '+String(path).split('/').pop());
-  return {path,url:'/'+String(path).split('/').map(encodeURIComponent).join('/'),
-    title:entry.title,album:entry.album,duration_ms:Number(entry.duration_ms),kind:'song'};
+  if(!entry)throw Error('Radio requires measured audio for '+String(path).split('/').pop());
+  return {path,url:'/'+String(path).split('/').map(encodeURIComponent).join('/'),title:entry.title,album:entry.album,duration_ms:Number(entry.duration_ms),kind:'song'};
  });
- const cycle=tracks.reduce((total,track)=>total+track.duration_ms,0);
- if(!Number.isSafeInteger(cycle)||cycle<10000||!tracks.every(radio2ValidTrack))
-   throw Error('Bangers has an invalid audio path or schedule duration');
- return {format:'ge-radio-clock-v1',playlist_name:'Bangers',
-   playlist_id:String(bangers.id),playlist_hash:'ge-static-bangers-v1',
-   epoch_utc_ms:1767225600000,cycle_duration_ms:cycle,tracks};
+ const cycle=tracks.reduce((total,t)=>total+t.duration_ms,0);
+ if(!Number.isSafeInteger(cycle)||cycle<=0||!tracks.every(radio2ValidTrack))
+  throw Error('Invalid Radio master clock');
+ return {format:'ge-radio-clock-v1',playlist_name:'GE Radio',playlist_id:'radio-master',
+  playlist_hash:'ge-radio-master-'+(Number(music.radioMasterRevision)||0),
+  epoch_utc_ms:1767225600000,cycle_duration_ms:cycle,tracks};
 }
 async function preloadStaticRadio(){
  if(geStaticProgram)return geStaticProgram;
  if(geStaticLoading)return geStaticLoading;
  geStaticLoading=(async()=>{
-  try{geStaticProgram=await fetchStaticBangers();return geStaticProgram}
+  try{geStaticProgram=await fetchStaticRadioMaster();return geStaticProgram}
   catch(error){
-   console.warn('GE Bangers local clock failed; checking same-origin backup',error);
+   console.warn('GE Radio master clock failed',error);
+    if(GE_STATIC_RADIO_PRIMARY)return null; // Never substitute an unapproved song list.
    try{
     const response=await fetch('./sync-playlist.json',{cache:'no-store'});
     if(!response.ok)throw Error('Backup clock HTTP '+response.status);
@@ -2755,7 +2762,7 @@ function staticRadioBegin(program,shouldPlay){
  radio2.offset=0;radio2.active=true;radio2.loading=false;
  state.live=true;state.livePreparing=false;
  syncModeButtons();updateRadioStartupCue();
- setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+
+ setLiveStatus((radio2.kind==='master'?'GE RADIO':radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+
    (shouldPlay?' · CONNECTING…':' · READY · TAP RADIO TO PLAY'));
  if(shouldPlay)radio2PlayCurrent();
 }
@@ -2782,7 +2789,7 @@ function startStaticRadio({deferPlay=false,userGesture=false}={}){
  }
  if(radio2.loading)return geStaticLoading||Promise.resolve();
  radio2.loading=true;const run=++radio2.run;
- setLiveStatus('GE RADIO · LOADING BANGERS…');
+ setLiveStatus('GE RADIO · LOADING APPROVED SONGS…');
  return preloadStaticRadio().then(program=>{
   if(run!==radio2.run||!state.live)return;
   radio2.loading=false;
@@ -2815,7 +2822,7 @@ function radio2PlayCurrent({forceReload=false}={}){
     try{window.GEVault?.setTrackMetadata?.(audio,{
       track_id:slot.track.path||url,title:radio2.title,
       album:slot.track.album||'',artist:'Grand Element',
-      source:GE_STATIC_RADIO_PRIMARY?'ge-static-bangers-clock':'ge-radio2-backup',live:true
+      source:GE_STATIC_RADIO_PRIMARY?'ge-static-radio-master-clock':'ge-radio2-backup',live:true
     });}catch(_e){}
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
@@ -4983,7 +4990,7 @@ audio.addEventListener('timeupdate',()=>{
       refreshLoveButton();
       setLiveMediaSession();
       syncMainTransport();
-      setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+' · CONNECTED');
+      setLiveStatus((radio2.kind==='master'?'GE RADIO':radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+' · CONNECTED');
       setStatus('Grand Element Radio · local synchronized playlist active');
       updateRadioStartupCue();
       }
@@ -5036,7 +5043,7 @@ setInterval(()=>{
   if(radio2.active){
    if(observedRadio2Progress&&Date.now()-lastRadio2Progress>6000){
     observedRadio2Progress=false;updateRadioStartupCue();
-    setLiveStatus('BANGERS · AUDIO STALLED · RECONNECTING');
+    setLiveStatus('GE RADIO · AUDIO STALLED · RECONNECTING');
     radio2PlayCurrent({forceReload:true});
    }
   }else if(observedRadio1Progress&&Date.now()-lastRadio1Progress>6000){
@@ -5424,7 +5431,13 @@ window.addEventListener('online',()=>{
   function syncHiddenSunEffects(){
     const body=document.body;
     const floating=body.classList.contains('view-player')&&body.classList.contains('hud-hidden')&&!body.classList.contains('iam-studio-open');
-    const target=floating?floatingSun:normalSun,anchor=floating?floatingSunImg:sunArt;
+    const ship=body.classList.contains('view-ship')&&!body.classList.contains('iam-studio-open');
+    const target=ship?$('shipSunEffectAnchor'):floating?floatingSun:normalSun;
+    const anchor=ship?$('shipSunEffectEnd'):floating?floatingSunImg:sunArt;
+    if(ship&&target){
+      const rect=$('shipLogo')?.getBoundingClientRect(),parent=target.parentElement?.getBoundingClientRect();
+      if(rect&&parent&&rect.width>0){Object.assign(target.style,{left:(rect.left-parent.left)+'px',top:(rect.top-parent.top)+'px',width:rect.width+'px',height:rect.height+'px'});}
+    }
     if(!target||!anchor)return;
     for(const layer of effectLayers){
       if(layer.parentNode===target)continue;
@@ -5549,7 +5562,7 @@ window.addEventListener('online',()=>{
     if(shouldAutoHide&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();
   },1000);
   syncChecks();
-  window.GEHUD={show,hide:hideNow,sunActivity,pinSun,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
+  window.GEHUD={show,hide:hideNow,sunActivity,pinSun,syncEffects:syncHiddenSunEffects,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
 })();;
 
 
@@ -5952,7 +5965,7 @@ async function registerServiceWorker(){
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:90,dynamics:105,brightness:160,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{"waveType":"spectrum","effectTransparency":22,"position":-21,"distance":220,"thickness":30,"contrast":115,"dynamics":380,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":43,"mid":43,"treble":111,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":0,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":6,"spectrumGain":76,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171,"gap":0},
+    spectrum:{"waveType":"spectrum","effectTransparency":22,"position":-2,"distance":220,"thickness":30,"contrast":115,"dynamics":380,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":43,"mid":43,"treble":111,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":0,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":6,"spectrumGain":76,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171,"gap":0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
     glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:140,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:140,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
@@ -5961,7 +5974,7 @@ async function registerServiceWorker(){
     pulse:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-160,thickness:105,dynamics:210,brightness:160,bass:190,mid:85,treble:50,compression:0,smoothing:6,hue:0},
     ripples:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:true,cascadeSpeed:28,distance:120,thickness:25,contrast:115,dynamics:190,mist:18,brightness:145,bass:145,mid:115,treble:45},
     orbit:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:23,spectrumGain:145,bandColorMix:95,lowHue:193,midHue:261,highHue:330,distance:-240,thickness:18,contrast:140,dynamics:145,brightness:155,bass:70,mid:165,treble:180,compression:30,smoothing:28},
-    aurora:{"waveType":"aurora","position":2,"distance":220,"thickness":136,"contrast":153,"dynamics":175,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":200,"mid":188,"treble":159,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":21,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":11,"spectrumGain":118,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171}
+    aurora:{"waveType":"aurora","position":-10,"distance":220,"thickness":136,"contrast":153,"dynamics":175,"glow":0,"mist":0,"blueDepth":177,"outerFade":68,"tipWhite":0,"brightness":155,"hue":1,"hueMix":0,"altHue":-17,"bass":200,"mid":188,"treble":159,"compression":51,"smoothing":0,"pulseDepth":98,"pulseSensitivity":21,"pulseAttack":100,"pulseRelease":100,"pulseNoiseFloor":8,"radialOn":true,"cascadeOn":false,"cascadeSpeed":58,"glowOnly":false,"spectrumSpeed":11,"spectrumGain":118,"bandColorMix":42,"lowHue":255,"midHue":220,"highHue":171}
   };
   let sunLab={...SUN_MODE_DEFAULTS.spectrum},sunLabEditMode=null,sunModeProfiles={};
   let publishedSunEQ=null,sunEQDraft=false,sunEQWasEditor=false;
@@ -6100,32 +6113,35 @@ async function registerServiceWorker(){
       return true;
     }catch(_){return false;}
   }
-  const SUN_PUBLIC_KEYS={slSpectrumSpeed:'spectrumSpeed',slEffectTransparency:'effectTransparency',slHue:'hueOffset'};
+  const SUN_PUBLIC_KEYS={slSpectrumSpeed:'spectrumSpeed',slEffectTransparency:'effectTransparency',slHue:'hueOffset',slPosition:'position'};
   const SUN_PUBLIC_PREF_KEY='GE_SUN_PUBLIC_EFFECTS_V1';
   const sunPublicPrefs={};
   const publicSunMode=mode=>mode==='spectrum'||mode==='aurora';
+  const publicSunKey=(mode,key)=>!!SUN_MODE_WAVE[mode]&&(key==='effectTransparency'||(publicSunMode(mode)&&['spectrumSpeed','hueOffset','position'].includes(key)));
   function readSunPublicValue(mode,key,base){
     const saved=sunPublicPrefs[mode]?.[key];
     return Number.isFinite(saved)?saved:key==='hueOffset'?0:base;
   }
   try{
     const saved=JSON.parse(localStorage.getItem(SUN_PUBLIC_PREF_KEY)||'{}');
-    for(const mode of ['spectrum','aurora'])for(const [key,min,max] of [['spectrumSpeed',1,100],['effectTransparency',0,100],['hueOffset',-180,180]]){
+    for(const mode of Object.keys(SUN_MODE_WAVE))for(const [key,min,max] of [['spectrumSpeed',1,100],['effectTransparency',0,100],['hueOffset',-180,180],['position',-30,30]]){
+      if(!publicSunKey(mode,key))continue;
       const value=saved?.[mode]?.[key];if(Number.isFinite(value))(sunPublicPrefs[mode]??={})[key]=clamp(value,min,max);
     }
   }catch(_){}
   function saveSunPublicValue(mode,key,value){
-    if(!publicSunMode(mode)||!Object.values(SUN_PUBLIC_KEYS).includes(key)||!Number.isFinite(value))return;
+    if(!publicSunKey(mode,key)||!Number.isFinite(value))return;
     (sunPublicPrefs[mode]??={})[key]=value;
     try{localStorage.setItem(SUN_PUBLIC_PREF_KEY,JSON.stringify(sunPublicPrefs));}catch(_){}
   }
-  function publicSunControl(id,mode=sunLabEditMode){return publicSunMode(mode)&&Object.hasOwn(SUN_PUBLIC_KEYS,id)&&(id==='slHue'||!geRadioSunLabPrivateAllowed());}
+  function publicSunControl(id,mode=sunLabEditMode){return Object.hasOwn(SUN_PUBLIC_KEYS,id)&&publicSunKey(mode,SUN_PUBLIC_KEYS[id])&&(id==='slHue'||!geRadioSunLabPrivateAllowed());}
   function effectiveSunProfile(mode,profile){
-    if(!publicSunMode(mode))return profile;
     const local=geRadioSunLabPrivateAllowed()?{}:sunPublicPrefs[mode]||{};
+    const result={...profile,...(Number.isFinite(local.effectTransparency)?{effectTransparency:local.effectTransparency}:{})};
+    if(!publicSunMode(mode))return result;
     const hue=readSunPublicValue(mode,'hueOffset',0);
     const color=key=>((Number(profile[key])+hue)%360+360)%360;
-    return {...profile,...(Number.isFinite(local.spectrumSpeed)?{spectrumSpeed:local.spectrumSpeed}:{}),...(Number.isFinite(local.effectTransparency)?{effectTransparency:local.effectTransparency}:{}),lowHue:color('lowHue'),midHue:color('midHue'),highHue:color('highHue')};
+    return {...result,...(Number.isFinite(local.spectrumSpeed)?{spectrumSpeed:local.spectrumSpeed}:{}),...(Number.isFinite(local.position)?{position:local.position}:{}),lowHue:color('lowHue'),midHue:color('midHue'),highHue:color('highHue')};
   }
   function validSunMode(mode){return Object.hasOwn(SUN_MODE_WAVE,mode);}
   function sunModePreference(){try{return localStorage.getItem(SUN_MODE_SELECTED_KEY)}catch(_){return null}}
@@ -6322,16 +6338,15 @@ async function registerServiceWorker(){
     syncSpectrumSizeControl(mode);
     grid?.classList.toggle('no-mode',!mode);
     syncSunEnabledUI();
-    if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+' · personal speed, transparency and hue'):'Choose an effect.';
+    if(hint)hint.textContent=mode?(geRadioSunLabPrivateAllowed()?modeLabel(mode)+' advanced controls':modeLabel(mode)+(publicSunMode(mode)?' · personal speed, position, transparency and hue':' · personal transparency')):'Choose an effect.';
     // Public EQ presets are always usable when the public profile permits Sun Lab.
     // Only a VERIFIED Vault code with the sunlab scope unlocks the full variables.
     const publicOnly=!geRadioSunLabPrivateAllowed();
     const baseControls=mode&&!publicOnly?(SUN_MODE_CONTROLS[mode]||[]):[];
     const pulseControls=mode&&!publicOnly&&mode!=='spectrum'&&mode!=='aurora'?['slPulseDepth','slPulseSensitivity','slPulseAttack','slPulseRelease','slPulseNoiseFloor']:[];
     const ids=new Set([...baseControls,...pulseControls]);
-    if(publicSunMode(mode))for(const id of Object.keys(SUN_PUBLIC_KEYS))ids.add(id);
-    if(!publicOnly&&mode)ids.add('slEffectTransparency');
-    if(publicOnly&&publicSunMode(mode)&&grid)grid.hidden=false;
+    if(mode)for(const [id,key] of Object.entries(SUN_PUBLIC_KEYS))if(publicSunKey(mode,key))ids.add(id);
+    if(publicOnly&&mode&&grid)grid.hidden=false;
     if(!publicOnly&&mode&&SUN_MODE_WAVE[mode]!=='glow')ids.add('slPosition');
     document.querySelectorAll('#sunLabGrid .sunlab-row').forEach(row=>row.style.display='none');
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
@@ -6593,7 +6608,7 @@ async function registerServiceWorker(){
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
-      sunLabReset?.addEventListener('click',()=>{if(!geRadioSunLabPrivateAllowed())return;if(!sunLabEditMode){setStatus('Choose an effect first.');return;}recordSunUndo();if(publicSunMode(sunLabEditMode)){delete sunPublicPrefs[sunLabEditMode];try{localStorage.setItem(SUN_PUBLIC_PREF_KEY,JSON.stringify(sunPublicPrefs));}catch(_){}}sunLab=normalizedSunProfile(sunLabEditMode,publicSunMode(sunLabEditMode)?null:publishedSunEQ?.profiles?.[sunLabEditMode]);sunEQDraft=true;sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
+      sunLabReset?.addEventListener('click',()=>{if(!geRadioSunLabPrivateAllowed())return;if(!sunLabEditMode){setStatus('Choose an effect first.');return;}recordSunUndo();if(sunLabEditMode){delete sunPublicPrefs[sunLabEditMode];try{localStorage.setItem(SUN_PUBLIC_PREF_KEY,JSON.stringify(sunPublicPrefs));}catch(_){}}sunLab=normalizedSunProfile(sunLabEditMode,publicSunMode(sunLabEditMode)?null:publishedSunEQ?.profiles?.[sunLabEditMode]);sunEQDraft=true;sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
   function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,28000000,Math.pow(1-approach.distance,3.1))));}
@@ -7177,21 +7192,6 @@ Vector ${vector}. ${pair[1]}.`;
   };
   window.GERandomizeSunEQMap=randomizeSunEQMap;
   const eqRingLines=$('shipEQOrbLines'),eqRingStatus=$('shipEQOrbStatus');
-  const shipHaloBars=$('shipSunEQHaloBars');
-  if(shipHaloBars&&!shipHaloBars.childElementCount){
-    const ns='http://www.w3.org/2000/svg';
-    for(let i=0;i<48;i++){
-      const bar=document.createElementNS(ns,'line'),angle=i/48*Math.PI*2-Math.PI/2;
-      const ux=Math.cos(angle),uy=Math.sin(angle);
-      bar.setAttribute('x1',(120+ux*115).toFixed(2));
-      bar.setAttribute('y1',(120+uy*115).toFixed(2));
-      bar.setAttribute('x2',(120+ux*137).toFixed(2));
-      bar.setAttribute('y2',(120+uy*137).toFixed(2));
-      bar.setAttribute('class','ship-sun-eq-bar');
-      shipHaloBars.append(bar);
-    }
-  }
-  const shipHaloLines=shipHaloBars?[...shipHaloBars.children]:[];
   if(eqRingLines&&!eqRingLines.childElementCount){
     const ns='http://www.w3.org/2000/svg';
     for(let i=0;i<64;i++){
@@ -7810,6 +7810,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function updateSunEQ(live){
     if(!sunAuraRoot||!sunFogRoot)return;
+    window.GEHUD?.syncEffects();
     const editor=sunLab,raw=eqData,editorReach=spectrumSize,previous=captureSunRenderState();
     const on=sunEnabledModes.size>0&&window.GELiveAudioEQ?.isEnabled?.()!==false;
     sunAuraRoot.style.opacity=sunFogRoot.style.opacity=on?'1':'0';
@@ -8207,7 +8208,6 @@ Vector ${vector}. ${pair[1]}.`;
   function updateEQ(){
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     const effectsOn=window.GELiveAudioEQ?.isEnabled?.()!==false;
-    const halo=$('shipSunEQHalo');if(halo)halo.style.visibility=effectsOn?'visible':'hidden';
     if(!effectsOn){updateRadioBroadcastR21(null);eqMessage('MUSIC EQ · OFF');updateSunEQ(false);return;}
     let live=false,rawLayout='unknown';
     const inlinePlaying=geInlineMusicActive&&!geInlineMusicPaused;
@@ -8287,14 +8287,6 @@ Vector ${vector}. ${pair[1]}.`;
     }
     // Use the existing measured live spectrum, never a second audio graph or
     // synthetic playback levels. A faint ring remains visible while paused.
-    for(let i=0;i<shipHaloLines.length;i++){
-      const line=shipHaloLines[i],level=bandLevel(i,shipHaloLines.length);
-      const angle=i/shipHaloLines.length*Math.PI*2-Math.PI/2;
-      const radius=136+Math.pow(level,.7)*31,ux=Math.cos(angle),uy=Math.sin(angle);
-      line.setAttribute('x2',(120+ux*radius).toFixed(2));
-      line.setAttribute('y2',(120+uy*radius).toFixed(2));
-      line.style.strokeOpacity=live?String((.48+level*.52).toFixed(2)):'.22';
-    }
     if(eqRingLines){
       const strokes=[...eqRingLines.children];
       strokes.forEach((line,i)=>{
@@ -10342,7 +10334,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
 
 <link rel="stylesheet" href="./radio-layout.css?v=20261127-radio53-consolidated-v3" data-ge-css="layout">
-<link rel="stylesheet" href="./ship-control-repair.css?v=20261125-rotation-v1" data-ge-css="ship-repair">
+<link rel="stylesheet" href="./ship-control-repair.css?v=20261128-radio54-shared-effects" data-ge-css="ship-repair">
 <link rel="stylesheet" href="./player-button-effects.css?v=20261119-radio-clean-21fc780" data-ge-css="player-button-effects">
 <link rel="stylesheet" href="./sun-lab-transparency.css?v=20261126-solid-radio-v3" data-ge-css="sun-lab-transparency">
 
